@@ -1,3 +1,5 @@
+export type GradeName = 'natural' | 'cinematic' | 'warm' | 'cool' | 'noir' | 'dream'
+
 export interface ScapeConfig {
   seed:    number
   terrain: {
@@ -16,6 +18,27 @@ export interface ScapeConfig {
     maxViewSize: number
     tilt:        number
     rotation:    number
+  }
+  atmosphere: {
+    fogDensity:   number
+    fogBreath:    number
+    mistAmount:   number
+    mistWind:     number
+    skyTop:       number
+    sunColor:     number
+    sunStrength:  number
+    sunDirection: readonly [number, number, number]
+    hemiSky:      number
+    hemiGround:   number
+    hemiStrength: number
+  }
+  look: {
+    grade:     GradeName
+    intensity: number
+    vignette:  number
+    grain:     number
+    bloom:     number
+    tiltShift: number
   }
   palette: {
     sky:      number
@@ -47,6 +70,27 @@ export const SCAPE_CONFIG = {
     maxViewSize: 92,
     tilt:        30,
     rotation:    45,
+  },
+  atmosphere: {
+    fogDensity:   0.52,
+    fogBreath:    0.08,
+    mistAmount:   0.42,
+    mistWind:     0.36,
+    skyTop:       0x647c86,
+    sunColor:     0xffdda0,
+    sunStrength:  2.65,
+    sunDirection: [ -0.5, 0.76, -0.42 ],
+    hemiSky:      0xcbd3c1,
+    hemiGround:   0x454633,
+    hemiStrength: 0.68,
+  },
+  look: {
+    grade:     'cinematic',
+    intensity: 0.82,
+    vignette:  0.34,
+    grain:     0.16,
+    bloom:     0.48,
+    tiltShift: 0.88,
   },
   palette: {
     sky:      0xc9b98c,

@@ -4,7 +4,6 @@ import {
   ConeGeometry,
   CylinderGeometry,
   DodecahedronGeometry,
-  Fog,
   Group,
   InstancedMesh,
   Matrix4,
@@ -15,7 +14,7 @@ import {
   StaticDrawUsage,
   Vector3,
 } from 'three'
-import type { Material, Object3D, Scene } from 'three'
+import type { Material, Object3D } from 'three'
 import { createSeededRng, defineModule } from 'threejs-scene'
 import type { AppModule } from 'threejs-scene'
 import type { ScapeConfig } from './config.ts'
@@ -203,9 +202,7 @@ function disposeRoot (root: Group): void {
 
 export function createLandscape (config: ScapeConfig): Landscape {
   const surfaces: Object3D[] = []
-  let root: Group | null       = null
-  let ownerScene: Scene | null = null
-  let sceneFog: Fog | null     = null
+  let root: Group | null = null
 
   const heightAt = (x: number, z: number): number =>
     sampleHeight(x, z, config.seed, config.terrain.height)
@@ -215,7 +212,6 @@ export function createLandscape (config: ScapeConfig): Landscape {
 
     build (ctx) {
       root = new Group()
-      ownerScene = ctx.scene
       root.name = 'isometric-scape'
 
       const terrain = createTerrain(config)
@@ -226,8 +222,6 @@ export function createLandscape (config: ScapeConfig): Landscape {
       createTrees(config, root, heightAt, config.seed ^ 0x7a31)
       createRocks(config, root, heightAt, config.seed ^ 0xb40d)
 
-      sceneFog = new Fog(config.palette.fog, 64, 144)
-      ctx.scene.fog = sceneFog
       ctx.scene.add(root)
     },
 
@@ -236,11 +230,7 @@ export function createLandscape (config: ScapeConfig): Landscape {
         root.removeFromParent()
         disposeRoot(root)
       }
-      if (ownerScene?.fog === sceneFog)
-        ownerScene.fog = null
       surfaces.length = 0
-      sceneFog = null
-      ownerScene = null
       root = null
     },
   })

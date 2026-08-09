@@ -24,6 +24,9 @@ bun run preview
 ## what is included
 
 - a deterministic procedural heightfield with editable seed, scale, waterline, and palette
+- view-reactive linear fog, a matching gradient sky, and deterministic drifting ground mist
+- a configurable 3d-lut grade with vignette, miniature tilt-shift, desktop bloom, and film grain
+- mobile and desktop atmosphere budgets selected from pointer, viewport, and pixel-density signals
 - one terrain draw, one water draw, two instanced tree draws, and one instanced rock draw
 - an orthographic dimetric camera built with `threejs-scene`
 - click or tap focus with an eased landing and automatic revolution
@@ -43,11 +46,13 @@ the intended first edit is [`src/scene/config.ts`](src/scene/config.ts). `scape_
 - terrain extent, resolution, amplitude, and waterline
 - tree and rock instance budgets
 - initial camera framing and zoom limits
+- fog density and breathing, mist amount and wind, sky gradient, and the complete light rig
+- lut recipe, grade strength, vignette, grain, bloom, and tilt-shift strength
 - the complete scene palette
 
 terrain generation lives in [`src/scene/noise.ts`](src/scene/noise.ts). the sampler is pure: a coordinate, seed, and amplitude always produce the same height. that keeps surface geometry, raycast focus, and instance placement in agreement.
 
-[`src/scene/landscape.ts`](src/scene/landscape.ts) is the first feature module. add future systems as more `threejs-scene` modules and compose them in [`src/scene/create-isometric-scape.ts`](src/scene/create-isometric-scape.ts):
+[`src/scene/landscape.ts`](src/scene/landscape.ts) owns the physical scape. atmosphere is split into [`atmosphere.ts`](src/scene/atmosphere.ts), [`mist.ts`](src/scene/mist.ts), and [`post.ts`](src/scene/post.ts), so depth haze, transparent weather, and fullscreen optics each keep an independent gpu budget and disposal path. compose future systems in [`src/scene/create-isometric-scape.ts`](src/scene/create-isometric-scape.ts):
 
 ```ts
 const app = createApp(canvas, {
@@ -95,11 +100,16 @@ src/
 ├── main.ts                         browser entry and accessible status
 ├── style.css                      full-viewport responsive shell
 └── scene/
+    ├── atmosphere.ts               gradient sky, linear fog, sun and fill rig
     ├── camera-controls.ts          pointer, touch, keyboard, focus, orbit
     ├── config.ts                   starter’s public tuning surface
     ├── create-isometric-scape.ts   app/module composition root
     ├── landscape.ts                terrain, water, instanced dressing
-    └── noise.ts                    deterministic height sampler
+    ├── lut.ts                      cached cinematic colour-grade recipes
+    ├── mist.ts                     deterministic drifting ground-mist sheets
+    ├── noise.ts                    deterministic height sampler
+    ├── post.ts                     tilt-shift, vignette, lut, bloom and grain
+    └── quality.ts                  mobile/desktop gpu budgets
 ```
 
-the renderer is capped at a device pixel ratio of two, the scene uses one `createapp` render loop, pointer state is cancelled cleanly, and module disposal releases geometries and materials. those defaults matter more than squeezing another ornamental system into a starter, tragically enough~ n__n
+the renderer uses a device-tier pixel-ratio cap, the scene uses one `createapp` render loop, and the post module is the only frame renderer. pointer state is cancelled cleanly; teardown releases geometries, materials, sky and mist textures, composer targets, fullscreen passes, and every baked lut. those defaults matter more than squeezing another ornamental system into a starter, tragically enough~ n__n

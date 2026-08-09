@@ -1,9 +1,12 @@
 import { Vector3 } from 'three'
 import { aimIsoCamera, createApp, createIsoCamera } from 'threejs-scene'
-import { standardLighting } from 'threejs-scene/modules/lighting'
 import type { ScapeConfig } from './config.ts'
+import { createAtmosphereLayer } from './atmosphere.ts'
 import { createCameraControls } from './camera-controls.ts'
 import { createLandscape } from './landscape.ts'
+import { createMistLayer } from './mist.ts'
+import { createAtmospherePost } from './post.ts'
+import { detectAtmosphereQuality } from './quality.ts'
 
 
 export interface IsometricScape {
@@ -31,8 +34,17 @@ export function createIsometricScape (
   })
   aimIsoCamera(camera, { tilt: config.camera.tilt })
 
-  const landscape = createLandscape(config)
-  const controls  = createCameraControls({
+  const quality    = detectAtmosphereQuality()
+  const landscape  = createLandscape(config)
+  const atmosphere = createAtmosphereLayer({
+    camera,
+    config,
+    quality,
+    groundRadius: config.terrain.size * 0.8,
+  })
+  const mist     = createMistLayer({ camera, config, quality })
+  const post     = createAtmospherePost({ camera, config, quality })
+  const controls = createCameraControls({
     camera,
     canvas,
     landscape,
@@ -49,41 +61,24 @@ export function createIsometricScape (
     seed:     config.seed,
     camera,
     renderer: {
-      antialias:           true,
-      pixelRatioMax:       2,
+      antialias:           quality.antialias,
+      pixelRatioMax:       quality.pixelRatioMax,
       shadows:             true,
       toneMappingExposure: 0.92,
     },
-    scene: {
-      background: config.palette.sky,
-    },
     use: [
-      standardLighting({
-        sun: {
-          color:         0xffe4aa,
-          intensity:     2.7,
-          position:      [ -24, 36, -18 ],
-          shadowMapSize: 2048,
-          shadowFrustum: 48,
-          shadowFar:     120,
-        },
-        hemi: {
-          skyColor:    0xd9d8bd,
-          groundColor: 0x4c4936,
-          intensity:   0.65,
-        },
-        env: {
-          intensity: 0.72,
-        },
-      }),
       landscape.module,
       controls,
+      atmosphere,
+      mist,
+      post,
     ],
   })
 
   app.ctx.renderer.domElement.addEventListener('webglcontextlost', () => {
     app.stop()
   })
+  app.ctx.renderer.compile(app.ctx.scene, camera)
   app.start()
 
   return {
