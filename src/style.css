@@ -1,0 +1,177 @@
+:root {
+  color: #e9e9dd;
+  font-family: Sofia Pro, Poppins, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  background: #19182e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+main,
+.scape {
+  width: 100%;
+  min-width: 20rem;
+  height: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.scape {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 70% 18%, rgb(191 162 145 / 20%), transparent 32%),
+    #161814;
+}
+
+.scape::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background:
+    linear-gradient(to bottom, rgb(10 11 9 / 12%), transparent 24%, transparent 76%, rgb(7 9 7 / 34%)),
+    radial-gradient(circle at center, transparent 54%, rgb(7 9 7 / 34%));
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  outline: none;
+  touch-action: none;
+}
+
+canvas:active {
+  cursor: grabbing;
+}
+
+canvas:focus-visible {
+  outline: 0.1875rem solid #d9f18f;
+  outline-offset: -0.375rem;
+}
+
+.scape-card {
+  position: absolute;
+  z-index: 2;
+  top: max(1rem, env(safe-area-inset-top));
+  left: max(1rem, env(safe-area-inset-left));
+  width: min(29rem, calc(100% - 2rem));
+  padding: clamp(1rem, 2.2vw, 1.35rem);
+  border: 1px solid rgb(226 242 164 / 16%);
+  background: rgb(21 24 20 / 86%);
+  box-shadow: 0 1.5rem 4rem rgb(4 6 4 / 22%);
+  backdrop-filter: blur(0.5rem);
+}
+
+.scape-kicker,
+.scape-status {
+  color: #d9f18f;
+  font-weight: 700;
+  font-size: 0.7rem;
+  line-height: 1.2;
+  letter-spacing: 0.105rem;
+  text-transform: uppercase;
+}
+
+.scape-kicker {
+  margin: 0 0 0.8rem;
+}
+
+h1 {
+  margin: 0 0 0.8rem;
+  font-size: clamp(2rem, 4vw, 3.15rem);
+  line-height: 0.94;
+  letter-spacing: -0.12rem;
+}
+
+.scape-controls {
+  display: grid;
+  gap: 0.22rem;
+  margin: 0 0 0.9rem;
+  padding: 0;
+  color: rgb(233 233 221 / 72%);
+  font-size: clamp(0.72rem, 1.4vw, 0.82rem);
+  line-height: 1.42;
+  list-style: none;
+}
+
+.scape-status {
+  display: block;
+  min-height: 0.9rem;
+}
+
+.touch-help {
+  display: none;
+}
+
+noscript {
+  position: fixed;
+  z-index: 3;
+  inset: auto 1rem 1rem;
+  padding: 0.75rem;
+  color: #fff;
+  background: #531e1e;
+}
+
+@media (pointer: coarse) {
+  .pointer-help {
+    display: none;
+  }
+
+  .touch-help {
+    display: list-item;
+  }
+}
+
+@media (max-width: 40rem) {
+  .pointer-help,
+  .keyboard-help {
+    display: none;
+  }
+
+  .touch-help {
+    display: list-item;
+  }
+
+  .scape-card {
+    top: max(0.75rem, env(safe-area-inset-top));
+    left: max(0.75rem, env(safe-area-inset-left));
+    width: min(25rem, calc(100% - 1.5rem));
+    padding: 0.9rem 1rem;
+  }
+
+  .scape-kicker {
+    margin-bottom: 0.55rem;
+  }
+
+  h1 {
+    margin-bottom: 0.6rem;
+    font-size: 1.8rem;
+    letter-spacing: -0.07rem;
+  }
+
+  .scape-controls {
+    margin-bottom: 0.6rem;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .scape-card {
+    background: #151814;
+    backdrop-filter: none;
+  }
+}
