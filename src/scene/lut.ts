@@ -20,6 +20,7 @@ const RECIPES: Record<GradeName, GradeRecipe> = {
   cool:      { contrast: 1.12, splitTone: 0.35, saturation: 0.92, tint: '#7fa6d8', amount: 0.5, lift: 0.02 },
   noir:      { contrast: 1.32, splitTone: 0.15, saturation: 0.12, tint: '#ffffff', amount: 0, lift: 0.01 },
   dream:     { contrast: 0.9, splitTone: 0.5, saturation: 1.2, tint: '#c8a6e8', amount: 0.4, lift: 0.055 },
+  nordic:    { contrast: 1.14, splitTone: 0.62, saturation: 0.94, tint: '#9fb8c4', amount: 0.32, lift: 0.024 },
 }
 
 const LUT_SIZE = 33

@@ -1,8 +1,8 @@
-import { Raycaster, Vector2, Vector3 } from 'three'
+import { MathUtils, Raycaster, Vector2, Vector3 } from 'three'
 import type { OrthographicCamera } from 'three'
 import { aimIsoCamera, defineModule, resizeIsoCamera } from 'threejs-scene'
 import type { AppModule, FrameContext } from 'threejs-scene'
-import type { Landscape } from './landscape.ts'
+import type { Landscape } from './landscape/index.ts'
 
 
 interface CameraPose {
@@ -44,6 +44,7 @@ export interface CameraControlsOptions {
 const ROTATE_PER_PIXEL         = 0.32
 const TILT_PER_PIXEL           = 0.16
 const MIN_TILT                 = 18
+const WATER_CLEARANCE          = 4
 const MAX_TILT                 = 58
 const KEYBOARD_STEP            = 38
 const KEYBOARD_ZOOM            = 1.12
@@ -96,7 +97,8 @@ export function createCameraControls (
   } = options
 
   const baseRotation     = camera.userData.rotation as number
-  const radius           = camera.userData.radius as number
+  const baseRadius       = camera.userData.radius as number
+  const waterLine        = landscape.layout.waterLevel
   const pose: CameraPose = {
     focus:    new Vector3(0, landscape.heightAt(0, 0), 0),
     viewSize: camera.userData.viewSize as number,
@@ -125,6 +127,24 @@ export function createCameraControls (
 
   const aspect = (): number => canvas.clientWidth / canvas.clientHeight || 1
 
+  /**
+   * How far back to sit the camera.
+   *
+   * Irrelevant to an orthographic projection — moving along the view axis
+   * changes nothing you can see — but it decides where the frustum's *bottom
+   * edge* sits in world space. Let that edge drop under the waterline and the
+   * lower band of the frame is made of rays that start below the sea and point
+   * down: they can never intersect a horizontal plane above them, so the water
+   * simply stops partway up the screen. Rise with the zoom to stay clear of it.
+   */
+  function liftedRadius (): number {
+    const tilt = MathUtils.degToRad(pose.tilt)
+    const drop = pose.viewSize * 0.5 * Math.cos(tilt)
+    const need = (drop + WATER_CLEARANCE - (pose.focus.y - waterLine)) / Math.max(Math.sin(tilt), 1e-3)
+
+    return Math.max(baseRadius, need)
+  }
+
   function apply (): void {
     aimTarget[0] = pose.focus.x
     aimTarget[1] = pose.focus.y
@@ -132,7 +152,7 @@ export function createCameraControls (
 
     aimIsoCamera(camera, {
       target:   aimTarget,
-      radius,
+      radius:   liftedRadius(),
       rotation: baseRotation + pose.heading,
       tilt:     pose.tilt,
     })

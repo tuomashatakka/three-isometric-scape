@@ -21,6 +21,14 @@ import type { ScapeConfig } from './config.ts'
 import type { AtmosphereQuality } from './quality.ts'
 
 
+/** The atmosphere module, plus the sun position the post chain needs for god rays. */
+export interface Atmosphere {
+  module: AppModule<Record<string, never>>
+
+  /** Sun position in world space, refreshed every frame. Read it, never write it. */
+  sunPosition: Vector3
+}
+
 export interface AtmosphereOptions {
   camera:       OrthographicCamera
   config:       ScapeConfig
@@ -43,7 +51,7 @@ const SUN_DISTANCE = 150
 const MAX_FOG      = 0.94
 const SKY_STEPS    = 64
 const TALLEST      = 6
-const SUN_SCATTER  = 0.5
+const SUN_SCATTER  = 0.38
 const AWAY_SCATTER = 0.14
 
 const corner   = new Vector3()
@@ -199,14 +207,15 @@ export function createAtmosphereLayer ({
   config,
   groundRadius,
   quality,
-}: AtmosphereOptions): AppModule<Record<string, never>> {
+}: AtmosphereOptions): Atmosphere {
   const { atmosphere, palette } = config
   const direction               = new Vector3(...atmosphere.sunDirection).normalize()
+  const sunPosition             = new Vector3()
   const horizonBase             = new Color(palette.sky)
   const horizon                 = new Color(palette.sky)
   const skyTop                  = new Color(atmosphere.skyTop)
   const sunColor                = new Color(atmosphere.sunColor)
-  const groundColor             = new Color(palette.lowland)
+  const groundColor             = new Color(palette.meadow)
 
   const lighting = standardLighting<Record<string, never>>({
     env: { intensity: 0.34 },
@@ -301,6 +310,7 @@ export function createAtmosphereLayer ({
       return
 
     rig.sun.position.copy(target).addScaledVector(direction, SUN_DISTANCE)
+    sunPosition.copy(rig.sun.position)
     rig.sun.target.position.copy(target)
     rig.sun.target.updateMatrixWorld()
     fitShadow(rig.sun, camera, target, viewSize)
@@ -311,7 +321,7 @@ export function createAtmosphereLayer ({
     bounce.target.updateMatrixWorld()
   }
 
-  return defineModule<Record<string, never>>({
+  const module = defineModule<Record<string, never>>({
     name: 'atmosphere',
 
     build (ctx) {
@@ -350,6 +360,8 @@ export function createAtmosphereLayer ({
       previousBackground = null
     },
   })
+
+  return { module, sunPosition }
 }
 
 // perf: one sky texture upload while the view changes, one linear-fog update,

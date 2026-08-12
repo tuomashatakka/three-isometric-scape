@@ -1,0 +1,297 @@
+import { createSeededRng } from 'threejs-scene'
+import type { ScapeConfig } from '../config.ts'
+import { sampleHeight } from '../noise.ts'
+
+
+/** A point on the ground plane. */
+export interface Vec2 {
+  x: number
+  z: number
+}
+
+/** The flattened shelf the buildings stand on. */
+export interface Yard extends Vec2 {
+  radius: number
+  level:  number
+}
+
+/** One levelled field plot. */
+export interface Plot extends Vec2 {
+  halfW:    number
+  halfD:    number
+  rotation: number
+  level:    number
+}
+
+/** A wooded high point — conifers cluster toward these. */
+export interface Ridge extends Vec2 {
+  radius: number
+}
+
+/** The authored composition, resolved once from the seed. */
+export interface ScapeLayout {
+  yard:   Yard
+  track:  { points: readonly Vec2[], width: number }
+  plots:  readonly Plot[]
+  ridges: readonly Ridge[]
+  extent: number
+
+  /** Radius inside which the ground is reliably above water. */
+  landRadius: number
+  waterLevel: number
+  shoreBand:  number
+}
+
+const YARD_PROBES = 24
+const TRACK_STEPS = 26
+
+function baseAt (config: ScapeConfig, x: number, z: number): number {
+  return sampleHeight(x, z, config.seed, config.terrain.height)
+}
+
+/**
+ * Local roughness, sampled as the spread of four neighbours.
+ *
+ * The yard search wants the flattest *buildable* patch, not the flattest point —
+ * a single vertex in a saddle is flat and useless. Sampling at the building
+ * scale (six units out) is what makes the result somewhere a barn could stand.
+ */
+function roughness (config: ScapeConfig, x: number, z: number, reach: number): number {
+  const centre = baseAt(config, x, z)
+  let worst = 0
+
+  for (const [ dx, dz ] of [[ reach, 0 ], [ -reach, 0 ], [ 0, reach ], [ 0, -reach ]])
+    worst = Math.max(worst, Math.abs(baseAt(config, x + dx, z + dz) - centre))
+
+  return worst
+}
+
+function landRadiusOf (config: ScapeConfig): number {
+  return config.terrain.size * 0.5 * config.terrain.islandInner
+}
+
+function findYard (config: ScapeConfig): Yard {
+  const extent = config.terrain.size * 0.5
+  const reach  = config.layout.yardRadius * 0.55
+  const limit  = landRadiusOf(config) * 0.52
+
+  let best  = { x: 0, z: 0, score: -Infinity }
+
+  for (let ix = 0; ix < YARD_PROBES; ix += 1)
+    for (let iz = 0; iz < YARD_PROBES; iz += 1) {
+      const x = -limit + ix / (YARD_PROBES - 1) * limit * 2
+      const z = -limit + iz / (YARD_PROBES - 1) * limit * 2
+
+      const height  = baseAt(config, x, z)
+      const dryness = height - config.terrain.waterLevel
+
+      if (dryness < 1.4)
+        continue
+
+      const score = -roughness(config, x, z, reach) * 2.4 -
+        Math.abs(dryness - 2.6) * 0.5 -
+        Math.hypot(x, z) / extent * 1.1
+
+      if (score > best.score)
+        best = { x, z, score }
+    }
+
+  return {
+    x:      best.x,
+    z:      best.z,
+    radius: config.layout.yardRadius,
+    level:  baseAt(config, best.x, best.z),
+  }
+}
+
+/** Uniform Catmull-Rom through the control points, so the track never kinks. */
+function smoothPath (control: readonly Vec2[], steps: number): Vec2[] {
+  const padded         = [ control[0], ...control, control[control.length - 1] ]
+  const points: Vec2[] = []
+
+  for (let step = 0; step <= steps; step += 1) {
+    const t       = step / steps * (control.length - 1)
+    const segment = Math.min(Math.floor(t), control.length - 2)
+    const local   = t - segment
+
+    const [ p0, p1, p2, p3 ] = [
+      padded[segment], padded[segment + 1], padded[segment + 2], padded[segment + 3],
+    ]
+    const l2 = local * local
+    const l3 = l2 * local
+
+    points.push({
+      x: 0.5 * (2 * p1.x + (-p0.x + p2.x) * local +
+        (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * l2 +
+        (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * l3),
+      z: 0.5 * (2 * p1.z + (-p0.z + p2.z) * local +
+        (2 * p0.z - 5 * p1.z + 4 * p2.z - p3.z) * l2 +
+        (-p0.z + 3 * p1.z - 3 * p2.z + p3.z) * l3),
+    })
+  }
+
+  return points
+}
+
+function buildTrack (config: ScapeConfig, yard: Yard, wander: number): Vec2[] {
+  const extent  = landRadiusOf(config)
+  const heading = Math.atan2(yard.z, yard.x) || 0.6
+
+  // The track runs out to the shore, not to the edge of the plane — past the
+  // island falloff there is nothing but seabed to grade.
+  const entry = { x: Math.cos(heading) * extent, z: Math.sin(heading) * extent }
+
+  const control: Vec2[] = [ entry ]
+
+  for (const t of [ 0.34, 0.66 ]) {
+    const nx   = yard.x + (entry.x - yard.x) * t
+    const nz   = yard.z + (entry.z - yard.z) * t
+    const sway = (t === 0.34 ? 1 : -1) * wander * extent * 0.16
+
+    control.push({
+      x: nx + Math.cos(heading + Math.PI / 2) * sway,
+      z: nz + Math.sin(heading + Math.PI / 2) * sway,
+    })
+  }
+
+  control.push({ x: yard.x, z: yard.z })
+  return smoothPath(control, TRACK_STEPS)
+}
+
+function buildPlots (config: ScapeConfig, yard: Yard, seed: number): Plot[] {
+  const rng           = createSeededRng(seed)
+  const plots: Plot[] = []
+  const extent        = landRadiusOf(config)
+
+  // Fields sit between the yard and the middle of the map, never out past the
+  // rim — a plot that runs off the edge of the world reads as a bug, not a farm.
+  const inward = Math.atan2(-yard.z, -yard.x)
+
+  for (let index = 0; index < config.layout.plotCount * 12 && plots.length < config.layout.plotCount; index += 1) {
+    const angle    = inward + rng.range(-1.5, 1.5)
+    const halfW    = rng.range(5.5, 8.5)
+    const halfD    = rng.range(4.5, 6.5)
+    const distance = yard.radius + Math.hypot(halfW, halfD) * 0.8 + rng.range(0.5, 4)
+
+    const x = yard.x + Math.cos(angle) * distance
+    const z = yard.z + Math.sin(angle) * distance
+
+    if (Math.hypot(x, z) + Math.max(halfW, halfD) > extent)
+      continue
+
+    const level = baseAt(config, x, z)
+
+    if (level < config.terrain.waterLevel + 1.2)
+      continue
+    if (roughness(config, x, z, Math.max(halfW, halfD) * 0.6) > config.terrain.height * 0.42)
+      continue
+    if (plots.some(plot => Math.hypot(plot.x - x, plot.z - z) < (Math.max(halfW, plot.halfW) + Math.max(halfD, plot.halfD)) * 0.78))
+      continue
+
+    plots.push({ x, z, halfW, halfD, rotation: angle + rng.range(-0.3, 0.3), level })
+  }
+
+  return plots
+}
+
+function findRidges (config: ScapeConfig, yard: Yard): Ridge[] {
+  const extent                                            = landRadiusOf(config) * 0.95
+  const probes                                            = 18
+  const found: { x: number, z: number, height: number }[] = []
+
+  for (let ix = 0; ix < probes; ix += 1)
+    for (let iz = 0; iz < probes; iz += 1) {
+      const x = -extent + ix / (probes - 1) * extent * 2
+      const z = -extent + iz / (probes - 1) * extent * 2
+
+      if (Math.hypot(x - yard.x, z - yard.z) < yard.radius * 2.1)
+        continue
+
+      found.push({ x, z, height: baseAt(config, x, z) })
+    }
+
+  found.sort((a, b) => b.height - a.height)
+
+  const ridges: Ridge[] = []
+
+  for (const candidate of found) {
+    if (ridges.length >= 5)
+      break
+    if (ridges.some(ridge => Math.hypot(ridge.x - candidate.x, ridge.z - candidate.z) < 15))
+      continue
+
+    ridges.push({ x: candidate.x, z: candidate.z, radius: 16 })
+  }
+
+  return ridges
+}
+
+/** Resolve the whole composition. Pure — same config in, same layout out. */
+export function createScapeLayout (config: ScapeConfig): ScapeLayout {
+  const rng  = createSeededRng(config.seed).fork('layout')
+  const yard = findYard(config)
+
+  return {
+    yard,
+    track:      { points: buildTrack(config, yard, rng.range(-1, 1)), width: config.layout.trackWidth },
+    plots:      buildPlots(config, yard, config.seed ^ 0x5c1f),
+    ridges:     findRidges(config, yard),
+    extent:     config.terrain.size * 0.5,
+    landRadius: landRadiusOf(config),
+    waterLevel: config.terrain.waterLevel,
+    shoreBand:  config.terrain.shoreBand,
+  }
+}
+
+/** Shortest distance from a point to the track centreline, in world units. */
+export function distanceToTrack (layout: ScapeLayout, x: number, z: number): number {
+  const { points } = layout.track
+  let best = Infinity
+
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const a        = points[index]
+    const b        = points[index + 1]
+    const dx       = b.x - a.x
+    const dz       = b.z - a.z
+    const lengthSq = dx * dx + dz * dz
+
+    const t = lengthSq === 0
+      ? 0
+      : Math.min(1, Math.max(0, ((x - a.x) * dx + (z - a.z) * dz) / lengthSq))
+
+    best = Math.min(best, Math.hypot(x - (a.x + dx * t), z - (a.z + dz * t)))
+  }
+
+  return best
+}
+
+/** How strongly a plot claims a point, 1 at the centre falling to 0 past its edge. */
+export function plotInfluence (plot: Plot, x: number, z: number): number {
+  const cos = Math.cos(-plot.rotation)
+  const sin = Math.sin(-plot.rotation)
+  const dx  = x - plot.x
+  const dz  = z - plot.z
+
+  const localX = Math.abs(dx * cos - dz * sin) / plot.halfW
+  const localZ = Math.abs(dx * sin + dz * cos) / plot.halfD
+  const reach  = Math.max(localX, localZ)
+
+  if (reach >= 1.3)
+    return 0
+
+  return reach <= 1
+    ? 1
+    : 1 - (reach - 1) / 0.3
+}
+
+/** Nearest ridge influence, 0..1 — drives conifer density. */
+export function ridgeInfluence (layout: ScapeLayout, x: number, z: number): number {
+  let best = 0
+
+  for (const ridge of layout.ridges) {
+    const distance = Math.hypot(x - ridge.x, z - ridge.z)
+    best = Math.max(best, Math.max(0, 1 - distance / ridge.radius))
+  }
+
+  return best
+}
