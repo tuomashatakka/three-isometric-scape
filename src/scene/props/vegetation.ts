@@ -1,8 +1,11 @@
 import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
-import { mergeParts, part } from 'threejs-scene/modules/assets'
+import { applyBend, applyTaper, mergeParts, part } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
-import { ball, box, cone, cyl, deg, rock, spread } from './primitives.ts'
+import { ball, blade, box, cone, cyl, deg, rock, spread } from './primitives.ts'
+
+
+const TAU = Math.PI * 2
 
 
 /**
@@ -182,20 +185,34 @@ export function buildStump (rng: SeededRng, palette: NordicPalette): BufferGeome
   return mergeParts(parts, { grime: 0.6, grimeFloor: 0.5 })
 }
 
-/** A tuft of grass — three blades, and the densest thing in the scene. */
+/**
+ * A tuft of grass — the densest thing in the scene, and the one that decides
+ * whether the ground reads as a lawn or as a field.
+ *
+ * Four blades, each tapered to a point and *bent*. The bend is the whole trick:
+ * straight spikes read as a hedgehog no matter how many you scatter, because
+ * real grass leans and catches light along a curve rather than on one facet.
+ * Each blade also leans its own way and picks its own colour, so a tuft never
+ * looks like four copies of one blade — which is exactly what it is.
+ */
 export function buildGrassTuft (rng: SeededRng, palette: NordicPalette): BufferGeometry {
   const parts: BufferGeometry[] = []
 
-  for (let blade = 0; blade < 3; blade += 1)
-    parts.push(part(cone(0.075, 0.52 + rng.range(0, 0.22), 4), {
-      at:     [ rng.range(-0.09, 0.09), 0.28, rng.range(-0.09, 0.09) ],
-      rotate: [ deg(rng.range(-14, 14)), deg(rng.range(0, 180)), deg(rng.range(-14, 14)) ],
-      color:  rng.next() > 0.45 ? palette.grass : palette.grassDry,
-      jitter: 0.22,
+  for (let stem = 0; stem < 4; stem += 1) {
+    const height = 0.3 + rng.range(0, 0.34)
+    const curve  = deg(rng.range(26, 72)) * (rng.next() > 0.5 ? 1 : -1)
+    const leaf   = applyBend(applyTaper(blade(0.055, height), 0.1, 'y'), curve, 'y')
+
+    parts.push(part(leaf, {
+      at:     [ rng.range(-0.08, 0.08), height * 0.5, rng.range(-0.08, 0.08) ],
+      rotate: [ deg(rng.range(-8, 8)), rng.range(0, TAU), deg(rng.range(-8, 8)) ],
+      color:  rng.next() > 0.42 ? palette.grass : palette.grassDry,
+      jitter: 0.18,
       rng,
     }))
+  }
 
-  return mergeParts(parts, { grime: 0.5, grimeFloor: 0.4 })
+  return mergeParts(parts, { grime: 0.6, grimeFloor: 0.34 })
 }
 
 /** A heather clump — low, purple, and slightly woody. */
@@ -259,18 +276,33 @@ export function buildReeds (rng: SeededRng, palette: NordicPalette): BufferGeome
   return mergeParts(parts, { grime: 0.5, grimeFloor: 0.55 })
 }
 
-/** A lily pad cluster — flat discs that sit on the waterline. */
+/**
+ * A lily pad cluster — flat discs that sit on the waterline.
+ *
+ * Laid out on a ring rather than jittered inside a box. Random offsets in a
+ * square let two discs land on top of each other, and coplanar discs at the
+ * same height z-fight into a flickering mess; a ring whose chord exceeds the
+ * widest pad pair cannot overlap at all, and a few millimetres of stagger
+ * settles the depth order for good.
+ */
 export function buildLilyPads (rng: SeededRng, palette: NordicPalette): BufferGeometry {
   const parts: BufferGeometry[] = []
+  const pads                    = 3
+  const ring                    = 0.46
+  const start                   = rng.range(0, TAU)
 
-  for (let pad = 0; pad < 3; pad += 1)
-    parts.push(part(cyl(0.26 + rng.range(0, 0.12), 0.26, 0.035, 7), {
-      at:     [ rng.range(-0.32, 0.32), 0.02, rng.range(-0.32, 0.32) ],
-      rotate: [ 0, deg(rng.range(0, 180)), 0 ],
+  for (let pad = 0; pad < pads; pad += 1) {
+    const radius = 0.3 + rng.range(0, 0.055)
+    const angle  = start + pad / pads * TAU + rng.range(-0.09, 0.09)
+
+    parts.push(part(cyl(radius, radius * 0.94, 0.03, 9), {
+      at:     [ Math.cos(angle) * ring, 0.018 + pad * 0.009, Math.sin(angle) * ring ],
+      rotate: [ 0, rng.range(0, TAU), 0 ],
       color:  pad % 2 === 0 ? palette.moss : palette.grass,
-      jitter: 0.14,
+      jitter: 0.12,
       rng,
     }))
+  }
 
   return mergeParts(parts)
 }

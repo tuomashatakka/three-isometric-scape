@@ -44,12 +44,14 @@ export function createLandscape (config: ScapeConfig, quality: AtmosphereQuality
       root.name = 'nordic-scape'
 
       materials = createScapeMaterials({
-        cloudShadow:  config.atmosphere.cloudShadow,
-        cloudScale:   config.atmosphere.cloudScale,
-        cloudSpeed:   config.atmosphere.cloudSpeed,
-        windStrength: config.wind.strength,
-        windSpeed:    config.wind.speed,
-        seed:         config.seed,
+        cloudShadow:    config.atmosphere.cloudShadow,
+        cloudScale:     config.atmosphere.cloudScale,
+        cloudSpeed:     config.atmosphere.cloudSpeed,
+        windStrength:   config.wind.strength,
+        windSpeed:      config.wind.speed,
+        detailScale:    config.terrain.detailScale,
+        detailStrength: config.terrain.detailGrain,
+        seed:           config.seed,
       })
 
       const terrain = createTerrain(config, layout, field, materials.ground, quality.terrainSegments)

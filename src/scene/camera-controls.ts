@@ -1,6 +1,6 @@
 import { MathUtils, Raycaster, Vector2, Vector3 } from 'three'
 import type { OrthographicCamera } from 'three'
-import { aimIsoCamera, defineModule, resizeIsoCamera } from 'threejs-scene'
+import { aimIsoCamera, defineModule, resizeIsoCamera, smoothstep } from 'threejs-scene'
 import type { AppModule, FrameContext } from 'threejs-scene'
 import type { Landscape } from './landscape/index.ts'
 
@@ -9,7 +9,6 @@ interface CameraPose {
   focus:    Vector3
   viewSize: number
   heading:  number
-  tilt:     number
 }
 
 type DragAction = 'pan' | 'rotate'
@@ -35,6 +34,8 @@ export interface CameraControlsOptions {
   landscape:     Landscape
   minViewSize:   number
   maxViewSize:   number
+  tiltNear:      number
+  tiltFar:       number
   maxFocus:      number
   reducedMotion: boolean
   onFocus(point: Vector3): void
@@ -42,16 +43,28 @@ export interface CameraControlsOptions {
 }
 
 const ROTATE_PER_PIXEL         = 0.32
-const TILT_PER_PIXEL           = 0.16
-const MIN_TILT                 = 18
 const WATER_CLEARANCE          = 4
-const MAX_TILT                 = 58
 const KEYBOARD_STEP            = 38
 const KEYBOARD_ZOOM            = 1.12
 const WHEEL_SPEED              = 0.001
 const TAP_MOVE_PX              = 8
 const TAP_MAX_MS               = 350
 const ORBIT_DEGREES_PER_SECOND = 6
+
+/** Exponential approach rate for the whole pose, in e-folds per second. */
+const SETTLE_RATE = 6.2
+
+/**
+ * Floor on the camera distance, as a multiple of the visible height.
+ *
+ * The lift below only has to clear the waterline, and the steeper the tilt the
+ * less distance that takes — but `radius` is also what the atmosphere reads to
+ * place its fog, as `near = radius - viewSize * 0.9`. Let the lift fall where
+ * the geometry allows and `near` collapses to zero the moment the view tips
+ * over, which fogs the foreground and washes the whole frame grey. Tying the
+ * floor to `viewSize` keeps the fog band where it was at every elevation.
+ */
+const DISTANCE_FLOOR = 1.15
 
 function clamp (value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value))
@@ -61,6 +74,11 @@ export function wrapHeading (heading: number): number {
   return (heading % 360 + 360) % 360
 }
 
+/** Signed shortest way round from `from` to `to`, in degrees. */
+export function headingDelta (from: number, to: number): number {
+  return (to - from + 540) % 360 - 180
+}
+
 export function zoomViewSize (
   viewSize: number,
   scale: number,
@@ -68,6 +86,26 @@ export function zoomViewSize (
   maximum: number,
 ): number {
   return clamp(viewSize / Math.max(scale, 0.01), minimum, maximum)
+}
+
+/**
+ * Elevation as a function of zoom.
+ *
+ * Tilt is not a thing the pointer gets to set any more. Dragging it is how you
+ * end up under the waterline or looking straight down without meaning to, and
+ * the *right* elevation is fully determined by how close you are anyway:
+ * pushed in, you want a low, near-horizontal, cinematic angle; pulled out, you
+ * want the map. Binding one to the other removes a control and improves every
+ * frame it used to produce.
+ */
+export function tiltForViewSize (
+  viewSize: number,
+  minViewSize: number,
+  maxViewSize: number,
+  near: number,
+  far: number,
+): number {
+  return near + (far - near) * smoothstep(minViewSize, maxViewSize, viewSize)
 }
 
 export function clientPointToNdc (
@@ -90,26 +128,27 @@ export function createCameraControls (
     landscape,
     minViewSize,
     maxViewSize,
+    tiltNear,
+    tiltFar,
     maxFocus,
     reducedMotion,
     onFocus,
     onManualControl,
   } = options
 
-  const baseRotation     = camera.userData.rotation as number
-  const baseRadius       = camera.userData.radius as number
-  const waterLine        = landscape.layout.waterLevel
+  const baseRotation = camera.userData.rotation as number
+  const baseRadius   = camera.userData.radius as number
+  const waterLine    = landscape.layout.waterLevel
+
   const pose: CameraPose = {
     focus:    new Vector3(0, landscape.heightAt(0, 0), 0),
     viewSize: camera.userData.viewSize as number,
     heading:  0,
-    tilt:     camera.userData.tilt as number,
   }
   const target: CameraPose = {
     focus:    pose.focus.clone(),
     viewSize: pose.viewSize,
     heading:  pose.heading,
-    tilt:     pose.tilt,
   }
 
   const pointers                            = new Map<number, PointerState>()
@@ -121,11 +160,13 @@ export function createCameraControls (
   let lastTouch: TouchFrame | null = null
   let multiTouch                   = false
   let revolving                    = false
-  let landed                       = true
+  let settling                     = true
   let lastViewSize                 = Number.NaN
   let detach: (() => void) | null  = null
 
   const aspect = (): number => canvas.clientWidth / canvas.clientHeight || 1
+  const tiltOf = (viewSize: number): number =>
+    tiltForViewSize(viewSize, minViewSize, maxViewSize, tiltNear, tiltFar)
 
   /**
    * How far back to sit the camera.
@@ -137,24 +178,26 @@ export function createCameraControls (
    * down: they can never intersect a horizontal plane above them, so the water
    * simply stops partway up the screen. Rise with the zoom to stay clear of it.
    */
-  function liftedRadius (): number {
-    const tilt = MathUtils.degToRad(pose.tilt)
-    const drop = pose.viewSize * 0.5 * Math.cos(tilt)
-    const need = (drop + WATER_CLEARANCE - (pose.focus.y - waterLine)) / Math.max(Math.sin(tilt), 1e-3)
+  function liftedRadius (tilt: number): number {
+    const radians = MathUtils.degToRad(tilt)
+    const drop    = pose.viewSize * 0.5 * Math.cos(radians)
+    const need    = (drop + WATER_CLEARANCE - (pose.focus.y - waterLine)) / Math.max(Math.sin(radians), 1e-3)
 
-    return Math.max(baseRadius, need)
+    return Math.max(baseRadius, need, pose.viewSize * DISTANCE_FLOOR)
   }
 
   function apply (): void {
+    const tilt = tiltOf(pose.viewSize)
+
     aimTarget[0] = pose.focus.x
     aimTarget[1] = pose.focus.y
     aimTarget[2] = pose.focus.z
 
     aimIsoCamera(camera, {
       target:   aimTarget,
-      radius:   liftedRadius(),
+      radius:   liftedRadius(tilt),
       rotation: baseRotation + pose.heading,
-      tilt:     pose.tilt,
+      tilt,
     })
 
     if (pose.viewSize !== lastViewSize) {
@@ -165,16 +208,16 @@ export function createCameraControls (
     camera.updateMatrixWorld()
   }
 
-  function stopRevolving (): void {
-    revolving = false
-    landed = true
-    target.focus.copy(pose.focus)
-    target.heading  = pose.heading
-    target.tilt     = pose.tilt
-    target.viewSize = pose.viewSize
+  /** Every input funnels through here: write the target, let `update` chase it. */
+  function retarget (): void {
+    settling = true
   }
 
-  function pan (dx: number, dy: number): void {
+  function stopRevolving (): void {
+    revolving = false
+  }
+
+  function panTo (dx: number, dy: number): void {
     stopRevolving()
 
     const perPixel = pose.viewSize / (canvas.clientHeight || 1)
@@ -184,30 +227,26 @@ export function createCameraControls (
     forward.setFromMatrixColumn(camera.matrixWorld, 1).setY(0)
       .normalize()
 
-    pose.focus
+    target.focus
       .addScaledVector(right, -dx * perPixel)
       .addScaledVector(forward, dy * perPixel)
-    pose.focus.x = clamp(pose.focus.x, -maxFocus, maxFocus)
-    pose.focus.z = clamp(pose.focus.z, -maxFocus, maxFocus)
-    pose.focus.y = landscape.heightAt(pose.focus.x, pose.focus.z)
-    target.focus.copy(pose.focus)
-    apply()
+    target.focus.x = clamp(target.focus.x, -maxFocus, maxFocus)
+    target.focus.z = clamp(target.focus.z, -maxFocus, maxFocus)
+    target.focus.y = landscape.heightAt(target.focus.x, target.focus.z)
+    retarget()
   }
 
-  function rotate (dx: number, dy: number): void {
+  // Dragging right swings the world right, which means the *camera* goes the
+  // other way. The scaffold had the sign of a turntable, not of a grab.
+  function rotateTo (dx: number): void {
     stopRevolving()
-    pose.heading   = wrapHeading(pose.heading - dx * ROTATE_PER_PIXEL)
-    pose.tilt      = clamp(pose.tilt + dy * TILT_PER_PIXEL, MIN_TILT, MAX_TILT)
-    target.heading = pose.heading
-    target.tilt    = pose.tilt
-    apply()
+    target.heading = wrapHeading(target.heading + dx * ROTATE_PER_PIXEL)
+    retarget()
   }
 
-  function zoom (scale: number): void {
-    stopRevolving()
-    pose.viewSize   = zoomViewSize(pose.viewSize, scale, minViewSize, maxViewSize)
-    target.viewSize = pose.viewSize
-    apply()
+  function zoomTo (scale: number): void {
+    target.viewSize = zoomViewSize(target.viewSize, scale, minViewSize, maxViewSize)
+    retarget()
   }
 
   function focusAt (clientX: number, clientY: number): void {
@@ -222,15 +261,10 @@ export function createCameraControls (
     target.focus.copy(hit.point)
     target.focus.x = clamp(target.focus.x, -maxFocus, maxFocus)
     target.focus.z = clamp(target.focus.z, -maxFocus, maxFocus)
-    landed = false
+    target.focus.y = landscape.heightAt(target.focus.x, target.focus.z)
     revolving = !reducedMotion
+    retarget()
     onFocus(target.focus)
-
-    if (reducedMotion) {
-      pose.focus.copy(target.focus)
-      apply()
-      landed = true
-    }
   }
 
   function touchFrame (): TouchFrame | null {
@@ -256,11 +290,14 @@ export function createCameraControls (
     canvas.focus({ preventScroll: true })
     canvas.setPointerCapture(event.pointerId)
 
-    const pans = event.pointerType === 'mouse' &&
+    // Pan is the default gesture. On a map, dragging means "move the map" to
+    // everyone who has ever used one; orbiting is the specialist verb and gets
+    // the modifier.
+    const rotates = event.pointerType === 'mouse' &&
       (event.button === 1 || event.button === 2 || event.shiftKey || event.ctrlKey || event.metaKey)
 
     pointers.set(event.pointerId, {
-      action:    pans ? 'pan' : 'rotate',
+      action:    rotates ? 'rotate' : 'pan',
       x:         event.clientX,
       y:         event.clientY,
       startedX:  event.clientX,
@@ -284,12 +321,10 @@ export function createCameraControls (
     pointer.y       = event.clientY
 
     if (pointers.size === 1) {
-      const dx = pointer.x - previousX
-      const dy = pointer.y - previousY
       if (pointer.action === 'pan')
-        pan(dx, dy)
+        panTo(pointer.x - previousX, pointer.y - previousY)
       else
-        rotate(dx, dy)
+        rotateTo(pointer.x - previousX)
       return
     }
 
@@ -297,9 +332,9 @@ export function createCameraControls (
     if (!nextTouch || !lastTouch)
       return
 
-    pan(nextTouch.centerX - lastTouch.centerX, nextTouch.centerY - lastTouch.centerY)
+    panTo(nextTouch.centerX - lastTouch.centerX, nextTouch.centerY - lastTouch.centerY)
     if (lastTouch.distance > 0)
-      zoom(nextTouch.distance / lastTouch.distance)
+      zoomTo(nextTouch.distance / lastTouch.distance)
     lastTouch = nextTouch
   }
 
@@ -314,7 +349,7 @@ export function createCameraControls (
       if (
         !multiTouch &&
         pointers.size === 1 &&
-        pointer.action === 'rotate' &&
+        pointer.action === 'pan' &&
         travelled <= TAP_MOVE_PX &&
         elapsed <= TAP_MAX_MS
       )
@@ -334,7 +369,7 @@ export function createCameraControls (
     const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE
       ? 16
       : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? canvas.clientHeight : 1
-    zoom(Math.exp(-event.deltaY * unit * WHEEL_SPEED))
+    zoomTo(Math.exp(-event.deltaY * unit * WHEEL_SPEED))
   }
 
   function onContextMenu (event: MouseEvent): void {
@@ -342,22 +377,32 @@ export function createCameraControls (
   }
 
   function onKeyDown (event: KeyboardEvent): void {
-    const shifted  = event.shiftKey
-    const move     = shifted ? rotate : pan
-    const vertical = shifted ? -KEYBOARD_STEP : KEYBOARD_STEP
+    const shifted = event.shiftKey
 
     if (event.key === 'ArrowLeft')
-      move(KEYBOARD_STEP, 0)
+      if (shifted)
+        rotateTo(KEYBOARD_STEP)
+      else
+        panTo(KEYBOARD_STEP, 0)
     else if (event.key === 'ArrowRight')
-      move(-KEYBOARD_STEP, 0)
+      if (shifted)
+        rotateTo(-KEYBOARD_STEP)
+      else
+        panTo(-KEYBOARD_STEP, 0)
     else if (event.key === 'ArrowUp')
-      move(0, vertical)
+      if (shifted)
+        zoomTo(KEYBOARD_ZOOM)
+      else
+        panTo(0, KEYBOARD_STEP)
     else if (event.key === 'ArrowDown')
-      move(0, -vertical)
+      if (shifted)
+        zoomTo(1 / KEYBOARD_ZOOM)
+      else
+        panTo(0, -KEYBOARD_STEP)
     else if (event.key === '+' || event.key === '=')
-      zoom(KEYBOARD_ZOOM)
+      zoomTo(KEYBOARD_ZOOM)
     else if (event.key === '-' || event.key === '_')
-      zoom(1 / KEYBOARD_ZOOM)
+      zoomTo(1 / KEYBOARD_ZOOM)
     else if (event.key === 'Escape')
       stopRevolving()
     else
@@ -367,23 +412,42 @@ export function createCameraControls (
     event.preventDefault()
   }
 
+  /**
+   * The only place the rendered pose ever changes.
+   *
+   * Input writes `target` and nothing else, so every motion in the scape — a
+   * drag, a wheel tick, a tap, a keypress, the idle orbit — arrives through the
+   * same exponential approach and comes out eased. There is no separate tween
+   * for each verb because there is only one integrator.
+   */
   function update (frame: FrameContext): void {
-    if (!landed) {
-      const blend = 1 - Math.exp(-Math.min(frame.delta, 0.1) * 4.8)
-      pose.focus.lerp(target.focus, blend)
+    const delta = Math.min(frame.delta, 0.1)
 
-      if (pose.focus.distanceToSquared(target.focus) < 0.0009) {
-        pose.focus.copy(target.focus)
-        landed = true
-      }
-      apply()
+    if (revolving)
+      target.heading = wrapHeading(target.heading + ORBIT_DEGREES_PER_SECOND * delta)
+    else if (!settling)
+      return
+
+    const blend   = reducedMotion ? 1 : 1 - Math.exp(-delta * SETTLE_RATE)
+    const heading = headingDelta(pose.heading, target.heading)
+
+    pose.focus.lerp(target.focus, blend)
+    pose.viewSize += (target.viewSize - pose.viewSize) * blend
+    pose.heading = wrapHeading(pose.heading + heading * blend)
+
+    const landed = pose.focus.distanceToSquared(target.focus) < 1e-4 &&
+      Math.abs(target.viewSize - pose.viewSize) < 1e-3 &&
+      Math.abs(heading) < 1e-2
+
+    if (landed) {
+      pose.focus.copy(target.focus)
+      pose.viewSize = target.viewSize
+      pose.heading  = target.heading
+      settling      = revolving
     }
 
-    if (revolving && landed) {
-      pose.heading   = wrapHeading(pose.heading + ORBIT_DEGREES_PER_SECOND * frame.delta)
-      target.heading = pose.heading
-      apply()
-    }
+    pose.focus.y = landscape.heightAt(pose.focus.x, pose.focus.z)
+    apply()
   }
 
   function attach (): () => void {
@@ -434,5 +498,6 @@ export function createCameraControls (
   })
 }
 
-// perf: input work is event-driven. frame updates only run vector damping while
-// landing or one scalar orbit step while revolving; all scratch objects are reused.
+// perf: input work is event-driven and only ever writes four numbers. Frames
+// where the pose already matches its target return before touching the camera;
+// the rest run one lerp, two scalars and one aim, with no allocation.

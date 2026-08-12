@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { clientPointToNdc, wrapHeading, zoomViewSize } from './camera-controls.ts'
+import { clientPointToNdc, headingDelta, tiltForViewSize, wrapHeading, zoomViewSize } from './camera-controls.ts'
 
 
 describe('camera control math', () => {
@@ -20,5 +20,17 @@ describe('camera control math', () => {
     expect(clientPointToNdc(10, 20, bounds)).toEqual([ -1, 1 ])
     expect(clientPointToNdc(110, 70, bounds)).toEqual([ 0, 0 ])
     expect(clientPointToNdc(210, 120, bounds)).toEqual([ 1, -1 ])
+  })
+
+  test('turns the short way round when damping a heading', () => {
+    expect(headingDelta(350, 10)).toBe(20)
+    expect(headingDelta(10, 350)).toBe(-20)
+    expect(headingDelta(0, 180)).toBe(-180)
+  })
+
+  test('derives elevation from the zoom level', () => {
+    expect(tiltForViewSize(8, 8, 92, 21, 52)).toBe(21)
+    expect(tiltForViewSize(92, 8, 92, 21, 52)).toBe(52)
+    expect(tiltForViewSize(50, 8, 92, 21, 52)).toBeCloseTo(36.5, 5)
   })
 })

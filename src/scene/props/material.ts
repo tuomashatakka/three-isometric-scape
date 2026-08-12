@@ -22,6 +22,12 @@ export interface ScapeMaterialOptions {
 
   /** Deterministic cloud-map seed. */
   seed: number
+
+  /** World units per tile of the ground detail grain. */
+  detailScale: number
+
+  /** Ground grain contrast, 0..1. */
+  detailStrength: number
 }
 
 /** The two materials every solid thing in the scape draws with. */
@@ -38,7 +44,8 @@ export interface ScapeMaterials {
   dispose(): void
 }
 
-const CLOUD_SIZE = 256
+const CLOUD_SIZE  = 256
+const DETAIL_SIZE = 256
 
 /**
  * World-space cloud shadow, injected into a stock `MeshStandardMaterial`.
@@ -49,15 +56,19 @@ const CLOUD_SIZE = 256
  */
 const CLOUD_PARS_VERTEX = /* glsl */`
   varying vec3 vScapeWorld;
+  varying vec3 vScapeNormal;
 `
 
 const CLOUD_WORLD_VERTEX = /* glsl */`
   #include <project_vertex>
-  vec4 scapeLocal = vec4(transformed, 1.0);
+  vec4 scapeLocal  = vec4(transformed, 1.0);
+  vec3 scapeNormal = objectNormal;
   #ifdef USE_INSTANCING
-    scapeLocal = instanceMatrix * scapeLocal;
+    scapeLocal  = instanceMatrix * scapeLocal;
+    scapeNormal = mat3(instanceMatrix) * scapeNormal;
   #endif
-  vScapeWorld = (modelMatrix * scapeLocal).xyz;
+  vScapeWorld  = (modelMatrix * scapeLocal).xyz;
+  vScapeNormal = normalize(mat3(modelMatrix) * scapeNormal);
 `
 
 const CLOUD_PARS_FRAGMENT = /* glsl */`
@@ -66,6 +77,7 @@ const CLOUD_PARS_FRAGMENT = /* glsl */`
   uniform float uCloudScale;
   uniform float uCloudStrength;
   varying vec3 vScapeWorld;
+  varying vec3 vScapeNormal;
 `
 
 const CLOUD_FRAGMENT = /* glsl */`
@@ -98,6 +110,38 @@ const WIND_VERTEX = /* glsl */`
   transformed.z += cos(swayPhase * 0.77 + 1.3) * swayAmount * 0.62;
 `
 
+/**
+ * Ground grain.
+ *
+ * Vertex colour alone gives the terrain its *palette* but not its *surface* —
+ * at this camera distance a metre of ground is a few pixels wide, and without
+ * something at that scale it reads as coloured paper. Two things fix it and
+ * both are one texture: a fine albedo mottle, and a normal perturbation taken
+ * as the finite difference of the same fetch, which is what makes the light
+ * catch on soil rather than sliding over it.
+ *
+ * World-space projection, weighted by how horizontal the surface is — so the
+ * shared material can carry it without smearing streaks down every barn wall.
+ */
+const DETAIL_PARS_FRAGMENT = /* glsl */`
+  uniform sampler2D uDetailMap;
+  uniform float uDetailScale;
+  uniform float uDetailStrength;
+`
+
+const DETAIL_FRAGMENT = /* glsl */`
+  #include <normal_fragment_begin>
+  float scapeFlat = smoothstep(0.3, 0.9, vScapeNormal.y);
+  vec2 scapeUv    = vScapeWorld.xz * uDetailScale;
+  float grain     = texture2D(uDetailMap, scapeUv).r;
+  float grainX    = texture2D(uDetailMap, scapeUv + vec2(0.015, 0.0)).r;
+  float grainZ    = texture2D(uDetailMap, scapeUv + vec2(0.0, 0.015)).r;
+
+  diffuseColor.rgb *= 1.0 + uDetailStrength * scapeFlat * (grain - 0.5) * 1.6;
+  normal = normalize(normal + mat3(viewMatrix) *
+    vec3(grainX - grain, 0.0, grainZ - grain) * scapeFlat * uDetailStrength * 3.0);
+`
+
 function buildCloudMap (seed: number): Texture {
   const texture = createSeamlessNoiseTexture({ size: CLOUD_SIZE, seed, frequency: 3, octaves: 4 })
   texture.wrapS = RepeatWrapping
@@ -105,8 +149,16 @@ function buildCloudMap (seed: number): Texture {
   return texture
 }
 
+function buildDetailMap (seed: number): Texture {
+  const texture = createSeamlessNoiseTexture({ size: DETAIL_SIZE, seed, frequency: 12, octaves: 5 })
+  texture.wrapS = RepeatWrapping
+  texture.wrapT = RepeatWrapping
+  return texture
+}
+
 export function createScapeMaterials (options: ScapeMaterialOptions): ScapeMaterials {
-  const cloudMap = buildCloudMap(options.seed)
+  const cloudMap  = buildCloudMap(options.seed)
+  const detailMap = buildDetailMap(options.seed ^ 0x77c1)
 
   const cloudOffset: IUniform<Vector2>   = { value: new Vector2() }
   const shared: Record<string, IUniform> = {
@@ -120,21 +172,35 @@ export function createScapeMaterials (options: ScapeMaterialOptions): ScapeMater
     uWindSpeed:    { value: options.windSpeed },
     uWindStrength: { value: options.windStrength },
   }
+  const detail: Record<string, IUniform> = {
+    uDetailMap:      { value: detailMap },
+    uDetailScale:    { value: 1 / Math.max(0.5, options.detailScale) },
+    uDetailStrength: { value: options.detailStrength },
+  }
 
-  function attachCloud (material: MeshStandardMaterial, key: string, extra?: Record<string, IUniform>): void {
+  interface Injection {
+    wind?:   Record<string, IUniform>
+    detail?: Record<string, IUniform>
+  }
+
+  function attachScape (material: MeshStandardMaterial, key: string, extra: Injection = {}): void {
     material.onBeforeCompile = (program: WebGLProgramParametersWithUniforms) => {
-      Object.assign(program.uniforms, shared, extra)
+      Object.assign(program.uniforms, shared, extra.wind, extra.detail)
 
       program.vertexShader = program.vertexShader
-        .replace('#include <common>', `#include <common>\n${CLOUD_PARS_VERTEX}${extra ? WIND_PARS_VERTEX : ''}`)
+        .replace('#include <common>', `#include <common>\n${CLOUD_PARS_VERTEX}${extra.wind ? WIND_PARS_VERTEX : ''}`)
         .replace('#include <project_vertex>', CLOUD_WORLD_VERTEX)
 
-      if (extra)
+      if (extra.wind)
         program.vertexShader = program.vertexShader.replace('#include <begin_vertex>', WIND_VERTEX)
 
       program.fragmentShader = program.fragmentShader
-        .replace('#include <common>', `#include <common>\n${CLOUD_PARS_FRAGMENT}`)
+        .replace('#include <common>', `#include <common>\n${CLOUD_PARS_FRAGMENT}${extra.detail ? DETAIL_PARS_FRAGMENT : ''}`)
         .replace('#include <color_fragment>', CLOUD_FRAGMENT)
+
+      if (extra.detail)
+        program.fragmentShader = program.fragmentShader
+          .replace('#include <normal_fragment_begin>', DETAIL_FRAGMENT)
     }
     material.customProgramCacheKey = () => key
   }
@@ -142,8 +208,8 @@ export function createScapeMaterials (options: ScapeMaterialOptions): ScapeMater
   const ground  = kitMaterial({ roughness: 0.96, metalness: 0, flatShading: true })
   const foliage = kitMaterial({ roughness: 0.92, metalness: 0, flatShading: true })
 
-  attachCloud(ground, 'scape-ground')
-  attachCloud(foliage, 'scape-foliage', wind)
+  attachScape(ground, 'scape-ground', { detail })
+  attachScape(foliage, 'scape-foliage', { wind })
 
   markShared(ground)
   markShared(foliage)
@@ -161,6 +227,7 @@ export function createScapeMaterials (options: ScapeMaterialOptions): ScapeMater
 
     dispose () {
       cloudMap.dispose()
+      detailMap.dispose()
       ground.dispose()
       foliage.dispose()
     },

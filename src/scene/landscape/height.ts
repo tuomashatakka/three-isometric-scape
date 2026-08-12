@@ -23,6 +23,8 @@ export interface HeightField {
   slopeAt(x: number, z: number): number
 }
 
+/** Fraction of an islet's radius held at full height before the skirt starts. */
+const ISLE_PLATEAU  = 0.55
 const TRACK_DEPTH   = 0.26
 const YARD_STRENGTH = 0.94
 const PLOT_STRENGTH = 0.9
@@ -50,6 +52,14 @@ export function createHeightField (config: ScapeConfig, layout: ScapeLayout): He
   const half                                                = config.terrain.size * 0.5
   const seabed                                              = waterLevel - config.terrain.seabedDrop
 
+  // Islets, resolved from fractions into metres once.
+  const isles = config.terrain.isles.map(isle => ({
+    x:      isle.x * half,
+    z:      isle.z * half,
+    radius: isle.radius * half,
+    crown:  waterLevel + isle.height,
+  }))
+
   /** Base fBm, sunk into an island, shelved at the waterline, then levelled. */
   function graded (x: number, z: number): number {
     let height = sampleHeight(x, z, config.seed, config.terrain.height)
@@ -62,6 +72,27 @@ export function createHeightField (config: ScapeConfig, layout: ScapeLayout): He
     const land   = 1 - smoothstep(islandInner, islandOuter, radial)
 
     height = seabed + (height - seabed) * land
+
+    // Raise the islets *after* the falloff. Doing it before would drown them
+    // along with the rim — the whole point of the rim drowning is that it is
+    // unconditional, so anything meant to survive out there has to come later.
+    //
+    // The profile is a plateau with a skirt, not a dome. A dome spends nearly
+    // all of its disc underwater: the seabed is seven metres down and the crown
+    // is two metres up, so the blend has to reach ~0.7 before the ground breaks
+    // the surface at all, and a smooth dome only does that near its very
+    // centre — which is how an islet with an eleven-metre radius surfaces as a
+    // one-metre pebble. Holding the blend at 1 across the inner half puts the
+    // waterline out at roughly 0.72 of the radius, where you asked for it.
+    for (const isle of isles) {
+      const distance = Math.hypot(x - isle.x, z - isle.z)
+
+      if (distance >= isle.radius)
+        continue
+
+      const claim = 1 - smoothstep(isle.radius * ISLE_PLATEAU, isle.radius, distance)
+      height += (isle.crown + sampleHeight(x, z, config.seed ^ 0x1d3f, 1.4) - height) * claim
+    }
 
     // Shelve the *bank* into a beach, but let the basin keep falling away.
     // Flattening both sides of the waterline is what turns a lake into a

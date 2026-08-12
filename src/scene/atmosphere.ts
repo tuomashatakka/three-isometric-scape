@@ -51,8 +51,15 @@ const SUN_DISTANCE = 150
 const MAX_FOG      = 0.94
 const SKY_STEPS    = 64
 const TALLEST      = 6
-const SUN_SCATTER  = 0.38
-const AWAY_SCATTER = 0.14
+// Heading-driven scattering, kept deliberately slight. The horizon colour it
+// produces is both the fog colour and the sky's lower band, so every hazy thing
+// in the frame — the mist sheets included, they are fogged like anything else —
+// brightens together when the view swings toward the sun. At the old strength
+// that read as the weather changing while you orbited: the same island was a
+// washed-out miniature facing one way and a dark moody one facing the other.
+// Direction should tint the light, not re-expose the shot.
+const SUN_SCATTER  = 0.12
+const AWAY_SCATTER = 0.06
 
 const corner   = new Vector3()
 const ground   = [ new Vector3(), new Vector3(), new Vector3(), new Vector3() ]

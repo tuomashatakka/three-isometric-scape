@@ -72,16 +72,22 @@ keeping generation in `build`, animation in `update`, resize work in `resize`, a
 | input | action |
 | --- | --- |
 | click or tap | ease to the selected surface point, then revolve around it |
-| primary drag or one-finger drag | rotate and tilt |
-| shift-drag, ctrl-drag, middle-drag, or right-drag | pan |
+| primary drag or one-finger drag | pan |
+| shift-drag, ctrl-drag, middle-drag, or right-drag | rotate |
 | two-finger gesture | pan and pinch-zoom together |
 | wheel | zoom |
 | arrow keys | pan |
-| shift + arrow keys | rotate and tilt |
-| + / − | zoom |
+| shift + left / right | rotate |
+| shift + up / down, + / − | zoom |
 | escape | stop automatic revolution |
 
-with `prefers-reduced-motion: reduce`, selecting a place focuses immediately and does not start a revolution.
+pan is the primary gesture because on a map, dragging means *move the map* to everyone who has ever used one; orbiting is the specialist verb and takes the modifier.
+
+**tilt is not an input.** it is a function of the zoom — pushed in you get a low, near-horizontal, cinematic angle, pulled out you get the map. dragging elevation is how a view ends up under the waterline or staring straight down by accident, and the right elevation is fully determined by how close you are anyway. binding one to the other removes a control and improves every frame it used to produce.
+
+every motion — drag, wheel, tap, keypress, the idle revolution — writes only to a *target* pose. one exponential integrator in `update` chases it, so there is no per-verb tween and nothing can move the camera without being eased.
+
+with `prefers-reduced-motion: reduce`, the integrator snaps rather than eases and selecting a place does not start a revolution.
 
 ## deployment
 
@@ -112,14 +118,15 @@ src/
     ├── landscape/
     │   ├── index.ts                the scene module, and what raycasts
     │   ├── layout.ts               yard, cart track, field plots, ridges
-    │   ├── height.ts               authored ground layered over the fbm
+    │   ├── height.ts                authored ground, islets, fbm underneath
     │   ├── terrain.ts              geometry, height/slope banded colour
-    │   ├── water.ts                baked bathymetry, foam band, ripple
+    │   ├── water.ts                baked bathymetry, swell, foam, glitter
     │   └── dressing.ts             placement, hero merge, instanced scatter
     └── props/
         ├── index.ts                the roster, hero vs scattered
         ├── palette.ts              the nordic colour vocabulary
-        ├── material.ts             shared material, cloud shadow, wind
+        ├── material.ts             shared material, cloud shadow, wind, soil grain
+        ├── ploppable.ts            2d placement with a ground-following foundation
         ├── primitives.ts           terse primitive constructors
         ├── fence.ts                continuous ground-following fence runs
         ├── buildings.ts            barn, farmhouse, sauna, aitta, woodshed
@@ -166,7 +173,50 @@ an orthographic camera's distance along its view axis changes nothing you can se
 
 [`camera-controls.ts`](src/scene/camera-controls.ts) therefore lifts the camera with the zoom rather than sitting at a fixed radius, keeping the frustum clear of the waterline at every tilt. it costs nothing — the projection is unchanged — and it is why the sea reaches the bottom of the frame at the shallowest angle the controls allow.
 
+that distance carries a second, non-obvious load: the atmosphere reads it to place the fog, as `near = radius - viewSize * 0.9`. clearing the waterline needs *less* distance the steeper the view gets, so once tilt became a function of zoom, the lift began to swing — and with it the fog band, which collapsed onto the camera and washed the whole frame grey at high elevations. the lift now has a floor proportional to `viewSize`, which keeps the fog where it was authored at every angle.
+
+## the lake, and the angle that broke it
+
+binding tilt to zoom sweeps the camera's elevation through a range that crosses the sun's. that turned out to be a good stress test of the water, which failed it twice:
+
+- **a near-mirror plane has no good answer at that crossing.** at low roughness the whole flat surface reflects the sun into every fragment at once, and the lake stops being water and becomes one white highlight the size of the sea. the surface is rough now, which spreads the lobe until no angle can concentrate it — and rough dielectrics then pick up the pale overcast sky instead, so `envMapIntensity` is cut to give the depth tint its colour back.
+- **a narrow lobe also makes the sea change colour when you orbit.** short of an outright white-out, a tight highlight still means the lake is pale grey facing the sun and dark teal facing away — the water reads as a different material depending on which way you turned. broadening the lobe further is what makes the two headings agree.
+- **the ripple normals came from a white-noise texture.** minified past one texel per pixel that lands a different random normal in every pixel, so wherever the mirror direction drifted into the spray, isolated pixels fired at full strength. which angles triggered it was pure luck, which is why it stayed invisible until something moved the elevation. shading now reads a *smooth* fractal field; the speckled texture is kept, but only ever tints.
+
+what the roughness gave away, the glitter pays back: two noise fields at incommensurate scales, multiplied and raised to a high power, so the product spikes only where both crests coincide. that exponent is the whole control — threshold it gently instead and the *mean* of the product clears the cut, every fragment lights up, and the lake becomes a sheet of white paper.
+
 two related calibrations came out of the same pass:
 
 - **bloom threshold sits above the fog.** bloom is for highlights, and the fog colour scatters toward the sun until its linear luminance is around 0.85. at the old 0.86 a frame full of lit haze crossed the threshold everywhere at once and bloomed itself into a white-out.
-- **the mist fades as the view flattens.** the sheets are flat, so from above you see each one over a small patch of ground, while at a grazing angle every one of them stretches to the horizon and the whole lower frame ends up behind four stacked layers. more path length really does mean more mist — but a miniature reads as a miniature because you can see it.
+- **direction tints the light, it does not re-expose the shot.** the atmosphere scatters its horizon colour toward the sun by view heading, and that colour is both the fog and the sky's lower band — so at the original strength the same island was a washed-out miniature facing one way and a dark, moody one facing the other. the scatter is a third of what it was.
+
+## mist that stays where the ground is
+
+the sheets used to chase the camera's focus point, which drags the whole cloud pattern across the ground as you pan — and a mist that moves with the camera reads as the *island* moving, the one thing ground mist must never do. they are pinned to the world now, which costs two things and pays for both:
+
+- the sheet has to be wide enough to reach past the terrain from any pan, and the pattern's world size has nothing to do with that. tie the texture repeat to the sheet and widening it magnifies every wisp — a few big soft blobs, bilinearly smoothed until the gaps close, which is how ground mist becomes a white-out. the repeat is derived from a fixed *units per tile* instead.
+- a flat sheet that survives any pan also lies over every pixel of open water in frame, four deep. ground mist collects over land and shallows in the first place, so the alpha is baked into the vertices and falls off radially: dense on the island, gone by the time the eye is out at sea.
+
+**the mist stands up as well as lying down.** stacked horizontal sheets only have depth when you look *across* them, so a mist built from them alone thins out exactly as the view tips down, until it is a set of planes seen edge-on. alongside them is the standard trick for volumetric fog: upright slices that face the viewer, spaced along the view axis, so there is always something between the eye and the ground whatever the elevation. their alpha is dense at the waterline and gone by the top, and falls off both sides so the slab never shows a vertical edge.
+
+those slices follow the focus point rather than the world origin — a stack pinned to the origin falls behind the camera the moment you pan to the far side of the map, and the upright mist simply stops existing there. following the focus is only safe because the *pattern* does not come along: each slice feeds its own displacement along its local x axis back into the texture offset, so every wisp stays over the same patch of ground while the quad slides underneath it.
+
+**density is authored once, at build.** it used to be recomputed each frame from the view elevation, which meant orbiting or zooming quietly changed the weather. mist belongs to the world, not to where you happen to be standing, so the camera now has no say in how much of it there is.
+
+## islets
+
+`terrain.isles` are raised *after* the island falloff, never before. the falloff's whole job is to drown the terrain plane's rim unconditionally so its square edges never read as the edge of the world; anything meant to survive out there has to come later.
+
+their profile is a **plateau with a skirt, not a dome**, and that is what decides whether they read as islands at all. the seabed is seven metres down and the crown is a couple of metres up, so the blend has to reach roughly 0.7 before the ground breaks the surface — and a smooth dome only gets there near its very centre. an eleven-metre islet surfaced as a one-metre pebble. holding the blend at 1 across the inner 55% puts the waterline out at about 0.72 of the radius, which is an island with a beach on it.
+
+they also need somewhere to stand. the ring between the mainland's shore and the plane's edge was too narrow to hold anything that would not either merge into the mainland or run off the world, so the plane is wider and `islandInner`/`islandOuter` are scaled to keep the farmstead's landmass exactly where it was. the extra span is open sea.
+
+finally they change how the scatter samples. the placement field is now mostly open sea, and a uniform disc throws most of every attempt budget into the water — the island thins out to prove it. candidates are drawn from the mainland *or* from one of the islets instead, so the islets get dressed by the same instanced meshes.
+
+## ploppable
+
+placement in a landscape is a two-dimensional decision — you choose *where* on the map a barn goes, never how high — but every scene-graph api asks for three numbers and lets you get the third one wrong. [`props/ploppable.ts`](src/scene/props/ploppable.ts) extends the library's `Prop` with the ground field bound at construction, so callers pass the two coordinates they have an opinion about.
+
+given a footprint it also fixes what makes flat-based props look pasted on. it levels the floor against the *highest* corner — sink to the mean and the uphill half of the floor ends up under the turf; sink to the low side and the building climbs out of the hill it should be cut into — then extrudes a foundation whose lower edge follows `heightAt` all the way round. buried on the high side, standing proud on the low one, the way a real plinth meets a slope.
+
+this is why the five buildings are the only props that leave the merged steading draw. a merged geometry is baked at build time and can only ever sit at one height; five extra draws against the same material is not a state change.

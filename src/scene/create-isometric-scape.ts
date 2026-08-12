@@ -1,6 +1,6 @@
 import { Vector3 } from 'three'
 import type { Mesh } from 'three'
-import { aimIsoCamera, createApp, createIsoCamera } from 'threejs-scene'
+import { createApp, createIsoCamera } from 'threejs-scene'
 import type { ScapeConfig } from './config.ts'
 import { createAtmosphereLayer } from './atmosphere.ts'
 import { createCameraControls } from './camera-controls.ts'
@@ -37,8 +37,9 @@ export function createIsometricScape (
     // precision — and a near one clips the sea into a visible horizon line.
     far: 1_600,
   })
-  aimIsoCamera(camera, { tilt: config.camera.tilt })
 
+  // No initial aim: `camera-controls` owns tilt outright — it derives it from
+  // the zoom level — and its `build` hook runs before anything reads the pose.
   const quality    = detectAtmosphereQuality()
   const landscape  = createLandscape(config, quality)
   const atmosphere = createAtmosphereLayer({
@@ -63,6 +64,8 @@ export function createIsometricScape (
     landscape,
     minViewSize:     config.camera.minViewSize,
     maxViewSize:     config.camera.maxViewSize,
+    tiltNear:        config.camera.tiltNear,
+    tiltFar:         config.camera.tiltFar,
     maxFocus:        config.terrain.size * 0.48,
     reducedMotion:   options.reducedMotion,
     onFocus:         options.onFocus,
@@ -88,9 +91,6 @@ export function createIsometricScape (
     ],
   })
 
-  app.ctx.renderer.domElement.addEventListener('webglcontextlost', () => {
-    app.stop()
-  })
   app.ctx.renderer.compile(app.ctx.scene, camera)
   app.start()
 

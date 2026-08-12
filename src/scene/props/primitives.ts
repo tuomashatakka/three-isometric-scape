@@ -34,6 +34,15 @@ export const rock = (radius: number, detail = 0): BufferGeometry =>
 export const plank = (length: number, thickness: number, width: number): BufferGeometry =>
   new BoxGeometry(length, thickness, width)
 
+/**
+ * An upright strip, centred on the origin and segmented up its length.
+ *
+ * The segments exist so `applyTaper` and `applyBend` have something to work
+ * with — an unsegmented box tapers into a wedge and refuses to bend at all.
+ */
+export const blade = (width: number, height: number, segments = 3): BufferGeometry =>
+  new BoxGeometry(width, height, width * 0.4, 1, segments, 1)
+
 /** Degrees to radians, for readable `rotate` options. */
 export const deg = (value: number): number => value * Math.PI / 180
 

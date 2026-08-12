@@ -10,6 +10,7 @@ import type { FencePoint } from '../props/fence.ts'
 import { buildProp, resolvePalette } from '../props/index.ts'
 import type { PropName } from '../props/index.ts'
 import type { ScapeMaterials } from '../props/material.ts'
+import { Ploppable } from '../props/ploppable.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import type { HeightField } from './height.ts'
 import { distanceToTrack, plotInfluence, ridgeInfluence } from './layout.ts'
@@ -67,6 +68,8 @@ export function createDressing (
   const extent                  = config.terrain.size * 0.47
   const water                   = config.terrain.waterLevel
   const owned: BufferGeometry[] = []
+  const plopped: Ploppable[]    = []
+  const sampleSpot              = createSpotSampler(config, layout, rng, extent)
 
   const heightAt = field.heightAt
   const budget   = (count: number): number => Math.max(1, Math.round(count * quality.scatterScale))
@@ -80,16 +83,7 @@ export function createDressing (
 
   // ---- feature tests -------------------------------------------------------
 
-  const onYard = (x: number, z: number): number => {
-    const distance = Math.hypot(x - layout.yard.x, z - layout.yard.z)
-    return Math.max(0, 1 - distance / (layout.yard.radius * 1.1))
-  }
-  const onTrack = (x: number, z: number): boolean =>
-    distanceToTrack(layout, x, z) < layout.track.width * 1.3
-  const onPlot = (x: number, z: number): number =>
-    layout.plots.reduce((claim, plot) => Math.max(claim, plotInfluence(plot, x, z)), 0)
-  const clear = (x: number, z: number): boolean =>
-    onYard(x, z) === 0 && !onTrack(x, z) && onPlot(x, z) === 0
+  const { onYard, onTrack, onPlot, clear } = createZoneTests(layout)
 
   // ---- hero props ----------------------------------------------------------
 
@@ -109,6 +103,42 @@ export function createDressing (
     heroes.push(geometry)
   }
 
+  /**
+   * A building, stood on ground-following footings.
+   *
+   * The five buildings are the only props that leave the merged steading draw,
+   * and they earn it: a merged geometry is baked at build time and can only
+   * ever sit at one height, while a {@link Ploppable} resolves its own floor
+   * from the footprint and grows a foundation down onto whatever is under it.
+   * Five extra draws against the same material is not a state change.
+   */
+  function raiseBuilding (name: PropName, x: number, z: number, angle: number): void {
+    const geometry = buildProp(name, rng.fork(`hero-${name}`), palette)
+    geometry.computeBoundingBox()
+
+    const bounds = geometry.boundingBox
+    const halfW  = bounds ? (bounds.max.x - bounds.min.x) * 0.5 : 3
+    const halfD  = bounds ? (bounds.max.z - bounds.min.z) * 0.5 : 3
+
+    const body         = new Mesh(geometry, materials.ground)
+    body.name          = name
+    body.castShadow    = true
+    body.receiveShadow = true
+
+    const prop = new Ploppable(name, heightAt)
+    prop.addPart('body', body)
+    prop.plop(x, z, {
+      angle,
+      footprint:  [ halfW * 0.9, halfD * 0.9 ],
+      skirt:      materials.ground,
+      skirtColor: palette.granite,
+    })
+
+    root.add(prop)
+    plopped.push(prop)
+    solver.reserve(x, z, Math.max(halfW, halfD) + 1.4)
+  }
+
   /** The buildings, arranged around the yard so they face each other. */
   function raiseSteading (): void {
     const facing = Math.atan2(-layout.yard.z, -layout.yard.x)
@@ -125,11 +155,11 @@ export function createDressing (
     const woodshed = around(-2.7, layout.yard.radius * 0.66)
     const sauna    = around(1.55, layout.yard.radius * 0.86)
 
-    placeHero('farmhouse', house.x, house.z, house.angle)
-    placeHero('barn', barn.x, barn.z, barn.angle + 0.4)
-    placeHero('aitta', aitta.x, aitta.z, aitta.angle)
-    placeHero('woodshed', woodshed.x, woodshed.z, woodshed.angle)
-    placeHero('sauna', sauna.x, sauna.z, sauna.angle)
+    raiseBuilding('farmhouse', house.x, house.z, house.angle)
+    raiseBuilding('barn', barn.x, barn.z, barn.angle + 0.4)
+    raiseBuilding('aitta', aitta.x, aitta.z, aitta.angle)
+    raiseBuilding('woodshed', woodshed.x, woodshed.z, woodshed.angle)
+    raiseBuilding('sauna', sauna.x, sauna.z, sauna.angle)
 
     const well = around(0.9, layout.yard.radius * 0.24)
     placeHero('well', well.x, well.z, rng.range(0, TAU))
@@ -141,7 +171,7 @@ export function createDressing (
     const logs = around(-2.4, layout.yard.radius * 0.92)
     placeHero('logPile', logs.x, logs.z, rng.range(0, TAU))
 
-    for (const anchor of [ house, barn, aitta, woodshed, sauna, well, logs ])
+    for (const anchor of [ well, logs ])
       solver.reserve(anchor.x, anchor.z, 4)
 
     // The hay rack belongs beside a field, not in the yard.
@@ -243,8 +273,6 @@ export function createDressing (
   raiseFences()
   mergeSteading()
 
-  // ---- fences --------------------------------------------------------------
-
   // ---- structural scatter --------------------------------------------------
   //
   // The solver owns the claims registry; the candidate loop lives here. That
@@ -254,21 +282,18 @@ export function createDressing (
   // few hundred of those and the field is saturated with nothing in it. So the
   // rules are tested first and only an accepted spot is `reserve()`d.
 
-  const spacingClear = (x: number, z: number, radius: number): boolean =>
-    solver.claims.every(claim => Math.hypot(claim.x - x, claim.z - z) > claim.radius + radius)
-
   function tryPlace (
     radius:   number,
     accept:   (x: number, z: number) => boolean,
     attempts = 26,
   ): Vec2 | null {
-    for (let attempt = 0; attempt < attempts; attempt += 1) {
-      const angle    = rng.next() * TAU
-      const distance = Math.sqrt(rng.next()) * extent
-      const x        = Math.cos(angle) * distance
-      const z        = Math.sin(angle) * distance
+    const spacingClear = (x: number, z: number): boolean =>
+      solver.claims.every(claim => Math.hypot(claim.x - x, claim.z - z) > claim.radius + radius)
 
-      if (!accept(x, z) || !spacingClear(x, z, radius))
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      const { x, z } = sampleSpot()
+
+      if (!accept(x, z) || !spacingClear(x, z))
         continue
 
       solver.reserve(x, z, radius)
@@ -276,8 +301,6 @@ export function createDressing (
     }
     return null
   }
-
-  const forestBias = config.layout.forestBias
 
   const conifer = (bias: number, minLift: number, maxSlope: number) =>
     (x: number, z: number): boolean => {
@@ -307,6 +330,8 @@ export function createDressing (
 
   /** Populate the ground, biggest footprints first. */
   function dressGround (): void {
+    const forestBias = config.layout.forestBias
+
     // Biggest footprints first — a field already full of saplings has no room
     // left for a boulder, and the reverse is never a problem.
     scatterStructural('erratic', config.dressing.erratic, 1.6, stoneRule(0.2), 0.7, 1.4, 40)
@@ -420,10 +445,7 @@ export function createDressing (
     const total = budget(count)
     root.add(stamp(name, total, () => {
       for (let attempt = 0; attempt < attempts; attempt += 1) {
-        const angle    = rng.next() * TAU
-        const distance = Math.sqrt(rng.next()) * extent
-        const x        = Math.cos(angle) * distance
-        const z        = Math.sin(angle) * distance
+        const { x, z } = sampleSpot()
 
         if (!accept(x, z))
           continue
@@ -443,6 +465,10 @@ export function createDressing (
     object: root,
 
     dispose () {
+      for (const prop of plopped)
+        prop.dispose()
+      plopped.length = 0
+
       root.removeFromParent()
       root.clear()
       for (const geometry of owned)
@@ -458,6 +484,57 @@ const FOLIAGE: ReadonlySet<string> = new Set([
 
 function isFoliage (name: PropName): boolean {
   return FOLIAGE.has(name)
+}
+
+/**
+ * A candidate-point generator, biased onto land.
+ *
+ * Candidates are drawn from the main island *or* from one of the islets rather
+ * than uniformly over the whole field: the field is mostly open sea, and a
+ * uniform disc throws most of every attempt budget into the water — the island
+ * thins out to prove it. Writes into a caller-owned scratch, because this runs
+ * tens of thousands of times at build.
+ */
+function createSpotSampler (
+  config: ScapeConfig,
+  layout: ScapeLayout,
+  rng:    SeededRng,
+  extent: number,
+): () => Vec2 {
+  const half  = config.terrain.size * 0.5
+  const spot  = { x: 0, z: 0 }
+  const isles = config.terrain.isles.map(isle => ({
+    x:      isle.x * half,
+    z:      isle.z * half,
+    radius: isle.radius * half,
+  }))
+  const mainReach = Math.min(layout.landRadius * 1.22, extent)
+
+  return () => {
+    const isle     = isles.length > 0 && rng.next() < 0.17 ? rng.pick(isles) : null
+    const angle    = rng.next() * TAU
+    const distance = Math.sqrt(rng.next()) * (isle ? isle.radius * 1.08 : mainReach)
+
+    spot.x = (isle?.x ?? 0) + Math.cos(angle) * distance
+    spot.z = (isle?.z ?? 0) + Math.sin(angle) * distance
+    return spot
+  }
+}
+
+/** Where the authored composition already claims the ground. */
+function createZoneTests (layout: ScapeLayout) {
+  const onYard = (x: number, z: number): number => {
+    const distance = Math.hypot(x - layout.yard.x, z - layout.yard.z)
+    return Math.max(0, 1 - distance / (layout.yard.radius * 1.1))
+  }
+  const onTrack = (x: number, z: number): boolean =>
+    distanceToTrack(layout, x, z) < layout.track.width * 1.3
+  const onPlot = (x: number, z: number): number =>
+    layout.plots.reduce((claim, plot) => Math.max(claim, plotInfluence(plot, x, z)), 0)
+  const clear = (x: number, z: number): boolean =>
+    onYard(x, z) === 0 && !onTrack(x, z) && onPlot(x, z) === 0
+
+  return { onYard, onTrack, onPlot, clear }
 }
 
 /** The point on the track a given distance out from the yard, and its heading. */
