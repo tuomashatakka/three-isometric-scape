@@ -105,6 +105,9 @@ publish the generated `dist/` directory to the desired pages path. for a project
 src/
 ├── main.ts                         browser entry and accessible status
 ├── style.css                       full-viewport responsive shell
+├── ui/
+│   ├── graphics-panel.ts           the overlay, built from real form elements
+│   └── scape-controls.ts           which config knobs it exposes, in sections
 └── scene/
     ├── atmosphere.ts               gradient sky, linear fog, sun and fill rig
     ├── camera-controls.ts          pointer, touch, keyboard, focus, orbit
@@ -166,6 +169,14 @@ because prop builders never touch a scene or a gl context, the whole roster is u
 so the shafts get their own virtual sun in [`post.ts`](src/scene/post.ts): placed a fraction of the frame away along the real sun direction, clamped just past the frame edge, and faded to nothing as it leaves the view. the direction is honest — it is taken live from the atmosphere's sun — but the distance is a framing decision, because an orthographic camera has no vanishing point to inherit one from.
 
 the same class of bug is why the water's ripple map carries mipmaps: a 128px noise texture sampled at roughly one texel per pixel aliases into a field of bright specks, and the ray pass turns every speck into a streak.
+
+## the graphics overlay
+
+a panel on the right edge exposes the scene's optics, atmosphere, mist, water, ground and camera tilt, with a switch per effect and its parameters nested underneath. it collapses to a handle, starts collapsed on touch and narrow viewports, and resets to the authored values.
+
+the thing worth knowing about it is that **it holds no state**. every control reads and writes `SCAPE_CONFIG` directly, and the scene modules re-read that config every frame — uniforms are refreshed in each module's `update`, not captured at build. so there is exactly one copy of every number, the panel and the scene cannot drift apart, and nothing has to be pushed anywhere when a slider moves. the readme has always called `config.ts` the public tuning surface; the overlay is what makes that literally true at runtime.
+
+what a slider cannot do is change the *shape* of the chain. which passes exist at all is a quality-tier decision made once when the composer is built, so a knob whose pass the tier never created renders greyed rather than lying about what it does.
 
 ## framing the sea
 

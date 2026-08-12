@@ -90,6 +90,25 @@ export interface ScapeConfig {
     strength: number
     speed:    number
   }
+
+  /** The lake's surface response. Every one of these is live. */
+  water: {
+
+    /** Sun-glitter strength, 0 disables the speckle. */
+    sparkle: number
+
+    /** Swell amplitude in metres. */
+    waveHeight: number
+
+    /** Ripple normal perturbation. */
+    rippleStrength: number
+
+    /**
+     * Specular spread. Low values concentrate the sun into a lobe narrow
+     * enough to flare the whole lake white at the angle that catches it.
+     */
+    roughness: number
+  }
   camera: {
     viewSize:    number
     minViewSize: number
@@ -215,6 +234,12 @@ export const SCAPE_CONFIG = {
   wind: {
     strength: 0.9,
     speed:    1.35,
+  },
+  water: {
+    sparkle:        0.5,
+    waveHeight:     0.075,
+    rippleStrength: 0.2,
+    roughness:      0.62,
   },
   camera: {
     viewSize:    54,

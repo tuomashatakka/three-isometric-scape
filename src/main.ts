@@ -1,6 +1,8 @@
 import './style.css'
 import { SCAPE_CONFIG } from './scene/config.ts'
 import { createIsometricScape } from './scene/create-isometric-scape.ts'
+import { createGraphicsPanel } from './ui/graphics-panel.ts'
+import { createScapeControls } from './ui/scape-controls.ts'
 
 
 const canvas = document.querySelector<HTMLCanvasElement>('[data-scape]')
@@ -11,6 +13,7 @@ if (!canvas || !status)
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const compactLayout = window.matchMedia('(max-width: 40rem)').matches
+const coarsePointer = window.matchMedia('(pointer: coarse)').matches
 let disposed = false
 
 try {
@@ -26,6 +29,17 @@ try {
     },
   })
 
+  // The overlay writes straight into `SCAPE_CONFIG`, which every scene module
+  // already reads per frame — so it is a view of the scene's settings rather
+  // than a copy that has to be pushed anywhere.
+  const panel = createGraphicsPanel({
+    sections:  createScapeControls(SCAPE_CONFIG, scape.quality),
+    tier:      scape.quality.tier,
+    collapsed: compactLayout || coarsePointer,
+  })
+
+  canvas.parentElement?.append(panel.element)
+
   status.value = compactLayout
     ? 'scape ready · tap and drag anywhere to explore'
     : 'scape ready · select the canvas to use keyboard controls'
@@ -38,6 +52,7 @@ try {
     if (disposed)
       return
     disposed = true
+    panel.dispose()
     scape.dispose()
   }, { once: true })
 }

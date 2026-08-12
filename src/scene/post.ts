@@ -1,7 +1,9 @@
 import { Vector3 } from 'three'
 import type { Mesh, OrthographicCamera } from 'three'
+import type { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
 import type { LUTPass } from 'three/addons/postprocessing/LUTPass.js'
 import type { Pass } from 'three/addons/postprocessing/Pass.js'
+import type { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js'
 import { HorizontalTiltShiftShader } from 'three/addons/shaders/HorizontalTiltShiftShader.js'
 import { VerticalTiltShiftShader } from 'three/addons/shaders/VerticalTiltShiftShader.js'
@@ -88,14 +90,16 @@ export function createAtmospherePost ({
 }: PostOptions): AppModule<Record<string, never>> {
   const luts = createGradeLUTs()
 
-  let pairs: TiltShiftPair[]      = []
-  let grade: GradePass | null     = null
-  let lut: LUTPass | null         = null
-  let film: ShaderPass | null     = null
-  let godRays: GodRaysPass | null = null
-  let extras: Pass[]              = []
-  let size                        = { width: 1, height: 1 }
-  let amount                      = config.look.tiltShift
+  let pairs: TiltShiftPair[]          = []
+  let composer: EffectComposer | null = null
+  let bloom: UnrealBloomPass | null   = null
+  let grade: GradePass | null         = null
+  let lut: LUTPass | null             = null
+  let film: ShaderPass | null         = null
+  let godRays: GodRaysPass | null     = null
+  let extras: Pass[]                  = []
+  let size                            = { width: 1, height: 1 }
+  let amount                          = config.look.tiltShift
 
   function applyBlur (): void {
     for (const pair of pairs) {
@@ -212,6 +216,37 @@ export function createAtmospherePost ({
     return built
   }
 
+  /**
+   * Push `config.look` into the passes that are already built.
+   *
+   * The chain's *shape* is a tier decision made once — which passes exist at
+   * all is not something a slider gets to change without rebuilding the
+   * composer. Their strengths are just uniforms, though, so every one of them
+   * can follow the config live, which is what makes the tuning overlay
+   * immediate rather than a reload.
+   */
+  function syncLook (): void {
+    if (grade)
+      grade.uniforms.uVignette.value = config.look.vignette
+
+    if (lut) {
+      lut.intensity = config.look.intensity
+      lut.lut       = luts.get(config.look.grade)
+    }
+
+    if (film)
+      film.uniforms.uIntensity.value = config.look.grain * GRAIN_SCALE
+
+    // The bloom pass belongs to the composer rather than to `effects`, so it is
+    // found once by the one property no other pass in the chain carries.
+    bloom ??= composer?.passes.find(
+      (pass): pass is UnrealBloomPass => typeof (pass as UnrealBloomPass).strength === 'number',
+    ) ?? null
+
+    if (bloom)
+      bloom.strength = config.look.bloom
+  }
+
   const inner = postProcessing<Record<string, never>>({
     depth: quality.ao || quality.ssr || quality.godRays,
 
@@ -234,7 +269,8 @@ export function createAtmospherePost ({
         ctx.composer.renderTarget2.samples = quality.msaaSamples
       }
 
-      size = { width: ctx.width, height: ctx.height }
+      size     = { width: ctx.width, height: ctx.height }
+      composer = ctx.composer
 
       const chain: Pass[] = []
       extras = []
@@ -302,6 +338,7 @@ export function createAtmospherePost ({
     update (state, frame, ctx) {
       aimFocus()
       aimSun()
+      syncLook()
       if (film)
         film.uniforms.uTime.value = frame.elapsed
       inner.update?.(state, frame, ctx)
@@ -327,12 +364,14 @@ export function createAtmospherePost ({
       inner.dispose?.()
       luts.dispose()
 
-      pairs   = []
-      extras  = []
-      grade   = null
-      lut     = null
-      film    = null
-      godRays = null
+      pairs    = []
+      extras   = []
+      grade    = null
+      lut      = null
+      film     = null
+      godRays  = null
+      bloom    = null
+      composer = null
     },
   })
 }

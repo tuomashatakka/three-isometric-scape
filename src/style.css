@@ -118,6 +118,202 @@ h1 {
   display: none;
 }
 
+/* ---- graphics overlay ---------------------------------------------------- */
+
+.gfx {
+  position: absolute;
+  z-index: 2;
+  top: max(1rem, env(safe-area-inset-top));
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  width: min(19rem, calc(100% - 2rem));
+  border: 1px solid rgb(226 242 164 / 16%);
+  background: rgb(21 24 20 / 86%);
+  box-shadow: 0 1.5rem 4rem rgb(4 6 4 / 22%);
+  backdrop-filter: blur(0.5rem);
+  transition: transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.gfx[data-collapsed="true"] {
+  transform: translateX(calc(100% + max(1rem, env(safe-area-inset-right))));
+}
+
+.gfx-head {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.85rem 0.9rem 0.7rem;
+  border-bottom: 1px solid rgb(226 242 164 / 12%);
+}
+
+.gfx-title {
+  flex: 1;
+  margin: 0;
+  color: #d9f18f;
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.105rem;
+  text-transform: uppercase;
+}
+
+.gfx-reset {
+  padding: 0.25rem 0.5rem;
+  color: rgb(233 233 221 / 78%);
+  font: inherit;
+  font-size: 0.62rem;
+  letter-spacing: 0.08rem;
+  text-transform: uppercase;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid rgb(226 242 164 / 22%);
+}
+
+.gfx-reset:hover,
+.gfx-reset:focus-visible {
+  color: #19182e;
+  background: #d9f18f;
+}
+
+/* The handle stays outside the panel so it can still be reached once the panel
+   has slid off the edge — a collapse control that collapses with the thing it
+   controls is a one-way door. */
+.gfx-toggle {
+  position: absolute;
+  top: 0.55rem;
+  right: calc(100% + 0.5rem);
+  width: 1.6rem;
+  height: 1.6rem;
+  color: #d9f18f;
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  background: rgb(21 24 20 / 86%);
+  border: 1px solid rgb(226 242 164 / 16%);
+  backdrop-filter: blur(0.5rem);
+}
+
+.gfx-toggle:hover,
+.gfx-toggle:focus-visible {
+  color: #19182e;
+  background: #d9f18f;
+}
+
+.gfx-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.2rem 0.9rem 0.9rem;
+  overscroll-behavior: contain;
+}
+
+.gfx-section {
+  margin: 0;
+  padding: 0.7rem 0 0;
+  border: 0;
+}
+
+.gfx-legend {
+  padding: 0;
+  color: rgb(233 233 221 / 46%);
+  font-size: 0.6rem;
+  letter-spacing: 0.14rem;
+  text-transform: uppercase;
+}
+
+.gfx-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 0.5rem;
+  align-items: center;
+  padding: 0.28rem 0;
+}
+
+.gfx-label {
+  color: rgb(233 233 221 / 72%);
+  font-size: 0.72rem;
+}
+
+.gfx-value {
+  color: #d9f18f;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.gfx-range,
+.gfx-select {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.gfx-range {
+  height: 1rem;
+  margin: 0;
+  accent-color: #d9f18f;
+}
+
+.gfx-select {
+  padding: 0.25rem 0.3rem;
+  color: #e9e9dd;
+  font: inherit;
+  font-size: 0.72rem;
+  background: rgb(12 14 11 / 90%);
+  border: 1px solid rgb(226 242 164 / 18%);
+}
+
+.gfx-group {
+  padding: 0.28rem 0;
+}
+
+.gfx-switch {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+  color: rgb(233 233 221 / 88%);
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+
+.gfx-switch input {
+  margin: 0;
+  accent-color: #d9f18f;
+}
+
+/* Collapsed rather than removed: the knobs stay in the DOM so their values keep
+   tracking the config, and switching an effect back on does not rebuild them. */
+.gfx-nested {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-left: 0.35rem;
+  padding-left: 1.15rem;
+  border-left: 1px solid rgb(226 242 164 / 12%);
+  transition: grid-template-rows 180ms ease;
+}
+
+.gfx-group[data-on="true"] .gfx-nested {
+  grid-template-rows: 1fr;
+}
+
+.gfx-nested > * {
+  overflow: hidden;
+  min-height: 0;
+}
+
+[data-unavailable="true"] {
+  opacity: 0.38;
+}
+
+.gfx-foot {
+  margin: 0;
+  padding: 0.55rem 0.9rem 0.7rem;
+  color: rgb(233 233 221 / 40%);
+  font-size: 0.6rem;
+  letter-spacing: 0.08rem;
+  text-transform: uppercase;
+  border-top: 1px solid rgb(226 242 164 / 12%);
+}
+
 noscript {
   position: fixed;
   z-index: 3;
@@ -167,11 +363,28 @@ noscript {
   .scape-controls {
     margin-bottom: 0.6rem;
   }
+
+  .gfx {
+    top: auto;
+    right: max(0.75rem, env(safe-area-inset-right));
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    width: min(17rem, calc(100% - 1.5rem));
+    max-height: min(60vh, 26rem);
+  }
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .scape-card {
+  .scape-card,
+  .gfx,
+  .gfx-toggle {
     background: #151814;
     backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gfx,
+  .gfx-nested {
+    transition: none;
   }
 }

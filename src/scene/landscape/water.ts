@@ -228,11 +228,11 @@ export function createWater (config: ScapeConfig, field: HeightField): Water {
     uFoam:           { value: new Color(config.palette.foam) },
     uShoreScale:     { value: 1 / maskSpan },
     uRippleScale:    { value: 1 / 34 },
-    uRippleStrength: { value: 0.2 },
+    uRippleStrength: { value: config.water.rippleStrength },
     uSparkleScale:   { value: 1 / 14 },
-    uSparkle:        { value: 0.5 },
+    uSparkle:        { value: config.water.sparkle },
     uWaveTime:       waveTime,
-    uWaveHeight:     { value: 0.075 },
+    uWaveHeight:     { value: config.water.waveHeight },
   }
 
   // Opaque at the material level, and let the shader's alpha ramp do the
@@ -256,7 +256,7 @@ export function createWater (config: ScapeConfig, field: HeightField): Water {
     color:           0xffffff,
     transparent:     true,
     opacity:         1,
-    roughness:       0.62,
+    roughness:       config.water.roughness,
     metalness:       0.02,
     envMapIntensity: 0.3,
     depthWrite:      false,
@@ -285,9 +285,18 @@ export function createWater (config: ScapeConfig, field: HeightField): Water {
   return {
     mesh,
 
+    // Read back from the config every frame rather than captured at build, so
+    // the tuning overlay can drive the lake without rebuilding the scene. Four
+    // uniform writes and a scalar compare is nothing next to the draw itself.
     update (elapsed) {
       rippleOffset.value.set(elapsed * 0.014, elapsed * 0.0092)
-      waveTime.value = elapsed
+      waveTime.value                 = elapsed
+      uniforms.uSparkle.value        = config.water.sparkle
+      uniforms.uWaveHeight.value     = config.water.waveHeight
+      uniforms.uRippleStrength.value = config.water.rippleStrength
+
+      if (material.roughness !== config.water.roughness)
+        material.roughness = config.water.roughness
     },
 
     dispose () {

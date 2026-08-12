@@ -33,6 +33,9 @@ interface MistSheet {
   /** Accumulated wind travel, in UV units. Slices add a world term on top. */
   phaseX: number
   phaseY: number
+
+  /** This layer's share of the authored density. */
+  weight: number
 }
 
 const TEXTURE_SIZE = 128
@@ -177,7 +180,7 @@ export function createMistLayer ({
     return map
   }
 
-  function drift (index: number): Omit<MistSheet, 'mesh'> {
+  function drift (index: number, weight: number): Omit<MistSheet, 'mesh'> {
     const heading = config.seed * 0.001 + index * 0.7
 
     return {
@@ -186,16 +189,17 @@ export function createMistLayer ({
       speed:  1 + index * 0.45,
       phaseX: 0,
       phaseY: 0,
+      weight,
     }
   }
 
   /**
-   * Opacity is fixed at build.
+   * Opacity tracks the authored density, and nothing else.
    *
-   * It used to be recomputed every frame from the view elevation, which meant
+   * It used to be scaled every frame by the view elevation, which meant
    * orbiting or zooming quietly changed the weather. Mist belongs to the world,
-   * not to where you happen to be standing — so the density is authored once
-   * and the camera has no say in it.
+   * not to where you happen to be standing — so it follows `mistAmount` alone,
+   * which keeps it live for the tuning overlay while leaving the camera no say.
    */
   function mistMaterial (map: Texture, opacity: number): MeshBasicMaterial {
     return new MeshBasicMaterial({
@@ -210,8 +214,8 @@ export function createMistLayer ({
   }
 
   const sheets = Array.from({ length: count }, (_unused, index): MistSheet => {
-    const weight   = 1 - index / (count + 1)
-    const material = mistMaterial(tile(index, 1), amount * weight * LAYER_ALPHA)
+    const weight   = (1 - index / (count + 1)) * LAYER_ALPHA
+    const material = mistMaterial(tile(index, 1), amount * weight)
 
     // Pinned to the world, not to the camera. A sheet that chases the focus
     // point drags its whole cloud pattern across the ground as you pan, which
@@ -224,12 +228,12 @@ export function createMistLayer ({
     mesh.frustumCulled = false
     mesh.visible       = visible
 
-    return { mesh, ...drift(index) }
+    return { mesh, ...drift(index, weight) }
   })
 
   const slices = Array.from({ length: sliceCount }, (_unused, index): MistSheet => {
-    const weight   = 1 - index / (sliceCount + 1)
-    const material = mistMaterial(tile(index, 0.5), amount * weight * SLICE_ALPHA)
+    const weight   = (1 - index / (sliceCount + 1)) * SLICE_ALPHA
+    const material = mistMaterial(tile(index, 0.5), amount * weight)
 
     const mesh         = new Mesh(upright, material)
     mesh.name          = `mist-slice-${index + 1}`
@@ -238,7 +242,7 @@ export function createMistLayer ({
     mesh.frustumCulled = false
     mesh.visible       = visible
 
-    return { mesh, ...drift(index + count) }
+    return { mesh, ...drift(index + count, weight) }
   })
 
   const all = [ ...sheets, ...slices ]
@@ -252,8 +256,15 @@ export function createMistLayer ({
     },
 
     update (_state, frame) {
+      const density = config.atmosphere.mistAmount
+
       for (const sheet of all) {
-        const map = (sheet.mesh.material as MeshBasicMaterial).map
+        const material = sheet.mesh.material as MeshBasicMaterial
+        const map      = material.map
+
+        material.opacity   = density * sheet.weight
+        sheet.mesh.visible = density > 0.01
+
         if (!map)
           continue
 

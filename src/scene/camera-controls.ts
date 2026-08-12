@@ -2,6 +2,7 @@ import { MathUtils, Raycaster, Vector2, Vector3 } from 'three'
 import type { OrthographicCamera } from 'three'
 import { aimIsoCamera, defineModule, resizeIsoCamera, smoothstep } from 'threejs-scene'
 import type { AppModule, FrameContext } from 'threejs-scene'
+import type { ScapeConfig } from './config.ts'
 import type { Landscape } from './landscape/index.ts'
 
 
@@ -29,13 +30,13 @@ interface TouchFrame {
 }
 
 export interface CameraControlsOptions {
-  camera:        OrthographicCamera
-  canvas:        HTMLCanvasElement
-  landscape:     Landscape
-  minViewSize:   number
-  maxViewSize:   number
-  tiltNear:      number
-  tiltFar:       number
+  camera:    OrthographicCamera
+  canvas:    HTMLCanvasElement
+  landscape: Landscape
+
+  /** Read live, so the tuning overlay can reshape the zoom and tilt range. */
+  limits: ScapeConfig['camera']
+
   maxFocus:      number
   reducedMotion: boolean
   onFocus(point: Vector3): void
@@ -126,10 +127,7 @@ export function createCameraControls (
     camera,
     canvas,
     landscape,
-    minViewSize,
-    maxViewSize,
-    tiltNear,
-    tiltFar,
+    limits,
     maxFocus,
     reducedMotion,
     onFocus,
@@ -166,7 +164,7 @@ export function createCameraControls (
 
   const aspect = (): number => canvas.clientWidth / canvas.clientHeight || 1
   const tiltOf = (viewSize: number): number =>
-    tiltForViewSize(viewSize, minViewSize, maxViewSize, tiltNear, tiltFar)
+    tiltForViewSize(viewSize, limits.minViewSize, limits.maxViewSize, limits.tiltNear, limits.tiltFar)
 
   /**
    * How far back to sit the camera.
@@ -245,7 +243,7 @@ export function createCameraControls (
   }
 
   function zoomTo (scale: number): void {
-    target.viewSize = zoomViewSize(target.viewSize, scale, minViewSize, maxViewSize)
+    target.viewSize = zoomViewSize(target.viewSize, scale, limits.minViewSize, limits.maxViewSize)
     retarget()
   }
 

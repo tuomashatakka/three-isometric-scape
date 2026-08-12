@@ -8,9 +8,13 @@ import { createLandscape } from './landscape/index.ts'
 import { createMistLayer } from './mist.ts'
 import { createAtmospherePost } from './post.ts'
 import { detectAtmosphereQuality } from './quality.ts'
+import type { AtmosphereQuality } from './quality.ts'
 
 
 export interface IsometricScape {
+
+  /** The tier the scene resolved to, so the overlay can say what is available. */
+  quality: AtmosphereQuality
   dispose(): void
 }
 
@@ -62,10 +66,7 @@ export function createIsometricScape (
     camera,
     canvas,
     landscape,
-    minViewSize:     config.camera.minViewSize,
-    maxViewSize:     config.camera.maxViewSize,
-    tiltNear:        config.camera.tiltNear,
-    tiltFar:         config.camera.tiltFar,
+    limits:          config.camera,
     maxFocus:        config.terrain.size * 0.48,
     reducedMotion:   options.reducedMotion,
     onFocus:         options.onFocus,
@@ -95,6 +96,8 @@ export function createIsometricScape (
   app.start()
 
   return {
+    quality,
+
     dispose () {
       app.dispose()
     },

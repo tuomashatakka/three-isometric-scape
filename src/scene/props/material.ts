@@ -1,34 +1,7 @@
 import { RepeatWrapping, Vector2 } from 'three'
 import type { IUniform, MeshStandardMaterial, Texture, WebGLProgramParametersWithUniforms } from 'three'
 import { createSeamlessNoiseTexture, kitMaterial, markShared } from 'threejs-scene/modules/assets'
-
-
-export interface ScapeMaterialOptions {
-
-  /** Drifting cloud-shadow darkness, 0..1. */
-  cloudShadow: number
-
-  /** World units per cloud-map tile. */
-  cloudScale: number
-
-  /** Cloud drift speed in tiles per second. */
-  cloudSpeed: number
-
-  /** Foliage sway amplitude. */
-  windStrength: number
-
-  /** Foliage sway rate. */
-  windSpeed: number
-
-  /** Deterministic cloud-map seed. */
-  seed: number
-
-  /** World units per tile of the ground detail grain. */
-  detailScale: number
-
-  /** Ground grain contrast, 0..1. */
-  detailStrength: number
-}
+import type { ScapeConfig } from '../config.ts'
 
 /** The two materials every solid thing in the scape draws with. */
 export interface ScapeMaterials {
@@ -156,26 +129,26 @@ function buildDetailMap (seed: number): Texture {
   return texture
 }
 
-export function createScapeMaterials (options: ScapeMaterialOptions): ScapeMaterials {
-  const cloudMap  = buildCloudMap(options.seed)
-  const detailMap = buildDetailMap(options.seed ^ 0x77c1)
+export function createScapeMaterials (config: ScapeConfig): ScapeMaterials {
+  const cloudMap  = buildCloudMap(config.seed)
+  const detailMap = buildDetailMap(config.seed ^ 0x77c1)
 
   const cloudOffset: IUniform<Vector2>   = { value: new Vector2() }
   const shared: Record<string, IUniform> = {
     uCloudMap:      { value: cloudMap },
     uCloudOffset:   cloudOffset,
-    uCloudScale:    { value: 1 / Math.max(1, options.cloudScale) },
-    uCloudStrength: { value: options.cloudShadow },
+    uCloudScale:    { value: 1 / Math.max(1, config.atmosphere.cloudScale) },
+    uCloudStrength: { value: config.atmosphere.cloudShadow },
   }
   const wind: Record<string, IUniform> = {
     uWindTime:     { value: 0 },
-    uWindSpeed:    { value: options.windSpeed },
-    uWindStrength: { value: options.windStrength },
+    uWindSpeed:    { value: config.wind.speed },
+    uWindStrength: { value: config.wind.strength },
   }
   const detail: Record<string, IUniform> = {
     uDetailMap:      { value: detailMap },
-    uDetailScale:    { value: 1 / Math.max(0.5, options.detailScale) },
-    uDetailStrength: { value: options.detailStrength },
+    uDetailScale:    { value: 1 / Math.max(0.5, config.terrain.detailScale) },
+    uDetailStrength: { value: config.terrain.detailGrain },
   }
 
   interface Injection {
@@ -214,15 +187,24 @@ export function createScapeMaterials (options: ScapeMaterialOptions): ScapeMater
   markShared(ground)
   markShared(foliage)
 
-  const drift = options.cloudSpeed
-
   return {
     ground,
     foliage,
 
+    // Uniforms are refreshed from the config every frame rather than captured
+    // at build. The scape's tuning surface is the config object, and a knob
+    // that only takes effect on reload is not a knob.
     update (elapsed) {
+      const drift = config.atmosphere.cloudSpeed
+
       cloudOffset.value.set(elapsed * drift * 0.06, elapsed * drift * 0.021)
-      wind.uWindTime.value = elapsed
+      wind.uWindTime.value         = elapsed
+      wind.uWindSpeed.value        = config.wind.speed
+      wind.uWindStrength.value     = config.wind.strength
+      shared.uCloudStrength.value  = config.atmosphere.cloudShadow
+      shared.uCloudScale.value     = 1 / Math.max(1, config.atmosphere.cloudScale)
+      detail.uDetailStrength.value = config.terrain.detailGrain
+      detail.uDetailScale.value    = 1 / Math.max(0.5, config.terrain.detailScale)
     },
 
     dispose () {
