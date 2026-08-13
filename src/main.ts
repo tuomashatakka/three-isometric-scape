@@ -60,6 +60,20 @@ const RECOVERY_DELAY = 900
  */
 const GRACE = 9000
 
+/**
+ * How many contexts one page load is allowed to spend.
+ *
+ * Not a guess at what the device can take — a guess at what the *browser* will
+ * tolerate. Chrome counts context losses per origin and, past some threshold,
+ * refuses to create another one at all: `A WebGL context could not be created.
+ * Reason: Web page caused context loss and was blocked`. That state is strictly
+ * worse than the crash it followed, because the scape then cannot start at any
+ * tier, and it outlives the tab. Two is enough to walk one step down the ladder
+ * and see whether the step helped; a third is spending the reader's goodwill
+ * with their browser on a device that has already answered twice.
+ */
+const MAX_LOSSES = 2
+
 interface Mounted {
   dispose(): void
 }
@@ -67,10 +81,11 @@ interface Mounted {
 /**
  * The optical chain, forced either way from the url.
  *
- * `?post=1` on a phone is how the diagnosis gets tested rather than assumed: the
- * mobile tier no longer builds the chain, so turning it back on by hand is the
- * only remaining way to ask the device whether the chain was really the thing
- * that killed it. `?post=0` does the same from the other side on a desktop.
+ * A tier is a bundle of decisions, so a device that fails on one cannot say which
+ * decision it failed on. `?post=0` takes the whole optical chain out from under a
+ * tier that otherwise keeps its geometry, resolution and frame cap, and `?post=1`
+ * puts it back where a tier would not have built one — which is how the chain was
+ * ruled out as the cause of the context loss rather than assumed either way.
  */
 function withPostOverride (quality: AtmosphereQuality): AtmosphereQuality {
   const forced = params.get('post')
@@ -125,6 +140,7 @@ let quality                 = initialQuality
 let mounted: Mounted | null = null
 let recovering              = 0
 let proving                 = 0
+let losses                  = 0
 
 function mount (): void {
   const scape = createIsometricScape(canvas, SCAPE_CONFIG, {
@@ -208,7 +224,18 @@ function renewCanvas (): void {
 function loseContext (): void {
   const next = reduceAtmosphereQuality(quality)
 
+  losses += 1
   unmount()
+
+  // The browser is keeping score too, and its penalty is worse than the crash.
+  // Chrome blocks an origin from getting *any* further context once a page has
+  // lost too many — "Web page caused context loss and was blocked" — and after
+  // that the scape cannot even start, on a device where a cheaper tier might
+  // have run perfectly. Rebuilding is a budget, so it is spent like one.
+  if (losses >= MAX_LOSSES) {
+    diagnostics.fail(`${losses} contexts lost · stopping before the browser blocks this page · reload to try again`)
+    return
+  }
 
   if (!next) {
     diagnostics.fail('no tier left to fall back to · reload to rebuild the scape')
@@ -243,8 +270,22 @@ try {
   diagnostics.say(compactLayout ? 'ready · tap and drag to explore' : 'ready · select the canvas for keys')
 }
 catch (error) {
-  diagnostics.fail(`could not build the scape · ${error instanceof Error ? error.message : String(error)}`)
-  throw error
+  const message = error instanceof Error ? error.message : String(error)
+
+  diagnostics.fail(`could not build the scape · ${message}`)
+
+  // three throws a flat "Error creating WebGL context" whatever the reason, and
+  // the reason is the only part worth reading — it arrives separately, through
+  // `webglcontextcreationerror`, one line earlier in the log. When the browser
+  // has blocklisted the origin after too many losses, "context creation failed"
+  // reads as a broken page and sends the reader to reload, which is the one
+  // thing that cannot help. So say what actually clears it.
+  if ((/creating webgl context|context could not be created/iu).test(message))
+    diagnostics.fail('if that says the page was blocked, this origin has lost too many contexts · fully close the browser and reopen, or use a private tab')
+
+  // Deliberately not rethrown. The log *is* the error report on a phone, and an
+  // uncaught error on top of a message that already explains itself only buries
+  // it under a stack trace nobody can read on a 400-pixel screen.
 }
 
 window.addEventListener('pagehide', event => {
