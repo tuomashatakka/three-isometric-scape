@@ -114,6 +114,26 @@ h1 {
   min-height: 0.9rem;
 }
 
+/* The diagnostics log. Uppercase tracked-out display type is exactly wrong for
+   a column of timestamps and gl enums, so the log opts out of the status
+   element's own styling and becomes a small scrollable monospace pane. Newest
+   line first, so the thing that just happened needs no scrolling to read. */
+.scape-status[data-log="true"] {
+  max-height: min(38vh, 15rem);
+  overflow-y: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.62rem;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: 0;
+  white-space: pre-wrap;
+  text-transform: none;
+  overflow-wrap: anywhere;
+  cursor: copy;
+  user-select: text;
+  overscroll-behavior: contain;
+}
+
 .touch-help {
   display: none;
 }

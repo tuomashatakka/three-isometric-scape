@@ -1,7 +1,13 @@
 import './style.css'
 import { SCAPE_CONFIG } from './scene/config.ts'
 import { createIsometricScape } from './scene/create-isometric-scape.ts'
-import { detectAtmosphereQuality, reduceAtmosphereQuality } from './scene/quality.ts'
+import {
+  describeQualitySignals,
+  readQualitySignals,
+  reduceAtmosphereQuality,
+  selectAtmosphereQuality,
+} from './scene/quality.ts'
+import { createDiagnostics } from './ui/diagnostics.ts'
 import { createGraphicsPanel } from './ui/graphics-panel.ts'
 import { createScapeControls } from './ui/scape-controls.ts'
 import { createSettingsStore } from './ui/settings-store.ts'
@@ -13,13 +19,22 @@ const statusSlot  = document.querySelector<HTMLOutputElement>('#scape-status')
 if (!firstCanvas || !statusSlot)
   throw new Error('three-iso requires the scape canvas and status output')
 
-// Re-bound past the guard so the hoisted functions below see the narrowed type
-// rather than the nullable one `querySelector` hands back.
-const status = statusSlot
-
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const compactLayout = window.matchMedia('(max-width: 40rem)').matches
 const coarsePointer = window.matchMedia('(pointer: coarse)').matches
+
+// Installed first, and deliberately before anything that could fail: on a phone
+// this log is the only place an error can be read at all. `?debug` adds the
+// live frame-and-memory line on top of the events.
+const diagnostics = createDiagnostics({
+  output:  statusSlot,
+  verbose: new URLSearchParams(window.location.search).has('debug'),
+})
+
+const signals = readQualitySignals()
+
+diagnostics.say(describeQualitySignals(signals))
+diagnostics.say(navigator.userAgent)
 
 /**
  * How long to leave the GPU alone before asking it for another context.
@@ -37,12 +52,12 @@ interface Mounted {
 // the authored values so `reset` can give them back, and after a rebuild the
 // config no longer holds them. The control list is the same shape at every tier
 // — only which knobs render as available differs — so one store covers them all.
-const settings = createSettingsStore(SCAPE_CONFIG, createScapeControls(detectAtmosphereQuality()))
+const settings = createSettingsStore(SCAPE_CONFIG, createScapeControls(selectAtmosphereQuality(signals)))
 
 settings.load()
 
 let canvas                  = firstCanvas
-let quality                 = detectAtmosphereQuality()
+let quality                 = selectAtmosphereQuality(signals)
 let mounted: Mounted | null = null
 let recovering              = 0
 
@@ -50,13 +65,15 @@ function mount (): void {
   const scape = createIsometricScape(canvas, SCAPE_CONFIG, {
     quality,
     reducedMotion,
-    onFocus (point) {
-      status.value = reducedMotion
-        ? `focused at ${point.x.toFixed(1)}, ${point.z.toFixed(1)}`
-        : `orbiting ${point.x.toFixed(1)}, ${point.z.toFixed(1)}`
+    diagnostics,
+
+    // The camera talks constantly, and none of it survives a crash worth
+    // reading. It stays out of the log and off the one surface the log owns.
+    onFocus () {
+      // nothing to report — the frame is the feedback
     },
     onManualControl () {
-      status.value = 'manual camera · click or tap a place to orbit'
+      // as above
     },
     onContextLost () {
       loseContext()
@@ -118,15 +135,15 @@ function renewCanvas (): void {
 function loseContext (): void {
   const next = reduceAtmosphereQuality(quality)
 
+  unmount()
+
   if (!next) {
-    status.value = 'webgl context lost · reload to rebuild the scape'
-    unmount()
+    diagnostics.fail('no tier left to fall back to · reload to rebuild the scape')
     return
   }
 
-  status.value = `webgl context lost · rebuilding on the ${next.tier} tier`
-  quality      = next
-  unmount()
+  diagnostics.say(`falling back to the ${next.tier} tier in ${RECOVERY_DELAY}ms`)
+  quality = next
 
   window.clearTimeout(recovering)
   recovering = window.setTimeout(() => {
@@ -134,26 +151,21 @@ function loseContext (): void {
 
     try {
       mount()
-      status.value = `scape rebuilt · ${quality.tier} tier`
     }
-    catch {
-      // A rebuild that cannot even get a context is the end of the line. There
-      // is no tier below this one worth trying, and throwing out of a timer
-      // would only lose the message the reader needs.
-      status.value = 'webgl context lost · reload to rebuild the scape'
+    catch (error) {
+      // A rebuild that cannot even get a context is the end of the line, and
+      // throwing out of a timer would only lose the message the reader needs.
+      diagnostics.fail(`rebuild failed · ${error instanceof Error ? error.message : String(error)}`)
     }
   }, RECOVERY_DELAY)
 }
 
 try {
   mount()
-
-  status.value = compactLayout
-    ? 'scape ready · tap and drag anywhere to explore'
-    : 'scape ready · select the canvas to use keyboard controls'
+  diagnostics.say(compactLayout ? 'ready · tap and drag to explore' : 'ready · select the canvas for keys')
 }
 catch (error) {
-  status.value = 'could not build the webgl scape'
+  diagnostics.fail(`could not build the scape · ${error instanceof Error ? error.message : String(error)}`)
   throw error
 }
 

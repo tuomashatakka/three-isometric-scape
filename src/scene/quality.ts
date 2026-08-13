@@ -220,12 +220,37 @@ export function selectAtmosphereQuality ({
   return atmosphereQuality('desktop')
 }
 
-export function detectAtmosphereQuality (): AtmosphereQuality {
-  return selectAtmosphereQuality({
+/**
+ * What the device says about itself.
+ *
+ * Split out from the selection so the answer can be *shown*. A tier that turns
+ * out to be wrong for a device is indistinguishable from a tier that is right
+ * and still too heavy, unless you can read the signals it was picked from.
+ */
+export function readQualitySignals (): QualitySignals {
+  return {
     coarsePointer:       globalThis.matchMedia?.('(pointer: coarse)').matches ?? false,
     compactViewport:     globalThis.matchMedia?.('(max-width: 900px)').matches ?? false,
     pixelRatio:          globalThis.devicePixelRatio ?? 1,
     hardwareConcurrency: globalThis.navigator?.hardwareConcurrency ?? 4,
     wideViewport:        globalThis.matchMedia?.('(min-width: 1280px)').matches ?? false,
-  })
+  }
+}
+
+export function describeQualitySignals (signals: QualitySignals): string {
+  const memory = (globalThis.navigator as { deviceMemory?: number } | undefined)?.deviceMemory
+
+  return [
+    `coarse ${signals.coarsePointer}`,
+    `compact ${signals.compactViewport}`,
+    `wide ${signals.wideViewport}`,
+    `dpr ${signals.pixelRatio}`,
+    `cores ${signals.hardwareConcurrency}`,
+    memory === undefined ? 'ram ?' : `ram ${memory}gb`,
+    `${globalThis.innerWidth}×${globalThis.innerHeight}css`,
+  ].join(' · ')
+}
+
+export function detectAtmosphereQuality (): AtmosphereQuality {
+  return selectAtmosphereQuality(readQualitySignals())
 }

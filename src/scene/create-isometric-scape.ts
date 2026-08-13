@@ -10,10 +10,19 @@ import { createLandscape } from './landscape/index.ts'
 import { createMistLayer } from './mist.ts'
 import { createAtmospherePost } from './post.ts'
 import type { AtmosphereQuality } from './quality.ts'
+import { createVitals } from './vitals.ts'
 
 
 export interface IsometricScape {
   dispose(): void
+}
+
+/** The channel the scape reports itself through. See `ui/diagnostics.ts`. */
+export interface ScapeDiagnostics {
+  say(message: string): void
+  fail(message: string): void
+  vitals(line: string): void
+  readonly verbose: boolean
 }
 
 export interface IsometricScapeOptions {
@@ -21,6 +30,7 @@ export interface IsometricScapeOptions {
   /** The resolved tier. Passed in so the overlay can be built before the scene is. */
   quality:       AtmosphereQuality
   reducedMotion: boolean
+  diagnostics:   ScapeDiagnostics
   onFocus(point: Vector3): void
   onManualControl(): void
 
@@ -35,13 +45,41 @@ export interface IsometricScapeOptions {
   onContextLost(): void
 }
 
+/**
+ * What the driver said, if it said anything.
+ *
+ * `WebGLContextEvent.statusMessage` is where Chrome puts the reason a context
+ * went away — "GPU process crashed", a guilty-context note, an out-of-memory —
+ * and it is very often the only description of the failure that exists.
+ */
+function lossReason (event: Event): string {
+  const message = (event as WebGLContextEvent).statusMessage
+
+  return message ? `"${message}"` : 'no reason given by the driver'
+}
+
+/** Which gpu actually picked the scape up, where the browser will admit it. */
+function describeGpu (gl: WebGL2RenderingContext): string {
+  const debug = gl.getExtension('WEBGL_debug_renderer_info')
+
+  if (!debug)
+    return String(gl.getParameter(gl.RENDERER))
+
+  return [
+    gl.getParameter(debug.UNMASKED_VENDOR_WEBGL),
+    gl.getParameter(debug.UNMASKED_RENDERER_WEBGL),
+  ].filter(Boolean).join(' ')
+}
+
 export function createIsometricScape (
   canvas: HTMLCanvasElement,
   config: ScapeConfig,
   options: IsometricScapeOptions,
 ): IsometricScape {
-  const aspect = canvas.clientWidth / canvas.clientHeight || 1
-  const camera = createIsoCamera(aspect, {
+  const { diagnostics } = options
+  const buildStarted    = performance.now()
+  const aspect          = canvas.clientWidth / canvas.clientHeight || 1
+  const camera          = createIsoCamera(aspect, {
     viewSize: config.camera.viewSize,
     flavor:   'dimetric',
     rotation: config.camera.rotation,
@@ -122,6 +160,31 @@ export function createIsometricScape (
     use: modules,
   })
 
+  // Mounted after everything it measures, and last of all so that nothing it
+  // does can come between a module and the frame. It declares no `render` hook,
+  // so the post chain — or the bare renderer — still owns the draw.
+  const vitals = createVitals({
+    renderer: app.ctx.renderer,
+    verbose:  diagnostics.verbose,
+    report:   line => diagnostics.vitals(line),
+    notice:   message => diagnostics.say(message),
+  })
+
+  app.use(vitals.module)
+
+  const gl = app.ctx.renderer.getContext() as WebGL2RenderingContext
+
+  diagnostics.say([
+    `${quality.tier} tier`,
+    `buffer ${gl.drawingBufferWidth}×${gl.drawingBufferHeight}`,
+    `ratio ${app.ctx.renderer.getPixelRatio()}`,
+    `${quality.frameRate || 'un'}capped`,
+    `post ${quality.post ? 'on' : 'off'}`,
+    `built in ${Math.round(performance.now() - buildStarted)}ms`,
+  ].join(' · '))
+
+  diagnostics.say(`gpu ${describeGpu(gl)}`)
+
   let contextLost = false
 
   /**
@@ -144,14 +207,31 @@ export function createIsometricScape (
     event.preventDefault()
     contextLost = true
     app.stop()
+
+    // The state of the scape at the moment it died, while it is still readable.
+    // After this the info counters are the only trace of what it was doing, and
+    // the next mount resets them.
+    diagnostics.fail(`context lost · ${lossReason(event)}`)
+    diagnostics.fail(`at loss · ${vitals.snapshot()}`)
     options.onContextLost()
   }
 
+  function handleContextRestored (): void {
+    diagnostics.say('the browser offered the context back')
+  }
+
+  function handleCreationError (event: Event): void {
+    diagnostics.fail(`context could not be created · ${lossReason(event)}`)
+  }
+
   function handleVisibility (): void {
+    diagnostics.say(document.hidden ? 'hidden · loop parked' : 'visible · loop running')
     settle()
   }
 
   canvas.addEventListener('webglcontextlost', handleContextLost)
+  canvas.addEventListener('webglcontextrestored', handleContextRestored)
+  canvas.addEventListener('webglcontextcreationerror', handleCreationError)
   document.addEventListener('visibilitychange', handleVisibility)
 
   settle()
@@ -159,6 +239,8 @@ export function createIsometricScape (
   return {
     dispose () {
       canvas.removeEventListener('webglcontextlost', handleContextLost)
+      canvas.removeEventListener('webglcontextrestored', handleContextRestored)
+      canvas.removeEventListener('webglcontextcreationerror', handleCreationError)
       document.removeEventListener('visibilitychange', handleVisibility)
       app.dispose()
     },

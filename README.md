@@ -32,6 +32,7 @@ bun run preview
 - a configurable 3d-lut grade with vignette, miniature tilt-shift, desktop bloom, and film grain
 - mobile and desktop atmosphere budgets selected from pointer, viewport, and pixel-density signals
 - a scape that survives a lost webgl context: it rebuilds itself one tier cheaper rather than asking you to reload
+- an on-page diagnostics log — tier signals, gpu, frame stalls, gl errors, whatever three said on its way down — because a phone has no devtools; `?debug` adds live vitals
 - one terrain draw, one water draw, two instanced tree draws, and one instanced rock draw
 - an orthographic dimetric camera built with `threejs-scene`
 - click or tap focus with an eased landing and automatic revolution
