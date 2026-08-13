@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>webgl2 probe · three-iso</title>
+<!--
+  A floor to measure the scape against.
+
+  Four device logs have now shown the WebGL context going away on one android
+  handset — in chrome and in firefox, with the post chain and without it, at
+  0.7s, 1.6s, 4.1s, 6.4s and 8.4s, and once not at all across 47 seconds — with
+  no stall over 250 ms, one resize, eleven textures and no OUT_OF_MEMORY. Every
+  in-page number is boring at the moment of death. The scape's own tier ladder
+  cannot answer that, because the same tier both survives and dies.
+
+  So this page is deliberately not the scape. No three, no imports, no bundler,
+  no scene. Vanilla WebGL2 in escalating stages, each one a suspect on its own:
+  the limits a link has to fit inside, the powerPreference the scape's library
+  hardcodes and no app can override, a link walk that looks for the exact
+  failure signature the device produced (LINK_STATUS false with getError() == 0
+  and an empty info log), an instanced mat4 attribute, and a depth-texture
+  framebuffer. Then it draws all of it in a loop and counts how long it lives.
+
+  If this page dies too, nothing in the scape can fix it and the bug is under
+  us. If it lives, we have a known-good floor to bisect upward from.
+-->
+<style>
+  :root { color-scheme: dark }
+
+  * { box-sizing: border-box }
+
+  body {
+    margin: 0;
+    background: #161814;
+    color: #d9f18f;
+    font: 400 0.72rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  header {
+    position: sticky;
+    top: 0;
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid #2c3128;
+    background: #161814;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #8f9a78;
+  }
+
+  #uptime { color: #d9f18f }
+
+  #log {
+    margin: 0;
+    padding: 0.75rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    cursor: copy;
+    user-select: text;
+  }
+
+  .bad { color: #f2907a }
+
+  .good { color: #a8e06a }
+
+  /* Small enough to cost nothing, present enough that the driver is really
+     rasterising rather than optimising the whole pass away. */
+  canvas {
+    display: block;
+    width: 128px;
+    height: 128px;
+    margin: 0 0.75rem 1rem;
+    border: 1px solid #2c3128;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>webgl2 probe · <span id="uptime">starting</span></h1>
+</header>
+<pre id="log">running…</pre>
+<canvas id="view" width="256" height="256"></canvas>
+
+<script>
+'use strict'
+
+const started = performance.now()
+const lines   = []
+const logEl   = document.getElementById('log')
+const upEl    = document.getElementById('uptime')
+
+function stamp () {
+  return `${((performance.now() - started) / 1000).toFixed(1)}s`.padStart(6)
+}
+
+function say (message, kind) {
+  lines.push({ text: `${stamp()}  ${message}`, kind })
+  logEl.textContent = ''
+  for (const line of lines) {
+    const span = document.createElement('span')
+    span.textContent = `${line.text}\n`
+    if (line.kind) span.className = line.kind
+    logEl.append(span)
+  }
+}
+
+logEl.addEventListener('click', () => {
+  navigator.clipboard.writeText(lines.map(l => l.text).join('\n'))
+    .then(() => say('log copied', 'good'), () => say('could not copy · select the text', 'bad'))
+})
+
+window.addEventListener('error', e => say(`window error · ${e.message}`, 'bad'))
+
+// ── the environment, before anything is asked of it ──────────────────────────
+
+say(navigator.userAgent)
+say(`dpr ${devicePixelRatio} · ${innerWidth}×${innerHeight}css · ram ${navigator.deviceMemory ?? '?'}gb · cores ${navigator.hardwareConcurrency ?? '?'}`)
+
+// ── stage: powerPreference ──────────────────────────────────────────────────
+// The scape's library hardcodes 'high-performance' and exposes no way to change
+// it, which makes it the one renderer-level knob every threejs-scene app shares
+// — including the example apps that also fail on this device.
+
+for (const preference of [ 'default', 'high-performance', 'low-power' ]) {
+  const probe   = document.createElement('canvas')
+  const attrs   = preference === 'default' ? {} : { powerPreference: preference }
+  const context = probe.getContext('webgl2', attrs)
+
+  if (!context) {
+    say(`ctx ${preference} · REFUSED`, 'bad')
+    continue
+  }
+
+  const debug = context.getExtension('WEBGL_debug_renderer_info')
+  const who   = debug
+    ? context.getParameter(debug.UNMASKED_RENDERER_WEBGL)
+    : context.getParameter(context.RENDERER)
+
+  say(`ctx ${preference} · ok · ${who}`)
+  context.getExtension('WEBGL_lose_context')?.loseContext()
+}
+
+// ── the context this page actually uses ──────────────────────────────────────
+
+const canvas = document.getElementById('view')
+const gl     = canvas.getContext('webgl2', { antialias: false, powerPreference: 'low-power' })
+
+if (!gl) {
+  say('no webgl2 at all · nothing further to measure', 'bad')
+  throw new Error('no webgl2')
+}
+
+canvas.addEventListener('webglcontextlost', event => {
+  event.preventDefault()
+  say(`CONTEXT LOST · ${event.statusMessage || 'no reason given by the driver'}`, 'bad')
+  say(`lost after ${((performance.now() - started) / 1000).toFixed(1)}s of this page`, 'bad')
+  running = false
+})
+
+canvas.addEventListener('webglcontextrestored', () => say('context offered back', 'good'))
+
+// ── stage: the limits a link has to fit inside ───────────────────────────────
+
+for (const name of [
+  'MAX_VERTEX_ATTRIBS',
+  'MAX_VARYING_COMPONENTS',
+  'MAX_VERTEX_UNIFORM_VECTORS',
+  'MAX_FRAGMENT_UNIFORM_VECTORS',
+  'MAX_VERTEX_TEXTURE_IMAGE_UNITS',
+  'MAX_TEXTURE_IMAGE_UNITS',
+  'MAX_TEXTURE_SIZE',
+  'MAX_RENDERBUFFER_SIZE',
+  'MAX_SAMPLES',
+])
+  say(`${name.slice(4).toLowerCase().padEnd(30)} ${gl.getParameter(gl[name])}`)
+
+// ── shared helpers ──────────────────────────────────────────────────────────
+
+function compile (type, source) {
+  const shader = gl.createShader(type)
+  gl.shaderSource(shader, source)
+  gl.compileShader(shader)
+
+  if (gl.getShaderParameter(shader, gl.COMPILE_STATUS))
+    return shader
+
+  say(`compile failed · ${gl.getShaderInfoLog(shader).trim() || 'empty info log'}`, 'bad')
+  gl.deleteShader(shader)
+  return null
+}
+
+/**
+ * Link, then report in the same shape three does.
+ *
+ * The device's own failures read `Shader Error 0 - VALIDATE_STATUS false` with
+ * nothing in the info log — a driver refusing to link and declining to say why.
+ * Reporting `getError()` alongside `LINK_STATUS` is what makes that signature
+ * recognisable here rather than merely "it broke".
+ */
+function link (vertex, fragment, label) {
+  const vs = compile(gl.VERTEX_SHADER, vertex)
+  const fs = compile(gl.FRAGMENT_SHADER, fragment)
+
+  if (!vs || !fs)
+    return null
+
+  const program = gl.createProgram()
+  gl.attachShader(program, vs)
+  gl.attachShader(program, fs)
+  gl.linkProgram(program)
+
+  const linked = gl.getProgramParameter(program, gl.LINK_STATUS)
+  const info   = gl.getProgramInfoLog(program).trim()
+  const error  = gl.getError()
+
+  if (!linked || error !== 0) {
+    say(`${label} · LINK ${linked} · getError ${error} · log "${info || 'empty'}"`, 'bad')
+    return null
+  }
+
+  return program
+}
+
+const QUAD = new Float32Array([ -1, -1, 1, -1, -1, 1, 1, 1 ])
+
+// ── stage: how many varyings this driver will really link ────────────────────
+// three's MeshStandardMaterial with shadows, fog, instancing and a custom
+// injection is not a small shader. If the driver quietly stops linking at some
+// count, that is the whole story.
+
+let lastGoodVaryings = 0
+
+for (let count = 1; count <= 24; count += 1) {
+  const declare = Array.from({ length: count }, (_, i) => `out vec4 v${i};`).join('\n')
+  const assign  = Array.from({ length: count }, (_, i) => `v${i} = vec4(float(${i}));`).join('\n')
+  const consume = Array.from({ length: count }, (_, i) => `in vec4 v${i};`).join('\n')
+  const sum     = Array.from({ length: count }, (_, i) => `v${i}`).join(' + ')
+
+  const program = link(
+    `#version 300 es\nin vec2 position;\n${declare}\nvoid main(){\n${assign}\ngl_Position = vec4(position, 0.0, 1.0);\n}`,
+    `#version 300 es\nprecision mediump float;\n${consume}\nout vec4 fragColor;\nvoid main(){ fragColor = normalize(${sum}); }`,
+    `varyings ×${count}`,
+  )
+
+  if (!program)
+    break
+
+  lastGoodVaryings = count
+  gl.deleteProgram(program)
+}
+
+say(`linked up to ${lastGoodVaryings} vec4 varyings`, lastGoodVaryings >= 15 ? 'good' : 'bad')
+
+// ── stage: an instanced mat4 attribute, three's instanceMatrix shape ─────────
+// A mat4 vertex attribute claims four attribute slots. Every scattered prop in
+// the scape and every instanced example in the library draws this way.
+
+const INSTANCES = 2048
+
+const instanced = link(
+  `#version 300 es
+in vec2 position;
+in mat4 instanceMatrix;
+out vec3 vTint;
+void main(){
+  vTint = instanceMatrix[3].xyz;
+  gl_Position = instanceMatrix * vec4(position * 0.02, 0.0, 1.0);
+}`,
+  `#version 300 es
+precision mediump float;
+in vec3 vTint;
+out vec4 fragColor;
+void main(){ fragColor = vec4(abs(vTint) * 0.5 + 0.2, 1.0); }`,
+  'instanced mat4',
+)
+
+let instancedVao = null
+
+if (instanced) {
+  instancedVao = gl.createVertexArray()
+  gl.bindVertexArray(instancedVao)
+
+  const quad = gl.createBuffer()
+  gl.bindBuffer(gl.ARRAY_BUFFER, quad)
+  gl.bufferData(gl.ARRAY_BUFFER, QUAD, gl.STATIC_DRAW)
+
+  const position = gl.getAttribLocation(instanced, 'position')
+  gl.enableVertexAttribArray(position)
+  gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0)
+
+  // One mat4 per instance, laid out column-major exactly as three uploads it.
+  const matrices = new Float32Array(INSTANCES * 16)
+  for (let i = 0; i < INSTANCES; i += 1) {
+    const at = i * 16
+    matrices[at] = matrices[at + 5] = matrices[at + 10] = matrices[at + 15] = 1
+    matrices[at + 12] = Math.sin(i * 0.31) * 0.9
+    matrices[at + 13] = Math.cos(i * 0.17) * 0.9
+  }
+
+  const buffer = gl.createBuffer()
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
+  gl.bufferData(gl.ARRAY_BUFFER, matrices, gl.STATIC_DRAW)
+
+  const base = gl.getAttribLocation(instanced, 'instanceMatrix')
+
+  for (let column = 0; column < 4; column += 1) {
+    const slot = base + column
+    gl.enableVertexAttribArray(slot)
+    gl.vertexAttribPointer(slot, 4, gl.FLOAT, false, 64, column * 16)
+    gl.vertexAttribDivisor(slot, 1)
+  }
+
+  gl.bindVertexArray(null)
+  say(`instanced mat4 ok · ${INSTANCES} instances · base slot ${base}`, 'good')
+}
+
+// ── stage: a depth texture attachment, the shadow-map shape ─────────────────
+
+let depthFbo = null
+let depthTex = null
+
+{
+  depthTex = gl.createTexture()
+  gl.bindTexture(gl.TEXTURE_2D, depthTex)
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT24, 512, 512, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+
+  depthFbo = gl.createFramebuffer()
+  gl.bindFramebuffer(gl.FRAMEBUFFER, depthFbo)
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depthTex, 0)
+
+  const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER)
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+
+  if (status === gl.FRAMEBUFFER_COMPLETE)
+    say('depth texture fbo 512² complete', 'good')
+  else {
+    say(`depth texture fbo INCOMPLETE · 0x${status.toString(16)}`, 'bad')
+    depthFbo = null
+  }
+}
+
+// ── sustain ─────────────────────────────────────────────────────────────────
+// Everything above passed or it did not. What the device logs actually showed
+// is a context that goes away *later*, on a scene that is drawing happily — so
+// the only stage that can reproduce that is the one that keeps drawing.
+
+let running = true
+let frames  = 0
+let reported = 0
+
+say('sustaining · every stage above, every frame', 'good')
+
+function frame () {
+  if (!running)
+    return
+
+  frames += 1
+
+  if (instanced && instancedVao) {
+    // Into the depth attachment first, then to the screen, so both paths are
+    // exercised the way a shadowed scene exercises them.
+    if (depthFbo) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, depthFbo)
+      gl.viewport(0, 0, 512, 512)
+      gl.enable(gl.DEPTH_TEST)
+      gl.clear(gl.DEPTH_BUFFER_BIT)
+      gl.useProgram(instanced)
+      gl.bindVertexArray(instancedVao)
+      gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, INSTANCES)
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+    }
+
+    gl.viewport(0, 0, canvas.width, canvas.height)
+    gl.clearColor(0.08, 0.09, 0.08, 1)
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+    gl.useProgram(instanced)
+    gl.bindVertexArray(instancedVao)
+    gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, INSTANCES)
+    gl.bindVertexArray(null)
+  }
+  else {
+    gl.viewport(0, 0, canvas.width, canvas.height)
+    gl.clearColor(0.08, 0.09, 0.08, 1)
+    gl.clear(gl.COLOR_BUFFER_BIT)
+  }
+
+  const seconds = (performance.now() - started) / 1000
+
+  upEl.textContent = `alive ${seconds.toFixed(0)}s · ${frames} frames`
+
+  // One line per five seconds. Long enough to be readable on a phone, frequent
+  // enough that the moment it stops is obvious.
+  if (seconds - reported >= 5) {
+    reported = seconds
+    const error = gl.getError()
+    say(`alive ${seconds.toFixed(0)}s · ${frames} frames · gl error ${error}`, error === 0 ? null : 'bad')
+  }
+
+  requestAnimationFrame(frame)
+}
+
+requestAnimationFrame(frame)
+</script>
+</body>
+</html>

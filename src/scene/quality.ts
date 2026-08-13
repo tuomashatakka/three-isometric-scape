@@ -104,23 +104,14 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     waterSpan:       2.2,
   },
   mobile: {
-    pixelRatioMax: 1,
-    antialias:     false,
-    shadowMapSize: 512,
-    bloom:         false,
-    grain:         false,
-    mistLayers:    2,
-    msaaSamples:   0,
-
-    // No composer on a phone, and this is the field that decides it. A device
-    // log from an android handset showed the context dying within seconds of the
-    // post chain existing — once at 0.7s while its programs were still linking,
-    // once after 6.3s of clean 30fps — and surviving indefinitely on the one
-    // tier that has never built it. Nothing else in the log moved: one resize
-    // all run, no stall over 250ms, fourteen textures, no OUT_OF_MEMORY. It is
-    // not a budget, so no amount of shrinking the chain answers it; the chain
-    // itself is what this class of driver will not hold.
-    tiltShiftPairs:  0,
+    pixelRatioMax:   1,
+    antialias:       false,
+    shadowMapSize:   512,
+    bloom:           false,
+    grain:           false,
+    mistLayers:      2,
+    msaaSamples:     0,
+    tiltShiftPairs:  1,
     terrainSegments: 64,
     scatterScale:    0.32,
     ao:              false,
@@ -128,11 +119,20 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     godRays:         false,
     traa:            false,
     anamorphic:      false,
-    post:            false,
-    environment:     false,
-    frameRate:       30,
-    waterSegments:   48,
-    waterSpan:       3,
+
+    // The chain stays. It was taken off this tier for one run on the strength of
+    // two samples that both had it built when the context went away — and then a
+    // third device log showed the post-free floor tier dying at 4.1s in firefox
+    // and a fourth showed it dying at 8.4s in chrome, on the same handset, with
+    // no composer anywhere. The same floor tier had already run 47 seconds clean
+    // in an earlier run. A setting that both survives and dies unchanged is not
+    // the setting that matters, so this one is not worth the grade, the LUT and
+    // the tilt-shift it was costing every phone.
+    post:          true,
+    environment:   false,
+    frameRate:     30,
+    waterSegments: 48,
+    waterSpan:     3,
   },
   desktop: {
     pixelRatioMax:   1.75,
