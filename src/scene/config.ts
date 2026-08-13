@@ -43,6 +43,9 @@ export interface DressingBudget {
   firewood:   number
   barrel:     number
   driftwood:  number
+
+  /** Stakes in the shallows — count before the tier scales it. */
+  mooringPost: number
 }
 
 export interface ScapeConfig {
@@ -88,6 +91,15 @@ export interface ScapeConfig {
 
     /** How strongly conifers cluster onto the ridges, 0..1. */
     forestBias: number
+
+    /**
+     * Degrees around the yard between the jetty's shoreline and the boathouse's.
+     *
+     * The harbour wants two coves, not one crowded bank — this is how far along
+     * the shore the boathouse sits from the landing. Signed, so it can be put on
+     * either side of the jetty.
+     */
+    harbourSpread: number
   }
   dressing: DressingBudget
   wind: {
@@ -254,11 +266,12 @@ export const SCAPE_CONFIG = {
     detailMacro: 0.62,
   },
   layout: {
-    yardRadius:   17,
-    trackWidth:   3.2,
-    plotCount:    3,
-    fenceSpacing: 2.2,
-    forestBias:   0.72,
+    yardRadius:    17,
+    trackWidth:    3.2,
+    plotCount:     3,
+    fenceSpacing:  2.2,
+    forestBias:    0.72,
+    harbourSpread: 34,
   },
   dressing: {
     spruce:     260,
@@ -281,6 +294,8 @@ export const SCAPE_CONFIG = {
     firewood:   7,
     barrel:     9,
     driftwood:  20,
+
+    mooringPost: 22,
   },
   wind: {
     strength: 0.9,

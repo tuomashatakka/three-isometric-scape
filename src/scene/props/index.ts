@@ -3,6 +3,7 @@ import type { SeededRng } from 'threejs-scene'
 import { buildAitta, buildBarn, buildFarmhouse, buildSauna, buildWoodshed } from './buildings.ts'
 import { buildBarrel, buildDriftwood, buildFirewood, buildHayBale, buildMailbox, buildRowboat } from './objects.ts'
 import type { NordicPalette } from './palette.ts'
+import { buildBoathouse, buildMooringPost, buildNetRack } from './shore.ts'
 import { buildCairn, buildCobble, buildErratic, buildFieldStone } from './stone.ts'
 import {
   buildBridge,
@@ -49,6 +50,8 @@ export const PROPS = {
   woodshed:  buildWoodshed,
 
   jetty:     buildJetty,
+  boathouse: buildBoathouse,
+  netRack:   buildNetRack,
   well:      buildWell,
   hayRack:   buildHayRack,
   logPile:   buildLogPile,
@@ -80,6 +83,8 @@ export const PROPS = {
   fieldStone: buildFieldStone,
   cobble:     buildCobble,
   cairn:      buildCairn,
+
+  mooringPost: buildMooringPost,
 } as const satisfies Record<string, PropBuilder>
 
 /** Name of a prop in {@link PROPS}. */
@@ -88,7 +93,7 @@ export type PropName = keyof typeof PROPS
 /** Placed once, by hand, then merged into the steading draw. */
 export const HERO_PROPS = [
   'barn', 'farmhouse', 'sauna', 'aitta', 'woodshed',
-  'jetty', 'well', 'hayRack', 'logPile', 'flagpole',
+  'jetty', 'boathouse', 'netRack', 'well', 'hayRack', 'logPile', 'flagpole',
   'bridge', 'cart', 'gate', 'rowboat', 'mailbox',
 ] as const satisfies readonly PropName[]
 
@@ -97,7 +102,7 @@ export const SCATTER_PROPS = [
   'spruce', 'pine', 'birch', 'deadSpruce', 'sapling', 'stump',
   'grass', 'heather', 'wildflower', 'reeds', 'lilyPads', 'crop',
   'erratic', 'fieldStone', 'cobble', 'cairn',
-  'hayBale', 'firewood', 'barrel', 'driftwood',
+  'hayBale', 'firewood', 'barrel', 'driftwood', 'mooringPost',
 ] as const satisfies readonly PropName[]
 
 /** Build one prop's geometry. The caller owns and disposes the result. */

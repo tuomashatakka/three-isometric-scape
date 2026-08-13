@@ -243,6 +243,19 @@ export function createScapeLayout (config: ScapeConfig): ScapeLayout {
   }
 }
 
+/**
+ * The `y` rotation that points a `+z`-long prop along a world bearing.
+ *
+ * `rotateY` sends `+z` to `(sin y, cos y)` while a compass bearing points at
+ * `(cos a, sin a)` — the two are mirrored about the diagonal, so rotating a
+ * jetty by the bearing itself runs it *across* the water it should run into.
+ * The same rotation puts a `+x`-long prop broadside to that bearing, which is
+ * exactly where a net rack wants to stand.
+ */
+export function yawAlong (bearing: number): number {
+  return Math.PI / 2 - bearing
+}
+
 /** Shortest distance from a point to the track centreline, in world units. */
 export function distanceToTrack (layout: ScapeLayout, x: number, z: number): number {
   const { points } = layout.track

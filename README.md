@@ -25,6 +25,7 @@ bun run preview
 
 - a deterministic procedural heightfield with editable seed, scale, waterline, and palette
 - a mainland farmstead ringed by ten offshore islets, landscape only, never built on
+- a working boat harbour: a boathouse on piles with a slipway, a net rack, and stakes in the shallows
 - a full day/night cycle: sun arc, dusk and night palettes, and a scrubbable clock
 - view-reactive linear fog, a matching gradient sky, deterministic drifting ground mist, and a sky cloud deck
 - a live graphics overlay that persists to local storage and reloads what you left it at
@@ -147,6 +148,7 @@ src/
         ├── buildings.ts            barn, farmhouse, sauna, aitta, woodshed
         ├── structures.ts           jetty, well, hay rack, gate, bridge, cart
         ├── vegetation.ts           spruce, pine, birch, grass, reeds, crops
+        ├── shore.ts                boathouse and slipway, net rack, mooring stakes
         ├── objects.ts              rowboat, bales, firewood, barrel, mailbox, driftwood
         └── stone.ts                erratics, field stones, cobbles, cairns
 ```
@@ -279,6 +281,20 @@ they also need somewhere to stand. the ring between the mainland's shore and the
 there are ten of them, and the spacing is the design: each one clears the mainland's `islandOuter` *and* its neighbours' skirts, which is the difference between an archipelago and a reef.
 
 finally they change how the scatter samples. the placement field is now mostly open sea, and a uniform disc throws most of every attempt budget into the water — the island thins out to prove it. candidates are drawn from the mainland *or* from one of the islets instead, so the islets get dressed by the same instanced meshes.
+
+## the boat harbour
+
+the farm already owned a jetty and a rowboat; it now has somewhere to keep the boat. a boathouse stands in the next cove along from the landing, a net rack dries gear on the bank behind it, and stakes are driven into the shallows off both.
+
+three decisions in it are worth keeping.
+
+**a bearing is not a rotation.** `rotateY` sends `+z` to `(sin y, cos y)`, while a compass bearing points at `(cos a, sin a)` — the two are mirrored about the diagonal. the jetty had been rotated by the shoreline bearing itself, so it ran *across* the water it was supposed to run into; how wrong it looked was a function of which bearing the seed happened to pick, which is why it survived. [`yawAlong`](src/scene/landscape/layout.ts) is that conversion, and it does double duty: the same rotation that points a `+z`-long prop out to sea puts an `+x`-long one broadside to it, which is exactly where a net rack belongs.
+
+**the boathouse is anchored to the water, not to the ground.** the five farmstead buildings are `Ploppable`s that level a floor against the highest corner and grow a foundation down onto the terrain. do that here and the foundation buries the one part that has to be open — the mouth, and the slipway running out of it under the surface. so the boathouse is placed at the waterline the way the jetty is, on its own piles, and pushed a little seaward of the bank so the back of the shed cuts into the slope the way a real one is dug in. being a hero prop it merges into the steading geometry, so the whole harbour costs no draw call at all.
+
+**a stake belongs to whoever drove it.** the mooring posts are the one scattered prop with a *placement* rule rather than a terrain rule: shallows, but only within thirty metres of the harbour. scattered on depth alone they would ring every islet in the archipelago, which says the opposite of what a harbour says. that is one `InstancedMesh`, and the only draw call this run adds.
+
+`layout.harbourSpread` is how far around the shore the boathouse sits from the jetty, in degrees. it is a build-time knob like the rest of `layout` and `dressing`, so it is not in the overlay — the panel only carries values the modules re-read every frame, and a knob that needs a rebuild to be seen would lie about what a slider does.
 
 ## ploppable
 
