@@ -31,6 +31,7 @@ bun run preview
 - a live graphics overlay that persists to local storage and reloads what you left it at
 - a configurable 3d-lut grade with vignette, miniature tilt-shift, desktop bloom, and film grain
 - mobile and desktop atmosphere budgets selected from pointer, viewport, and pixel-density signals
+- a scape that survives a lost webgl context: it rebuilds itself one tier cheaper rather than asking you to reload
 - one terrain draw, one water draw, two instanced tree draws, and one instanced rock draw
 - an orthographic dimetric camera built with `threejs-scene`
 - click or tap focus with an eased landing and automatic revolution
@@ -130,7 +131,7 @@ src/
     ├── mist.ts                     deterministic drifting ground-mist sheets
     ├── noise.ts                    deterministic height sampler
     ├── post.ts                     ao, ssr, sun shafts, tilt-shift, lut, bloom, grain, traa
-    ├── quality.ts                  mobile/desktop/ultra gpu budgets
+    ├── quality.ts                  minimal/mobile/desktop/ultra gpu budgets
     ├── landscape/
     │   ├── index.ts                the scene module, and what raycasts
     │   ├── layout.ts               yard, cart track, field plots, ridges
@@ -154,6 +155,10 @@ src/
 ```
 
 the renderer uses a device-tier pixel-ratio cap, the scene uses one `createapp` render loop, and the post module is the only frame renderer. the `ultra` tier adds ambient occlusion, screen-space reflections on the lake, anamorphic streaks and a traa resolve; it is only selected for a wide viewport on a many-core machine with a mouse. pointer state is cancelled cleanly; teardown releases geometries, materials, sky, mist, cloud-shadow and bathymetry textures, composer targets, fullscreen passes, and every baked lut. those defaults matter more than squeezing another ornamental system into a starter, tragically enough~ n__n
+
+the touch tier is the one with a hard ceiling to respect. it drops the pmrem room environment — twelve megabytes of rgba16f for an ambient term the hemisphere light already approximates — paces the draw at 30 fps, and sizes the lake to the fog rather than to the map. the loop parks whenever the document is hidden, because a backgrounded phone that keeps drawing is a phone heating up for nobody.
+
+if the gpu takes the context away anyway, that is treated as the device answering a question about its budget: `reduceatmospherequality` steps one tier down, the canvas is replaced with a fresh one — a canvas only ever hands out a single context, restored or not — and the scape rebuilds itself. the `minimal` tier at the bottom of that ladder is never detected into; it gives up the post chain entirely and lets the renderer draw straight to the canvas. once there is nothing left to give up the scape says so rather than looping.
 
 ## props
 

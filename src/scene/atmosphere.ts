@@ -56,6 +56,16 @@ const SUN_DISTANCE = 150
 const MAX_FOG      = 0.94
 const SKY_STEPS    = 64
 
+/**
+ * What the hemisphere is scaled by when there is no image-based fill.
+ *
+ * The cheap tiers drop the PMREM room environment, and it is the only other
+ * ambient term in the rig — leave the hemisphere where it was and the shadow
+ * side of every surface crushes. This hands the environment's share back to the
+ * light that is still there, so the tier costs detail rather than exposure.
+ */
+const AMBIENT_TAKEOVER = 1.28
+
 /** Canopy clearance over the terrain's own relief, in metres. */
 const CANOPY = 7
 // Heading-driven scattering, kept deliberately slight. The horizon colour it
@@ -239,9 +249,10 @@ export function createAtmosphereLayer ({
   const horizon     = new Color()
   const bounceBase  = new Color(palette.meadow)
   const tallest     = config.terrain.height + CANOPY
+  const hemiGain    = quality.environment ? 1 : AMBIENT_TAKEOVER
 
   const lighting = standardLighting<Record<string, never>>({
-    env: { intensity: sky.environment },
+    env: quality.environment ? { intensity: sky.environment } : false,
     sun: {
       color:         atmosphere.sunColor,
       intensity:     atmosphere.sunStrength,
@@ -344,7 +355,7 @@ export function createAtmosphereLayer ({
     rig.sun.intensity = sky.sunStrength
     rig.hemi.color.copy(sky.hemiSky)
     rig.hemi.groundColor.copy(sky.hemiGround)
-    rig.hemi.intensity             = sky.hemiStrength
+    rig.hemi.intensity             = sky.hemiStrength * hemiGain
     rig.scene.environmentIntensity = sky.environment
 
     rig.sun.position.copy(target).addScaledVector(direction, SUN_DISTANCE)

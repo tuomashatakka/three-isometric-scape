@@ -13,6 +13,7 @@ import {
 import type { IUniform, Texture, WebGLProgramParametersWithUniforms } from 'three'
 import { createNoiseTexture, createSeamlessNoiseTexture } from 'threejs-scene/modules/assets'
 import type { ScapeConfig } from '../config.ts'
+import type { AtmosphereQuality } from '../quality.ts'
 import type { HeightField } from './height.ts'
 
 
@@ -34,8 +35,6 @@ export interface Water {
 }
 
 const SHORE_RESOLUTION = 192
-const OPEN_WATER       = 8
-const WAVE_SEGMENTS    = 128
 const MAX_DEPTH        = 3.2
 
 /**
@@ -182,15 +181,25 @@ function bakeShoreMask (config: ScapeConfig, field: HeightField, span: number): 
   return texture
 }
 
-export function createWater (config: ScapeConfig, field: HeightField): Water {
+export function createWater (
+  config:  ScapeConfig,
+  field:   HeightField,
+  quality: AtmosphereQuality,
+): Water {
   // Two spans, deliberately. The bathymetry mask only covers the terrain, but
   // the surface runs far past it so the island sits in open water that reaches
   // the fog instead of ending on a visible edge. The mask clamps at its border,
   // and because the island falloff drowns the terrain rim, that border already
   // reads as full depth — so everything outside is simply deep water.
+  //
+  // How *far* past it is a tier decision. The plane only has to outrun the fog,
+  // and the fog closes within `groundRadius * 2` of the camera — so the cheap
+  // tiers can carry a third of the surface for the same horizon, which is a
+  // third of the vertices in the one mesh that is guaranteed to fill the frame.
   const maskSpan = config.terrain.size * 1.02
-  const surface  = config.terrain.size * OPEN_WATER
-  const geometry = new PlaneGeometry(surface, surface, WAVE_SEGMENTS, WAVE_SEGMENTS)
+  const surface  = config.terrain.size * quality.waterSpan
+  const segments = quality.waterSegments
+  const geometry = new PlaneGeometry(surface, surface, segments, segments)
   geometry.rotateX(-Math.PI / 2)
 
   const shoreMap: Texture = bakeShoreMask(config, field, maskSpan)
