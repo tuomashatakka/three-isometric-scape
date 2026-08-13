@@ -113,6 +113,40 @@ export function buildBarrel (rng: SeededRng, palette: NordicPalette): BufferGeom
   return mergeParts(parts, { grime: 0.7, grimeFloor: 0.5 })
 }
 
+/** A washed-up log with a broken branch stub, bleached grey by the water. */
+export function buildDriftwood (rng: SeededRng, palette: NordicPalette): BufferGeometry {
+  const parts:  BufferGeometry[] = []
+  const length                   = rng.range(1.6, 2.5)
+  const heading                  = deg(rng.range(0, 180))
+
+  parts.push(part(cyl(0.15, 0.09, length, 6), {
+    at:     [ 0, 0.1, 0 ],
+    rotate: [ deg(90), heading, deg(rng.range(-6, 6)) ],
+    color:  palette.driftwood,
+    jitter: 0.18,
+    rng,
+  }))
+
+  parts.push(part(cyl(0.06, 0.04, rng.range(0.5, 0.9), 5), {
+    at:     [ rng.range(-0.3, 0.3), 0.08, rng.range(-0.2, 0.2) ],
+    rotate: [ deg(90), heading + deg(rng.range(20, 60)), deg(rng.range(-10, 10)) ],
+    color:  palette.driftwoodDark,
+    jitter: 0.2,
+    rng,
+  }))
+
+  if (rng.next() > 0.5)
+    parts.push(part(cyl(0.05, 0.09, 0.35, 5), {
+      at:     [ length * 0.32, 0.1, 0 ],
+      rotate: [ deg(rng.range(-15, 15)), 0, deg(rng.range(65, 100)) ],
+      color:  palette.driftwoodDark,
+      jitter: 0.16,
+      rng,
+    }))
+
+  return mergeParts(parts, { grime: 0.5, grimeFloor: 0.6 })
+}
+
 /** A roadside mailbox on a leaning post. */
 export function buildMailbox (rng: SeededRng, palette: NordicPalette): BufferGeometry {
   const parts: BufferGeometry[] = []

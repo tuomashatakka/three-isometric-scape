@@ -317,6 +317,12 @@ export function createDressing (
   const openGround = (minLift: number, maxSlope: number) => (x: number, z: number): boolean =>
     clear(x, z) && heightAt(x, z) > water + minLift && field.slopeAt(x, z) < maxSlope
 
+  const beachRule = (maxSlope: number) => (x: number, z: number): boolean => {
+    const height = heightAt(x, z)
+    return height > water - 0.05 && height < water + config.terrain.shoreBand * 0.7 &&
+      field.slopeAt(x, z) < maxSlope && !onTrack(x, z)
+  }
+
   const birchRule = (x: number, z: number): boolean => {
     const height = heightAt(x, z)
     return clear(x, z) && height > water + 0.6 && height < water + 4.6
@@ -344,6 +350,7 @@ export function createDressing (
     scatterStructural('barrel', config.dressing.barrel, 0.5, inYard, 0.85, 1.1, 90)
     scatterStructural('firewood', config.dressing.firewood, 0.7, inYard, 0.9, 1.1, 90)
     scatterStructural('fieldStone', config.dressing.fieldStone, 0.45, stoneRule(-0.4), 0.7, 1.5, 30)
+    scatterStructural('driftwood', config.dressing.driftwood, 0.7, beachRule(0.4), 0.75, 1.3, 30)
     scatterStructural('sapling', config.dressing.sapling, 0.35, openGround(0.5, 0.95), 0.7, 1.5, 30)
     scatterStructural('stump', config.dressing.stump, 0.35, openGround(0.6, 0.85), 0.75, 1.4, 30)
 
