@@ -2,7 +2,31 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## fifteen vec4, and not one more
+
+the cause, at last, and it was never a budget. `public/probe.html` — vanilla webgl2, no three, no scene — was loaded on the handset and answered in two lines:
+
+```
+varying_components  60
+varyings ×16 · LINK false · getError 0 · log "Could not pack varying v15"
+linked up to 15 vec4 varyings
+… alive 24s · 1458 frames · gl error 0
+```
+
+**60 varying components. fifteen vec4 — the floor gles 3.0 permits, half what a desktop reports.** the probe itself ran 24 seconds at gl error 0 with an instanced `mat4` attribute and a depth-texture fbo drawing every frame, so the driver was never flaky and the device was never broken. a stock `MeshStandardMaterial` with shadows, fog and instancing spends most of fifteen vec4 before this scape adds anything — every shadow coordinate is a whole vec4 — and past the ceiling the driver declines to link, three binds the unlinked program regardless, every draw raises `INVALID_OPERATION`, and angle takes the context away. that is the whole mechanism, and the variable timing (0.7s, 1.6s, 4.1s, 6.3s, 8.4s, once never) was only ever *when* the offending material first got linked, which depends on what has scrolled into view.
+
+- **fixed** the context loss, by spending three varying components where the scape used to spend six. `vScapeWorld` was a `vec3` whose `y` no reader ever touched — now `vScapeGround`, a `vec2`. `vScapeNormal` was a `vec3` whose `y` was the only part read — now `vScapeUp`, a `float`
+- **fixed** `scape-foliage` declaring and writing a normal varying that **nothing in its shader reads**. the normal now rides with the ground `detail` injection, which is its only reader, so foliage spends two components where it used to spend six. that material was the first to fail on the device, and it was the one wasting the most
+- **changed** the water's `vWaterWorld` `vec3` to `vWaterGround`, a `vec2`. all nine reads were `.xz`
+- **added** `varyings Nc · attribs N · vtx uniforms N · texture units N` to the startup log. this is the number that mattered and nothing was looking at it — and since firefox reports a canned adapter string, the limits are the only honest description of the device it will give up
+- **added** `public/probe.html`, kept rather than deleted: vanilla webgl2 in escalating stages — limits, a context per `powerPreference`, a varying link-walk, three's `instanceMatrix` shape as a real instanced `mat4`, a depth-texture fbo, then all of it in a loop with an uptime counter. it looks for the exact signature a driver produces rather than for "it broke", and it is the floor to measure any future device against
+- **cost** nothing. no feature given up, no tier changed, no visual difference — interpolating a `vec3` and reading one component is arithmetically identical to interpolating that component alone
+- **note** the same ceiling is why the library's own example apps fail on this handset. they carry no `onBeforeCompile` at all, so stock `MeshStandardMaterial` with shadows and instancing is already close enough to fifteen vec4 that anything tips it. this fix buys the scape headroom; it does not raise the ceiling
+
 ## no composer on a phone
+
+> superseded by the entry above. the diagnosis in this entry was wrong: the post chain was never the cause, and the change it describes was reverted the same day. what it did contribute was the material naming, which is the only reason the failing material could be identified at all.
+
 
 the log from the previous run came back off an android handset and named the thing. the context died twice with the post chain built — once at 0.7s while its programs were still linking, once after 6.3s of clean 30fps — and then ran for as long as anyone watched on the one tier that has never built it. everything the earlier rounds were optimising held still: **one** resize the whole run, no frame over 250 ms, fourteen textures, no `OUT_OF_MEMORY`. it was never a budget.
 

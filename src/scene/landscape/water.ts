@@ -57,7 +57,7 @@ const WAVE_GLSL = /* glsl */`
 `
 
 const WATER_PARS_VERTEX = /* glsl */`
-  varying vec3 vWaterWorld;
+  varying vec2 vWaterGround;
 ${WAVE_GLSL}
 `
 
@@ -68,7 +68,7 @@ const WATER_SWELL_VERTEX = /* glsl */`
 
 const WATER_WORLD_VERTEX = /* glsl */`
   #include <project_vertex>
-  vWaterWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;
+  vWaterGround = (modelMatrix * vec4(transformed, 1.0)).xz;
 `
 
 const WATER_PARS_FRAGMENT = /* glsl */`
@@ -84,11 +84,11 @@ const WATER_PARS_FRAGMENT = /* glsl */`
   uniform float uRippleStrength;
   uniform float uSparkleScale;
   uniform float uSparkle;
-  varying vec3 vWaterWorld;
+  varying vec2 vWaterGround;
 ${WAVE_GLSL}
 
   float scapeDepth () {
-    return texture2D(uShoreMap, vWaterWorld.xz * uShoreScale + 0.5).r;
+    return texture2D(uShoreMap, vWaterGround * uShoreScale + 0.5).r;
   }
 `
 
@@ -100,7 +100,7 @@ const WATER_COLOR_FRAGMENT = /* glsl */`
   // Foam is a band hugging the bank, not a wash over everything shallow: it
   // fades in off the shore and back out into open water.
   float shoreline = smoothstep(0.0, 0.035, waterDepth) * smoothstep(0.14, 0.05, waterDepth);
-  vec2 foamUv = vWaterWorld.xz * uRippleScale * 0.55 + uRippleOffset * 1.6;
+  vec2 foamUv = vWaterGround * uRippleScale * 0.55 + uRippleOffset * 1.6;
   float foam = shoreline * (0.35 + 0.5 * texture2D(uRippleMap, foamUv).r);
 
   diffuseColor.rgb = mix(uShallow, uDeep, smoothstep(0.0, 0.5, waterDepth));
@@ -109,7 +109,7 @@ const WATER_COLOR_FRAGMENT = /* glsl */`
   // Texture the albedo, not just the normal. A normal-only ripple is invisible
   // wherever the specular lobe does not reach, so the sea reads as flat paint
   // from half the angles the camera can orbit to.
-  float sheen = texture2D(uRippleMap, vWaterWorld.xz * uRippleScale + uRippleOffset).r;
+  float sheen = texture2D(uRippleMap, vWaterGround * uRippleScale + uRippleOffset).r;
   diffuseColor.rgb *= 0.93 + 0.15 * sheen;
 
   // Sun glitter. Two noise fields at incommensurate scales, multiplied and then
@@ -119,7 +119,7 @@ const WATER_COLOR_FRAGMENT = /* glsl */`
   // exponent is the whole control. Threshold it gently instead and the mean of
   // the product clears the cut, every fragment lights up, and the lake becomes
   // a sheet of white paper.
-  vec2 sparkUv = vWaterWorld.xz * uSparkleScale;
+  vec2 sparkUv = vWaterGround * uSparkleScale;
   float glintA = texture2D(uRippleMap, sparkUv + uRippleOffset * 2.1).r;
   float glintB = texture2D(uRippleMap, sparkUv * 1.37 - uRippleOffset * 1.63).r;
   float glint  = pow(clamp(glintA * glintB * 1.42, 0.0, 1.0), 5.0);
@@ -140,13 +140,13 @@ const WATER_NORMAL_FRAGMENT = /* glsl */`
   // isolated pixels and the lake turns into tinfoil. Which angles trigger it is
   // pure luck — so it stays invisible until something moves the camera's
   // elevation, and then the whole sea blows out at once.
-  vec2 rippleUv = vWaterWorld.xz * uRippleScale;
+  vec2 rippleUv = vWaterGround * uRippleScale;
   float ripplA = texture2D(uWaveMap, rippleUv + uRippleOffset).r;
   float ripplB = texture2D(uWaveMap, rippleUv * 1.73 - uRippleOffset * 1.31).r;
 
-  float swell  = scapeWave(vWaterWorld.xz);
-  float swellX = scapeWave(vWaterWorld.xz + vec2(1.6, 0.0));
-  float swellZ = scapeWave(vWaterWorld.xz + vec2(0.0, 1.6));
+  float swell  = scapeWave(vWaterGround);
+  float swellX = scapeWave(vWaterGround + vec2(1.6, 0.0));
+  float swellZ = scapeWave(vWaterGround + vec2(0.0, 1.6));
 
   normal = normalize(normal + vec3(
     (ripplA - 0.5) * uRippleStrength - (swellX - swell) * uWaveHeight * 2.4,

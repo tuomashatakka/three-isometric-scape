@@ -26,22 +26,34 @@ const DETAIL_SIZE = 256
  * Darkening the albedo before lighting is not physically a shadow, but at this
  * scale it reads as one for the cost of a single texture fetch — and unlike a
  * real shadow caster it costs nothing per light and never aliases.
+ *
+ * Two floats, not three, and on a strict diet for a reason. A PowerVR D-Series
+ * handset reports `MAX_VARYING_COMPONENTS` of 60 — 15 vec4, the bare minimum
+ * GLES 3.0 permits, against 120 on a desktop. A stock `MeshStandardMaterial`
+ * with shadows, fog and instancing already sits close to that ceiling, because
+ * every shadow coordinate is a whole vec4. Anything this file adds is spent out
+ * of what is left, and when it runs out the driver declines to link with
+ * `Could not pack varying v15` — after which three binds the unlinked program
+ * regardless, every draw raises INVALID_OPERATION, and ANGLE takes the context
+ * away. That is the entire mechanism behind a scape that displayed correctly and
+ * then died a few seconds later, and it took four device logs to see it.
+ *
+ * So the ground plane is carried as `xz` alone, because the fragment side never
+ * reads `y`, and the surface normal as its `y` alone, because the only thing
+ * that reads it wants to know how horizontal the surface is. Six components
+ * become three, and foliage — which reads no normal at all — spends two.
  */
 const CLOUD_PARS_VERTEX = /* glsl */`
-  varying vec3 vScapeWorld;
-  varying vec3 vScapeNormal;
+  varying vec2 vScapeGround;
 `
 
 const CLOUD_WORLD_VERTEX = /* glsl */`
   #include <project_vertex>
-  vec4 scapeLocal  = vec4(transformed, 1.0);
-  vec3 scapeNormal = objectNormal;
+  vec4 scapeLocal = vec4(transformed, 1.0);
   #ifdef USE_INSTANCING
-    scapeLocal  = instanceMatrix * scapeLocal;
-    scapeNormal = mat3(instanceMatrix) * scapeNormal;
+    scapeLocal = instanceMatrix * scapeLocal;
   #endif
-  vScapeWorld  = (modelMatrix * scapeLocal).xyz;
-  vScapeNormal = normalize(mat3(modelMatrix) * scapeNormal);
+  vScapeGround = (modelMatrix * scapeLocal).xz;
 `
 
 const CLOUD_PARS_FRAGMENT = /* glsl */`
@@ -49,14 +61,33 @@ const CLOUD_PARS_FRAGMENT = /* glsl */`
   uniform vec2 uCloudOffset;
   uniform float uCloudScale;
   uniform float uCloudStrength;
-  varying vec3 vScapeWorld;
-  varying vec3 vScapeNormal;
+  varying vec2 vScapeGround;
 `
 
 const CLOUD_FRAGMENT = /* glsl */`
   #include <color_fragment>
-  float scapeCloud = texture2D(uCloudMap, vScapeWorld.xz * uCloudScale + uCloudOffset).r;
+  float scapeCloud = texture2D(uCloudMap, vScapeGround * uCloudScale + uCloudOffset).r;
   diffuseColor.rgb *= mix(1.0, 0.52 + 0.48 * scapeCloud, uCloudStrength);
+`
+
+/**
+ * The surface normal's `y`, and only where something reads it.
+ *
+ * Emitted with the ground detail rather than with the cloud shadow, because the
+ * detail pass is the only reader and foliage never receives it — a varying that
+ * is written and declared but never read still occupies a slot on drivers that
+ * pack before they eliminate, which is exactly the driver that failed here.
+ */
+const DETAIL_PARS_VERTEX = /* glsl */`
+  varying float vScapeUp;
+`
+
+const DETAIL_WORLD_VERTEX = /* glsl */`
+  vec3 scapeNormal = objectNormal;
+  #ifdef USE_INSTANCING
+    scapeNormal = mat3(instanceMatrix) * scapeNormal;
+  #endif
+  vScapeUp = normalize(mat3(modelMatrix) * scapeNormal).y;
 `
 
 /**
@@ -113,13 +144,14 @@ const DETAIL_PARS_FRAGMENT = /* glsl */`
   uniform float uDetailScale;
   uniform float uDetailStrength;
   uniform float uDetailMacro;
+  varying float vScapeUp;
 `
 
 const DETAIL_FRAGMENT = /* glsl */`
   #include <normal_fragment_begin>
-  float scapeFlat = smoothstep(0.3, 0.9, vScapeNormal.y);
+  float scapeFlat = smoothstep(0.3, 0.9, vScapeUp);
   float scapeAmt  = uDetailStrength * scapeFlat;
-  vec2 scapeUv    = vScapeWorld.xz * uDetailScale;
+  vec2 scapeUv    = vScapeGround * uDetailScale;
   vec2 macroUv    = scapeUv * 0.16;
   float grain     = texture2D(uDetailMap, scapeUv).r;
   float grainX    = texture2D(uDetailMap, scapeUv + vec2(0.015, 0.0)).r;
@@ -187,9 +219,18 @@ export function createScapeMaterials (config: ScapeConfig): ScapeMaterials {
     material.onBeforeCompile = (program: WebGLProgramParametersWithUniforms) => {
       Object.assign(program.uniforms, shared, extra.wind, extra.detail)
 
+      // The normal varying rides with `detail` rather than with the cloud
+      // shadow, so foliage — which has no detail pass to read it — never
+      // declares a varying it cannot use. On a driver with 15 vec4 to spend,
+      // that unread slot was the difference between linking and not.
       program.vertexShader = program.vertexShader
-        .replace('#include <common>', `#include <common>\n${CLOUD_PARS_VERTEX}${extra.wind ? WIND_PARS_VERTEX : ''}`)
-        .replace('#include <project_vertex>', CLOUD_WORLD_VERTEX)
+        .replace('#include <common>', [
+          '#include <common>',
+          CLOUD_PARS_VERTEX,
+          extra.wind ? WIND_PARS_VERTEX : '',
+          extra.detail ? DETAIL_PARS_VERTEX : '',
+        ].join('\n'))
+        .replace('#include <project_vertex>', CLOUD_WORLD_VERTEX + (extra.detail ? DETAIL_WORLD_VERTEX : ''))
 
       if (extra.wind)
         program.vertexShader = program.vertexShader.replace('#include <begin_vertex>', WIND_VERTEX)

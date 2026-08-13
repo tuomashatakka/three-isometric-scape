@@ -71,6 +71,30 @@ function describeGpu (gl: WebGL2RenderingContext): string {
   ].filter(Boolean).join(' ')
 }
 
+/**
+ * The budget a shader has to fit inside, said out loud.
+ *
+ * `MAX_VARYING_COMPONENTS` is the number that mattered and nobody was looking at
+ * it. A PowerVR D-Series handset reports 60 — 15 vec4, the floor GLES 3.0
+ * allows — where a desktop reports 120, and a `MeshStandardMaterial` with
+ * shadows, fog and instancing spends most of that before this scape adds a
+ * thing. Past the ceiling the driver declines to link, three binds the unlinked
+ * program regardless, and the context goes away a few seconds later looking for
+ * all the world like a thermal failure. Two integers in the log are cheaper than
+ * the four device logs it took to find that out.
+ *
+ * Firefox reports a canned adapter string here, so the numbers are also the only
+ * honest description of the device it will give up.
+ */
+function describeBudget (gl: WebGL2RenderingContext): string {
+  return [
+    `varyings ${gl.getParameter(gl.MAX_VARYING_COMPONENTS)}c`,
+    `attribs ${gl.getParameter(gl.MAX_VERTEX_ATTRIBS)}`,
+    `vtx uniforms ${gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS)}`,
+    `texture units ${gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS)}`,
+  ].join(' · ')
+}
+
 export function createIsometricScape (
   canvas: HTMLCanvasElement,
   config: ScapeConfig,
@@ -184,6 +208,7 @@ export function createIsometricScape (
   ].join(' · '))
 
   diagnostics.say(`gpu ${describeGpu(gl)}`)
+  diagnostics.say(describeBudget(gl))
 
   let contextLost = false
 
