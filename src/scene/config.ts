@@ -46,6 +46,9 @@ export interface DressingBudget {
 
   /** Stakes in the shallows — count before the tier scales it. */
   mooringPost: number
+
+  /** Drying poles standing in the upland pasture. */
+  hayPole: number
 }
 
 export interface ScapeConfig {
@@ -100,6 +103,19 @@ export interface ScapeConfig {
      * either side of the jetty.
      */
     harbourSpread: number
+
+    /**
+     * Radius of the walled upland pasture, in metres.
+     *
+     * Sized against the island rather than against the farm: the search that
+     * sites it has to fit this whole disc onto high ground that the yard, the
+     * plots and the track have all left alone, so raising it past roughly a
+     * third of `landRadius` is how the pasture stops existing at all.
+     */
+    pastureRadius: number
+
+    /** Width of the gap left in the pasture wall for its gate, in degrees. */
+    pastureGateway: number
   }
   dressing: DressingBudget
   wind: {
@@ -224,9 +240,12 @@ export interface ScapeConfig {
     heath:        number
     scree:        number
     lichen:       number
-    track:        number
-    tilled:       number
-    yard:         number
+
+    /** Mown upland grass — the clearing inside the pasture wall. */
+    pasture: number
+    track:   number
+    tilled:  number
+    yard:    number
   }
 }
 
@@ -266,12 +285,14 @@ export const SCAPE_CONFIG = {
     detailMacro: 0.62,
   },
   layout: {
-    yardRadius:    17,
-    trackWidth:    3.2,
-    plotCount:     3,
-    fenceSpacing:  2.2,
-    forestBias:    0.72,
-    harbourSpread: 34,
+    yardRadius:     17,
+    trackWidth:     3.2,
+    plotCount:      3,
+    fenceSpacing:   2.2,
+    forestBias:     0.72,
+    harbourSpread:  34,
+    pastureRadius:  6,
+    pastureGateway: 17,
   },
   dressing: {
     spruce:     260,
@@ -296,6 +317,7 @@ export const SCAPE_CONFIG = {
     driftwood:  20,
 
     mooringPost: 22,
+    hayPole:     7,
   },
   wind: {
     strength: 0.9,
@@ -367,6 +389,7 @@ export const SCAPE_CONFIG = {
     heath:        0x6b6a52,
     scree:        0x7d7a72,
     lichen:       0x9aa088,
+    pasture:      0x76803f,
     track:        0x7d6a4f,
     tilled:       0x6d5a44,
     yard:         0x8a8560,

@@ -3,7 +3,7 @@ import type { Material } from 'three'
 import { hash2, smoothstep } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 import type { HeightField } from './height.ts'
-import { distanceToTrack, plotInfluence } from './layout.ts'
+import { distanceToTrack, pastureInfluence, plotInfluence } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
 
 
@@ -39,10 +39,11 @@ export function createTerrainPainter (config: ScapeConfig, layout: ScapeLayout):
     { offset: 9, color: new Color(palette.lichen) },
   ]
 
-  const scree  = new Color(palette.scree)
-  const track  = new Color(palette.track)
-  const tilled = new Color(palette.tilled)
-  const yard   = new Color(palette.yard)
+  const scree   = new Color(palette.scree)
+  const track   = new Color(palette.track)
+  const tilled  = new Color(palette.tilled)
+  const yard    = new Color(palette.yard)
+  const pasture = new Color(palette.pasture)
 
   const corridor = layout.track.width * 1.5
 
@@ -80,6 +81,13 @@ export function createTerrainPainter (config: ScapeConfig, layout: ScapeLayout):
         if (claim > 0 && height > waterLevel + 0.4)
           target.lerp(tilled, claim * 0.72)
       }
+
+      // Mown ground, painted over the altitude bands rather than under them.
+      // The pasture sits high enough that the bands have already turned it
+      // toward heath and scree, and grazed grass is exactly what that is not.
+      const grazed = pastureInfluence(layout, x, z)
+      if (grazed > 0)
+        target.lerp(pasture, grazed * 0.62)
 
       const fromYard = Math.hypot(x - layout.yard.x, z - layout.yard.z)
       const onYard   = 1 - smoothstep(layout.yard.radius * 0.5, layout.yard.radius * 1.15, fromYard)

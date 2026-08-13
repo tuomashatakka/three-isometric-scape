@@ -1,7 +1,7 @@
 import { smoothstep } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 import { sampleHeight } from '../noise.ts'
-import { distanceToTrack, plotInfluence } from './layout.ts'
+import { distanceToTrack, plotInfluence, sinkToIsland } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
 
 
@@ -46,11 +46,10 @@ function smoothProfile (values: number[], passes: number): number[] {
 }
 
 export function createHeightField (config: ScapeConfig, layout: ScapeLayout): HeightField {
-  const { waterLevel, shoreBand, islandInner, islandOuter } = config.terrain
-  const { yard, track }                                     = layout
-  const corridor                                            = track.width * 1.7
-  const half                                                = config.terrain.size * 0.5
-  const seabed                                              = waterLevel - config.terrain.seabedDrop
+  const { waterLevel, shoreBand } = config.terrain
+  const { yard, track }           = layout
+  const corridor                  = track.width * 1.7
+  const half                      = config.terrain.size * 0.5
 
   // Islets, resolved from fractions into metres once.
   const isles = config.terrain.isles.map(isle => ({
@@ -64,14 +63,9 @@ export function createHeightField (config: ScapeConfig, layout: ScapeLayout): He
   function graded (x: number, z: number): number {
     let height = sampleHeight(x, z, config.seed, config.terrain.height)
 
-    // Drown the rim. The falloff is radial while the terrain plane is square,
-    // which is deliberate: the corners end up well past `islandOuter`, so the
-    // plane's own straight edges are always far under water and never read as
-    // the edge of the world.
-    const radial = Math.hypot(x, z) / half
-    const land   = 1 - smoothstep(islandInner, islandOuter, radial)
-
-    height = seabed + (height - seabed) * land
+    // Drown the rim. `sinkToIsland` lives in `layout.ts` because the placement
+    // searches there have to agree with this exactly — see its own note.
+    height = sinkToIsland(config, x, z, height)
 
     // Raise the islets *after* the falloff. Doing it before would drown them
     // along with the rim — the whole point of the rim drowning is that it is

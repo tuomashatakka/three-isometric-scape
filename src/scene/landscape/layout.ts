@@ -1,4 +1,4 @@
-import { createSeededRng } from 'threejs-scene'
+import { createSeededRng, smoothstep } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 import { sampleHeight } from '../noise.ts'
 
@@ -28,13 +28,25 @@ export interface Ridge extends Vec2 {
   radius: number
 }
 
+/** The walled hay meadow up on the high ground. */
+export interface Pasture extends Vec2 {
+  radius: number
+  level:  number
+
+  /** Bearing from the pasture back to the yard — where the wall is left open. */
+  gateway: number
+}
+
 /** The authored composition, resolved once from the seed. */
 export interface ScapeLayout {
   yard:   Yard
   track:  { points: readonly Vec2[], width: number }
   plots:  readonly Plot[]
   ridges: readonly Ridge[]
-  extent: number
+
+  /** The upland pasture, or `null` if this island has no room for one. */
+  pasture: Pasture | null
+  extent:  number
 
   /** Radius inside which the ground is reliably above water. */
   landRadius: number
@@ -47,6 +59,32 @@ const TRACK_STEPS = 26
 
 function baseAt (config: ScapeConfig, x: number, z: number): number {
   return sampleHeight(x, z, config.seed, config.terrain.height)
+}
+
+/**
+ * Sink a raw fBm height into the island.
+ *
+ * The falloff drowns the rim unconditionally, and it is radial while the
+ * terrain plane is square — deliberately, so the corners end up well past
+ * `islandOuter` and the plane's own straight edges are always far under water
+ * rather than reading as the edge of the world.
+ *
+ * `height.ts` builds the ground with this, and the layout searches ask it what
+ * the ground *will* be before that ground exists. Two approximations of the
+ * same falloff is how a wall gets sited on land that turns out to be sea.
+ */
+export function sinkToIsland (config: ScapeConfig, x: number, z: number, height: number): number {
+  const { size, waterLevel, seabedDrop, islandInner, islandOuter } = config.terrain
+
+  const seabed = waterLevel - seabedDrop
+  const land   = 1 - smoothstep(islandInner, islandOuter, Math.hypot(x, z) / (size * 0.5))
+
+  return seabed + (height - seabed) * land
+}
+
+/** The ground as the falloff leaves it, before any of the authored levelling. */
+function sunkAt (config: ScapeConfig, x: number, z: number): number {
+  return sinkToIsland(config, x, z, baseAt(config, x, z))
 }
 
 /**
@@ -226,16 +264,123 @@ function findRidges (config: ScapeConfig, yard: Yard): Ridge[] {
   return ridges
 }
 
+const PASTURE_PROBES = 30
+const RING_PROBES    = 12
+
+/**
+ * Whether the wall line itself stands on dry ground all the way round.
+ *
+ * The centre being high says nothing about the ring — a shoulder above a cove
+ * is exactly the shape that scores well and has a quarter of its enclosure in
+ * the water.
+ */
+function ringIsDry (config: ScapeConfig, x: number, z: number, radius: number): boolean {
+  for (let step = 0; step < RING_PROBES; step += 1) {
+    const angle = step / RING_PROBES * Math.PI * 2
+    const level = sunkAt(config, x + Math.cos(angle) * radius, z + Math.sin(angle) * radius)
+
+    if (level < config.terrain.waterLevel + 1.2)
+      return false
+  }
+
+  return true
+}
+
+/**
+ * The upland pasture: high, flat, dry ground that the farm is not already using.
+ *
+ * Searched the way the yard is, and against the same raw fBm — but the search
+ * stays inside `landRadius`, where the island falloff has not started taking
+ * height away yet, so `baseAt` is the honest ground there. Past that the sampled
+ * height and the built height diverge, and a meadow can be sited on land that
+ * turns out to be under water.
+ *
+ * @returns The best qualifying centre, or `null` when the island has no room —
+ *   a smaller world, a wider yard or a larger `pastureRadius` can all mean there
+ *   is nowhere left, and the caller has to cope with that rather than the search
+ *   quietly relaxing a rule to produce an answer.
+ */
+function findPasture (
+  config: ScapeConfig,
+  yard:   Yard,
+  plots:  readonly Plot[],
+  track:  readonly Vec2[],
+): Pasture | null {
+  const radius = config.layout.pastureRadius
+
+  // The whole *disc* has to be inside `landRadius`, not just its centre. A
+  // centre sited by its own height alone puts a wall thirty metres long out
+  // past the island falloff, where the sampled ground and the built ground
+  // stop agreeing — the first version of this search drowned a third of the
+  // enclosure and the centre it chose was five metres of dry hillside.
+  const reach = landRadiusOf(config) - radius
+
+  // Clear of the yard's *graded shelf*, not just of its buildings. The yard
+  // levelling reaches 1.25 radii out, so a pasture sited on the buildings alone
+  // lands half of its enclosure on ground that has already been flattened to
+  // farmyard height — and a walled meadow standing on the farmyard is not a
+  // second place, it is a mistake.
+  const clear = yard.radius * 0.95 + radius * 0.75
+
+  let best: Pasture | null = null
+  let bestScore            = -Infinity
+
+  for (let ix = 0; ix < PASTURE_PROBES; ix += 1)
+    for (let iz = 0; iz < PASTURE_PROBES; iz += 1) {
+      const x = -reach + ix / (PASTURE_PROBES - 1) * reach * 2
+      const z = -reach + iz / (PASTURE_PROBES - 1) * reach * 2
+
+      if (Math.hypot(x, z) > reach)
+        continue
+
+      const fromYard = Math.hypot(x - yard.x, z - yard.z)
+
+      if (fromYard < clear)
+        continue
+      if (distanceToPath(track, x, z) < radius * 0.7)
+        continue
+      if (plots.some(plot => Math.hypot(plot.x - x, plot.z - z) < Math.max(plot.halfW, plot.halfD) + radius * 0.85))
+        continue
+
+      const level   = sunkAt(config, x, z)
+      const dryness = level - config.terrain.waterLevel
+
+      // Grazing land, not a summit: the pasture wants to be above the farm and
+      // below the scree the terrain painter puts on the high ground.
+      if (dryness < 3)
+        continue
+
+      const rough = roughness(config, x, z, radius * 0.55)
+
+      if (rough > config.terrain.height * 0.5)
+        continue
+      if (!ringIsDry(config, x, z, radius))
+        continue
+
+      const score = dryness * 0.55 - rough * 2.4 + fromYard * 0.06
+
+      if (score > bestScore) {
+        bestScore = score
+        best      = { x, z, radius, level, gateway: Math.atan2(yard.z - z, yard.x - x) }
+      }
+    }
+
+  return best
+}
+
 /** Resolve the whole composition. Pure — same config in, same layout out. */
 export function createScapeLayout (config: ScapeConfig): ScapeLayout {
-  const rng  = createSeededRng(config.seed).fork('layout')
-  const yard = findYard(config)
+  const rng   = createSeededRng(config.seed).fork('layout')
+  const yard  = findYard(config)
+  const track = buildTrack(config, yard, rng.range(-1, 1))
+  const plots = buildPlots(config, yard, config.seed ^ 0x5c1f)
 
   return {
     yard,
-    track:      { points: buildTrack(config, yard, rng.range(-1, 1)), width: config.layout.trackWidth },
-    plots:      buildPlots(config, yard, config.seed ^ 0x5c1f),
+    track:      { points: track, width: config.layout.trackWidth },
+    plots,
     ridges:     findRidges(config, yard),
+    pasture:    findPasture(config, yard, plots, track),
     extent:     config.terrain.size * 0.5,
     landRadius: landRadiusOf(config),
     waterLevel: config.terrain.waterLevel,
@@ -258,7 +403,11 @@ export function yawAlong (bearing: number): number {
 
 /** Shortest distance from a point to the track centreline, in world units. */
 export function distanceToTrack (layout: ScapeLayout, x: number, z: number): number {
-  const { points } = layout.track
+  return distanceToPath(layout.track.points, x, z)
+}
+
+/** Shortest distance from a point to a polyline, in world units. */
+function distanceToPath (points: readonly Vec2[], x: number, z: number): number {
   let best = Infinity
 
   for (let index = 0; index < points.length - 1; index += 1) {
@@ -295,6 +444,20 @@ export function plotInfluence (plot: Plot, x: number, z: number): number {
   return reach <= 1
     ? 1
     : 1 - (reach - 1) / 0.3
+}
+
+/**
+ * How strongly the pasture claims a point, 1 across its middle falling to 0 at
+ * the wall. 0 everywhere when the island had no room for one.
+ */
+export function pastureInfluence (layout: ScapeLayout, x: number, z: number): number {
+  const { pasture } = layout
+
+  if (!pasture)
+    return 0
+
+  const distance = Math.hypot(x - pasture.x, z - pasture.z)
+  return Math.min(1, Math.max(0, (pasture.radius - distance) / (pasture.radius * 0.22)))
 }
 
 /** Nearest ridge influence, 0..1 — drives conifer density. */

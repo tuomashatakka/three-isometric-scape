@@ -15,6 +15,7 @@ import {
   buildLogPile,
   buildWell,
 } from './structures.ts'
+import { buildHayPole, buildMeadowBarn } from './upland.ts'
 import {
   buildBirch,
   buildCropRow,
@@ -48,6 +49,8 @@ export const PROPS = {
   sauna:     buildSauna,
   aitta:     buildAitta,
   woodshed:  buildWoodshed,
+
+  meadowBarn: buildMeadowBarn,
 
   jetty:     buildJetty,
   boathouse: buildBoathouse,
@@ -85,6 +88,7 @@ export const PROPS = {
   cairn:      buildCairn,
 
   mooringPost: buildMooringPost,
+  hayPole:     buildHayPole,
 } as const satisfies Record<string, PropBuilder>
 
 /** Name of a prop in {@link PROPS}. */
@@ -92,7 +96,7 @@ export type PropName = keyof typeof PROPS
 
 /** Placed once, by hand, then merged into the steading draw. */
 export const HERO_PROPS = [
-  'barn', 'farmhouse', 'sauna', 'aitta', 'woodshed',
+  'barn', 'farmhouse', 'sauna', 'aitta', 'woodshed', 'meadowBarn',
   'jetty', 'boathouse', 'netRack', 'well', 'hayRack', 'logPile', 'flagpole',
   'bridge', 'cart', 'gate', 'rowboat', 'mailbox',
 ] as const satisfies readonly PropName[]
@@ -102,7 +106,7 @@ export const SCATTER_PROPS = [
   'spruce', 'pine', 'birch', 'deadSpruce', 'sapling', 'stump',
   'grass', 'heather', 'wildflower', 'reeds', 'lilyPads', 'crop',
   'erratic', 'fieldStone', 'cobble', 'cairn',
-  'hayBale', 'firewood', 'barrel', 'driftwood', 'mooringPost',
+  'hayBale', 'firewood', 'barrel', 'driftwood', 'mooringPost', 'hayPole',
 ] as const satisfies readonly PropName[]
 
 /** Build one prop's geometry. The caller owns and disposes the result. */
@@ -114,6 +118,8 @@ export { NORDIC_PALETTE, resolvePalette } from './palette.ts'
 export type { NordicColor, NordicPalette } from './palette.ts'
 export { buildFenceRun } from './fence.ts'
 export type { FencePoint, FenceRunOptions } from './fence.ts'
+export { buildStoneWallRun } from './wall.ts'
+export type { StoneWallRunOptions } from './wall.ts'
 export { createScapeMaterials } from './material.ts'
 export type { ScapeMaterials } from './material.ts'
 export { Ploppable } from './ploppable.ts'
