@@ -31,8 +31,10 @@ bun run preview
 - a live graphics overlay that persists to local storage and reloads what you left it at
 - a configurable 3d-lut grade with vignette, miniature tilt-shift, desktop bloom, and film grain
 - mobile and desktop atmosphere budgets selected from pointer, viewport, and pixel-density signals
-- a scape that survives a lost webgl context: it rebuilds itself one tier cheaper rather than asking you to reload
-- an on-page diagnostics log — tier signals, gpu, frame stalls, gl errors, whatever three said on its way down — because a phone has no devtools; `?debug` adds live vitals
+- a scape that survives a lost webgl context: it rebuilds itself one tier cheaper rather than asking you to reload, and remembers the verdict so the next load starts there instead of earning it again
+- no full-screen post chain on a touch tier — an android handset drops its context within seconds of a composer existing and runs indefinitely without one
+- an on-page diagnostics log — tier signals, gpu, frame stalls, gl errors, whatever three said on its way down — because a phone has no devtools. it survives a reload, so a crash does not destroy its own record
+- url overrides for testing on the device you cannot attach a debugger to: `?debug` adds live vitals, `?tier=minimal|mobile|desktop|ultra` forces a tier past detection and past memory, `?post=0|1` forces the optical chain either way
 - one terrain draw, one water draw, two instanced tree draws, and one instanced rock draw
 - an orthographic dimetric camera built with `threejs-scene`
 - click or tap focus with an eased landing and automatic revolution

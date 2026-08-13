@@ -206,8 +206,12 @@ export function createMistLayer ({
    * not to where you happen to be standing — so it follows `mistAmount` alone,
    * which keeps it live for the tuning overlay while leaving the camera no say.
    */
-  function mistMaterial (map: Texture, opacity: number): MeshBasicMaterial {
+  // `name` is carried purely so a failed program link can be attributed: three
+  // prints `Material Name:` and nothing else when a driver declines to link and
+  // declines to say why, and an unnamed material makes that line useless.
+  function mistMaterial (map: Texture, opacity: number, name: string): MeshBasicMaterial {
     return new MeshBasicMaterial({
+      name,
       map,
       color:        mistColor,
       transparent:  true,
@@ -220,7 +224,7 @@ export function createMistLayer ({
 
   const sheets = Array.from({ length: count }, (_unused, index): MistSheet => {
     const weight   = (1 - index / (count + 1)) * LAYER_ALPHA
-    const material = mistMaterial(tile(index, 1), amount * weight)
+    const material = mistMaterial(tile(index, 1), amount * weight, `mist-${index + 1}`)
 
     // Pinned to the world, not to the camera. A sheet that chases the focus
     // point drags its whole cloud pattern across the ground as you pan, which
@@ -238,7 +242,7 @@ export function createMistLayer ({
 
   const slices = Array.from({ length: sliceCount }, (_unused, index): MistSheet => {
     const weight   = (1 - index / (sliceCount + 1)) * SLICE_ALPHA
-    const material = mistMaterial(tile(index, 0.5), amount * weight)
+    const material = mistMaterial(tile(index, 0.5), amount * weight, `mist-slice-${index + 1}`)
 
     const mesh         = new Mesh(upright, material)
     mesh.name          = `mist-slice-${index + 1}`

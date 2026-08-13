@@ -203,6 +203,13 @@ export function createScapeMaterials (config: ScapeConfig): ScapeMaterials {
           .replace('#include <normal_fragment_begin>', DETAIL_FRAGMENT)
     }
     material.customProgramCacheKey = () => key
+
+    // The same key doubles as the material's name, because a name is the only
+    // thing three prints when a program fails to link — `Material Name:` on an
+    // unnamed material is blank, and a driver that refuses to link without
+    // filling in the info log leaves a blank line as the entire diagnosis. An
+    // android handset produced six of those in one run.
+    material.name = key
   }
 
   const ground  = kitMaterial({ roughness: 0.96, metalness: 0, flatShading: true })

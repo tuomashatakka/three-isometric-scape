@@ -148,6 +148,7 @@ export function createCloudLayer ({
     const heading  = config.seed * 0.0013 + index * 1.1
     const weight   = (1 - index / (count + 1)) * DECK_ALPHA
     const material = new MeshBasicMaterial({
+      name:         `cloud-deck-${index + 1}`,
       map:          tile(index),
       transparent:  true,
       depthWrite:   false,

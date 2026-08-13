@@ -2,6 +2,23 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## no composer on a phone
+
+the log from the previous run came back off an android handset and named the thing. the context died twice with the post chain built — once at 0.7s while its programs were still linking, once after 6.3s of clean 30fps — and then ran for as long as anyone watched on the one tier that has never built it. everything the earlier rounds were optimising held still: **one** resize the whole run, no frame over 250 ms, fourteen textures, no `OUT_OF_MEMORY`. it was never a budget.
+
+- **fixed** the scape losing its context on phones, by not building the post chain there. `post: false` on the mobile tier, and `tiltShiftPairs` with it — the composer was on every tier a device could actually be *detected* into, so the "light" tier of the last run still built one and still died. `minimal` was the only post-free tier and nothing ever selected it
+- **added** `scene/tier-memory.ts`: what the device already proved, in `localStorage`, stamped with the build. the ladder worked — it just re-learned the same lesson on every load, and the lesson cost a crash to teach. a loss writes the tier it dropped *to* immediately; a tier that survives nine seconds writes itself as known-good. memory only ever argues downward, because something that held `ultra` last week may be throttled or on battery now
+- **added** `?tier=minimal|mobile|desktop|ultra` and `?post=0|1`, so the diagnosis can be tested on the device rather than believed. `?post=1` on a phone is now the only way to ask it whether the chain was really what killed it
+- **fixed** the log throwing away the crash it exists to record. `sessionStorage` carries a run into the next one under a `previous run` separator — a reload is the first thing anyone does, and it was destroying the only witness
+- **fixed** the log scrolling its newest lines out of sight. assigning `textContent` leaves `scrollTop` where it was, so a log taller than its box drifted upward as it grew, newest-first notwithstanding. three photographs of a phone screen were needed to recover what one assignment now keeps in view
+- **fixed** a phone in landscape landing on the desktop tier — a 2048 shadow map and a full optical chain, on a phone. `compactViewport` asked for 900px and handsets are 844–932 css pixels wide on their side, so the threshold cut through the middle of the range; it asks for 1100px now. the rule still wants a coarse pointer too, so a touchscreen laptop keeps its tier
+- **added** names to the scape's materials — `scape-ground`, `scape-foliage`, `water-surface`, `cloud-deck-N`, `mist-N`, `mist-slice-N`. six programs failed to link on the tier that *works*, each reported as `Material Name:` and nothing, because a driver that declines to link and declines to fill in the info log leaves the name as the whole diagnosis
+- **added** `__SCAPE_BUILD__`, stamped by vite, so a deploy that changes what a tier costs does not inherit a verdict reached about the old one
+- **changed** nothing about the desktop or ultra tiers. the chain is untouched where it has never failed
+- **cost** on the mobile tier: 22 → 10 linked programs, two HDR ping-pong targets and every fullscreen pass gone. it also gives up the grade, the LUT and the tilt-shift there — tone mapping falls back to three's in-material path. two `localStorage` calls and one `sessionStorage` write per log line, all off the frame path
+- **tests** `scene/tier-memory.test.ts` covers the clamp, the downward-only rule, a stamp from another build, an unparseable value, and a device with no storage or storage that throws. `scene/quality.test.ts` now asserts neither touch tier builds a chain
+- **honest** this is the tier configuration the device has actually been observed to survive, which is not the same as a confirmed root cause. what makes the driver drop the context when a composer exists is still unknown; `?post=1` is there to close that gap
+
 ## the log, where the phone can show it
 
 the budget cuts below were not enough — the light tier loses the context too, so the cause is something the numbers do not explain. this run is about being able to see it.

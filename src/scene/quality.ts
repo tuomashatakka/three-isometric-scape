@@ -104,14 +104,23 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     waterSpan:       2.2,
   },
   mobile: {
-    pixelRatioMax:   1,
-    antialias:       false,
-    shadowMapSize:   512,
-    bloom:           false,
-    grain:           false,
-    mistLayers:      2,
-    msaaSamples:     0,
-    tiltShiftPairs:  1,
+    pixelRatioMax: 1,
+    antialias:     false,
+    shadowMapSize: 512,
+    bloom:         false,
+    grain:         false,
+    mistLayers:    2,
+    msaaSamples:   0,
+
+    // No composer on a phone, and this is the field that decides it. A device
+    // log from an android handset showed the context dying within seconds of the
+    // post chain existing — once at 0.7s while its programs were still linking,
+    // once after 6.3s of clean 30fps — and surviving indefinitely on the one
+    // tier that has never built it. Nothing else in the log moved: one resize
+    // all run, no stall over 250ms, fourteen textures, no OUT_OF_MEMORY. It is
+    // not a budget, so no amount of shrinking the chain answers it; the chain
+    // itself is what this class of driver will not hold.
+    tiltShiftPairs:  0,
     terrainSegments: 64,
     scatterScale:    0.32,
     ao:              false,
@@ -119,7 +128,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     godRays:         false,
     traa:            false,
     anamorphic:      false,
-    post:            true,
+    post:            false,
     environment:     false,
     frameRate:       30,
     waterSegments:   48,
@@ -172,7 +181,26 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
 }
 
 /** Tiers from cheapest to most expensive. `minimal` is the floor. */
-const LADDER: readonly AtmosphereQualityTier[] = [ 'minimal', 'mobile', 'desktop', 'ultra' ]
+export const LADDER: readonly AtmosphereQualityTier[] = [ 'minimal', 'mobile', 'desktop', 'ultra' ]
+
+/** Whether an arbitrary string names a tier. For url and storage input. */
+export function isAtmosphereQualityTier (value: string): value is AtmosphereQualityTier {
+  return (LADDER as readonly string[]).includes(value)
+}
+
+/**
+ * Whichever of the two asks less of the device.
+ *
+ * Used to let a remembered tier hold a device down without ever letting it push
+ * one up: a machine that survived `ultra` last week may be thermally throttled
+ * or on battery today, so memory is only ever allowed to argue downward.
+ */
+export function cheaperTier (
+  a: AtmosphereQualityTier,
+  b: AtmosphereQualityTier,
+): AtmosphereQualityTier {
+  return LADDER.indexOf(a) <= LADDER.indexOf(b) ? a : b
+}
 
 export function atmosphereQuality (tier: AtmosphereQualityTier): AtmosphereQuality {
   return { tier, ...PRESETS[tier] }
@@ -230,7 +258,14 @@ export function selectAtmosphereQuality ({
 export function readQualitySignals (): QualitySignals {
   return {
     coarsePointer:       globalThis.matchMedia?.('(pointer: coarse)').matches ?? false,
-    compactViewport:     globalThis.matchMedia?.('(max-width: 900px)').matches ?? false,
+    // 1100px, not 900. A phone turned on its side is 844 to 932 css pixels wide
+    // depending on the handset, so 900 cut straight through the middle of the
+    // range and handed the larger half of every phone in landscape to the desktop
+    // tier — a 2048 shadow map and a full optical chain, on a phone. The rule
+    // above still asks for a coarse pointer as well, so a laptop with a
+    // touchscreen keeps its tier; only devices that are compact *and* touch-first
+    // are affected, and those are phones.
+    compactViewport:     globalThis.matchMedia?.('(max-width: 1100px)').matches ?? false,
     pixelRatio:          globalThis.devicePixelRatio ?? 1,
     hardwareConcurrency: globalThis.navigator?.hardwareConcurrency ?? 4,
     wideViewport:        globalThis.matchMedia?.('(min-width: 1280px)').matches ?? false,

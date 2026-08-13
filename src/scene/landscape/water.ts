@@ -262,6 +262,7 @@ export function createWater (
   // gives the water back its own colour; the glitter above supplies the sharp
   // highlights the roughness gave away.
   const material = new MeshStandardMaterial({
+    name:            'water-surface',
     color:           0xffffff,
     transparent:     true,
     opacity:         1,

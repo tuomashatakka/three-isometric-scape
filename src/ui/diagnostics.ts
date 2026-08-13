@@ -48,6 +48,35 @@ const HISTORY = 40
 /** Where a single entry is cut. Three prints entire shaders on a bad compile. */
 const WIDTH = 460
 
+/**
+ * Where the run before this one is left for whoever comes next.
+ *
+ * A crash whose only witness is the page is a crash that a reload destroys, and
+ * a reload is the first thing anyone does. `sessionStorage` rather than `local`:
+ * this is evidence about the tab, and it should not outlive it.
+ */
+const CARRY = 'three-iso:log'
+
+/** What separates the run that is happening from the run that already did. */
+const SEPARATOR = '────── previous run ──────'
+
+function readCarried (): string[] {
+  try {
+    const raw             = globalThis.sessionStorage?.getItem(CARRY)
+    const parsed: unknown = raw ? JSON.parse(raw) : null
+
+    if (!Array.isArray(parsed))
+      return []
+
+    return parsed.filter((line): line is string => typeof line === 'string').slice(0, HISTORY)
+  }
+  catch {
+    // Storage that is unavailable, a quota that is full, a value someone else
+    // wrote — all of them mean the same thing here: no previous run to show.
+    return []
+  }
+}
+
 const started = performance.now()
 
 function elapsed (): string {
@@ -79,11 +108,38 @@ function clip (text: string): string {
 
 export function createDiagnostics ({ output, verbose = false }: DiagnosticsOptions): Diagnostics {
   const log: string[] = []
-  let vital           = ''
+
+  // Read once and then left alone. Only `log` is ever written back out, so the
+  // carried section cannot compound into a copy of every run this tab has had.
+  const carried = readCarried()
+
+  let vital = ''
+
+  function lines (): string[] {
+    const body = verbose && vital ? [ vital, ...log ] : [ ...log ]
+
+    return carried.length > 0 ? [ ...body, SEPARATOR, ...carried ] : body
+  }
 
   function render (): void {
-    const body         = verbose && vital ? [ vital, ...log ] : log
-    output.textContent = body.join('\n')
+    output.textContent = lines().join('\n')
+
+    // Assigning `textContent` leaves `scrollTop` where it was, so a log that is
+    // taller than its box drifts the newest lines off the top as it grows — and
+    // newest-first means the newest lines are the entire point. Three
+    // photographs of a phone screen were needed to recover what this one
+    // assignment keeps in view.
+    output.scrollTop = 0
+  }
+
+  function persist (): void {
+    try {
+      globalThis.sessionStorage?.setItem(CARRY, JSON.stringify(log))
+    }
+    catch {
+      // The log is still on screen. Losing the copy for the next load is not
+      // worth an entry in the log about losing it.
+    }
   }
 
   function push (mark: string, message: string): void {
@@ -92,6 +148,7 @@ export function createDiagnostics ({ output, verbose = false }: DiagnosticsOptio
     if (log.length > HISTORY)
       log.length = HISTORY
 
+    persist()
     render()
   }
 
@@ -136,7 +193,7 @@ export function createDiagnostics ({ output, verbose = false }: DiagnosticsOptio
 
   async function onCopy (): Promise<void> {
     try {
-      await navigator.clipboard.writeText(log.slice().reverse()
+      await navigator.clipboard.writeText(lines().reverse()
         .join('\n'))
       push('[    ]', 'log copied to the clipboard')
     }

@@ -31,7 +31,7 @@ describe('selectAtmosphereQuality', () => {
     expect(quality.tier).toBe('mobile')
     expect(quality.bloom).toBe(false)
     expect(quality.grain).toBe(false)
-    expect(quality.tiltShiftPairs).toBe(1)
+    expect(quality.tiltShiftPairs).toBe(0)
   })
 
   test('treats very dense displays as a mobile framebuffer budget', () => {
@@ -121,8 +121,15 @@ describe('reduceAtmosphereQuality', () => {
     }
   })
 
-  test('gives up the post chain last, at the floor', () => {
-    expect(atmosphereQuality('mobile').post).toBe(true)
+  // Superseded by device evidence. The chain used to be the last thing given up,
+  // on the reasoning that it was expensive rather than dangerous — then an
+  // android handset dropped its context twice with the chain built and ran for
+  // as long as anyone watched without it. It is no longer a budget item to be
+  // spent down; on a touch device it is simply not built.
+  test('builds no post chain on either touch tier', () => {
     expect(atmosphereQuality('minimal').post).toBe(false)
+    expect(atmosphereQuality('mobile').post).toBe(false)
+    expect(atmosphereQuality('desktop').post).toBe(true)
+    expect(atmosphereQuality('ultra').post).toBe(true)
   })
 })
