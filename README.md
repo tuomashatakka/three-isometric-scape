@@ -104,6 +104,10 @@ bun run build
 
 publish the generated `dist/` directory to the desired pages path. for a project page this is normally `https://<owner>.github.io/<repository>/`; for a nested site route, copy `dist/` into that route’s deployment artifact.
 
+## the enhancement run
+
+the scape is grown by a scheduled, unattended llm run. [`instructions.md`](instructions.md) is its standing brief: pick one theme, build it under the draw-call, determinism and lifecycle rules the rest of this readme explains, prove it with `lint`, `typecheck`, `test` and `build`, then open a pull request and merge it once [`pr-checks.yml`](.github/workflows/pr-checks.yml) is green. every pull request into `main` runs those same four checks, whoever opened it.
+
 ## project map
 
 ```text
