@@ -24,7 +24,10 @@ bun run preview
 ## what is included
 
 - a deterministic procedural heightfield with editable seed, scale, waterline, and palette
-- view-reactive linear fog, a matching gradient sky, and deterministic drifting ground mist
+- a mainland farmstead ringed by ten offshore islets, landscape only, never built on
+- a full day/night cycle: sun arc, dusk and night palettes, and a scrubbable clock
+- view-reactive linear fog, a matching gradient sky, deterministic drifting ground mist, and a sky cloud deck
+- a live graphics overlay that persists to local storage and reloads what you left it at
 - a configurable 3d-lut grade with vignette, miniature tilt-shift, desktop bloom, and film grain
 - mobile and desktop atmosphere budgets selected from pointer, viewport, and pixel-density signals
 - one terrain draw, one water draw, two instanced tree draws, and one instanced rock draw
@@ -36,7 +39,7 @@ bun run preview
 - relative vite asset paths, suitable for a github pages subroute
 - deterministic unit tests plus the current `@tuomashatakka/eslint-config`
 
-there is deliberately no chat surface, local storage contract, llm schema, prop authoring tool, or hidden app service. this is the visual/runtime floor for a new isometric project.
+there is deliberately no chat surface, llm schema, prop authoring tool, or hidden app service. the only persisted state is the graphics overlay's own snapshot, under one key. this is the visual/runtime floor for a new isometric project.
 
 ## shape the scape
 
@@ -44,9 +47,11 @@ the intended first edit is [`src/scene/config.ts`](src/scene/config.ts). `scape_
 
 - the deterministic world seed
 - terrain extent, resolution, amplitude, and waterline
+- the offshore islets, as fractions of the terrain half-extent
 - tree and rock instance budgets
 - initial camera framing and zoom limits
-- fog density and breathing, mist amount and wind, sky gradient, and the complete light rig
+- the clock: cycle speed, phase, the sun's bearing and noon height, and the dusk/night tints
+- fog density and breathing, mist amount and wind, cloud cover and ceiling, sky gradient, and the complete noon light rig
 - lut recipe, grade strength, vignette, grain, bloom, and tilt-shift strength
 - the complete scene palette
 
@@ -107,12 +112,15 @@ src/
 ├── style.css                       full-viewport responsive shell
 ├── ui/
 │   ├── graphics-panel.ts           the overlay, built from real form elements
-│   └── scape-controls.ts           which config knobs it exposes, in sections
+│   ├── scape-controls.ts           which config paths it exposes, in sections
+│   └── settings-store.ts           local-storage snapshot of those same paths
 └── scene/
     ├── atmosphere.ts               gradient sky, linear fog, sun and fill rig
     ├── camera-controls.ts          pointer, touch, keyboard, focus, orbit
+    ├── clouds.ts                   sky deck, faded in as the view pulls back
     ├── config.ts                   the starter's public tuning surface
     ├── create-isometric-scape.ts   app/module composition root
+    ├── daylight.ts                 the clock: sun arc and derived sky palette
     ├── lut.ts                      cached cinematic colour-grade recipes
     ├── mist.ts                     deterministic drifting ground-mist sheets
     ├── noise.ts                    deterministic height sampler
@@ -172,11 +180,47 @@ the same class of bug is why the water's ripple map carries mipmaps: a 128px noi
 
 ## the graphics overlay
 
-a panel on the right edge exposes the scene's optics, atmosphere, mist, water, ground and camera tilt, with a switch per effect and its parameters nested underneath. it collapses to a handle, starts collapsed on touch and narrow viewports, and resets to the authored values.
+a panel on the right edge exposes the scene's optics, daylight, atmosphere, mist, water, ground and camera tilt, with a switch per effect and its parameters nested underneath. it collapses to a handle, starts collapsed on touch and narrow viewports, and resets to the authored values.
 
 the thing worth knowing about it is that **it holds no state**. every control reads and writes `SCAPE_CONFIG` directly, and the scene modules re-read that config every frame — uniforms are refreshed in each module's `update`, not captured at build. so there is exactly one copy of every number, the panel and the scene cannot drift apart, and nothing has to be pushed anywhere when a slider moves. the readme has always called `config.ts` the public tuning surface; the overlay is what makes that literally true at runtime.
 
+**a control is a path, not a closure.** each knob is declared as a dotted string into the config — `look.bloom`, `daylight.time` — rather than as a `get`/`set` pair. a closure can only be *called*; a string can be collected, compared and written to disk, which is why the same declaration list drives the panel, the local-storage snapshot and the reset without any of them enumerating the scene's settings a second time. add a knob to [`scape-controls.ts`](src/ui/scape-controls.ts) and it persists by construction.
+
+there is no `enabled` flag anywhere in the config: an effect is off when its strength is zero. so a switch is a view of the number underneath it — it remembers what it turned off at, restores that on the way back, and follows its own slider if you drag that to zero yourself.
+
 what a slider cannot do is change the *shape* of the chain. which passes exist at all is a quality-tier decision made once when the composer is built, so a knob whose pass the tier never created renders greyed rather than lying about what it does.
+
+### settings that stick
+
+the overlay writes a debounced snapshot of every exposed path under one local-storage key, and applies it before the scene is built. two details carry the weight:
+
+- **stored values are only accepted when their type still matches the config.** a snapshot from an older build, or a hand-edited one, cannot poke a string into a uniform and take the shader down on load — it is simply ignored, field by field.
+- **`reset` removes the key rather than overwriting it with the defaults.** re-authoring a value in `config.ts` should reach anyone who has pressed reset, and it cannot if reset leaves a snapshot of the old defaults sitting in front of it.
+
+the authored values are captured when the store is constructed, *before* `load` runs — after that the config no longer holds them, and reset is the only thing that has them.
+
+`localStorage` access alone throws in a sandboxed frame and in safari's private mode — the property read, not the write. a graphics overlay is not worth taking the scene down for, so a missing store degrades to "settings do not persist".
+
+the panel's controls also carry `autocomplete="off"`, which is not cosmetic. browsers restore a reloaded form's controls to whatever the user left them at, *after* the page's own initialisation — so a reload would put stale numbers back into the sliders and fire `input` for them, showing values the scene does not have and saving them over the real snapshot. right for a form; wrong for a view of external state.
+
+## the clock
+
+`daylight.ts` resolves a phase of the cycle into a sun direction and a complete sky. the authored atmosphere palette stays the **noon anchor** and everything else is derived from it: dusk is that anchor pulled toward one warm colour, night toward one cold one. that is a deliberate trade against a keyframed palette per hour — retuning the scape is still a matter of editing colours that were already there, and no time of day can drift out of the family the rest of the scene was graded for.
+
+the one place the arc is not honest is where it has to be. **the key light never goes below the horizon**, however far under it the sun actually is. a directional light that follows the real arc down there lights the terrain from underneath: shadows invert, every north face blows out, and the shadow-frustum fit degenerates. so the arc governs the light's *colour and strength*, which is what night actually looks like, while the direction is held just above ground — and the result reads as moonlight instead of as a rendering bug.
+
+the clock lives in the config as a phase and a speed, which means scrubbing the overlay's time slider and letting the cycle run are the same operation on the same number. the time knob sits outside its switch on purpose: freezing the cycle is exactly when you want to scrub it.
+
+## the sky deck
+
+overhead cloud is the ground mist's technique moved up: world-pinned sheets of a baked alpha field, scrolling on the wind. two things had to differ.
+
+- **the tile has to be smaller than the frame.** the deck is far wider than anything visible at once, so a pattern sized to the sheet shows you a fraction of a single blob, bilinearly smoothed into a flat wash — the exact failure the ground mist already had once. a tile you can fit two or three of into frame is what makes clouds look like separate clouds. the gaps are the whole effect, and a pattern whose features are larger than the picture has none.
+- **the field is thresholded, not raised to a power.** the mist keeps a little of itself everywhere, which is right for something you are standing in. cloud read from underneath has to have holes, or it is just a grey filter over the frame.
+
+the deck fades in as the view pulls back, and that gate is not a performance dodge: an orthographic camera zoomed in sits *below* the ceiling, so the only thing overhead cloud could do there is cover the picture. pull out and the camera climbs past it, and the deck becomes what it is meant to be — weather between you and the islands.
+
+it is also unfogged, deliberately. linear fog fades by distance from the camera and the deck is the furthest thing in frame, so leaving it in dissolves every cloud into the fog colour exactly when it comes into view. it takes its colour from the clock instead, like the mist does — cloud is the one surface here with nothing but ambient on it, and if it does not follow the sky it stays daylight-white through the night.
 
 ## framing the sea
 
@@ -212,7 +256,13 @@ the sheets used to chase the camera's focus point, which drags the whole cloud p
 
 those slices follow the focus point rather than the world origin — a stack pinned to the origin falls behind the camera the moment you pan to the far side of the map, and the upright mist simply stops existing there. following the focus is only safe because the *pattern* does not come along: each slice feeds its own displacement along its local x axis back into the texture offset, so every wisp stays over the same patch of ground while the quad slides underneath it.
 
-**density is authored once, at build.** it used to be recomputed each frame from the view elevation, which meant orbiting or zooming quietly changed the weather. mist belongs to the world, not to where you happen to be standing, so the camera now has no say in how much of it there is.
+**density follows the authored amount, and nothing else.** it used to be scaled each frame by the view elevation, which meant orbiting or zooming quietly changed the weather. mist belongs to the world, not to where you happen to be standing, so the camera has no say in how much of it there is — only the clock does, and only over its colour.
+
+## ground that casts
+
+the terrain has always been a shadow caster, but the sun's shadow frustum was fitted with a margin sized for the tallest *prop* — about a spruce. the terrain is by far the tallest thing in the scene, so every ridge shadow was clipped where it left the visible ground, and hills read as though they were lit from inside. the margin is derived from the terrain's own relief now, which is what lets a low sun throw a ridge's shadow the length of the frame, and an islet's across the water it stands in.
+
+the ground it falls on carries **two octaves of grain, and a roughness break**. one scale gives ground a texture but not a history: real soil has metre-wide patches of wear and damp under the centimetre-wide grit, and without the broad octave the fine one tiles into a visible weave the moment you zoom out past its repeat. both fetches come from the same 256² texture at different frequencies, so the second costs a sampler read and no memory. the third piece is specular — uniform roughness is the giveaway that a surface is a render, because nothing outdoors reflects evenly — so the fine grain also polishes and dulls it by a few percent, and wet silt stops being the same material as dry heath under the same vertex colour.
 
 ## islets
 
@@ -221,6 +271,8 @@ those slices follow the focus point rather than the world origin — a stack pin
 their profile is a **plateau with a skirt, not a dome**, and that is what decides whether they read as islands at all. the seabed is seven metres down and the crown is a couple of metres up, so the blend has to reach roughly 0.7 before the ground breaks the surface — and a smooth dome only gets there near its very centre. an eleven-metre islet surfaced as a one-metre pebble. holding the blend at 1 across the inner 55% puts the waterline out at about 0.72 of the radius, which is an island with a beach on it.
 
 they also need somewhere to stand. the ring between the mainland's shore and the plane's edge was too narrow to hold anything that would not either merge into the mainland or run off the world, so the plane is wider and `islandInner`/`islandOuter` are scaled to keep the farmstead's landmass exactly where it was. the extra span is open sea.
+
+there are ten of them, and the spacing is the design: each one clears the mainland's `islandOuter` *and* its neighbours' skirts, which is the difference between an archipelago and a reef.
 
 finally they change how the scatter samples. the placement field is now mostly open sea, and a uniform disc throws most of every attempt budget into the water — the island thins out to prove it. candidates are drawn from the mainland *or* from one of the islets instead, so the islets get dressed by the same instanced meshes.
 

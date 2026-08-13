@@ -1,8 +1,10 @@
 import './style.css'
 import { SCAPE_CONFIG } from './scene/config.ts'
 import { createIsometricScape } from './scene/create-isometric-scape.ts'
+import { detectAtmosphereQuality } from './scene/quality.ts'
 import { createGraphicsPanel } from './ui/graphics-panel.ts'
 import { createScapeControls } from './ui/scape-controls.ts'
+import { createSettingsStore } from './ui/settings-store.ts'
 
 
 const canvas = document.querySelector<HTMLCanvasElement>('[data-scape]')
@@ -17,7 +19,17 @@ const coarsePointer = window.matchMedia('(pointer: coarse)').matches
 let disposed = false
 
 try {
+  // Restore before anything reads the config. Every value the overlay exposes is
+  // re-read per frame, so this would survive being late — but the quality tier
+  // and the scene graph are decided from it once, and being early is free.
+  const quality  = detectAtmosphereQuality()
+  const sections = createScapeControls(quality)
+  const settings = createSettingsStore(SCAPE_CONFIG, sections)
+
+  settings.load()
+
   const scape = createIsometricScape(canvas, SCAPE_CONFIG, {
+    quality,
     reducedMotion,
     onFocus (point) {
       status.value = reducedMotion
@@ -33,9 +45,12 @@ try {
   // already reads per frame — so it is a view of the scene's settings rather
   // than a copy that has to be pushed anywhere.
   const panel = createGraphicsPanel({
-    sections:  createScapeControls(SCAPE_CONFIG, scape.quality),
-    tier:      scape.quality.tier,
+    config:    SCAPE_CONFIG,
+    sections,
+    tier:      quality.tier,
     collapsed: compactLayout || coarsePointer,
+    onChange:  () => settings.save(),
+    onReset:   () => settings.reset(),
   })
 
   canvas.parentElement?.append(panel.element)
@@ -52,6 +67,7 @@ try {
     if (disposed)
       return
     disposed = true
+    settings.dispose()
     panel.dispose()
     scape.dispose()
   }, { once: true })

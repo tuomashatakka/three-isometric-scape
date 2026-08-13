@@ -95,24 +95,50 @@ const WIND_VERTEX = /* glsl */`
  *
  * World-space projection, weighted by how horizontal the surface is — so the
  * shared material can carry it without smearing streaks down every barn wall.
+ *
+ * Two octaves, not one. A single scale gives ground a *texture* but not a
+ * *history*: real soil has metre-wide patches of wear and damp under the
+ * centimetre-wide grit, and without the broad octave the fine one tiles into a
+ * visible weave the moment you zoom out past its repeat. The broad fetch is the
+ * same texture at a fraction of the frequency, so it costs a sampler read and no
+ * memory at all.
+ *
+ * The third thing here is roughness. Uniform roughness is the giveaway that a
+ * surface is a render — nothing outdoors reflects evenly — so the fine grain
+ * also polishes and dulls the specular by a few percent, which is what makes wet
+ * silt read as different material from dry heath under the same vertex colour.
  */
 const DETAIL_PARS_FRAGMENT = /* glsl */`
   uniform sampler2D uDetailMap;
   uniform float uDetailScale;
   uniform float uDetailStrength;
+  uniform float uDetailMacro;
 `
 
 const DETAIL_FRAGMENT = /* glsl */`
   #include <normal_fragment_begin>
   float scapeFlat = smoothstep(0.3, 0.9, vScapeNormal.y);
+  float scapeAmt  = uDetailStrength * scapeFlat;
   vec2 scapeUv    = vScapeWorld.xz * uDetailScale;
+  vec2 macroUv    = scapeUv * 0.16;
   float grain     = texture2D(uDetailMap, scapeUv).r;
   float grainX    = texture2D(uDetailMap, scapeUv + vec2(0.015, 0.0)).r;
   float grainZ    = texture2D(uDetailMap, scapeUv + vec2(0.0, 0.015)).r;
+  float macro     = texture2D(uDetailMap, macroUv).r;
+  float macroX    = texture2D(uDetailMap, macroUv + vec2(0.02, 0.0)).r;
+  float macroZ    = texture2D(uDetailMap, macroUv + vec2(0.0, 0.02)).r;
 
-  diffuseColor.rgb *= 1.0 + uDetailStrength * scapeFlat * (grain - 0.5) * 1.6;
-  normal = normalize(normal + mat3(viewMatrix) *
-    vec3(grainX - grain, 0.0, grainZ - grain) * scapeFlat * uDetailStrength * 3.0);
+  diffuseColor.rgb *= 1.0 + scapeAmt * (grain - 0.5) * 1.6;
+  diffuseColor.rgb *= 1.0 + scapeAmt * uDetailMacro * (macro - 0.5) * 1.15;
+
+  // Dirt collects in the low ground and it never comes back out.
+  diffuseColor.rgb *= 1.0 - scapeAmt * 0.22 * pow(1.0 - grain, 2.0);
+
+  roughnessFactor = clamp(roughnessFactor + scapeAmt * (0.5 - grain) * 0.24, 0.05, 1.0);
+
+  vec3 scapeBump = vec3(grainX - grain, 0.0, grainZ - grain) * 3.0 +
+    vec3(macroX - macro, 0.0, macroZ - macro) * uDetailMacro * 2.2;
+  normal = normalize(normal + mat3(viewMatrix) * scapeBump * scapeAmt);
 `
 
 function buildCloudMap (seed: number): Texture {
@@ -149,6 +175,7 @@ export function createScapeMaterials (config: ScapeConfig): ScapeMaterials {
     uDetailMap:      { value: detailMap },
     uDetailScale:    { value: 1 / Math.max(0.5, config.terrain.detailScale) },
     uDetailStrength: { value: config.terrain.detailGrain },
+    uDetailMacro:    { value: config.terrain.detailMacro },
   }
 
   interface Injection {
@@ -205,6 +232,7 @@ export function createScapeMaterials (config: ScapeConfig): ScapeMaterials {
       shared.uCloudScale.value     = 1 / Math.max(1, config.atmosphere.cloudScale)
       detail.uDetailStrength.value = config.terrain.detailGrain
       detail.uDetailScale.value    = 1 / Math.max(0.5, config.terrain.detailScale)
+      detail.uDetailMacro.value    = config.terrain.detailMacro
     },
 
     dispose () {

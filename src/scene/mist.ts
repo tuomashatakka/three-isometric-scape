@@ -14,6 +14,7 @@ import type { OrthographicCamera, Texture } from 'three'
 import { defineModule, smoothstep } from 'threejs-scene'
 import type { AppModule } from 'threejs-scene'
 import type { ScapeConfig } from './config.ts'
+import type { DaylightState } from './daylight.ts'
 import { sampleHeight } from './noise.ts'
 import type { AtmosphereQuality } from './quality.ts'
 
@@ -22,6 +23,9 @@ export interface MistOptions {
   camera:  OrthographicCamera
   config:  ScapeConfig
   quality: AtmosphereQuality
+
+  /** Live sky state — mist is the fog colour, and the fog colour has a clock now. */
+  daylight: DaylightState
 }
 
 interface MistSheet {
@@ -151,6 +155,7 @@ export function createMistLayer ({
   camera,
   config,
   quality,
+  daylight,
 }: MistOptions): AppModule<Record<string, never>> {
   const count      = Math.max(1, quality.mistLayers)
   const sliceCount = Math.max(1, Math.round(count / 2))
@@ -258,10 +263,16 @@ export function createMistLayer ({
     update (_state, frame) {
       const density = config.atmosphere.mistAmount
 
+      // Mist is unlit, so nothing else would carry the time of day onto it. Take
+      // the horizon straight from the clock and it stays the same substance as
+      // the fog at every hour instead of glowing white through the night.
+      mistColor.copy(daylight.horizon).lerp(WHITE, 0.32)
+
       for (const sheet of all) {
         const material = sheet.mesh.material as MeshBasicMaterial
         const map      = material.map
 
+        material.color.copy(mistColor)
         material.opacity   = density * sheet.weight
         sheet.mesh.visible = density > 0.01
 

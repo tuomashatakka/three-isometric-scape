@@ -71,6 +71,9 @@ export interface ScapeConfig {
 
     /** Ground grain contrast, 0..1. */
     detailGrain: number
+
+    /** Weight of the broad second octave of grain, relative to the fine one. */
+    detailMacro: number
   }
 
   /** Knobs for the authored composition — the farmstead, its track and its fields. */
@@ -129,7 +132,6 @@ export interface ScapeConfig {
     skyTop:       number
     sunColor:     number
     sunStrength:  number
-    sunDirection: readonly [number, number, number]
     hemiSky:      number
     hemiGround:   number
     hemiStrength: number
@@ -140,8 +142,44 @@ export interface ScapeConfig {
     /** World units per cloud-map tile. */
     cloudScale: number
 
-    /** Cloud drift speed. */
+    /** Cloud drift speed. Shared by the shadow map and the sky deck. */
     cloudSpeed: number
+
+    /** Sky-deck opacity when fully zoomed out, 0 disables the deck. */
+    cloudCover: number
+
+    /** Height of the sky deck above the waterline, in metres. */
+    cloudHeight: number
+  }
+
+  /**
+   * The clock.
+   *
+   * Colours are not keyframed here — the atmosphere palette above stays the noon
+   * anchor and dusk and night are derived from it. See `daylight.ts`.
+   */
+  daylight: {
+
+    /** Phase of the cycle, 0..1. 0 is midnight, 0.5 is noon. */
+    time: number
+
+    /** Full cycles per minute. 0 freezes the sky wherever `time` left it. */
+    speed: number
+
+    /** Compass bearing of the noon sun, in degrees. */
+    azimuth: number
+
+    /** Noon elevation above the horizon, in degrees. */
+    tilt: number
+
+    /** Golden-hour tint, pulled toward as the sun nears the horizon. */
+    dusk: number
+
+    /** Night tint, pulled toward once the sun is under it. */
+    night: number
+
+    /** Ambient floor at night, so midnight reads as moonlit rather than as black. */
+    nightLift: number
   }
   look: {
     grade:     GradeName
@@ -194,14 +232,25 @@ export const SCAPE_CONFIG = {
     islandInner: 0.44,
     islandOuter: 0.576,
     seabedDrop:  7,
+    // An archipelago, not a pair of outliers. Every one of these clears the
+    // mainland's `islandOuter` and its neighbours' skirts, so they surface as
+    // separate islands rather than merging into a reef — the spacing is the
+    // whole design, and it is why the ring reads as distance.
     isles:       [
       { x: -0.71, z: 0.17, radius: 0.17, height: 4.4 },
       { x: 0.38, z: -0.63, radius: 0.14, height: 3.6 },
       { x: 0.72, z: 0.31, radius: 0.115, height: 2.9 },
       { x: -0.19, z: -0.7, radius: 0.1, height: 2.4 },
+      { x: 0.1, z: 0.76, radius: 0.13, height: 3.2 },
+      { x: -0.55, z: -0.52, radius: 0.12, height: 2.7 },
+      { x: 0.78, z: -0.16, radius: 0.105, height: 2.2 },
+      { x: -0.79, z: -0.14, radius: 0.09, height: 1.9 },
+      { x: 0.5, z: 0.62, radius: 0.1, height: 2.55 },
+      { x: -0.34, z: 0.72, radius: 0.115, height: 3 },
     ],
     detailScale: 7.5,
     detailGrain: 0.34,
+    detailMacro: 0.62,
   },
   layout: {
     yardRadius:   17,
@@ -257,13 +306,25 @@ export const SCAPE_CONFIG = {
     skyTop:       0x5c727e,
     sunColor:     0xffe8bd,
     sunStrength:  2.85,
-    sunDirection: [ -0.5, 0.62, -0.42 ],
     hemiSky:      0xc2cfd2,
     hemiGround:   0x3d4433,
     hemiStrength: 0.72,
     cloudShadow:  0.42,
     cloudScale:   62,
     cloudSpeed:   0.9,
+    cloudCover:   0.5,
+    cloudHeight:  34,
+  },
+  // `time` and `azimuth` are set to land the opening frame on the light the
+  // scape was graded under, so the cycle starts where the stills were taken.
+  daylight: {
+    time:      0.42,
+    speed:     0.4,
+    azimuth:   -106,
+    tilt:      52,
+    dusk:      0xff9c56,
+    night:     0x2b3d5e,
+    nightLift: 0.4,
   },
   look: {
     grade:      'nordic',

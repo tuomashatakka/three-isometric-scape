@@ -4,21 +4,21 @@ import { createApp, createIsoCamera } from 'threejs-scene'
 import type { ScapeConfig } from './config.ts'
 import { createAtmosphereLayer } from './atmosphere.ts'
 import { createCameraControls } from './camera-controls.ts'
+import { createCloudLayer } from './clouds.ts'
 import { createLandscape } from './landscape/index.ts'
 import { createMistLayer } from './mist.ts'
 import { createAtmospherePost } from './post.ts'
-import { detectAtmosphereQuality } from './quality.ts'
 import type { AtmosphereQuality } from './quality.ts'
 
 
 export interface IsometricScape {
-
-  /** The tier the scene resolved to, so the overlay can say what is available. */
-  quality: AtmosphereQuality
   dispose(): void
 }
 
 export interface IsometricScapeOptions {
+
+  /** The resolved tier. Passed in so the overlay can be built before the scene is. */
+  quality:       AtmosphereQuality
   reducedMotion: boolean
   onFocus(point: Vector3): void
   onManualControl(): void
@@ -44,16 +44,17 @@ export function createIsometricScape (
 
   // No initial aim: `camera-controls` owns tilt outright — it derives it from
   // the zoom level — and its `build` hook runs before anything reads the pose.
-  const quality    = detectAtmosphereQuality()
-  const landscape  = createLandscape(config, quality)
-  const atmosphere = createAtmosphereLayer({
+  const { quality } = options
+  const landscape   = createLandscape(config, quality)
+  const atmosphere  = createAtmosphereLayer({
     camera,
     config,
     quality,
     groundRadius: config.terrain.size * 0.8,
   })
-  const mist = createMistLayer({ camera, config, quality })
-  const post = createAtmospherePost({
+  const mist   = createMistLayer({ camera, config, quality, daylight: atmosphere.daylight })
+  const clouds = createCloudLayer({ camera, config, quality, daylight: atmosphere.daylight })
+  const post   = createAtmospherePost({
     camera,
     config,
     quality,
@@ -88,6 +89,7 @@ export function createIsometricScape (
       controls,
       atmosphere.module,
       mist,
+      clouds,
       post,
     ],
   })
@@ -96,8 +98,6 @@ export function createIsometricScape (
   app.start()
 
   return {
-    quality,
-
     dispose () {
       app.dispose()
     },

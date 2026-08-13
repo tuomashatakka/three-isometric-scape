@@ -1,3 +1,4 @@
+import { readNumber, readText, writePath } from './scape-controls.ts'
 import type { ControlSection, RangeControl, ScapeControl, SelectControl } from './scape-controls.ts'
 
 
@@ -7,6 +8,9 @@ export interface GraphicsPanel {
 }
 
 export interface GraphicsPanelOptions {
+
+  /** The live config every control addresses by path. */
+  config:   object
   sections: ControlSection[]
 
   /** Shown in the footer — the tier the scene actually resolved to. */
@@ -14,22 +18,29 @@ export interface GraphicsPanelOptions {
 
   /** Start collapsed. Coarse pointers and narrow viewports should. */
   collapsed?: boolean
+
+  /** Fired after any control writes to the config. */
+  onChange?(): void
+
+  /** Fired after `reset` restores the authored values. */
+  onReset?(): void
 }
+
+/** How often knobs marked `live` re-read a value the scene is driving itself. */
+const LIVE_INTERVAL = 250
 
 /** Two decimals, minus the noise: `0.30` reads worse than `0.3` in a column of numbers. */
 function format (value: number, step: number): string {
-  return step >= 1 ? String(Math.round(value)) : value.toFixed(step >= 0.1 ? 1 : 2)
+  if (step >= 1)
+    return String(Math.round(value))
+  if (step >= 0.1)
+    return value.toFixed(1)
+
+  return value.toFixed(step >= 0.01 ? 2 : 3)
 }
 
-/** Capture a control's current value as a restore closure, keeping its type intact. */
-function remember (control: RangeControl | SelectControl): () => void {
-  if (control.kind === 'select') {
-    const value = control.get()
-    return () => control.set(value)
-  }
-
-  const value = control.get()
-  return () => control.set(value)
+function slug (path: string): string {
+  return `gfx-${path.replace(/\./gu, '-')}`
 }
 
 function element<K extends keyof HTMLElementTagNameMap> (
@@ -56,14 +67,16 @@ function element<K extends keyof HTMLElementTagNameMap> (
  * reader semantics and the platform's own touch targets for free, and none of
  * it is worth reimplementing to save a stylesheet rule.
  *
- * The panel owns no state. Every control reads its value from the config on
- * render and writes straight back on input, so the scene and the overlay cannot
- * drift apart — there is only ever one copy of the number.
+ * The panel owns no state beyond what a switch has to remember to be
+ * non-destructive. Every control reads its value from the config on render and
+ * writes straight back on input, so the scene and the overlay cannot drift
+ * apart — there is only ever one copy of the number.
  */
 export function createGraphicsPanel (options: GraphicsPanelOptions): GraphicsPanel {
-  const { sections, tier }      = options
-  const refresh: (() => void)[] = []
-  const cleanup: (() => void)[] = []
+  const { config, sections, tier, onChange, onReset } = options
+  const refresh: (() => void)[]                       = []
+  const liveRefresh: (() => void)[]                   = []
+  const cleanup: (() => void)[]                       = []
 
   const root   = element('aside', 'gfx')
   const form   = element('form', 'gfx-body')
@@ -74,6 +87,13 @@ export function createGraphicsPanel (options: GraphicsPanelOptions): GraphicsPan
 
   root.dataset.collapsed = String(options.collapsed ?? false)
   form.id                = 'gfx-body'
+
+  // Opt out of form-state restoration. Browsers put a reloaded form's controls
+  // back the way the user left them, which is right for a form and wrong for a
+  // panel: these controls are a *view* of the config, and restoration happens
+  // after the initial sync — so a reload would show numbers the scene does not
+  // have, which is precisely the drift the whole design exists to prevent.
+  form.autocomplete = 'off'
 
   toggle.type = 'button'
   toggle.setAttribute('aria-controls', form.id)
@@ -86,7 +106,7 @@ export function createGraphicsPanel (options: GraphicsPanelOptions): GraphicsPan
     toggle.textContent = collapsed ? '‹' : '›'
   }
 
-  /** Re-read every control from the config. Cheap, and only ever on reset. */
+  /** Re-read every control from the config. Cheap, and only ever on a switch or a reset. */
   function sync (): void {
     for (const update of refresh)
       update()
@@ -97,19 +117,20 @@ export function createGraphicsPanel (options: GraphicsPanelOptions): GraphicsPan
     cleanup.push(() => node.removeEventListener(type, handler))
   }
 
-  function buildRange (control: RangeControl): HTMLElement {
+  function buildRange (control: RangeControl, after?: () => void): HTMLElement {
     const row   = element('div', 'gfx-row')
     const label = element('label', 'gfx-label', control.label)
     const input = element('input', 'gfx-range')
     const value = element('output', 'gfx-value')
 
-    input.type    = 'range'
-    input.id      = `gfx-${control.id}`
-    input.min     = String(control.min)
-    input.max     = String(control.max)
-    input.step    = String(control.step)
-    label.htmlFor = input.id
-    value.htmlFor = input.id
+    input.type         = 'range'
+    input.autocomplete = 'off'
+    input.id           = slug(control.path)
+    input.min          = String(control.min)
+    input.max          = String(control.max)
+    input.step         = String(control.step)
+    label.htmlFor      = input.id
+    value.htmlFor      = input.id
 
     if (control.available === false) {
       input.disabled          = true
@@ -118,93 +139,115 @@ export function createGraphicsPanel (options: GraphicsPanelOptions): GraphicsPan
     }
 
     listen(input, 'input', () => {
-      control.set(input.valueAsNumber)
+      writePath(config, control.path, input.valueAsNumber)
       value.value = format(input.valueAsNumber, control.step)
+      after?.()
+      onChange?.()
+    })
+
+    const update = (): void => {
+      input.valueAsNumber = readNumber(config, control.path)
+      value.value         = format(input.valueAsNumber, control.step)
+    }
+
+    refresh.push(update)
+
+    // A live knob is one the scene moves on its own — the day clock. Skip it
+    // while it has focus, or the running cycle fights the hand dragging it.
+    if (control.live)
+      liveRefresh.push(() => {
+        if (document.activeElement !== input)
+          update()
+      })
+
+    row.append(label, input, value)
+    return row
+  }
+
+  function buildSelect (control: SelectControl): HTMLElement {
+    const row    = element('div', 'gfx-row')
+    const label  = element('label', 'gfx-label', control.label)
+    const select = element('select', 'gfx-select')
+
+    select.autocomplete = 'off'
+    select.id           = slug(control.path)
+    label.htmlFor       = select.id
+
+    for (const name of control.options) {
+      const option = element('option', undefined, name)
+      option.value = name
+      select.append(option)
+    }
+
+    listen(select, 'change', () => {
+      writePath(config, control.path, select.value)
+      onChange?.()
     })
 
     refresh.push(() => {
-      input.valueAsNumber = control.get()
-      value.value         = format(control.get(), control.step)
+      select.value = readText(config, control.path)
     })
 
-    row.append(label, input, value)
+    row.append(label, select)
     return row
   }
 
   function buildControl (control: ScapeControl): HTMLElement {
     if (control.kind === 'range')
       return buildRange(control)
+    if (control.kind === 'select')
+      return buildSelect(control)
 
-    if (control.kind === 'select') {
-      const row    = element('div', 'gfx-row')
-      const label  = element('label', 'gfx-label', control.label)
-      const select = element('select', 'gfx-select')
+    const strength = control.children[0]
+    const group    = element('div', 'gfx-group')
+    const field    = element('label', 'gfx-switch')
+    const box      = element('input')
+    const name     = element('span', undefined, control.label)
+    const nested   = element('div', 'gfx-nested')
+    let remembered = readNumber(config, strength.path) || control.restore
 
-      select.id     = `gfx-${control.id}`
-      label.htmlFor = select.id
+    box.type         = 'checkbox'
+    box.autocomplete = 'off'
+    box.id           = `${slug(strength.path)}-on`
 
-      for (const name of control.options) {
-        const option = element('option', undefined, name)
-        option.value = name
-        select.append(option)
-      }
-
-      listen(select, 'change', () => control.set(select.value))
-      refresh.push(() => {
-        select.value = control.get()
-      })
-
-      row.append(label, select)
-      return row
-    }
-
-    const group  = element('div', 'gfx-group')
-    const field  = element('label', 'gfx-switch')
-    const box    = element('input')
-    const name   = element('span', undefined, control.label)
-    const nested = element('div', 'gfx-nested')
-
-    box.type = 'checkbox'
-    box.id   = `gfx-${control.id}`
-
-    if (control.available === false) {
+    if (strength.available === false) {
       box.disabled              = true
       group.dataset.unavailable = 'true'
       field.title               = 'not available on this quality tier'
     }
 
-    for (const child of control.children)
-      nested.append(buildRange(child))
+    // Dragging the strength itself to zero *is* switching the effect off — there
+    // is no other flag for it to disagree with — so the switch follows its own
+    // knob rather than waiting for the next full sync to notice.
+    const track = (): void => {
+      const on = readNumber(config, strength.path) > 0
+
+      box.checked      = on
+      group.dataset.on = String(on)
+    }
+
+    for (const [ index, child ] of control.children.entries())
+      nested.append(buildRange(child, index === 0 ? track : undefined))
 
     listen(box, 'change', () => {
-      control.set(box.checked)
+      if (box.checked)
+        writePath(config, strength.path, remembered || control.restore)
+      else {
+        remembered = readNumber(config, strength.path) || remembered
+        writePath(config, strength.path, 0)
+      }
+
       group.dataset.on = String(box.checked)
       sync()
+      onChange?.()
     })
 
-    refresh.push(() => {
-      box.checked      = control.get()
-      group.dataset.on = String(control.get())
-    })
+    refresh.push(track)
 
     field.append(box, name)
     group.append(field, nested)
     return group
   }
-
-  // Snapshot the authored values before anything is built, so `reset` puts the
-  // scene back exactly as it shipped rather than to whatever a slider's `min`
-  // happens to be. Toggles carry no value of their own — their switch state is
-  // derived from the strength underneath — so only the leaves are recorded.
-  const defaults: (() => void)[] = []
-
-  for (const section of sections)
-    for (const control of section.controls) {
-      const leaves = control.kind === 'toggle' ? control.children : [ control ]
-
-      for (const leaf of leaves)
-        defaults.push(remember(leaf))
-    }
 
   for (const section of sections) {
     const fieldset = element('fieldset', 'gfx-section')
@@ -221,10 +264,20 @@ export function createGraphicsPanel (options: GraphicsPanelOptions): GraphicsPan
 
   listen(toggle, 'click', () => setCollapsed(root.dataset.collapsed !== 'true'))
   listen(reset, 'click', () => {
-    for (const restore of defaults)
-      restore()
+    onReset?.()
     sync()
   })
+
+  if (liveRefresh.length > 0) {
+    const timer = setInterval(() => {
+      if (root.dataset.collapsed === 'true')
+        return
+      for (const update of liveRefresh)
+        update()
+    }, LIVE_INTERVAL)
+
+    cleanup.push(() => clearInterval(timer))
+  }
 
   head.append(title, reset, toggle)
   root.append(head, form, footer)
@@ -238,8 +291,9 @@ export function createGraphicsPanel (options: GraphicsPanelOptions): GraphicsPan
     dispose () {
       for (const off of cleanup)
         off()
-      cleanup.length = 0
-      refresh.length = 0
+      cleanup.length     = 0
+      refresh.length     = 0
+      liveRefresh.length = 0
       root.remove()
     },
   }
