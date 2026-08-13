@@ -46,7 +46,7 @@ export function createLandscape (config: ScapeConfig, quality: AtmosphereQuality
       materials = createScapeMaterials(config)
 
       const terrain = createTerrain(config, layout, field, materials.ground, quality.terrainSegments)
-      water = createWater(config, field)
+      water = createWater(config, field, quality)
 
       surfaces.push(terrain, water.mesh)
       root.add(terrain, water.mesh)

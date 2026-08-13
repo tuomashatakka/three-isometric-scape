@@ -1,4 +1,4 @@
-export type AtmosphereQualityTier = 'mobile' | 'desktop' | 'ultra'
+export type AtmosphereQualityTier = 'minimal' | 'mobile' | 'desktop' | 'ultra'
 
 export interface AtmosphereQuality {
   tier:           AtmosphereQualityTier
@@ -31,6 +31,42 @@ export interface AtmosphereQuality {
 
   /** Anamorphic streak bloom. */
   anamorphic: boolean
+
+  /**
+   * The full-screen post chain.
+   *
+   * Off means no `EffectComposer` at all — the renderer draws straight to the
+   * canvas, which costs two HDR ping-pong targets and every fullscreen pass
+   * less. The grade, the LUT and the tilt-shift go with it, so this is the last
+   * thing to give up rather than the first.
+   */
+  post: boolean
+
+  /**
+   * Image-based fill, baked from a room environment.
+   *
+   * A PMREM cubemap is twelve megabytes of RGBA16F and a generator pass at
+   * startup, which is a lot of a phone's budget for an ambient term the
+   * hemisphere light is already approximating.
+   */
+  environment: boolean
+
+  /**
+   * Frames drawn per second. 0 draws on every animation frame the display
+   * offers.
+   *
+   * The single most effective knob on a phone: the GPU is what runs out, and
+   * halving how often it is asked to draw halves the heat as well as the load.
+   * A capped scape holds its frame rate where an uncapped one saturates,
+   * throttles, and eventually has its context taken away.
+   */
+  frameRate: number
+
+  /** Lake plane subdivisions per side. */
+  waterSegments: number
+
+  /** Lake plane extent, as a multiple of the terrain size. */
+  waterSpan: number
 }
 
 export interface QualitySignals {
@@ -42,22 +78,52 @@ export interface QualitySignals {
 }
 
 const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = {
-  mobile: {
-    pixelRatioMax:   1.25,
+  // Not a tier any device is detected into — it is where a device lands after
+  // it has already lost the WebGL context once, and it is sized to be survivable
+  // rather than to look like anything in particular.
+  minimal: {
+    pixelRatioMax:   0.7,
     antialias:       false,
-    shadowMapSize:   1024,
+    shadowMapSize:   512,
     bloom:           false,
     grain:           false,
-    mistLayers:      2,
+    mistLayers:      1,
     msaaSamples:     0,
-    tiltShiftPairs:  1,
-    terrainSegments: 96,
-    scatterScale:    0.45,
+    tiltShiftPairs:  0,
+    terrainSegments: 48,
+    scatterScale:    0.16,
     ao:              false,
     ssr:             false,
     godRays:         false,
     traa:            false,
     anamorphic:      false,
+    post:            false,
+    environment:     false,
+    frameRate:       20,
+    waterSegments:   24,
+    waterSpan:       2.2,
+  },
+  mobile: {
+    pixelRatioMax:   1,
+    antialias:       false,
+    shadowMapSize:   512,
+    bloom:           false,
+    grain:           false,
+    mistLayers:      2,
+    msaaSamples:     0,
+    tiltShiftPairs:  1,
+    terrainSegments: 64,
+    scatterScale:    0.32,
+    ao:              false,
+    ssr:             false,
+    godRays:         false,
+    traa:            false,
+    anamorphic:      false,
+    post:            true,
+    environment:     false,
+    frameRate:       30,
+    waterSegments:   48,
+    waterSpan:       3,
   },
   desktop: {
     pixelRatioMax:   1.75,
@@ -75,6 +141,11 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     godRays:         true,
     traa:            false,
     anamorphic:      false,
+    post:            true,
+    environment:     true,
+    frameRate:       0,
+    waterSegments:   96,
+    waterSpan:       8,
   },
   ultra: {
     pixelRatioMax:   2,
@@ -92,7 +163,37 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     godRays:         true,
     traa:            true,
     anamorphic:      true,
+    post:            true,
+    environment:     true,
+    frameRate:       0,
+    waterSegments:   128,
+    waterSpan:       8,
   },
+}
+
+/** Tiers from cheapest to most expensive. `minimal` is the floor. */
+const LADDER: readonly AtmosphereQualityTier[] = [ 'minimal', 'mobile', 'desktop', 'ultra' ]
+
+export function atmosphereQuality (tier: AtmosphereQualityTier): AtmosphereQuality {
+  return { tier, ...PRESETS[tier] }
+}
+
+/**
+ * The next tier down.
+ *
+ * Used when the device has already told us — by dropping the WebGL context —
+ * that it cannot hold the budget it was given. Rebuilding on the same settings
+ * is how one thermal loss becomes a loop, so recovery always costs a tier.
+ *
+ * @returns The cheaper tier, or `null` once there is nothing left to give up.
+ */
+export function reduceAtmosphereQuality (quality: AtmosphereQuality): AtmosphereQuality | null {
+  const index = LADDER.indexOf(quality.tier)
+
+  if (index <= 0)
+    return null
+
+  return atmosphereQuality(LADDER[index - 1])
 }
 
 /**
@@ -111,12 +212,12 @@ export function selectAtmosphereQuality ({
   wideViewport,
 }: QualitySignals): AtmosphereQuality {
   if (coarsePointer && compactViewport || pixelRatio >= 2.5)
-    return { tier: 'mobile', ...PRESETS.mobile }
+    return atmosphereQuality('mobile')
 
   if (!coarsePointer && wideViewport && hardwareConcurrency >= 12 && pixelRatio < 2.5)
-    return { tier: 'ultra', ...PRESETS.ultra }
+    return atmosphereQuality('ultra')
 
-  return { tier: 'desktop', ...PRESETS.desktop }
+  return atmosphereQuality('desktop')
 }
 
 export function detectAtmosphereQuality (): AtmosphereQuality {
