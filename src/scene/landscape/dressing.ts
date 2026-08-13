@@ -13,7 +13,7 @@ import type { ScapeMaterials } from '../props/material.ts'
 import { Ploppable } from '../props/ploppable.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import type { HeightField } from './height.ts'
-import { distanceToTrack, plotInfluence, ridgeInfluence } from './layout.ts'
+import { distanceToTrack, plotInfluence, ridgeInfluence, yawAlong } from './layout.ts'
 import type { Plot, ScapeLayout, Vec2 } from './layout.ts'
 
 
@@ -88,6 +88,9 @@ export function createDressing (
   // ---- hero props ----------------------------------------------------------
 
   const heroes: BufferGeometry[] = []
+
+  /** Where the harbour ended up, so its shallows can be dressed as its own. */
+  let harbourAnchor: Vec2 | null = null
 
   function placeHero (name: PropName, x: number, z: number, angle: number, sink = 0.12): void {
     const geometry = buildProp(name, rng.fork(`hero-${name}`), palette)
@@ -201,21 +204,56 @@ export function createDressing (
     // The jetty reaches from the nearest shoreline out over the water.
     const shore = findShore(layout, field, config)
     if (shore) {
-      placeHeroAt('jetty', shore.x, water + 0.05, shore.z, shore.angle)
+      placeHeroAt('jetty', shore.x, water + 0.05, shore.z, yawAlong(shore.angle))
       placeHeroAt(
         'rowboat',
         shore.x + Math.cos(shore.angle) * 4.2 + Math.cos(shore.angle + Math.PI / 2) * 1.7,
         water - 0.12,
         shore.z + Math.sin(shore.angle) * 4.2 + Math.sin(shore.angle + Math.PI / 2) * 1.7,
-        shore.angle + rng.range(-0.3, 0.3),
+        yawAlong(shore.angle + rng.range(-0.3, 0.3)),
       )
       solver.reserve(shore.x, shore.z, 7)
+      harbourAnchor = { x: shore.x, z: shore.z }
+      raiseHarbour(shore.angle)
     }
 
     // A bridge only earns its place if the track actually crosses low ground.
     const crossing = findCrossing(layout, field, config)
     if (crossing)
       placeHeroAt('bridge', crossing.x, water + 0.35, crossing.z, crossing.angle)
+
+    /**
+     * The boat harbour, in the next cove along from the landing.
+     *
+     * The boathouse is anchored to the *water* level rather than plopped onto
+     * the terrain the way the five farmstead buildings are: its floor is a deck
+     * on piles and its slipway runs out under the surface, so a foundation cut
+     * into the bank would bury exactly the part that has to be open to the lake.
+     * It is pushed a little seaward of the bank for the same reason — the back
+     * of the shed cuts into the slope, which is where a real one is dug in.
+     */
+    function raiseHarbour (shoreAngle: number): void {
+      const bearing = shoreAngle + config.layout.harbourSpread * Math.PI / 180
+      const bank    = findBank(layout, field, config, bearing)
+
+      if (!bank)
+        return
+
+      const houseX = bank.x + Math.cos(bearing) * 1.8
+      const houseZ = bank.z + Math.sin(bearing) * 1.8
+
+      placeHeroAt('boathouse', houseX, water + 0.05, houseZ, yawAlong(bearing))
+      solver.reserve(houseX, houseZ, 8)
+
+      // The rack dries nets on dry ground behind the shed, never in the shallows.
+      const rackX = bank.x - Math.cos(bearing) * 5
+      const rackZ = bank.z - Math.sin(bearing) * 5
+
+      if (heightAt(rackX, rackZ) > water + 0.5) {
+        placeHero('netRack', rackX, rackZ, yawAlong(bearing))
+        solver.reserve(rackX, rackZ, 4)
+      }
+    }
   }
 
   /**
@@ -338,6 +376,21 @@ export function createDressing (
   function dressGround (): void {
     const forestBias = config.layout.forestBias
 
+    /**
+     * Standing water off the harbour.
+     *
+     * Tied to the harbour rather than to the waterline in general: a stake
+     * belongs to the people who drove it, and a ring of them around every islet
+     * in the archipelago would say the opposite.
+     */
+    const harbourShallows = (x: number, z: number): boolean => {
+      if (!harbourAnchor || Math.hypot(x - harbourAnchor.x, z - harbourAnchor.z) > 30)
+        return false
+
+      const height = heightAt(x, z)
+      return height < water - 0.25 && height > water - 1.7
+    }
+
     // Biggest footprints first — a field already full of saplings has no room
     // left for a boulder, and the reverse is never a problem.
     scatterStructural('erratic', config.dressing.erratic, 1.6, stoneRule(0.2), 0.7, 1.4, 40)
@@ -351,6 +404,7 @@ export function createDressing (
     scatterStructural('firewood', config.dressing.firewood, 0.7, inYard, 0.9, 1.1, 90)
     scatterStructural('fieldStone', config.dressing.fieldStone, 0.45, stoneRule(-0.4), 0.7, 1.5, 30)
     scatterStructural('driftwood', config.dressing.driftwood, 0.7, beachRule(0.4), 0.75, 1.3, 30)
+    scatterStructural('mooringPost', config.dressing.mooringPost, 1.1, harbourShallows, 0.8, 1.2, 34)
     scatterStructural('sapling', config.dressing.sapling, 0.35, openGround(0.5, 0.95), 0.7, 1.5, 30)
     scatterStructural('stump', config.dressing.stump, 0.35, openGround(0.6, 0.85), 0.75, 1.4, 30)
 
@@ -565,42 +619,58 @@ function trackPointNear (layout: ScapeLayout, distance: number): Spot | null {
   return null
 }
 
-/** The nearest shoreline to the yard, facing out over open water. */
-function findShore (layout: ScapeLayout, field: HeightField, config: ScapeConfig): Spot | null {
+/**
+ * Walk out from the yard on one bearing until the ground goes under, then back
+ * off to where it breaks the surface again — that point is the bank.
+ *
+ * `distance` is where the water was *found*, not where the bank is; the shore
+ * search ranks bearings by it.
+ */
+function findBank (
+  layout: ScapeLayout,
+  field:  HeightField,
+  config: ScapeConfig,
+  angle:  number,
+): Spot & { distance: number } | null {
   const water = config.terrain.waterLevel
   const limit = config.terrain.size * 0.46
+
+  for (let distance = 4; distance < limit; distance += 1.2) {
+    const x = layout.yard.x + Math.cos(angle) * distance
+    const z = layout.yard.z + Math.sin(angle) * distance
+
+    if (Math.hypot(x, z) > limit)
+      return null
+    if (field.heightAt(x, z) > water - 0.6)
+      continue
+
+    let bank = distance
+    while (bank > 2 && field.heightAt(
+      layout.yard.x + Math.cos(angle) * bank,
+      layout.yard.z + Math.sin(angle) * bank,
+    ) < water + 0.1)
+      bank -= 0.4
+
+    return {
+      x: layout.yard.x + Math.cos(angle) * bank,
+      z: layout.yard.z + Math.sin(angle) * bank,
+      angle,
+      distance,
+    }
+  }
+
+  return null
+}
+
+/** The nearest shoreline to the yard, facing out over open water. */
+function findShore (layout: ScapeLayout, field: HeightField, config: ScapeConfig): Spot | null {
   let best: Spot & { distance: number } | null = null
 
   for (let step = 0; step < 48; step += 1) {
-    const angle = step / 48 * TAU
+    const found = findBank(layout, field, config, step / 48 * TAU)
 
-    for (let distance = 4; distance < limit; distance += 1.2) {
-      const x = layout.yard.x + Math.cos(angle) * distance
-      const z = layout.yard.z + Math.sin(angle) * distance
-
-      if (Math.hypot(x, z) > limit)
-        break
-      if (field.heightAt(x, z) > water - 0.6)
-        continue
-      if (best && distance >= best.distance)
-        break
-
-      // Back off to where the ground breaks the surface — that is the bank.
-      let bank = distance
-      while (bank > 2 && field.heightAt(
-        layout.yard.x + Math.cos(angle) * bank,
-        layout.yard.z + Math.sin(angle) * bank,
-      ) < water + 0.1)
-        bank -= 0.4
-
-      best = {
-        x: layout.yard.x + Math.cos(angle) * bank,
-        z: layout.yard.z + Math.sin(angle) * bank,
-        angle,
-        distance,
-      }
-      break
-    }
+    if (found && (!best || found.distance < best.distance))
+      best = found
   }
 
   return best && { x: best.x, z: best.z, angle: best.angle }
