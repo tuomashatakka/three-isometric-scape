@@ -147,7 +147,7 @@ src/
         ├── buildings.ts            barn, farmhouse, sauna, aitta, woodshed
         ├── structures.ts           jetty, well, hay rack, gate, bridge, cart
         ├── vegetation.ts           spruce, pine, birch, grass, reeds, crops
-        ├── objects.ts              rowboat, bales, firewood, barrel, mailbox
+        ├── objects.ts              rowboat, bales, firewood, barrel, mailbox, driftwood
         └── stone.ts                erratics, field stones, cobbles, cairns
 ```
 

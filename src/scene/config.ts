@@ -42,6 +42,7 @@ export interface DressingBudget {
   hayBale:    number
   firewood:   number
   barrel:     number
+  driftwood:  number
 }
 
 export interface ScapeConfig {
@@ -279,6 +280,7 @@ export const SCAPE_CONFIG = {
     hayBale:    14,
     firewood:   7,
     barrel:     9,
+    driftwood:  20,
   },
   wind: {
     strength: 0.9,

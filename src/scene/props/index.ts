@@ -1,7 +1,7 @@
 import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
 import { buildAitta, buildBarn, buildFarmhouse, buildSauna, buildWoodshed } from './buildings.ts'
-import { buildBarrel, buildFirewood, buildHayBale, buildMailbox, buildRowboat } from './objects.ts'
+import { buildBarrel, buildDriftwood, buildFirewood, buildHayBale, buildMailbox, buildRowboat } from './objects.ts'
 import type { NordicPalette } from './palette.ts'
 import { buildCairn, buildCobble, buildErratic, buildFieldStone } from './stone.ts'
 import {
@@ -48,19 +48,20 @@ export const PROPS = {
   aitta:     buildAitta,
   woodshed:  buildWoodshed,
 
-  jetty:    buildJetty,
-  well:     buildWell,
-  hayRack:  buildHayRack,
-  logPile:  buildLogPile,
-  flagpole: buildFlagpole,
-  bridge:   buildBridge,
-  cart:     buildCart,
-  gate:     buildGate,
-  rowboat:  buildRowboat,
-  hayBale:  buildHayBale,
-  firewood: buildFirewood,
-  barrel:   buildBarrel,
-  mailbox:  buildMailbox,
+  jetty:     buildJetty,
+  well:      buildWell,
+  hayRack:   buildHayRack,
+  logPile:   buildLogPile,
+  flagpole:  buildFlagpole,
+  bridge:    buildBridge,
+  cart:      buildCart,
+  gate:      buildGate,
+  rowboat:   buildRowboat,
+  hayBale:   buildHayBale,
+  firewood:  buildFirewood,
+  barrel:    buildBarrel,
+  mailbox:   buildMailbox,
+  driftwood: buildDriftwood,
 
   spruce:     buildSpruce,
   pine:       buildPine,
@@ -96,7 +97,7 @@ export const SCATTER_PROPS = [
   'spruce', 'pine', 'birch', 'deadSpruce', 'sapling', 'stump',
   'grass', 'heather', 'wildflower', 'reeds', 'lilyPads', 'crop',
   'erratic', 'fieldStone', 'cobble', 'cairn',
-  'hayBale', 'firewood', 'barrel',
+  'hayBale', 'firewood', 'barrel', 'driftwood',
 ] as const satisfies readonly PropName[]
 
 /** Build one prop's geometry. The caller owns and disposes the result. */
