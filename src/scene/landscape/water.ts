@@ -130,6 +130,40 @@ const WATER_COLOR_FRAGMENT = /* glsl */`
   diffuseColor.a *= smoothstep(0.0, 0.03, waterDepth) * clamp(0.5 + waterDepth * 1.7, 0.0, 1.0);
 `
 
+/**
+ * The lake, for a gpu that cannot afford seven looks at it.
+ *
+ * Two dependent texture reads instead of seven: the depth mask, which decides
+ * the colour and where the plane is water at all, and the albedo sheen. The
+ * foam band and the sun glitter go, and so do the ripple normals — but the
+ * swell is procedural (`scapeWave`), so the surface still moves and still
+ * catches the sun along the wave fronts. See `quality.detailTaps`.
+ */
+const WATER_COLOR_FRAGMENT_LITE = /* glsl */`
+  #include <map_fragment>
+  float waterDepth = scapeDepth();
+
+  diffuseColor.rgb = mix(uShallow, uDeep, smoothstep(0.0, 0.5, waterDepth));
+
+  float sheen = texture2D(uRippleMap, vWaterGround * uRippleScale + uRippleOffset).r;
+  diffuseColor.rgb *= 0.93 + 0.15 * sheen;
+
+  diffuseColor.a *= smoothstep(0.0, 0.03, waterDepth) * clamp(0.5 + waterDepth * 1.7, 0.0, 1.0);
+`
+
+const WATER_NORMAL_FRAGMENT_LITE = /* glsl */`
+  #include <normal_fragment_begin>
+  float swell  = scapeWave(vWaterGround);
+  float swellX = scapeWave(vWaterGround + vec2(1.6, 0.0));
+  float swellZ = scapeWave(vWaterGround + vec2(0.0, 1.6));
+
+  normal = normalize(normal + vec3(
+    -(swellX - swell) * uWaveHeight * 2.4,
+    0.0,
+    -(swellZ - swell) * uWaveHeight * 2.4
+  ));
+`
+
 const WATER_NORMAL_FRAGMENT = /* glsl */`
   #include <normal_fragment_begin>
 
@@ -186,6 +220,11 @@ export function createWater (
   field:   HeightField,
   quality: AtmosphereQuality,
 ): Water {
+  // Seven dependent texture reads is what the full lake costs, and a tile-based
+  // gpu pays for those in stalls rather than in bandwidth. Below the full tap
+  // budget the surface draws from two.
+  const lite = quality.detailTaps < 6
+
   // Two spans, deliberately. The bathymetry mask only covers the terrain, but
   // the surface runs far past it so the island sits in open water that reaches
   // the fog instead of ending on a visible edge. The mask clamps at its border,
@@ -282,10 +321,10 @@ export function createWater (
 
     program.fragmentShader = program.fragmentShader
       .replace('#include <common>', `#include <common>\n${WATER_PARS_FRAGMENT}`)
-      .replace('#include <map_fragment>', WATER_COLOR_FRAGMENT)
-      .replace('#include <normal_fragment_begin>', WATER_NORMAL_FRAGMENT)
+      .replace('#include <map_fragment>', lite ? WATER_COLOR_FRAGMENT_LITE : WATER_COLOR_FRAGMENT)
+      .replace('#include <normal_fragment_begin>', lite ? WATER_NORMAL_FRAGMENT_LITE : WATER_NORMAL_FRAGMENT)
   }
-  material.customProgramCacheKey = () => 'scape-water'
+  material.customProgramCacheKey = () => `scape-water:${lite ? 'lite' : 'full'}`
 
   const mesh         = new Mesh(geometry, material)
   mesh.name          = 'water'

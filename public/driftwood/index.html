@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#161814">
+    <meta
+      name="description"
+      content="A touch-friendly isometric three.js scape starter powered by threejs-scene."
+    >
+    <title>three-iso / isometric scape starter</title>
+    <script type="module" crossorigin src="./assets/index-DylS3tJ8.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DDCJvzSI.css">
+  </head>
+  <body>
+    <main>
+      <figure class="scape" aria-labelledby="scape-title">
+        <canvas
+          data-scape
+          tabindex="0"
+          aria-label="interactive isometric landscape"
+          aria-describedby="scape-controls scape-status"
+        >
+          your browser needs webgl to display this isometric landscape.
+        </canvas>
+
+        <figcaption class="scape-card">
+          <p class="scape-kicker">three-iso / starter</p>
+          <h1 id="scape-title">isometric scape</h1>
+          <ul id="scape-controls" class="scape-controls">
+            <li class="pointer-help">click a place to orbit it · drag to pan</li>
+            <li class="pointer-help">shift or right-drag to rotate · wheel to zoom</li>
+            <li class="touch-help">tap a place to orbit it · one finger pans</li>
+            <li class="touch-help">two fingers pan and pinch</li>
+            <li class="keyboard-help">arrow keys pan · shift + arrows rotate · +/− zoom</li>
+          </ul>
+          <output id="scape-status" class="scape-status" aria-live="polite">
+            building scape…
+          </output>
+        </figcaption>
+      </figure>
+
+      <noscript>javascript is required to build the isometric scape.</noscript>
+    </main>
+
+  </body>
+</html>

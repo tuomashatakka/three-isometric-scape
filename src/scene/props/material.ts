@@ -1,6 +1,8 @@
 import { RepeatWrapping, Vector2 } from 'three'
 import type { IUniform, MeshStandardMaterial, Texture, WebGLProgramParametersWithUniforms } from 'three'
 import { createSeamlessNoiseTexture, kitMaterial, markShared } from 'threejs-scene/modules/assets'
+import { NOTHING_SKIPPED } from '../audit.ts'
+import type { ScapeSkips } from '../audit.ts'
 import type { ScapeConfig } from '../config.ts'
 
 /** The two materials every solid thing in the scape draws with. */
@@ -27,21 +29,27 @@ const DETAIL_SIZE = 256
  * scale it reads as one for the cost of a single texture fetch — and unlike a
  * real shadow caster it costs nothing per light and never aliases.
  *
- * Two floats, not three, and on a strict diet for a reason. A PowerVR D-Series
- * handset reports `MAX_VARYING_COMPONENTS` of 60 — 15 vec4, the bare minimum
- * GLES 3.0 permits, against 120 on a desktop. A stock `MeshStandardMaterial`
- * with shadows, fog and instancing already sits close to that ceiling, because
- * every shadow coordinate is a whole vec4. Anything this file adds is spent out
- * of what is left, and when it runs out the driver declines to link with
- * `Could not pack varying v15` — after which three binds the unlinked program
- * regardless, every draw raises INVALID_OPERATION, and ANGLE takes the context
- * away. That is the entire mechanism behind a scape that displayed correctly and
- * then died a few seconds later, and it took four device logs to see it.
+ * Two floats, not three, because the fragment side never reads `y` — and that
+ * is the whole reason, which is worth saying plainly because this comment used
+ * to claim a bigger one.
  *
- * So the ground plane is carried as `xz` alone, because the fragment side never
- * reads `y`, and the surface normal as its `y` alone, because the only thing
- * that reads it wants to know how horizontal the surface is. Six components
- * become three, and foliage — which reads no normal at all — spends two.
+ * It asserted that the scape was overrunning a PowerVR D-Series handset's
+ * `MAX_VARYING_COMPONENTS` of 60 — 15 vec4, the floor GLES 3.0 permits — and
+ * that trimming these varyings was what would fix the context loss. Measured
+ * rather than assumed, the ground program spends **15 components of the 60**:
+ * `vViewPosition` (3), `vColor` (4), `vFogDepth` (1), one directional shadow
+ * coordinate (4), and these three. `flatShading` means `vNormal` is never even
+ * declared. The scape sits four times under the ceiling and always did, and the
+ * library's own tilt-shift starter — heavier in every dimension, no injection
+ * at all — runs on the same handset. The diet was harmless and the diagnosis
+ * was wrong.
+ *
+ * What survives is the mechanism, which is real: a program that fails to link
+ * gets bound by three regardless, every draw against it raises
+ * INVALID_OPERATION, and ANGLE takes the context away seconds later, looking
+ * for all the world like heat. `scene/audit.ts` now reads LINK_STATUS before
+ * anything draws, so the next round argues from the driver's answer instead of
+ * from an arithmetic guess.
  */
 const CLOUD_PARS_VERTEX = /* glsl */`
   varying vec2 vScapeGround;
@@ -76,7 +84,8 @@ const CLOUD_FRAGMENT = /* glsl */`
  * Emitted with the ground detail rather than with the cloud shadow, because the
  * detail pass is the only reader and foliage never receives it — a varying that
  * is written and declared but never read still occupies a slot on drivers that
- * pack before they eliminate, which is exactly the driver that failed here.
+ * pack before they eliminate. Worth doing on principle; not, as it turned out,
+ * what the handset was dying of.
  */
 const DETAIL_PARS_VERTEX = /* glsl */`
   varying float vScapeUp;
@@ -147,6 +156,32 @@ const DETAIL_PARS_FRAGMENT = /* glsl */`
   varying float vScapeUp;
 `
 
+/**
+ * The same grain, for a gpu that cannot afford to look for it six times.
+ *
+ * One dependent texture read instead of six. It keeps the albedo mottle and the
+ * roughness break-up, which are what stop the ground reading as coloured paper,
+ * and gives up the macro octave and the normal perturbation — the latter needs
+ * three fetches to exist at all, since it is a finite difference.
+ *
+ * This is a steady-frame quality budget, not the context-loss fix. The connected
+ * Pixel 10 a/b test traced that failure to the separate shadow-map depth pass.
+ * See `quality.detailTaps`.
+ */
+const DETAIL_FRAGMENT_LITE = /* glsl */`
+  #include <normal_fragment_begin>
+  float scapeFlat = smoothstep(0.3, 0.9, vScapeUp);
+  float scapeAmt  = uDetailStrength * scapeFlat;
+  float grain     = texture2D(uDetailMap, vScapeGround * uDetailScale).r;
+
+  diffuseColor.rgb *= 1.0 + scapeAmt * (grain - 0.5) * 1.6;
+
+  // Dirt collects in the low ground and it never comes back out.
+  diffuseColor.rgb *= 1.0 - scapeAmt * 0.22 * pow(1.0 - grain, 2.0);
+
+  roughnessFactor = clamp(roughnessFactor + scapeAmt * (0.5 - grain) * 0.24, 0.05, 1.0);
+`
+
 const DETAIL_FRAGMENT = /* glsl */`
   #include <normal_fragment_begin>
   float scapeFlat = smoothstep(0.3, 0.9, vScapeUp);
@@ -187,7 +222,13 @@ function buildDetailMap (seed: number): Texture {
   return texture
 }
 
-export function createScapeMaterials (config: ScapeConfig): ScapeMaterials {
+export function createScapeMaterials (
+  config: ScapeConfig,
+  skip: ScapeSkips = NOTHING_SKIPPED,
+  detailTaps = 6,
+): ScapeMaterials {
+  const detailFragment = detailTaps >= 6 ? DETAIL_FRAGMENT : DETAIL_FRAGMENT_LITE
+
   const cloudMap  = buildCloudMap(config.seed)
   const detailMap = buildDetailMap(config.seed ^ 0x77c1)
 
@@ -216,34 +257,43 @@ export function createScapeMaterials (config: ScapeConfig): ScapeMaterials {
   }
 
   function attachScape (material: MeshStandardMaterial, key: string, extra: Injection = {}): void {
-    material.onBeforeCompile = (program: WebGLProgramParametersWithUniforms) => {
-      Object.assign(program.uniforms, shared, extra.wind, extra.detail)
+    // `?skip=inject` leaves the mesh, the geometry and the vertex colours exactly
+    // as they are and takes only the shader patch away — so what draws is the
+    // stock `MeshStandardMaterial` the library's own starters run on the handset
+    // without trouble. If the scape survives this and dies without it, the
+    // injection is the answer; if it dies either way, the injection never was.
+    if (!skip.has('inject'))
+      material.onBeforeCompile = (program: WebGLProgramParametersWithUniforms) => {
+        Object.assign(program.uniforms, shared, extra.wind, extra.detail)
 
-      // The normal varying rides with `detail` rather than with the cloud
-      // shadow, so foliage — which has no detail pass to read it — never
-      // declares a varying it cannot use. On a driver with 15 vec4 to spend,
-      // that unread slot was the difference between linking and not.
-      program.vertexShader = program.vertexShader
-        .replace('#include <common>', [
-          '#include <common>',
-          CLOUD_PARS_VERTEX,
-          extra.wind ? WIND_PARS_VERTEX : '',
-          extra.detail ? DETAIL_PARS_VERTEX : '',
-        ].join('\n'))
-        .replace('#include <project_vertex>', CLOUD_WORLD_VERTEX + (extra.detail ? DETAIL_WORLD_VERTEX : ''))
+        // The normal varying rides with `detail` rather than with the cloud
+        // shadow, so foliage — which has no detail pass to read it — never
+        // declares a varying it cannot use. Tidy rather than load-bearing: see
+        // the note above CLOUD_PARS_VERTEX for what this was once thought to fix.
+        program.vertexShader = program.vertexShader
+          .replace('#include <common>', [
+            '#include <common>',
+            CLOUD_PARS_VERTEX,
+            extra.wind ? WIND_PARS_VERTEX : '',
+            extra.detail ? DETAIL_PARS_VERTEX : '',
+          ].join('\n'))
+          .replace('#include <project_vertex>', CLOUD_WORLD_VERTEX + (extra.detail ? DETAIL_WORLD_VERTEX : ''))
 
-      if (extra.wind)
-        program.vertexShader = program.vertexShader.replace('#include <begin_vertex>', WIND_VERTEX)
+        if (extra.wind)
+          program.vertexShader = program.vertexShader.replace('#include <begin_vertex>', WIND_VERTEX)
 
-      program.fragmentShader = program.fragmentShader
-        .replace('#include <common>', `#include <common>\n${CLOUD_PARS_FRAGMENT}${extra.detail ? DETAIL_PARS_FRAGMENT : ''}`)
-        .replace('#include <color_fragment>', CLOUD_FRAGMENT)
-
-      if (extra.detail)
         program.fragmentShader = program.fragmentShader
-          .replace('#include <normal_fragment_begin>', DETAIL_FRAGMENT)
-    }
-    material.customProgramCacheKey = () => key
+          .replace('#include <common>', `#include <common>\n${CLOUD_PARS_FRAGMENT}${extra.detail ? DETAIL_PARS_FRAGMENT : ''}`)
+          .replace('#include <color_fragment>', CLOUD_FRAGMENT)
+
+        if (extra.detail)
+          program.fragmentShader = program.fragmentShader
+            .replace('#include <normal_fragment_begin>', detailFragment)
+      }
+    // The taps belong in the key: two materials that differ only by an injected
+    // shader are identical as far as three's own cache is concerned, and it
+    // would hand the second one the first one's program.
+    material.customProgramCacheKey = () => `${key}:${detailTaps}`
 
     // The same key doubles as the material's name, because a name is the only
     // thing three prints when a program fails to link — `Material Name:` on an
@@ -256,7 +306,11 @@ export function createScapeMaterials (config: ScapeConfig): ScapeMaterials {
   const ground  = kitMaterial({ roughness: 0.96, metalness: 0, flatShading: true })
   const foliage = kitMaterial({ roughness: 0.92, metalness: 0, flatShading: true })
 
-  attachScape(ground, 'scape-ground', { detail })
+  // `?skip=detail` keeps the cloud shadow — one texture fetch — and drops the
+  // ground grain, which is six. The two halves of the injection cost very
+  // different amounts, so which of them a device cannot take is worth knowing
+  // separately: the cloud shadow is the more visible of the two by far.
+  attachScape(ground, 'scape-ground', skip.has('detail') ? {} : { detail })
   attachScape(foliage, 'scape-foliage', { wind })
 
   markShared(ground)

@@ -2,6 +2,8 @@ import { Vector3 } from 'three'
 import type { Mesh } from 'three'
 import { createApp, createIsoCamera } from 'threejs-scene'
 import type { AppModule } from 'threejs-scene'
+import { NOTHING_SKIPPED, reportPrograms } from './audit.ts'
+import type { ScapeSkips } from './audit.ts'
 import type { ScapeConfig } from './config.ts'
 import { createAtmosphereLayer } from './atmosphere.ts'
 import { createCameraControls } from './camera-controls.ts'
@@ -31,6 +33,19 @@ export interface IsometricScapeOptions {
   quality:       AtmosphereQuality
   reducedMotion: boolean
   diagnostics:   ScapeDiagnostics
+
+  /** What `?skip=` asked to leave out. See `scene/audit.ts`. */
+  skip?: ScapeSkips
+
+  /**
+   * Build everything, measure it, and never draw.
+   *
+   * `?audit` — the scape is assembled exactly as it would be, every program is
+   * linked by `renderer.compile`, and then the loop simply never starts. The
+   * report is the whole output. On a device that loses its context to a bad
+   * program this is the only way to read the shape of the scene it died in.
+   */
+  auditOnly?: boolean
   onFocus(point: Vector3): void
   onManualControl(): void
 
@@ -118,21 +133,26 @@ export function createIsometricScape (
   // No initial aim: `camera-controls` owns tilt outright — it derives it from
   // the zoom level — and its `build` hook runs before anything reads the pose.
   const { quality } = options
-  const landscape   = createLandscape(config, quality)
+  const skip        = options.skip ?? NOTHING_SKIPPED
+  const landscape   = createLandscape(config, quality, skip)
   const atmosphere  = createAtmosphereLayer({
     camera,
     config,
     quality,
     groundRadius: config.terrain.size * 0.8,
   })
-  const mist   = createMistLayer({ camera, config, quality, daylight: atmosphere.daylight })
-  const clouds = createCloudLayer({ camera, config, quality, daylight: atmosphere.daylight })
+  const mist = skip.has('mist')
+    ? null
+    : createMistLayer({ camera, config, quality, daylight: atmosphere.daylight })
+  const clouds = skip.has('clouds')
+    ? null
+    : createCloudLayer({ camera, config, quality, daylight: atmosphere.daylight })
 
   // The whole optical chain is one module, and on the cheapest tier it is simply
   // absent — with nothing claiming the `render` hook the app falls back to
   // drawing the scene straight to the canvas, which is two HDR ping-pong targets
   // and every fullscreen pass cheaper than the composer that would replace it.
-  const post = quality.post
+  const post = quality.post && !skip.has('post')
     ? createAtmospherePost({
       camera,
       config,
@@ -155,16 +175,14 @@ export function createIsometricScape (
     onManualControl: options.onManualControl,
   })
 
-  const modules: AppModule<Record<string, never>>[] = [
+  const modules = [
     landscape.module,
     controls,
     atmosphere.module,
     mist,
     clouds,
-  ]
-
-  if (post)
-    modules.push(post)
+    post,
+  ].filter((module): module is AppModule<Record<string, never>> => module !== null)
 
   const app = createApp<Record<string, never>>(canvas, {
     state: {},
@@ -178,7 +196,7 @@ export function createIsometricScape (
     renderer: {
       antialias:           quality.antialias,
       pixelRatioMax:       quality.pixelRatioMax,
-      shadows:             true,
+      shadows:             quality.shadows && !skip.has('shadows'),
       toneMappingExposure: 0.98,
     },
     use: modules,
@@ -204,13 +222,18 @@ export function createIsometricScape (
     `ratio ${app.ctx.renderer.getPixelRatio()}`,
     `${quality.frameRate || 'un'}capped`,
     `post ${quality.post ? 'on' : 'off'}`,
+    `shadows ${quality.shadows && !skip.has('shadows') ? 'on' : 'off'}`,
     `built in ${Math.round(performance.now() - buildStarted)}ms`,
   ].join(' · '))
 
   diagnostics.say(`gpu ${describeGpu(gl)}`)
   diagnostics.say(describeBudget(gl))
 
-  let contextLost = false
+  // The ordinary path also checks the programs compiled during mount. An audit
+  // run deliberately stops here; it proves the scene can be assembled without
+  // submitting a frame to a driver that has already refused a program.
+  const stoppedByAudit = reportPrograms(app.ctx.renderer, diagnostics, options.auditOnly ?? false)
+  let contextLost      = false
 
   /**
    * Run only when there is something to run for.
@@ -219,7 +242,7 @@ export function createIsometricScape (
    * and heat is what the GPU gives up the context over in the first place.
    */
   function settle (): void {
-    if (contextLost || document.hidden)
+    if (contextLost || document.hidden || stoppedByAudit)
       app.stop()
     else
       app.start()

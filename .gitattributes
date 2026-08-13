@@ -1,0 +1,2 @@
+# Device snapshots embed upstream GLSL strings whose whitespace is intentional.
+public/*/assets/*.js -whitespace

@@ -283,7 +283,32 @@ export function createAtmosphereLayer ({
   let previousFog: Scene['fog']               = null
   let previousBackground: Scene['background'] = null
 
+  /**
+   * Repaint the sky ramp, and only hand it to the gpu when it has actually
+   * changed.
+   *
+   * This used to set `needsUpdate` on every frame, which is what cost the scape
+   * its context on an android handset. A texture marked dirty is re-uploaded,
+   * and re-uploading one that in-flight draw calls still reference makes a
+   * tile-based driver ghost a fresh backing store rather than overwrite the live
+   * one. At thirty frames a second those pile up until the allocator has nothing
+   * left to give, and the failure surfaces at the next surface allocation:
+   *
+   *     WebGL warning: <Present>: Swap chain surface creation failed.
+   *     WebGL context was lost.
+   *
+   * Which is why the loss was always somewhere around fifteen to twenty seconds
+   * in, why it never depended on the tier, the resolution or the post chain, and
+   * why the library's own starters — which upload no textures at all — never
+   * showed it.
+   *
+   * The ramp is eight-bit, so the comparison is exact rather than a tolerance:
+   * whenever the quantised bytes come out the same the upload was a no-op that
+   * cost a buffer anyway. On a slow dawn that is almost every frame.
+   */
   function paintSky (): void {
+    let changed = false
+
     for (let index = 0; index < SKY_STEPS; index += 1) {
       const t      = index / (SKY_STEPS - 1)
       const amount = t * t
@@ -291,12 +316,21 @@ export function createAtmosphereLayer ({
 
       const top = sky.skyTop
 
-      skyData[offset]     = Math.round((horizon.r + (top.r - horizon.r) * amount) ** (1 / 2.2) * 255)
-      skyData[offset + 1] = Math.round((horizon.g + (top.g - horizon.g) * amount) ** (1 / 2.2) * 255)
-      skyData[offset + 2] = Math.round((horizon.b + (top.b - horizon.b) * amount) ** (1 / 2.2) * 255)
+      const r = Math.round((horizon.r + (top.r - horizon.r) * amount) ** (1 / 2.2) * 255)
+      const g = Math.round((horizon.g + (top.g - horizon.g) * amount) ** (1 / 2.2) * 255)
+      const b = Math.round((horizon.b + (top.b - horizon.b) * amount) ** (1 / 2.2) * 255)
+
+      if (skyData[offset] !== r || skyData[offset + 1] !== g || skyData[offset + 2] !== b)
+        changed = true
+
+      skyData[offset]     = r
+      skyData[offset + 1] = g
+      skyData[offset + 2] = b
       skyData[offset + 3] = 255
     }
-    skyTexture.needsUpdate = true
+
+    if (changed)
+      skyTexture.needsUpdate = true
   }
 
   function scatter (): void {
@@ -362,7 +396,9 @@ export function createAtmosphereLayer ({
     sunPosition.copy(rig.sun.position)
     rig.sun.target.position.copy(target)
     rig.sun.target.updateMatrixWorld()
-    fitShadow(rig.sun, camera, target, viewSize, tallest)
+
+    if (rig.sun.castShadow)
+      fitShadow(rig.sun, camera, target, viewSize, tallest)
 
     // The ground bounce carries a little of the key light's colour, so it warms
     // through golden hour and goes cold at night instead of staying a fixed
@@ -382,7 +418,10 @@ export function createAtmosphereLayer ({
       ownerScene        = ctx.scene
       previousFog       = ctx.scene.fog
       previousBackground = ctx.scene.background
-      rig               = mountLighting(ctx, lighting)
+      rig = mountLighting(ctx, lighting)
+
+      if (rig)
+        rig.sun.castShadow = quality.shadows
 
       ctx.scene.add(bounce, bounce.target)
       ctx.scene.fog        = fog

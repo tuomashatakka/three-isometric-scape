@@ -10,6 +10,7 @@ import {
   reduceAtmosphereQuality,
   selectAtmosphereQuality,
 } from './scene/quality.ts'
+import { readSkips } from './scene/audit.ts'
 import { createTierMemory } from './scene/tier-memory.ts'
 import { createDiagnostics } from './ui/diagnostics.ts'
 import { createGraphicsPanel } from './ui/graphics-panel.ts'
@@ -36,6 +37,20 @@ const diagnostics = createDiagnostics({
   output:  statusSlot,
   verbose: params.has('debug'),
 })
+
+/**
+ * Build it, measure it, never draw it.
+ *
+ * The scape is assembled exactly as it would be and the loop simply never
+ * starts, so every program gets linked and reported without a single draw going
+ * near the driver. On a handset that loses its context to a program three bound
+ * without checking, this is the only way to read the scene it died in.
+ */
+const auditing = params.has('audit')
+
+// Which families to leave out — the axis that turns "this program failed" into
+// "and the scape lives without the thing that built it".
+const skip = readSkips(params.get('skip'), message => diagnostics.say(message))
 
 const signals = readQualitySignals()
 const memory  = createTierMemory()
@@ -101,6 +116,33 @@ function withPostOverride (quality: AtmosphereQuality): AtmosphereQuality {
 }
 
 /**
+ * One knob at a time, over the top of whatever tier was chosen.
+ *
+ * A tier changes fifteen things at once, so a tier that survives where another
+ * dies cannot say which of the fifteen mattered. `?ratio=` and `?aa=` pull the
+ * two that touch the *surface* rather than the workload out on their own —
+ * which is the difference between the tiers this device lives on and the ones
+ * it dies on, once frame cost has been ruled out.
+ */
+function withSurfaceOverrides (quality: AtmosphereQuality): AtmosphereQuality {
+  const ratio = Number(params.get('ratio'))
+  const aa    = params.get('aa')
+  let forced  = quality
+
+  if (Number.isFinite(ratio) && ratio > 0) {
+    diagnostics.say(`pixel ratio forced to ${ratio} by the url`)
+    forced = { ...forced, pixelRatioMax: ratio }
+  }
+
+  if (aa === '0' || aa === '1') {
+    diagnostics.say(`antialias forced ${aa === '1' ? 'on' : 'off'} by the url`)
+    forced = { ...forced, antialias: aa === '1' }
+  }
+
+  return forced
+}
+
+/**
  * Which tier to open on: what the signals ask for, held down by what the device
  * has already proven, unless the url overrules both.
  */
@@ -113,7 +155,7 @@ function startingQuality (): AtmosphereQuality {
     memory.forget()
     diagnostics.say(`tier forced to ${forced} by the url`)
 
-    return withPostOverride(atmosphereQuality(forced))
+    return withSurfaceOverrides(withPostOverride(atmosphereQuality(forced)))
   }
 
   const picked  = selectAtmosphereQuality(signals)
@@ -122,7 +164,7 @@ function startingQuality (): AtmosphereQuality {
   if (clamped !== picked.tier)
     diagnostics.say(`${picked.tier} tier held down to ${clamped} · this device has dropped a context before`)
 
-  return withPostOverride(atmosphereQuality(clamped))
+  return withSurfaceOverrides(withPostOverride(atmosphereQuality(clamped)))
 }
 
 // Built once, before anything has been loaded over the config: the store keeps
@@ -147,6 +189,8 @@ function mount (): void {
     quality,
     reducedMotion,
     diagnostics,
+    skip,
+    auditOnly: auditing,
 
     // The camera talks constantly, and none of it survives a crash worth
     // reading. It stays out of the log and off the one surface the log owns.
@@ -179,8 +223,12 @@ function mount (): void {
   // device can simply be handed next time, rather than being walked down to
   // through another crash. Cancelled by `unmount`, so a loss inside the window
   // never gets recorded as a survival.
+  // A scape that never drew has not survived anything, so an audit run must not
+  // leave a verdict behind for the next ordinary load to inherit.
   window.clearTimeout(proving)
-  proving = window.setTimeout(() => memory.remember(quality.tier), GRACE)
+
+  if (!auditing)
+    proving = window.setTimeout(() => memory.remember(quality.tier), GRACE)
 
   mounted = {
     dispose () {

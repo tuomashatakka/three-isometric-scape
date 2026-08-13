@@ -2,6 +2,8 @@ import { Group } from 'three'
 import type { Object3D } from 'three'
 import { defineModule } from 'threejs-scene'
 import type { AppModule } from 'threejs-scene'
+import { NOTHING_SKIPPED } from '../audit.ts'
+import type { ScapeSkips } from '../audit.ts'
 import type { ScapeConfig } from '../config.ts'
 import { createScapeMaterials } from '../props/material.ts'
 import type { ScapeMaterials } from '../props/material.ts'
@@ -26,7 +28,11 @@ export interface Landscape {
   layout:   ScapeLayout
 }
 
-export function createLandscape (config: ScapeConfig, quality: AtmosphereQuality): Landscape {
+export function createLandscape (
+  config: ScapeConfig,
+  quality: AtmosphereQuality,
+  skip: ScapeSkips = NOTHING_SKIPPED,
+): Landscape {
   const surfaces: Object3D[] = []
   const layout               = createScapeLayout(config)
   const field: HeightField   = createHeightField(config, layout)
@@ -43,16 +49,29 @@ export function createLandscape (config: ScapeConfig, quality: AtmosphereQuality
       root = new Group()
       root.name = 'nordic-scape'
 
-      materials = createScapeMaterials(config)
+      materials = createScapeMaterials(config, skip, quality.detailTaps)
 
       const terrain = createTerrain(config, layout, field, materials.ground, quality.terrainSegments)
-      water = createWater(config, field, quality)
 
-      surfaces.push(terrain, water.mesh)
-      root.add(terrain, water.mesh)
+      surfaces.push(terrain)
+      root.add(terrain)
 
-      dressing = createDressing(config, layout, field, materials, quality)
-      root.add(dressing.object)
+      // `?skip=water` and `?skip=dressing` each remove a whole program from the
+      // scape — the water surface with its own injection, and every
+      // `InstancedMesh` in the place along with the foliage material. Between
+      // them and `?skip=inject` the custom shader surface can be emptied a piece
+      // at a time, which is how the audit's accusation gets confirmed on the
+      // device rather than argued about here.
+      if (!skip.has('water')) {
+        water = createWater(config, field, quality)
+        surfaces.push(water.mesh)
+        root.add(water.mesh)
+      }
+
+      if (!skip.has('dressing')) {
+        dressing = createDressing(config, layout, field, materials, quality)
+        root.add(dressing.object)
+      }
 
       ctx.scene.add(root)
     },

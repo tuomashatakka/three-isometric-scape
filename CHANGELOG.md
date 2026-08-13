@@ -2,6 +2,17 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the depth pass the phone could not keep
+
+the pixel 10 made the failure reproducible in firefox's usb debugger. the mobile tier with its post chain forced off emitted six shader validation failures and lost the webgl context; the identical run with only shadow maps skipped stayed clean. the first rejected program was three's generated `meshdepthmaterial`, not one of the visible scape shaders.
+
+- **fixed** both phone tiers to disable the renderer's shadow-map pass instead of merely shrinking its texture
+- **fixed** the directional sun to stop advertising a shadow caster on those tiers, and stopped recalculating a shadow frustum that will never render
+- **kept** the mobile colour grade and tilt-shift composer, plus the authored cloud shadow, hemisphere fill, direct sun, and all visible materials; desktop and ultra retain their hardware shadows
+- **restored** the startup gpu report, context-loss listeners, recovery callback, and hidden-tab loop parking that an unfinished diagnostic edit had disconnected
+- **proved** the boundary on the connected device: shadows on reproduced six validation failures within twenty seconds; shadows off stayed clean, with the same mobile tier, framebuffer cap, geometry, and no-post path
+- **cost** one boolean in the tier preset and one fewer render pass per light on phones
+
 ## the walled hay meadow
 
 the farm ploughs the flat ground and grazes what is left, and until now the scape only showed the half of that it ploughs. up the slope from the steading there is a walled pasture: a drystone wall around it, a gate in the gap facing back down at the farm, a meadow barn at the back with its doors open on hay, and drying poles standing in the grass between them.

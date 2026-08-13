@@ -31,10 +31,11 @@ describe('selectAtmosphereQuality', () => {
     expect(quality.tier).toBe('mobile')
     expect(quality.bloom).toBe(false)
     expect(quality.grain).toBe(false)
+    expect(quality.shadows).toBe(false)
     expect(quality.tiltShiftPairs).toBe(1)
   })
 
-  test('treats very dense displays as a mobile framebuffer budget', () => {
+  test('sends a very dense display to the capped mobile tier', () => {
     const quality = selectAtmosphereQuality(signals({ pixelRatio: 3 }))
 
     expect(quality.tier).toBe('mobile')
@@ -113,15 +114,30 @@ describe('reduceAtmosphereQuality', () => {
       const next = reduceAtmosphereQuality(quality)
 
       expect(next).not.toBeNull()
-      expect(next!.pixelRatioMax).toBeLessThan(quality.pixelRatioMax)
       expect(next!.terrainSegments).toBeLessThan(quality.terrainSegments)
       expect(next!.scatterScale).toBeLessThan(quality.scatterScale)
       expect(next!.shadowMapSize).toBeLessThanOrEqual(quality.shadowMapSize)
+      expect(next!.detailTaps).toBeLessThanOrEqual(quality.detailTaps)
       quality = next!
     }
   })
 
-  test('gives up the post chain last, at the floor', () => {
+  test('removes shadow maps from both phone tiers', () => {
+    expect(atmosphereQuality('mobile').shadows).toBe(false)
+    expect(atmosphereQuality('minimal').shadows).toBe(false)
+    expect(atmosphereQuality('desktop').shadows).toBe(true)
+  })
+
+  test('keeps every floor-tier frame cost below mobile', () => {
+    const mobile  = atmosphereQuality('mobile')
+    const minimal = atmosphereQuality('minimal')
+
+    expect(minimal.frameRate).toBeLessThan(mobile.frameRate)
+    expect(minimal.terrainSegments).toBeLessThan(mobile.terrainSegments)
+    expect(minimal.pixelRatioMax).toBeLessThan(mobile.pixelRatioMax)
+  })
+
+  test('keeps the compact post chain on mobile and drops it at the floor', () => {
     expect(atmosphereQuality('mobile').post).toBe(true)
     expect(atmosphereQuality('minimal').post).toBe(false)
   })

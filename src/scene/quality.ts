@@ -1,9 +1,17 @@
 export type AtmosphereQualityTier = 'minimal' | 'mobile' | 'desktop' | 'ultra'
 
 export interface AtmosphereQuality {
-  tier:           AtmosphereQualityTier
-  pixelRatioMax:  number
-  antialias:      boolean
+  tier:          AtmosphereQualityTier
+  pixelRatioMax: number
+  antialias:     boolean
+
+  /**
+   * Whether the renderer builds shadow maps at all.
+   *
+   * This is separate from map size: a smaller map still compiles and runs the
+   * same hidden MeshDepthMaterial pass, which Firefox on the Pixel 10 rejects.
+   */
+  shadows:        boolean
   shadowMapSize:  number
   bloom:          boolean
   grain:          boolean
@@ -62,6 +70,15 @@ export interface AtmosphereQuality {
    */
   frameRate: number
 
+  /**
+   * Texture fetches the ground-grain injection is allowed.
+   *
+   * The phone tier keeps one dependent read for albedo and roughness variation.
+   * Desktop keeps the six-read normal and macro treatment. This controls steady
+   * frame cost; shadow-map compilation is the separate context-loss boundary.
+   */
+  detailTaps: number
+
   /** Lake plane subdivisions per side. */
   waterSegments: number
 
@@ -84,6 +101,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
   minimal: {
     pixelRatioMax:   0.7,
     antialias:       false,
+    shadows:         false,
     shadowMapSize:   512,
     bloom:           false,
     grain:           false,
@@ -100,12 +118,14 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     post:            false,
     environment:     false,
     frameRate:       20,
+    detailTaps:      1,
     waterSegments:   24,
     waterSpan:       2.2,
   },
   mobile: {
     pixelRatioMax:   1,
     antialias:       false,
+    shadows:         false,
     shadowMapSize:   512,
     bloom:           false,
     grain:           false,
@@ -120,23 +140,20 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     traa:            false,
     anamorphic:      false,
 
-    // The chain stays. It was taken off this tier for one run on the strength of
-    // two samples that both had it built when the context went away — and then a
-    // third device log showed the post-free floor tier dying at 4.1s in firefox
-    // and a fourth showed it dying at 8.4s in chrome, on the same handset, with
-    // no composer anywhere. The same floor tier had already run 47 seconds clean
-    // in an earlier run. A setting that both survives and dies unchanged is not
-    // the setting that matters, so this one is not worth the grade, the LUT and
-    // the tilt-shift it was costing every phone.
+    // Keep the compact optical chain: colour grading and one tilt-shift pair are
+    // part of the scene's authored look. The usb-debugger a/b traced the Pixel
+    // 10 failure to shadow-map depth rendering, not to this composer.
     post:          true,
     environment:   false,
     frameRate:     30,
+    detailTaps:    1,
     waterSegments: 48,
     waterSpan:     3,
   },
   desktop: {
     pixelRatioMax:   1.75,
     antialias:       true,
+    shadows:         true,
     shadowMapSize:   2048,
     bloom:           true,
     grain:           true,
@@ -153,12 +170,14 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     post:            true,
     environment:     true,
     frameRate:       0,
+    detailTaps:      6,
     waterSegments:   96,
     waterSpan:       8,
   },
   ultra: {
     pixelRatioMax:   2,
     antialias:       true,
+    shadows:         true,
     shadowMapSize:   4096,
     bloom:           true,
     grain:           true,
@@ -175,6 +194,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     post:            true,
     environment:     true,
     frameRate:       0,
+    detailTaps:      6,
     waterSegments:   128,
     waterSpan:       8,
   },
