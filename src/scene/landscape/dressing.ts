@@ -11,9 +11,10 @@ import { buildProp, resolvePalette } from '../props/index.ts'
 import type { PropName } from '../props/index.ts'
 import type { ScapeMaterials } from '../props/material.ts'
 import { Ploppable } from '../props/ploppable.ts'
+import { buildStoneWallRun } from '../props/wall.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import type { HeightField } from './height.ts'
-import { distanceToTrack, plotInfluence, ridgeInfluence, yawAlong } from './layout.ts'
+import { distanceToTrack, pastureInfluence, plotInfluence, ridgeInfluence, yawAlong } from './layout.ts'
 import type { Plot, ScapeLayout, Vec2 } from './layout.ts'
 
 
@@ -70,6 +71,7 @@ export function createDressing (
   const owned: BufferGeometry[] = []
   const plopped: Ploppable[]    = []
   const sampleSpot              = createSpotSampler(config, layout, rng, extent)
+  const samplePasture           = createDiscSampler(rng, layout.pasture)
 
   const heightAt = field.heightAt
   const budget   = (count: number): number => Math.max(1, Math.round(count * quality.scatterScale))
@@ -83,7 +85,7 @@ export function createDressing (
 
   // ---- feature tests -------------------------------------------------------
 
-  const { onYard, onTrack, onPlot, clear } = createZoneTests(layout)
+  const { onYard, onTrack, onPlot, onPasture, clear } = createZoneTests(layout)
 
   // ---- hero props ----------------------------------------------------------
 
@@ -257,6 +259,78 @@ export function createDressing (
   }
 
   /**
+   * The upland pasture: a drystone wall around the hay meadow, a barn inside it
+   * and a gate where the wall is left open toward the farm.
+   *
+   * The wall is a hero geometry like the fencing, so the whole enclosure costs
+   * no draw call of its own — and it is *reserved against* rather than merely
+   * built, because the solver has no idea it exists and would otherwise stand a
+   * spruce in the middle of it.
+   */
+  function raiseUpland (): void {
+    const { pasture } = layout
+
+    if (!pasture)
+      return
+
+    const gap                = config.layout.pastureGateway * Math.PI / 180
+    const arc                = TAU - gap
+    const stones             = Math.max(12, Math.round(pasture.radius * arc / 2))
+    const line: FencePoint[] = []
+
+    for (let step = 0; step <= stones; step += 1) {
+      const angle = pasture.gateway + gap / 2 + arc * (step / stones)
+      line.push({
+        x: pasture.x + Math.cos(angle) * pasture.radius,
+        z: pasture.z + Math.sin(angle) * pasture.radius,
+      })
+    }
+
+    const wall = buildStoneWallRun({
+      points:    line,
+      heightAt,
+      rng:       rng.fork('pasture-wall'),
+      palette,
+      minHeight: water + 0.6,
+    })
+
+    if (wall)
+      heroes.push(wall)
+
+    // Just wide enough to keep a trunk out of the stones. The claims reach
+    // inward as well as out, and an enclosure this size has very little middle
+    // left once the barn has taken its own — reserve generously here and the
+    // meadow ends up walled, barned and empty.
+    for (const point of line)
+      solver.reserve(point.x, point.z, 1.2)
+
+    // The gate stands in the gap, across it — the same relationship the track's
+    // gate has to the track, which is why it takes the same quarter turn.
+    placeHero(
+      'gate',
+      pasture.x + Math.cos(pasture.gateway) * pasture.radius,
+      pasture.z + Math.sin(pasture.gateway) * pasture.radius,
+      pasture.gateway + Math.PI / 2,
+    )
+
+    // The barn goes at the back of the enclosure with its doorway looking down
+    // at the farm, so the gateway, the yard and the barn door all line up.
+    //
+    // Hard against the back wall, not halfway out: a building's claim on the
+    // solver is a circle around its longest half, which on an enclosure this
+    // size is most of the enclosure. Set back it leans that circle onto the
+    // wall's own claims, and the meadow keeps a middle to stand hay in.
+    const barnAngle = pasture.gateway + Math.PI
+
+    raiseBuilding(
+      'meadowBarn',
+      pasture.x + Math.cos(barnAngle) * pasture.radius * 0.68,
+      pasture.z + Math.sin(barnAngle) * pasture.radius * 0.68,
+      yawAlong(pasture.gateway),
+    )
+  }
+
+  /**
    * Fence the field plots.
    *
    * One continuous run per plot rather than a row of identical segment props:
@@ -308,6 +382,7 @@ export function createDressing (
 
   raiseSteading()
   raiseOutlying()
+  raiseUpland()
   raiseFences()
   mergeSteading()
 
@@ -324,12 +399,13 @@ export function createDressing (
     radius:   number,
     accept:   (x: number, z: number) => boolean,
     attempts = 26,
+    sample = sampleSpot,
   ): Vec2 | null {
     const spacingClear = (x: number, z: number): boolean =>
       solver.claims.every(claim => Math.hypot(claim.x - x, claim.z - z) > claim.radius + radius)
 
     for (let attempt = 0; attempt < attempts; attempt += 1) {
-      const { x, z } = sampleSpot()
+      const { x, z } = sample()
 
       if (!accept(x, z) || !spacingClear(x, z))
         continue
@@ -340,37 +416,9 @@ export function createDressing (
     return null
   }
 
-  const conifer = (bias: number, minLift: number, maxSlope: number) =>
-    (x: number, z: number): boolean => {
-      if (!clear(x, z))
-        return false
-      if (heightAt(x, z) < water + minLift || field.slopeAt(x, z) > maxSlope)
-        return false
-      return rng.next() < 0.46 + bias * ridgeInfluence(layout, x, z)
-    }
-
-  const stoneRule = (minLift: number) => (x: number, z: number): boolean =>
-    onYard(x, z) === 0 && !onTrack(x, z) && heightAt(x, z) > water + minLift
-
-  const openGround = (minLift: number, maxSlope: number) => (x: number, z: number): boolean =>
-    clear(x, z) && heightAt(x, z) > water + minLift && field.slopeAt(x, z) < maxSlope
-
-  const beachRule = (maxSlope: number) => (x: number, z: number): boolean => {
-    const height = heightAt(x, z)
-    return height > water - 0.05 && height < water + config.terrain.shoreBand * 0.7 &&
-      field.slopeAt(x, z) < maxSlope && !onTrack(x, z)
-  }
-
-  const birchRule = (x: number, z: number): boolean => {
-    const height = heightAt(x, z)
-    return clear(x, z) && height > water + 0.6 && height < water + 4.6
-  }
-
-  const plotEdge = (x: number, z: number): boolean =>
-    onPlot(x, z) > 0.5 && heightAt(x, z) > water + 0.8
-
-  const inYard = (x: number, z: number): boolean =>
-    onYard(x, z) > 0.12 && !onTrack(x, z) && heightAt(x, z) > water + 0.8
+  const {
+    conifer, stoneRule, openGround, beachRule, birchRule, plotEdge, inPasture, inYard,
+  } = createScatterRules(config, layout, field, rng, { onYard, onTrack, onPlot, onPasture, clear })
 
   /** Populate the ground, biggest footprints first. */
   function dressGround (): void {
@@ -405,6 +453,10 @@ export function createDressing (
     scatterStructural('fieldStone', config.dressing.fieldStone, 0.45, stoneRule(-0.4), 0.7, 1.5, 30)
     scatterStructural('driftwood', config.dressing.driftwood, 0.7, beachRule(0.4), 0.75, 1.3, 30)
     scatterStructural('mooringPost', config.dressing.mooringPost, 1.1, harbourShallows, 0.8, 1.2, 34)
+    // Sampled from the pasture's own disc: forty darts thrown at the island
+    // land inside a twelve-metre circle about once, and none of those ones
+    // survive the barn's claim on the middle of it.
+    scatterStructural('hayPole', config.dressing.hayPole, 0.8, inPasture, 0.85, 1.15, 40, samplePasture)
     scatterStructural('sapling', config.dressing.sapling, 0.35, openGround(0.5, 0.95), 0.7, 1.5, 30)
     scatterStructural('stump', config.dressing.stump, 0.35, openGround(0.6, 0.85), 0.75, 1.4, 30)
 
@@ -420,9 +472,10 @@ export function createDressing (
       return height > water + 2.6 && clear(x, z)
     }, 0.7, 1.4, 0)
 
+    // The one cover the pasture keeps: a mown hay meadow is the flowers.
     scatterCover('wildflower', config.dressing.wildflower, (x, z) => {
       const height = heightAt(x, z)
-      return height > water + 0.5 && height < water + 4.5 && clear(x, z)
+      return height > water + 0.5 && (clear(x, z) && height < water + 4.5 || onPasture(x, z) > 0.25)
     }, 0.7, 1.5, 0)
 
     scatterCover('cobble', config.dressing.cobble, (x, z) => {
@@ -476,10 +529,11 @@ export function createDressing (
     minScale: number,
     maxScale: number,
     attempts = 26,
+    sample = sampleSpot,
   ): void {
     const total = budget(count)
     root.add(stamp(name, total, () => {
-      const spot = tryPlace(radius, accept, attempts)
+      const spot = tryPlace(radius, accept, attempts, sample)
 
       if (!spot)
         return null
@@ -582,6 +636,98 @@ function createSpotSampler (
   }
 }
 
+/**
+ * What each kind of scattered prop will accept as ground.
+ *
+ * Module-level and taking the zone tests as an argument, because a rule is a
+ * pure question about a coordinate — it reads the terrain and the composition
+ * and touches neither the solver nor the scene. Keeping them out here is also
+ * what stops `createDressing` from becoming a single function with the whole
+ * ecology inlined into it.
+ *
+ * `conifer` is the exception that has to share the caller's `rng`: it rolls for
+ * density per candidate, so drawing from a second stream would reshuffle every
+ * placement made after it.
+ */
+function createScatterRules (
+  config: ScapeConfig,
+  layout: ScapeLayout,
+  field:  HeightField,
+  rng:    SeededRng,
+  zones:  ReturnType<typeof createZoneTests>,
+) {
+  const { onYard, onTrack, onPlot, onPasture, clear } = zones
+
+  const heightAt = field.heightAt
+  const water    = config.terrain.waterLevel
+
+  return {
+    conifer: (bias: number, minLift: number, maxSlope: number) =>
+      (x: number, z: number): boolean => {
+        if (!clear(x, z))
+          return false
+        if (heightAt(x, z) < water + minLift || field.slopeAt(x, z) > maxSlope)
+          return false
+        return rng.next() < 0.46 + bias * ridgeInfluence(layout, x, z)
+      },
+
+    // Stones stay out of the pasture: the ones that were in it are the wall.
+    stoneRule: (minLift: number) => (x: number, z: number): boolean =>
+      onYard(x, z) === 0 && !onTrack(x, z) && onPasture(x, z) === 0 &&
+      heightAt(x, z) > water + minLift,
+
+    openGround: (minLift: number, maxSlope: number) => (x: number, z: number): boolean =>
+      clear(x, z) && heightAt(x, z) > water + minLift && field.slopeAt(x, z) < maxSlope,
+
+    beachRule: (maxSlope: number) => (x: number, z: number): boolean => {
+      const height = heightAt(x, z)
+      return height > water - 0.05 && height < water + config.terrain.shoreBand * 0.7 &&
+        field.slopeAt(x, z) < maxSlope && !onTrack(x, z)
+    },
+
+    birchRule (x: number, z: number): boolean {
+      const height = heightAt(x, z)
+      return clear(x, z) && height > water + 0.6 && height < water + 4.6
+    },
+
+    plotEdge: (x: number, z: number): boolean =>
+      onPlot(x, z) > 0.5 && heightAt(x, z) > water + 0.8,
+
+    /** Inside the wall, and off anything too steep to have been mown. */
+    inPasture: (x: number, z: number): boolean =>
+      onPasture(x, z) > 0.3 && field.slopeAt(x, z) < 0.5,
+
+    inYard: (x: number, z: number): boolean =>
+      onYard(x, z) > 0.12 && !onTrack(x, z) && heightAt(x, z) > water + 0.8,
+  }
+}
+
+/**
+ * Candidates drawn from one small feature rather than from the whole island.
+ *
+ * The island-wide sampler is right for anything that belongs to the terrain and
+ * hopeless for anything that belongs to a *place*: the pasture is a quarter of
+ * a percent of its disc, and forty darts thrown at the island land in a twelve
+ * metre circle about once. Anything scattered into a named feature gets its own
+ * disc instead. Returns the origin when there is no feature — the accept rule
+ * that goes with such a scatter rejects everything anyway, so nothing is placed.
+ */
+function createDiscSampler (rng: SeededRng, feature: Vec2 & { radius: number } | null): () => Vec2 {
+  const spot = { x: 0, z: 0 }
+
+  return () => {
+    if (feature) {
+      const angle    = rng.next() * TAU
+      const distance = Math.sqrt(rng.next()) * feature.radius
+
+      spot.x = feature.x + Math.cos(angle) * distance
+      spot.z = feature.z + Math.sin(angle) * distance
+    }
+
+    return spot
+  }
+}
+
 /** Where the authored composition already claims the ground. */
 function createZoneTests (layout: ScapeLayout) {
   const onYard = (x: number, z: number): number => {
@@ -592,10 +738,12 @@ function createZoneTests (layout: ScapeLayout) {
     distanceToTrack(layout, x, z) < layout.track.width * 1.3
   const onPlot = (x: number, z: number): number =>
     layout.plots.reduce((claim, plot) => Math.max(claim, plotInfluence(plot, x, z)), 0)
+  const onPasture = (x: number, z: number): number =>
+    pastureInfluence(layout, x, z)
   const clear = (x: number, z: number): boolean =>
-    onYard(x, z) === 0 && !onTrack(x, z) && onPlot(x, z) === 0
+    onYard(x, z) === 0 && !onTrack(x, z) && onPlot(x, z) === 0 && onPasture(x, z) === 0
 
-  return { onYard, onTrack, onPlot, clear }
+  return { onYard, onTrack, onPlot, onPasture, clear }
 }
 
 /** The point on the track a given distance out from the yard, and its heading. */

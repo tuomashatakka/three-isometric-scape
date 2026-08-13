@@ -137,7 +137,7 @@ src/
     ├── quality.ts                  minimal/mobile/desktop/ultra gpu budgets
     ├── landscape/
     │   ├── index.ts                the scene module, and what raycasts
-    │   ├── layout.ts               yard, cart track, field plots, ridges
+    │   ├── layout.ts               yard, cart track, field plots, ridges, pasture
     │   ├── height.ts                authored ground, islets, fbm underneath
     │   ├── terrain.ts              geometry, height/slope banded colour
     │   ├── water.ts                baked bathymetry, swell, foam, glitter
@@ -149,9 +149,12 @@ src/
         ├── ploppable.ts            2d placement with a ground-following foundation
         ├── primitives.ts           terse primitive constructors
         ├── fence.ts                continuous ground-following fence runs
+        ├── wall.ts                 continuous ground-following drystone walls
+        ├── timber.ts               cladding, gable and roof vocabulary
         ├── buildings.ts            barn, farmhouse, sauna, aitta, woodshed
         ├── structures.ts           jetty, well, hay rack, gate, bridge, cart
         ├── vegetation.ts           spruce, pine, birch, grass, reeds, crops
+        ├── upland.ts               meadow barn, hay drying poles
         ├── shore.ts                boathouse and slipway, net rack, mooring stakes
         ├── objects.ts              rowboat, bales, firewood, barrel, mailbox, driftwood
         └── stone.ts                erratics, field stones, cobbles, cairns
@@ -172,7 +175,7 @@ that shape is what keeps the budget honest — detail costs vertices, not draw c
 - **hero props** are placed by hand at layout anchors and merged into a *single* geometry, so the whole steading plus all its fencing is one draw
 - **scattered props** are stamped through `scatterInstances`, one `InstancedMesh` each, with a near-white per-instance tint that varies the shade of a prop without repainting it
 
-[`props/fence.ts`](src/scene/props/fence.ts) is the exception to the factory shape, deliberately. `buildFenceRun` takes a polyline and sets each post at its own ground height, then spans the rails from post to post so they pick up the slope on their own. a fence built from rigid identical segments either floats over dips or, if each segment is tilted to match its own patch of ground, zig-zags where neighbours disagree — real fences do neither.
+[`props/fence.ts`](src/scene/props/fence.ts) and [`props/wall.ts`](src/scene/props/wall.ts) are the exceptions to the factory shape, deliberately. `buildFenceRun` takes a polyline and sets each post at its own ground height, then spans the rails from post to post so they pick up the slope on their own. a fence built from rigid identical segments either floats over dips or, if each segment is tilted to match its own patch of ground, zig-zags where neighbours disagree — real fences do neither. `buildStoneWallRun` follows the same line the same way and puts something else on it: three courses of granite per station, stations set *closer together than a stone is long* so the courses overlap. a wall is only ever a pile that happens to be long, and gaps are what separate one from a row of rocks.
 
 because prop builders never touch a scene or a gl context, the whole roster is unit-tested headlessly: attributes, base height, bounds, and byte-for-byte determinism per seed.
 
@@ -303,6 +306,22 @@ three decisions in it are worth keeping.
 **a stake belongs to whoever drove it.** the mooring posts are the one scattered prop with a *placement* rule rather than a terrain rule: shallows, but only within thirty metres of the harbour. scattered on depth alone they would ring every islet in the archipelago, which says the opposite of what a harbour says. that is one `InstancedMesh`, and the only draw call this run adds.
 
 `layout.harbourSpread` is how far around the shore the boathouse sits from the jetty, in degrees. it is a build-time knob like the rest of `layout` and `dressing`, so it is not in the overlay — the panel only carries values the modules re-read every frame, and a knob that needs a rebuild to be seen would lie about what a slider does.
+
+## the upland pasture
+
+the farm ploughs the flat ground beside the yard and grazes what is left. up the slope from the steading there is now a walled hay meadow: a drystone wall around it, a gap in the wall facing back down at the farm with a gate in it, a meadow barn at the back, and hay drying on poles in between. the ground inside is painted as mown grass rather than as the heath the altitude bands would otherwise give it, so the clearing reads from the far zoom as somewhere kept rather than somewhere bare.
+
+**siting it is the whole problem, and it is a search over ground that does not exist yet.** the island is about sixty metres across and the farmyard's graded shelf already claims twenty-one of them, so there is not much left that is high, flat, dry, off the track, off the plots and not the farm. `findPasture` in [`layout.ts`](src/scene/landscape/layout.ts) probes for it against the raw fbm the way `findYard` does, and returns `null` rather than relaxing a rule if the island has no room — a smaller world or a larger `pastureRadius` genuinely means there is nowhere, and every caller copes with the absence.
+
+two of its rules are there because the first version of the search got them wrong in ways that are worth keeping written down.
+
+**a centre being on land says nothing about the ring.** the enclosure is a disc, and the wall stands on its edge. sited on its centre's own height, the search picked a shoulder above a cove: five metres of dry hillside in the middle, and a third of the wall thirty metres out where the island falloff had already drowned the ground. so the whole disc has to fit inside `landRadius`, and twelve probes around the wall line have to come back dry as well.
+
+**it has to agree with the ground that gets built.** `height.ts` sinks the raw fbm into the island before anything else touches it, and the layout searches run before `height.ts` exists — so they were reading a height the terrain would never have. [`sinkToIsland`](src/scene/landscape/layout.ts) is now that falloff, in one place, called by the height field and by the search that has to predict it. two approximations of the same curve is exactly how a wall gets built on the sea.
+
+the wall, the gate and the barn all pay the same way the harbour does. the wall run and the gate are hero geometry and merge into the steading's single draw; the meadow barn is a `Ploppable` like the farmstead's five, because it stands on a hillside and a merged geometry can only ever sit at one height. the drying poles are one `InstancedMesh`.
+
+**a prop that belongs to a place cannot be found by throwing darts at the island.** the drying poles were scattered through the same sampler as everything else and landed, measurably, never — the pasture is a quarter of a percent of that sampler's disc, and the few candidates that did land inside it were then rejected by the barn's claim on the middle. so a scatter can now be given its own candidate generator, and the poles get a disc the size of the pasture. the barn is set hard against the back wall for the same reason: a building's claim on the solver is a circle around its longest half, which on a twelve-metre enclosure is most of the enclosure, and pushing it back leans that circle onto the wall's own claims instead of onto the meadow.
 
 ## ploppable
 

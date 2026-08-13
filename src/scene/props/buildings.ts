@@ -2,7 +2,8 @@ import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
 import { mergeParts, part } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
-import { box, cyl, deg, spread } from './primitives.ts'
+import { box, cyl, deg } from './primitives.ts'
+import { claddingPlanks, gableSteps, gabledRoof } from './timber.ts'
 
 
 /**
@@ -12,89 +13,11 @@ import { box, cyl, deg, spread } from './primitives.ts'
  * and its long axis on `x`. They are the highest-part-count props in the scape
  * — which is affordable precisely because there is exactly one of each, and
  * because `dressing.ts` merges the whole steading into a single draw.
+ *
+ * The cladding, gable and roof helpers they are assembled from live in
+ * [`timber.ts`](timber.ts), because the meadow barn up on the pasture is the
+ * same construction in weathered grey.
  */
-
-/** Vertical board cladding — the single detail that makes a wall read as timber. */
-function claddingPlanks (
-  parts:  BufferGeometry[],
-  rng:    SeededRng,
-  color:  string,
-  count:  number,
-  span:   number,
-  height: number,
-  depth:  number,
-  z:      number,
-): void {
-  const width = span / count * 0.92
-
-  for (const x of spread(count, span - width))
-    parts.push(part(box(width, height, depth), {
-      at:     [ x, height / 2, z ],
-      color,
-      jitter: 0.09,
-      rng,
-    }))
-}
-
-/** A stepped gable end — four courses standing in for a triangle. */
-function gableSteps (
-  parts:  BufferGeometry[],
-  rng:    SeededRng,
-  color:  string,
-  x:      number,
-  base:   number,
-  peak:   number,
-  width:  number,
-  thick:  number,
-): void {
-  const steps = 4
-  const rise  = (peak - base) / steps
-
-  for (let step = 0; step < steps; step += 1) {
-    const shrink = (step + 0.5) / steps
-    parts.push(part(box(thick, rise, width * (1 - shrink * 0.86)), {
-      at:     [ x, base + rise * (step + 0.5), 0 ],
-      color,
-      jitter: 0.07,
-      rng,
-    }))
-  }
-}
-
-/** A gabled roof: two pitched slabs plus a ridge cap. */
-function gabledRoof (
-  parts: BufferGeometry[],
-  rng:   SeededRng,
-  color: string,
-  ridge: string,
-  length: number,
-  eaveY: number,
-  peakY: number,
-  halfDepth: number,
-): void {
-  const rise  = peakY - eaveY
-  const slope = Math.atan2(rise, halfDepth)
-  const span  = Math.hypot(rise, halfDepth) * 1.06
-
-  // Rotating about x sends a point at +z to y = -z*sin(theta), so the slab on
-  // the +z side needs a POSITIVE angle for its eave to fall away from the
-  // ridge. Negating it turns the gable inside out into a valley.
-  for (const side of [ -1, 1 ])
-    parts.push(part(box(length, 0.24, span), {
-      at:     [ 0, (eaveY + peakY) / 2, side * halfDepth * 0.52 ],
-      rotate: [ side * slope, 0, 0 ],
-      color,
-      jitter: 0.08,
-      rng,
-    }))
-
-  parts.push(part(box(length * 1.02, 0.26, 0.5), {
-    at:     [ 0, peakY + 0.04, 0 ],
-    color:  ridge,
-    jitter: 0.05,
-    rng,
-  }))
-}
 
 /** A window: a dark pane set inside a painted surround. */
 function window (

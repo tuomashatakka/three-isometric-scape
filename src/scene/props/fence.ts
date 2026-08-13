@@ -82,8 +82,13 @@ function strut (
   parts.push(geometry)
 }
 
-/** Resample a polyline so consecutive points sit `spacing` apart along it. */
-function resample (points: readonly FencePoint[], spacing: number, closed: boolean): FencePoint[] {
+/**
+ * Resample a polyline so consecutive points sit `spacing` apart along it.
+ *
+ * Shared with [`wall.ts`](wall.ts): a fence and a drystone wall disagree about
+ * everything they put on the line, and about nothing at all about the line.
+ */
+export function resamplePath (points: readonly FencePoint[], spacing: number, closed: boolean): FencePoint[] {
   const path              = closed ? [ ...points, points[0] ] : [ ...points ]
   const out: FencePoint[] = [ path[0] ]
   let carry = 0
@@ -192,7 +197,7 @@ export function buildFenceRun ({
     return null
 
   const parts: BufferGeometry[] = []
-  const posts                   = resample(points, spacing, closed)
+  const posts                   = resamplePath(points, spacing, closed)
     .map(point => ({ ...point, y: heightAt(point.x, point.z) }))
 
   raisePosts(parts, posts, rng, palette, postHeight, minHeight)

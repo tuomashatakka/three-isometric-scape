@@ -2,6 +2,23 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the walled hay meadow
+
+the farm ploughs the flat ground and grazes what is left, and until now the scape only showed the half of that it ploughs. up the slope from the steading there is a walled pasture: a drystone wall around it, a gate in the gap facing back down at the farm, a meadow barn at the back with its doors open on hay, and drying poles standing in the grass between them.
+
+- **added** `landscape/layout.ts`'s `findPasture` and the `pasture` it puts on the layout — high, flat, dry ground that the yard, the plots and the track have all left alone. it returns `null` rather than relaxing a rule, because on an island sixty metres across with a twenty-one metre farmyard shelf there genuinely may be nowhere, and a search that always answers is a search that will one day answer with the sea
+- **fixed** that search siting the enclosure on its centre's own height. the first version picked a shoulder above a cove — five metres of dry hillside in the middle and a third of the wall thirty metres out, where the island falloff had already drowned the ground. the whole disc now has to fit inside `landRadius`, and twelve probes around the wall line have to come back dry too
+- **fixed** the layout searches and the built ground disagreeing about where the island *is*. `height.ts` sank the raw fbm into the island inline, and the searches that run before it exists were reading the fbm raw. `sinkToIsland` is that falloff in one place now, called by both
+- **added** `props/wall.ts`: `buildStoneWallRun`, the fence run's sibling. same polyline, same per-station ground height, three courses of granite instead of posts and rails — and stations set closer together than a stone is long, because a wall is a pile that happens to be long and gaps are what make it a row of rocks
+- **added** `props/upland.ts`: the meadow barn (niittylato) on its corner stones, and the hay drying pole (seiväshaasia) whose pole is deliberately left standing proud of the hay so the silhouette survives the far zoom
+- **added** `props/timber.ts` — the cladding, gable and roof helpers, lifted out of `buildings.ts` because the meadow barn is the same construction in weathered grey and a second copy of the roof trigonometry is a second place for it to be wrong
+- **added** a mown-grass tint to the terrain painter inside the wall, painted over the altitude bands. the pasture sits high enough that the bands had already turned it toward heath and scree, which is exactly what grazed grass is not
+- **fixed** the drying poles landing, measurably, never. they were drawn from the island-wide sampler, and the pasture is a quarter of a percent of its disc — forty attempts found it about once, and that one was inside the barn's claim on the middle. a scatter can now be handed its own candidate generator, and the poles get a disc the size of the pasture. the barn moved hard against the back wall for the same reason: a building's claim is a circle around its longest half, which on a twelve-metre enclosure is most of the enclosure
+- **changed** what the scatter will accept there: no conifers, no saplings, no heather, no field stones — the stones that were in it are the wall. wildflowers stay, because a hay meadow is the flowers
+- **added** `layout.pastureRadius`, `layout.pastureGateway` and `dressing.hayPole` to the config. build-time knobs like the rest of `layout` and `dressing`, so not in the overlay
+- **cost** one draw call for the poles' `InstancedMesh` and one for the barn's `Ploppable`, which is a `Ploppable` for the same reason the farmstead's five are — it stands on a hillside, and merged geometry can only sit at one height. the wall and the gate add ~10k vertices to the merged steading geometry and no new material. nothing new per frame, and no new varying
+- **tests** `props/upland.test.ts` covers the barn, the pole's silhouette, and the wall run following its ground, skipping stations under `minHeight`, refusing a single point and staying byte-for-byte stable. `landscape/layout.test.ts` covers the pasture existing, standing dry all the way round its wall, clearing the yard shelf, facing its gateway at the farm, and resolving identically from the same seed
+
 ## fifteen vec4, and not one more
 
 the cause, at last, and it was never a budget. `public/probe.html` — vanilla webgl2, no three, no scene — was loaded on the handset and answered in two lines:
