@@ -2,6 +2,22 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the year, alongside the day
+
+the scape has had a clock since the third run and only ever one hand on it. `season.ts` adds the second: a phase of the year, a speed, and grass, leaves and ground derived from it the same way dusk and night are derived from noon. midsummer is the anchor, so at `season.time: 0.5` the opening frame is byte-for-byte the frame it always was, and the clock runs it down from there into a gold autumn and then a white winter.
+
+- **added** `season.ts` — `growthAmount`, `turnAmount` and `snowAmount`, and a `createSeason` that resolves them into a tint, a tint weight, a snow amount and a snow line. pure, allocation-free, and shaped like `daylight.ts` on purpose: two clocks that work differently are two clocks somebody has to learn twice
+- **added** the lag. growth peaks a twentieth of a year *after* midsummer, because ground warms and cools slower than the sun doing it, which is what makes autumn read as longer than spring rather than as its mirror
+- **added** a one-sided turn. warmth falls twice a year and only one of those falls turns anything gold; spring loses its snow to bare ground and greens straight off it, which the growth curve already says on its own
+- **fixed**, before it could ship, the obvious version of a seasonal tint: two materials carry the whole scape, so a flat mix takes the falu red off the barn and the grey off the granite along with the green off the meadow. the tint now weighs itself by how far the fragment's own albedo leans green, and then by how light that green is — which is the difference between a birch canopy that goes gold and a spruce that stays black-green through the winter. both terms are arithmetic on a colour the fragment already holds
+- **added** lying snow, gated on world height so it stays off the beach the sea keeps warm and off the seabed under the shallows — **and it reads that height without a varying.** `vViewPosition` is minus the view-space position and the view matrix is rigid, so world height is the camera's height less that position projected onto the view matrix's second column. one dot product against two uniforms three already declares, on a program that has spent two runs arguing about sixty varying components
+- **added** a wandering snow line, on a two-term sine field in world x and z. a fixed contour round an island reads as a stripe someone painted on it; the patches are what make it snow
+- **changed** the ground's surface-normal varying from "emitted with the detail pass" to "emitted for whoever reads it" — the grain and the snow ask the same question of it, and the ground keeps it whether or not `?skip=detail` took the grain away
+- **added** `season.time`, `season.speed`, `season.snow`, `season.snowLine` and `season.turn` to the config and to the overlay, all live, all persisted; plus `palette.snow` and `palette.autumn`, the two colours the year needs that the scape had no other use for
+- **cost** nothing measurable. no draw call, no texture, no material, no pass, no varying, and about a dozen ALU per fragment on two programs. every tier gets it, the phone included, because there is nothing in it a phone could fail at
+- **tests** `season.test.ts` covers midsummer contributing exactly zero, midwinter withering and whitening, the turn leaning the tint gold only on the autumn side, growth lagging the sun in both directions, snow being symmetric about midwinter, phases outside 0..1 wrapping onto the same week, and the same phase resolving the same year twice
+- **follow-up** the water does not know about the year yet: ice, and a shore band that freezes before the middle does, are the obvious next thing and are a run of their own. so is a seasonal coupling into `daylight` — the noon height should fall with the year at this latitude, and right now midwinter noon is as high as midsummer's
+
 ## the depth pass the phone could not keep
 
 the pixel 10 made the failure reproducible in firefox's usb debugger. the mobile tier with its post chain forced off emitted six shader validation failures and lost the webgl context; the identical run with only shadow maps skipped stayed clean. the first rejected program was three's generated `meshdepthmaterial`, not one of the visible scape shaders.

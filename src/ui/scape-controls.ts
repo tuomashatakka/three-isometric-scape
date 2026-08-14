@@ -167,6 +167,18 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       ],
     },
     {
+      title:    'season',
+      controls: [
+        // Outside the switch for the same reason the time of day is: freezing
+        // the year is exactly when you want to scrub it.
+        { ...range('season.time', 'time of year', 0, 1, 0.002), live: true },
+        toggled('year cycle', range('season.speed', 'years per minute', 0, 1, 0.01), 0.08),
+        toggled('snow', range('season.snow', 'cover', 0, 1, 0.01), 0.85),
+        range('season.snowLine', 'snow line', -1, 6, 0.1),
+        range('season.turn', 'leaf turn', 0, 1, 0.01),
+      ],
+    },
+    {
       title:    'atmosphere',
       controls: [
         range('atmosphere.fogDensity', 'fog density', 0, 0.9, 0.01),

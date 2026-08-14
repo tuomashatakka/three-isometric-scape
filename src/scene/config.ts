@@ -210,6 +210,38 @@ export interface ScapeConfig {
     /** Ambient floor at night, so midnight reads as moonlit rather than as black. */
     nightLift: number
   }
+
+  /**
+   * The year.
+   *
+   * The second clock, and deliberately the same shape as the first: a phase, a
+   * speed, and strengths for what the phase derives. Colours are not keyframed
+   * per month — the palette below stays the midsummer anchor and `season.ts`
+   * derives the rest of the year from it.
+   */
+  season: {
+
+    /** Phase of the year, 0..1. 0 is midwinter, 0.5 is midsummer. */
+    time: number
+
+    /** Full years per minute. 0 freezes the year wherever `time` left it. */
+    speed: number
+
+    /** How white deep winter gets, 0..1. 0 is a scape that never sees snow. */
+    snow: number
+
+    /**
+     * Metres above the waterline where lying snow starts to hold.
+     *
+     * Absolute height, not slope: the beach is warmed by the sea it sits in and
+     * the fields above it are not, so a snow line just off the waterline is what
+     * puts the white on the island rather than on the shore.
+     */
+    snowLine: number
+
+    /** How hard the year turns and withers what is green, 0..1. */
+    turn: number
+  }
   look: {
     grade:     GradeName
     intensity: number
@@ -246,6 +278,12 @@ export interface ScapeConfig {
     track:   number
     tilled:  number
     yard:    number
+
+    /** Lying snow. The one colour the year adds that the scape has no other use for. */
+    snow: number
+
+    /** Turned leaf — what the year leans the straw toward in autumn. */
+    autumn: number
   }
 }
 
@@ -365,6 +403,17 @@ export const SCAPE_CONFIG = {
     night:     0x2b3d5e,
     nightLift: 0.4,
   },
+  // Opens at midsummer, which is the season the scape was graded in — at
+  // `time: 0.5` the year contributes exactly nothing and the first frame is the
+  // frame it always was. The clock then runs it down into autumn, which is the
+  // direction the change is worth seeing in.
+  season: {
+    time:     0.5,
+    speed:    0.08,
+    snow:     0.85,
+    snowLine: 0.6,
+    turn:     0.55,
+  },
   look: {
     grade:      'nordic',
     intensity:  0.78,
@@ -393,5 +442,7 @@ export const SCAPE_CONFIG = {
     track:        0x7d6a4f,
     tilled:       0x6d5a44,
     yard:         0x8a8560,
+    snow:         0xe6ecf0,
+    autumn:       0xb4762f,
   },
 } satisfies ScapeConfig
