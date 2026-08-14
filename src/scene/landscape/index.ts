@@ -8,6 +8,7 @@ import type { ScapeConfig } from '../config.ts'
 import { createScapeMaterials } from '../props/material.ts'
 import type { ScapeMaterials } from '../props/material.ts'
 import type { AtmosphereQuality } from '../quality.ts'
+import { createSeason } from '../season.ts'
 import { createDressing } from './dressing.ts'
 import type { Dressing } from './dressing.ts'
 import { createHeightField } from './height.ts'
@@ -36,6 +37,12 @@ export function createLandscape (
   const surfaces: Object3D[] = []
   const layout               = createScapeLayout(config)
   const field: HeightField   = createHeightField(config, layout)
+
+  // The year lives here rather than beside the day, because the ground and the
+  // growing things are its only readers and both of them are in this module. It
+  // owns no geometry: nothing it does needs a rebuild, which is the whole reason
+  // a season can run on a clock at all.
+  const season = createSeason(config)
 
   let root: Group | null               = null
   let materials: ScapeMaterials | null = null
@@ -77,7 +84,14 @@ export function createLandscape (
     },
 
     update (_state, frame) {
-      materials?.update(frame.elapsed)
+      // The year is a number in the config, the same way the time of day is, so
+      // scrubbing the overlay's season slider and letting the clock run are the
+      // same operation on the same field.
+      const year = config.season
+
+      year.time = (year.time + frame.delta * year.speed / 60) % 1
+
+      materials?.update(frame.elapsed, season.sample(year.time))
       water?.update(frame.elapsed)
     },
 

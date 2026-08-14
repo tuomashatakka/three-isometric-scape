@@ -1,9 +1,10 @@
-import { RepeatWrapping, Vector2 } from 'three'
+import { Color, RepeatWrapping, Vector2 } from 'three'
 import type { IUniform, MeshStandardMaterial, Texture, WebGLProgramParametersWithUniforms } from 'three'
 import { createSeamlessNoiseTexture, kitMaterial, markShared } from 'threejs-scene/modules/assets'
 import { NOTHING_SKIPPED } from '../audit.ts'
 import type { ScapeSkips } from '../audit.ts'
 import type { ScapeConfig } from '../config.ts'
+import type { SeasonState } from '../season.ts'
 
 /** The two materials every solid thing in the scape draws with. */
 export interface ScapeMaterials {
@@ -14,8 +15,8 @@ export interface ScapeMaterials {
   /** Instanced vegetation — same look, plus a vertex sway. */
   foliage: MeshStandardMaterial
 
-  /** Advance cloud drift and wind phase. Allocation-free. */
-  update(elapsed: number): void
+  /** Advance cloud drift, wind phase and the year. Allocation-free. */
+  update(elapsed: number, season: SeasonState): void
   dispose(): void
 }
 
@@ -81,22 +82,30 @@ const CLOUD_FRAGMENT = /* glsl */`
 /**
  * The surface normal's `y`, and only where something reads it.
  *
- * Emitted with the ground detail rather than with the cloud shadow, because the
- * detail pass is the only reader and foliage never receives it — a varying that
- * is written and declared but never read still occupies a slot on drivers that
- * pack before they eliminate. Worth doing on principle; not, as it turned out,
- * what the handset was dying of.
+ * Emitted with the ground pass rather than with the cloud shadow, because the
+ * ground is the only reader and foliage never receives it — a varying that is
+ * written and declared but never read still occupies a slot on drivers that pack
+ * before they eliminate. Worth doing on principle; not, as it turned out, what
+ * the handset was dying of.
+ *
+ * Two readers now: the grain weights itself by how horizontal the surface is,
+ * and so does lying snow. Both are the same question — is this face pointing at
+ * the sky — so both are answered by the same interpolated float.
  */
-const DETAIL_PARS_VERTEX = /* glsl */`
+const UP_PARS_VERTEX = /* glsl */`
   varying float vScapeUp;
 `
 
-const DETAIL_WORLD_VERTEX = /* glsl */`
+const UP_WORLD_VERTEX = /* glsl */`
   vec3 scapeNormal = objectNormal;
   #ifdef USE_INSTANCING
     scapeNormal = mat3(instanceMatrix) * scapeNormal;
   #endif
   vScapeUp = normalize(mat3(modelMatrix) * scapeNormal).y;
+`
+
+const UP_PARS_FRAGMENT = /* glsl */`
+  varying float vScapeUp;
 `
 
 /**
@@ -153,7 +162,6 @@ const DETAIL_PARS_FRAGMENT = /* glsl */`
   uniform float uDetailScale;
   uniform float uDetailStrength;
   uniform float uDetailMacro;
-  varying float vScapeUp;
 `
 
 /**
@@ -208,6 +216,71 @@ const DETAIL_FRAGMENT = /* glsl */`
   normal = normalize(normal + mat3(viewMatrix) * scapeBump * scapeAmt);
 `
 
+const SEASON_PARS_FRAGMENT = /* glsl */`
+  uniform vec3 uSeasonTint;
+  uniform float uSeasonTintAmount;
+  uniform vec3 uSeasonSnow;
+  uniform float uSeasonSnowAmount;
+  uniform float uSeasonSnowLine;
+`
+
+/**
+ * The year, applied to a surface.
+ *
+ * Two materials carry the entire scape, which is what makes a seasonal tint
+ * awkward: a flat mix would take the falu red off the barn and the grey off the
+ * granite along with the green off the meadow. So the tint weighs itself by how
+ * far the albedo leans green — the one thing grass, leaves, moss and heather
+ * have in common and paint, stone, sand and water have not — and by how light
+ * that green is, which is what separates a birch canopy that goes gold from a
+ * spruce that stays black-green all winter. Both terms are arithmetic on a
+ * colour the fragment already holds; neither costs a fetch or an attribute.
+ *
+ * Snow needs world height, to keep it off the beach and off the seabed under the
+ * shallows. It gets it without a varying. `vViewPosition` is minus the
+ * view-space position, the view matrix is rigid, and the world height of a point
+ * is therefore the camera's height less that position projected onto the view
+ * matrix's second column — one dot product against one more interpolated float
+ * on a program that already argues about its budget with a handset offering
+ * sixty components in total.
+ *
+ * `lie` is how much of a surface snow can settle on. The ground weighs it by the
+ * face angle; foliage has no normal varying and takes a constant, because a
+ * grass tuft under snow reads as a white lump from every angle this camera has.
+ */
+function seasonFragment (lie: string): string {
+  return /* glsl */`
+  float scapeGreen = clamp(
+    (diffuseColor.g * 2.0 - diffuseColor.r - diffuseColor.b) / (diffuseColor.g + 0.05),
+    0.0,
+    1.0
+  ) * smoothstep(0.045, 0.16, diffuseColor.g);
+
+  diffuseColor.rgb = mix(diffuseColor.rgb, uSeasonTint, uSeasonTintAmount * scapeGreen);
+
+  float scapeAltitude = cameraPosition.y - dot(vViewPosition, viewMatrix[1].xyz);
+
+  // Snow arrives as a wandering line rather than as a thinning sheet — a fixed
+  // contour round an island reads as a stripe someone painted on it.
+  float scapeDrift = sin(vScapeGround.x * 0.37) * cos(vScapeGround.y * 0.29);
+  float scapeLies  = smoothstep(
+    uSeasonSnowLine,
+    uSeasonSnowLine + 1.6,
+    scapeAltitude + scapeDrift * 0.85
+  );
+  float scapeSnow = uSeasonSnowAmount * scapeLies * (${lie});
+
+  diffuseColor.rgb = mix(diffuseColor.rgb, uSeasonSnow, scapeSnow);
+  roughnessFactor  = mix(roughnessFactor, 0.78, scapeSnow);
+`
+}
+
+/** Lying snow settles on what faces the sky, and slides off what does not. */
+const GROUND_LIE = 'smoothstep(0.22, 0.72, vScapeUp)'
+
+/** A tuft or a bough holds snow whichever way its facets happen to point. */
+const FOLIAGE_LIE = '0.55'
+
 function buildCloudMap (seed: number): Texture {
   const texture = createSeamlessNoiseTexture({ size: CLOUD_SIZE, seed, frequency: 3, octaves: 4 })
   texture.wrapS = RepeatWrapping
@@ -251,12 +324,37 @@ export function createScapeMaterials (
     uDetailMacro:    { value: config.terrain.detailMacro },
   }
 
+  // Both materials share these instances, so the year is written once a frame
+  // and both programs read the same numbers — there is no seam where the grass
+  // could be in a different week from the ground it stands in.
+  const seasonTint: IUniform<Color>      = { value: new Color() }
+  const seasonSnow: IUniform<Color>      = { value: new Color() }
+  const season: Record<string, IUniform> = {
+    uSeasonTint:       seasonTint,
+    uSeasonTintAmount: { value: 0 },
+    uSeasonSnow:       seasonSnow,
+    uSeasonSnowAmount: { value: 0 },
+    uSeasonSnowLine:   { value: config.terrain.waterLevel },
+  }
+
   interface Injection {
     wind?:   Record<string, IUniform>
     detail?: Record<string, IUniform>
+
+    /** How lying snow weights itself on this material. Absent means no season. */
+    lie?: string
   }
 
   function attachScape (material: MeshStandardMaterial, key: string, extra: Injection = {}): void {
+    // The normal varying is written for whoever reads it, and both readers are
+    // on the ground: the grain needs it, and so does snow. Foliage has neither,
+    // and still declares nothing.
+    const up             = Boolean(extra.detail) || extra.lie === GROUND_LIE
+    const normalFragment = [
+      extra.detail ? detailFragment : '#include <normal_fragment_begin>',
+      extra.lie ? seasonFragment(extra.lie) : '',
+    ].join('\n')
+
     // `?skip=inject` leaves the mesh, the geometry and the vertex colours exactly
     // as they are and takes only the shader patch away — so what draws is the
     // stock `MeshStandardMaterial` the library's own starters run on the handset
@@ -264,10 +362,10 @@ export function createScapeMaterials (
     // injection is the answer; if it dies either way, the injection never was.
     if (!skip.has('inject'))
       material.onBeforeCompile = (program: WebGLProgramParametersWithUniforms) => {
-        Object.assign(program.uniforms, shared, extra.wind, extra.detail)
+        Object.assign(program.uniforms, shared, extra.wind, extra.detail, extra.lie ? season : null)
 
-        // The normal varying rides with `detail` rather than with the cloud
-        // shadow, so foliage — which has no detail pass to read it — never
+        // The normal varying rides with the ground pass rather than with the
+        // cloud shadow, so foliage — which has nothing to read it — never
         // declares a varying it cannot use. Tidy rather than load-bearing: see
         // the note above CLOUD_PARS_VERTEX for what this was once thought to fix.
         program.vertexShader = program.vertexShader
@@ -275,20 +373,26 @@ export function createScapeMaterials (
             '#include <common>',
             CLOUD_PARS_VERTEX,
             extra.wind ? WIND_PARS_VERTEX : '',
-            extra.detail ? DETAIL_PARS_VERTEX : '',
+            up ? UP_PARS_VERTEX : '',
           ].join('\n'))
-          .replace('#include <project_vertex>', CLOUD_WORLD_VERTEX + (extra.detail ? DETAIL_WORLD_VERTEX : ''))
+          .replace('#include <project_vertex>', CLOUD_WORLD_VERTEX + (up ? UP_WORLD_VERTEX : ''))
 
         if (extra.wind)
           program.vertexShader = program.vertexShader.replace('#include <begin_vertex>', WIND_VERTEX)
 
         program.fragmentShader = program.fragmentShader
-          .replace('#include <common>', `#include <common>\n${CLOUD_PARS_FRAGMENT}${extra.detail ? DETAIL_PARS_FRAGMENT : ''}`)
+          .replace('#include <common>', [
+            '#include <common>',
+            CLOUD_PARS_FRAGMENT,
+            up ? UP_PARS_FRAGMENT : '',
+            extra.detail ? DETAIL_PARS_FRAGMENT : '',
+            extra.lie ? SEASON_PARS_FRAGMENT : '',
+          ].join('\n'))
           .replace('#include <color_fragment>', CLOUD_FRAGMENT)
 
-        if (extra.detail)
+        if (extra.detail || extra.lie)
           program.fragmentShader = program.fragmentShader
-            .replace('#include <normal_fragment_begin>', detailFragment)
+            .replace('#include <normal_fragment_begin>', normalFragment)
       }
     // The taps belong in the key: two materials that differ only by an injected
     // shader are identical as far as three's own cache is concerned, and it
@@ -310,8 +414,8 @@ export function createScapeMaterials (
   // ground grain, which is six. The two halves of the injection cost very
   // different amounts, so which of them a device cannot take is worth knowing
   // separately: the cloud shadow is the more visible of the two by far.
-  attachScape(ground, 'scape-ground', skip.has('detail') ? {} : { detail })
-  attachScape(foliage, 'scape-foliage', { wind })
+  attachScape(ground, 'scape-ground', skip.has('detail') ? { lie: GROUND_LIE } : { detail, lie: GROUND_LIE })
+  attachScape(foliage, 'scape-foliage', { wind, lie: FOLIAGE_LIE })
 
   markShared(ground)
   markShared(foliage)
@@ -323,7 +427,7 @@ export function createScapeMaterials (
     // Uniforms are refreshed from the config every frame rather than captured
     // at build. The scape's tuning surface is the config object, and a knob
     // that only takes effect on reload is not a knob.
-    update (elapsed) {
+    update (elapsed, year) {
       const drift = config.atmosphere.cloudSpeed
 
       cloudOffset.value.set(elapsed * drift * 0.06, elapsed * drift * 0.021)
@@ -335,6 +439,12 @@ export function createScapeMaterials (
       detail.uDetailStrength.value = config.terrain.detailGrain
       detail.uDetailScale.value    = 1 / Math.max(0.5, config.terrain.detailScale)
       detail.uDetailMacro.value    = config.terrain.detailMacro
+
+      seasonTint.value.copy(year.tint)
+      seasonSnow.value.copy(year.snowColor)
+      season.uSeasonTintAmount.value = year.tintAmount
+      season.uSeasonSnowAmount.value = year.snow
+      season.uSeasonSnowLine.value   = year.snowLine
     },
 
     dispose () {

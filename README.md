@@ -27,6 +27,7 @@ bun run preview
 - a mainland farmstead ringed by ten offshore islets, landscape only, never built on
 - a working boat harbour: a boathouse on piles with a slipway, a net rack, and stakes in the shallows
 - a full day/night cycle: sun arc, dusk and night palettes, and a scrubbable clock
+- a seasonal axis running alongside it: grass and leaves wither and turn, and snow lies on what faces the sky above the snow line — all of it derived from the midsummer palette, none of it a rebuild
 - view-reactive linear fog, a matching gradient sky, deterministic drifting ground mist, and a sky cloud deck
 - a live graphics overlay that persists to local storage and reloads what you left it at
 - a configurable 3d-lut grade with vignette, miniature tilt-shift, desktop bloom, and film grain
@@ -136,6 +137,7 @@ src/
     ├── noise.ts                    deterministic height sampler
     ├── post.ts                     ao, ssr, sun shafts, tilt-shift, lut, bloom, grain, traa
     ├── quality.ts                  minimal/mobile/desktop/ultra gpu budgets
+    ├── season.ts                   the year: growth, leaf turn and lying snow
     ├── landscape/
     │   ├── index.ts                the scene module, and what raycasts
     │   ├── layout.ts               yard, cart track, field plots, ridges, pasture
@@ -228,6 +230,26 @@ the panel's controls also carry `autocomplete="off"`, which is not cosmetic. bro
 the one place the arc is not honest is where it has to be. **the key light never goes below the horizon**, however far under it the sun actually is. a directional light that follows the real arc down there lights the terrain from underneath: shadows invert, every north face blows out, and the shadow-frustum fit degenerates. so the arc governs the light's *colour and strength*, which is what night actually looks like, while the direction is held just above ground — and the result reads as moonlight instead of as a rendering bug.
 
 the clock lives in the config as a phase and a speed, which means scrubbing the overlay's time slider and letting the cycle run are the same operation on the same number. the time knob sits outside its switch on purpose: freezing the cycle is exactly when you want to scrub it.
+
+## the year
+
+`season.ts` is the clock's second hand, and deliberately the same machine. a phase, a speed, and colours that are *derived* rather than keyframed: the authored palette stays the **midsummer anchor**, winter is that anchor pulled toward one dead straw and then toward one snow white, autumn is the same straw with a gold leaned into it. no month has its own palette, so retuning the scape is still a matter of editing the colours that were already in `palette`.
+
+the year does not touch the shape of the world. the height field, the layout and every prop are built once from the seed and never rebuilt — **snow here is a surface response, not accumulation**. that is the whole reason a season can run on a live clock at all: a system that drifted the terrain would have to regenerate an island to get from august to november, and the frame it did that on would be a frame you could count.
+
+three curves come out of the phase, and none of them is a straight sine.
+
+- **growth lags the sun.** the ground warms and cools slower than the thing warming it, so the growing season peaks a twentieth of a year after midsummer and the first frost arrives before the shortest day. it is one constant in the file and it is why autumn here feels longer than spring.
+- **the turn is one-sided.** warmth falls twice a year and only one of those falls turns anything gold. spring loses its snow to bare ground and greens straight off it, which is what the growth curve alone already says — so the turn curve simply does not exist before midsummer.
+- **snow is a plateau, not a peak.** it comes on around a fifth of the year out from midwinter and holds, because a snow cover that is only ever briefly total reads as a glitch rather than as a winter.
+
+the interesting problem is that **two materials carry the entire scape**. a flat seasonal mix would take the falu red off the barn and the grey off the granite along with the green off the meadow. so the tint weighs itself by how far the fragment's own albedo leans green — the one thing grass, leaves, moss and heather have in common and paint, stone, sand and water have not — and then by how *light* that green is, which is what separates a birch canopy that goes gold from a spruce that stays black-green all winter. both are arithmetic on a colour the fragment is already holding. neither costs a fetch, an attribute or a branch.
+
+lying snow needs world height, to keep it off the beach the sea keeps warm and off the seabed under the shallows. **it gets that height without a varying.** `vViewPosition` is minus the view-space position and the view matrix is rigid, so a fragment's world height is the camera's height less that position projected onto the view matrix's second column — one dot product against two uniforms three already declares. on a program that argues about its budget with a handset offering sixty varying components in total, a dot product is the cheaper end of that trade by a wide margin.
+
+what is left is the snow line itself, and a fixed contour round an island reads as a stripe someone painted on it. the line wanders instead, on a cheap two-term sine field in world x and z, so the edge of the cover breaks up into patches without any of them drifting when the camera moves.
+
+`season.time`, `season.speed`, `season.snow`, `season.snowLine` and `season.turn` are all in the overlay and all live. the time knob sits outside its switch for the same reason the time of day does: freezing the year is exactly when you want to scrub it. the whole system adds no draw call, no texture, no material and no pass — it runs on every tier, including the phone, because there is nothing in it a phone could fail at.
 
 ## the sky deck
 
