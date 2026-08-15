@@ -19,6 +19,15 @@ export interface AtmosphereQuality {
   msaaSamples:    number
   tiltShiftPairs: number
 
+  /**
+   * Stacked veils in the auroral deck. 0 is a sky that never lights up.
+   *
+   * A count rather than a switch, because the depth of a flat deck is entirely
+   * the parallax between its layers — one veil is an aurora, three is an aurora
+   * with a sky behind it.
+   */
+  auroraLayers: number
+
   /** Terrain plane subdivisions per side. */
   terrainSegments: number
 
@@ -108,6 +117,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     mistLayers:      1,
     msaaSamples:     0,
     tiltShiftPairs:  0,
+    auroraLayers:    0,
     terrainSegments: 48,
     scatterScale:    0.16,
     ao:              false,
@@ -132,6 +142,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     mistLayers:      2,
     msaaSamples:     0,
     tiltShiftPairs:  1,
+    auroraLayers:    1,
     terrainSegments: 64,
     scatterScale:    0.32,
     ao:              false,
@@ -160,6 +171,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     mistLayers:      4,
     msaaSamples:     4,
     tiltShiftPairs:  2,
+    auroraLayers:    2,
     terrainSegments: 160,
     scatterScale:    1,
     ao:              false,
@@ -184,6 +196,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     mistLayers:      6,
     msaaSamples:     8,
     tiltShiftPairs:  2,
+    auroraLayers:    3,
     terrainSegments: 224,
     scatterScale:    1.5,
     ao:              true,

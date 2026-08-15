@@ -204,6 +204,19 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           0.62,
           [ range('atmosphere.cloudHeight', 'ceiling', 10, 90, 1) ],
         ),
+        // Under the sky rather than under the year, even though the year is half
+        // of what drives it. The aurora is a thing in the sky the way the deck
+        // is, and the knobs that shape it are a height and a drift — the same
+        // two the clouds above it have.
+        toggled(
+          'aurora',
+          range('atmosphere.aurora', 'brightness', 0, 1.5, 0.01, quality.auroraLayers > 0),
+          0.85,
+          [
+            range('atmosphere.auroraHeight', 'ceiling', 20, 70, 1),
+            range('atmosphere.auroraSpeed', 'drift', 0, 2, 0.01),
+          ],
+        ),
       ],
     },
     {

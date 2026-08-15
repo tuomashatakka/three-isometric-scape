@@ -6,6 +6,7 @@ import { NOTHING_SKIPPED, reportPrograms } from './audit.ts'
 import type { ScapeSkips } from './audit.ts'
 import type { ScapeConfig } from './config.ts'
 import { createAtmosphereLayer } from './atmosphere.ts'
+import { createAuroraLayer } from './aurora.ts'
 import { createCameraControls } from './camera-controls.ts'
 import { createCloudLayer } from './clouds.ts'
 import { createLandscape } from './landscape/index.ts'
@@ -157,6 +158,20 @@ export function createIsometricScape (
     ? null
     : createCloudLayer({ camera, config, quality, daylight: atmosphere.daylight })
 
+  // Both clocks again, and for once neither of them is optional: the aurora is
+  // the night's, and how dark that night gets is the year's. Returns null on any
+  // tier with no veils to give, so the cheapest device simply has a plain sky
+  // rather than a dimmer one.
+  const aurora = skip.has('aurora')
+    ? null
+    : createAuroraLayer({
+      camera,
+      config,
+      quality,
+      daylight: atmosphere.daylight,
+      season:   landscape.season,
+    })
+
   // The whole optical chain is one module, and on the cheapest tier it is simply
   // absent — with nothing claiming the `render` hook the app falls back to
   // drawing the scene straight to the canvas, which is two HDR ping-pong targets
@@ -190,6 +205,7 @@ export function createIsometricScape (
     atmosphere.module,
     mist,
     clouds,
+    aurora,
     post,
   ].filter((module): module is AppModule<Record<string, never>> => module !== null)
 
