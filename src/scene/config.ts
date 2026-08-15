@@ -337,6 +337,18 @@ export interface ScapeConfig {
      * the bank this carries.
      */
     ice: number
+
+    /**
+     * How hard the open water steams once the air has turned, 0..1. 0 is a
+     * coast that never smokes.
+     *
+     * Its own strength rather than a share of `atmosphere.mistAmount`, because
+     * sea smoke is not the ground mist gone offshore: the mist stands over the
+     * island all year round, and this is a fortnight of the winter standing
+     * exactly where the mist has already faded out. It is also the switch —
+     * there is nothing to smoke over when this is zero.
+     */
+    seaSmoke: number
   }
   look: {
     grade:     GradeName
@@ -540,6 +552,7 @@ export const SCAPE_CONFIG = {
     snowLine: 0.6,
     turn:     0.55,
     ice:      0.9,
+    seaSmoke: 0.9,
   },
   look: {
     grade:      'nordic',

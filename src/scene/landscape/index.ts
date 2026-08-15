@@ -9,6 +9,7 @@ import { createScapeMaterials } from '../props/material.ts'
 import type { ScapeMaterials } from '../props/material.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import { createSeason } from '../season.ts'
+import type { SeasonState } from '../season.ts'
 import { createDressing } from './dressing.ts'
 import type { Dressing } from './dressing.ts'
 import { createFootpaths, footpathRoutes } from './footpath.ts'
@@ -30,6 +31,14 @@ export interface Landscape {
   surfaces: Object3D[]
   heightAt(x: number, z: number): number
   layout:   ScapeLayout
+
+  /**
+   * The live instant of the year, resolved once per frame by this module's
+   * `update`. Published the way the atmosphere publishes its daylight, so a
+   * module outside the landscape can read the year without sampling it a second
+   * time — two samples in one frame are two different weeks.
+   */
+  season: SeasonState
 }
 
 export function createLandscape (
@@ -160,7 +169,7 @@ export function createLandscape (
     },
   })
 
-  return { module, surfaces, heightAt: field.heightAt, layout }
+  return { module, surfaces, heightAt: field.heightAt, layout, season: season.state }
 }
 
 export { createFootpaths, footpathRoutes } from './footpath.ts'

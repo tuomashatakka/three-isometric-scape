@@ -31,6 +31,7 @@ bun run preview
 - a full day/night cycle: sun arc, dusk and night palettes, and a scrubbable clock
 - a seasonal axis running alongside it: grass and leaves wither and turn, and snow lies on what faces the sky above the snow line — all of it derived from the midsummer palette, none of it a rebuild
 - view-reactive linear fog, a matching gradient sky, deterministic drifting ground mist, and a sky cloud deck
+- sea smoke standing on the open water for the weeks the air has taken the winter and the sea has not — derived from the gap between those two curves, and drawn only while it exists
 - a live graphics overlay that persists to local storage and reloads what you left it at
 - a configurable 3d-lut grade with vignette, miniature tilt-shift, desktop bloom, and film grain
 - mobile and desktop atmosphere budgets selected from pointer, viewport, and pixel-density signals
@@ -137,11 +138,11 @@ src/
     ├── create-isometric-scape.ts   app/module composition root
     ├── daylight.ts                 the clock: sun arc and derived sky palette
     ├── lut.ts                      cached cinematic colour-grade recipes
-    ├── mist.ts                     deterministic drifting ground-mist sheets
+    ├── mist.ts                     drifting ground-mist sheets, and the sea smoke off the coast
     ├── noise.ts                    deterministic height sampler
     ├── post.ts                     ao, ssr, sun shafts, tilt-shift, lut, bloom, grain, traa
     ├── quality.ts                  minimal/mobile/desktop/ultra gpu budgets
-    ├── season.ts                   the year: growth, leaf turn, lying snow, sea ice
+    ├── season.ts                   the year: growth, leaf turn, lying snow, sea ice, sea smoke
     ├── landscape/
     │   ├── index.ts                the scene module, and what raycasts
     │   ├── layout.ts               yard, cart track, field plots, ridges, pasture
@@ -258,7 +259,7 @@ lying snow needs world height, to keep it off the beach the sea keeps warm and o
 
 what is left is the snow line itself, and a fixed contour round an island reads as a stripe someone painted on it. the line wanders instead, on a cheap two-term sine field in world x and z, so the edge of the cover breaks up into patches without any of them drifting when the camera moves.
 
-`season.time`, `season.speed`, `season.snow`, `season.snowLine` and `season.turn` are all in the overlay and all live. the time knob sits outside its switch for the same reason the time of day does: freezing the year is exactly when you want to scrub it. the whole system adds no draw call, no texture, no material and no pass — it runs on every tier, including the phone, because there is nothing in it a phone could fail at.
+`season.time`, `season.speed`, `season.snow`, `season.snowLine`, `season.turn` and `season.seaSmoke` are all in the overlay and all live. the time knob sits outside its switch for the same reason the time of day does: freezing the year is exactly when you want to scrub it. the whole system adds no draw call, no texture, no material and no pass — it runs on every tier, including the phone, because there is nothing in it a phone could fail at.
 
 ## the winter the water gets
 
@@ -280,6 +281,32 @@ two smaller decisions:
 the one part of a frozen bay that is genuinely white is the front between the sheet and the open water, where the floes grind and pile. that rim is `4 · cover · (1 - cover)` — a ridge wherever the cover is passing through a half — and it costs two multiplies.
 
 `season.ice`, `water.iceReach` and `water.iceBreak` are in the overlay, live and persisted, grouped under the year rather than under the water because the year is what drives them. the beck's tidal inlet is shallow the whole way up, so it shuts first and reopens last without knowing anything about the freeze — it is simply the shallowest water on the map. no draw call, no texture, no material, no pass and no fragment tap: every tier gets the winter, `minimal` included.
+
+## sea smoke
+
+the scape has had two winters since the run above — the land's and the sea's — and `ICE_LAG` is the fact that they are weeks apart. this run draws what lives in the gap between them.
+
+steam fog forms when air moves over water warmer than it is. that is the definition, and the scape already holds both halves of it: `snowAmount` is how much winter the land has taken, `freezeAmount` is how much the water has, and the land takes it first. so **sea smoke is not a curve of its own — it is the difference of the two the scape already had**:
+
+```ts
+seaSmokeAmount(phase) = max(0, snowAmount(phase) - freezeAmount(phase))
+```
+
+three things fall out of that for free, and all three are the point.
+
+- **it is one-sided.** come spring the lag runs the other way — the air is back and the bays are still shut — so the difference goes negative and the clamp takes it. a coast smokes on its way *into* the winter and not on its way out, which is what a coast does. nothing had to be written to make that true.
+- **it needs open water, and it cannot get the timing wrong.** the smoke only ever has a strength during the weeks the sea has not shut, so there is no ice term anywhere in the geometry or the shader: the open water it wants is all the water there is. an ice-front test would have been a second opinion about the freeze, and two opinions about one thing eventually disagree.
+- **it peaks near 0.83, not 1**, a fortnight or so before midwinter. that is not a scale wanting a correction. the most open water a cold sky ever gets is however much of the year the lag leaves between the two curves, and normalising it would be inventing weather the physics does not have.
+
+the geometry is the ground mist's radial profile turned inside out — nothing over the island, full strength a couple of island-radii out, gone again before the sheet's own edge, because a rim on a transparent quad reads as a quad. the two families therefore never overlap: the mist stands on the island all year and the smoke stands exactly where the mist has already faded to nothing.
+
+it is flat, low and slice-free, unlike the mist. sea smoke really is a shallow layer — a metre or two against the mist's nine-metre column — so the thinning that argued the [upright slices](#mist-that-stays-where-the-ground-is) into existence is not a failure here but the shape of the thing. seen from the near zoom, across the water rather than down onto it, two sheets a metre apart present as a bank lying along the coastline, which is what steam fog looks like from a shore.
+
+it is whiter than the mist, and for a physical reason rather than a compositional one: sea smoke is water that has just condensed out of the air standing on it, where ground mist is haze the sky is lighting through. it follows the clock like the mist does — same horizon colour, pulled twice as far toward white.
+
+`season.seaSmoke` is in the overlay, live and persisted, grouped under the year alongside the snow and the ice because it is the arithmetic between them. it is also the switch: there is nothing to steam when it is zero.
+
+**cost: nothing until it exists, and two draws when it does.** `?debug` reports **109 calls · 698k tris · 42 geo · 27 tex · 34 prog** on the desktop tier at midsummer — unchanged — and **111 · 705k · 43 · 27 · 34** at the peak of the smoke. the program count is the interesting one: the smoke's material has the same shape as the mist's, so three's cache hands it the program already linked and the scape gains none. a layer at zero strength is made *invisible* rather than transparent, because a map-wide transparent quad contributing nothing still costs every pixel it covers. the sheet count is `mistLayers / 2`, so `mobile` and `minimal` get one and `ultra` gets three; every tier gets the smoke.
 
 ## the sky deck
 

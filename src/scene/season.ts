@@ -31,6 +31,9 @@ export interface SeasonState {
   /** How hard the year is locking the water, 0..1. Depth takes its own cut. */
   freeze:   number
   iceColor: Color
+
+  /** Sea smoke — how hard the open water is steaming into colder air, 0..1. */
+  smoke: number
 }
 
 export interface Season {
@@ -108,6 +111,29 @@ export function freezeAmount (phase: number): number {
 }
 
 /**
+ * Sea smoke at a phase of the year, 0..1, before the coast's own strength.
+ *
+ * Not a curve of its own — it is the *gap* between the two winters the scape
+ * already has. Steam fog needs water warmer than the air standing on it, and
+ * {@link ICE_LAG} is precisely that difference written down: the land takes the
+ * winter weeks before the water does, so subtracting the sea's winter from the
+ * land's leaves exactly the weeks when a cold sky is sitting on open water.
+ *
+ * That makes it one-sided for free, and correctly so. Come spring the lag runs
+ * the other way — the air is back and the bays are still shut — the difference
+ * goes negative, and it is clamped away. A coast smokes on its way into the
+ * winter and not on its way out, which is also why the effect has no partner in
+ * {@link snowAmount}'s symmetry.
+ *
+ * It peaks near 0.83 rather than 1, a fortnight or so before midwinter. That is
+ * not a scale to be corrected: the most open water a cold sky ever gets is
+ * however much of the year the lag leaves between the two curves.
+ */
+export function seaSmokeAmount (phase: number): number {
+  return Math.max(0, snowAmount(phase) - freezeAmount(phase))
+}
+
+/**
  * The seasonal axis.
  *
  * Built the way `daylight.ts` is built, and for the same reason: the authored
@@ -141,6 +167,7 @@ export function createSeason (config: ScapeConfig): Season {
     snowLine:   terrain.waterLevel + season.snowLine,
     freeze:     0,
     iceColor:   new Color(palette.ice),
+    smoke:      0,
   }
 
   return {
@@ -163,6 +190,7 @@ export function createSeason (config: ScapeConfig): Season {
       state.snow       = snowAmount(wrapped) * season.snow
       state.snowLine   = terrain.waterLevel + season.snowLine
       state.freeze     = freezeAmount(wrapped) * season.ice
+      state.smoke      = seaSmokeAmount(wrapped) * season.seaSmoke
 
       state.tint.copy(sere).lerp(autumn, turn)
       state.snowColor.set(palette.snow)

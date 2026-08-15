@@ -185,6 +185,10 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
             range('water.iceBreak', 'floe break-up', 0, 1, 0.01),
           ],
         ),
+        // Under the year rather than under the mist, because the year is what
+        // drives it: the smoke is the gap between the land's winter and the
+        // sea's, and both of those knobs are in this section already.
+        toggled('sea smoke', range('season.seaSmoke', 'steam', 0, 1, 0.01), 0.9),
       ],
     },
     {
