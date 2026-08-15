@@ -27,6 +27,10 @@ export interface SeasonState {
 
   /** World height, in metres, where snow starts to hold. */
   snowLine: number
+
+  /** How hard the year is locking the water, 0..1. Depth takes its own cut. */
+  freeze:   number
+  iceColor: Color
 }
 
 export interface Season {
@@ -79,6 +83,31 @@ export function snowAmount (phase: number): number {
 }
 
 /**
+ * How far behind the land the sea runs.
+ *
+ * A metre of water holds something like a thousand times the heat a metre of
+ * air does, so a coast is white weeks before its bays are shut and its bays are
+ * still shut weeks after the fields have gone bare. This constant is the whole
+ * of that story: it is why {@link freezeAmount} is the same shape as
+ * {@link snowAmount} and yet never lines up with it.
+ */
+const ICE_LAG = 0.06
+
+/**
+ * The freeze at a phase of the year, 0..1, before depth takes its cut.
+ *
+ * Narrower than the snow curve as well as later. Snow needs one cold night and
+ * a shower; ice needs a whole column of water to have given its heat up, which
+ * only ever happens in the deepest weeks of the winter — so the window opens
+ * late, shuts late, and is only ever briefly total.
+ */
+export function freezeAmount (phase: number): number {
+  const wrapped = phase - Math.floor(phase)
+
+  return smoothstep(0.34, 0.96, Math.cos((wrapped - ICE_LAG) * TAU))
+}
+
+/**
  * The seasonal axis.
  *
  * Built the way `daylight.ts` is built, and for the same reason: the authored
@@ -110,6 +139,8 @@ export function createSeason (config: ScapeConfig): Season {
     snow:       0,
     snowColor:  new Color(palette.snow),
     snowLine:   terrain.waterLevel + season.snowLine,
+    freeze:     0,
+    iceColor:   new Color(palette.ice),
   }
 
   return {
@@ -131,9 +162,11 @@ export function createSeason (config: ScapeConfig): Season {
       state.tintAmount = Math.min(1, Math.max(wither, turn) * season.turn)
       state.snow       = snowAmount(wrapped) * season.snow
       state.snowLine   = terrain.waterLevel + season.snowLine
+      state.freeze     = freezeAmount(wrapped) * season.ice
 
       state.tint.copy(sere).lerp(autumn, turn)
       state.snowColor.set(palette.snow)
+      state.iceColor.set(palette.ice)
 
       return state
     },

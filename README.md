@@ -139,7 +139,7 @@ src/
     ├── noise.ts                    deterministic height sampler
     ├── post.ts                     ao, ssr, sun shafts, tilt-shift, lut, bloom, grain, traa
     ├── quality.ts                  minimal/mobile/desktop/ultra gpu budgets
-    ├── season.ts                   the year: growth, leaf turn and lying snow
+    ├── season.ts                   the year: growth, leaf turn, lying snow, sea ice
     ├── landscape/
     │   ├── index.ts                the scene module, and what raycasts
     │   ├── layout.ts               yard, cart track, field plots, ridges, pasture
@@ -147,7 +147,7 @@ src/
     │   ├── creek.ts                the beck: descent trace, channel, tidal mouth
     │   ├── height.ts                authored ground, islets, beck, fbm underneath
     │   ├── terrain.ts              geometry, height/slope banded colour
-    │   ├── water.ts                baked bathymetry, swell, foam, glitter
+    │   ├── water.ts                baked bathymetry, swell, foam, glitter, winter ice
     │   └── dressing.ts             placement, hero merge, instanced scatter
     └── props/
         ├── index.ts                the roster, hero vs scattered
@@ -254,6 +254,27 @@ lying snow needs world height, to keep it off the beach the sea keeps warm and o
 what is left is the snow line itself, and a fixed contour round an island reads as a stripe someone painted on it. the line wanders instead, on a cheap two-term sine field in world x and z, so the edge of the cover breaks up into patches without any of them drifting when the camera moves.
 
 `season.time`, `season.speed`, `season.snow`, `season.snowLine` and `season.turn` are all in the overlay and all live. the time knob sits outside its switch for the same reason the time of day does: freezing the year is exactly when you want to scrub it. the whole system adds no draw call, no texture, no material and no pass — it runs on every tier, including the phone, because there is nothing in it a phone could fail at.
+
+## the winter the water gets
+
+the year reached the land first and left the sea a summer green all through january. `season.ts`'s fourth curve is the freeze, and the lake reads it through **one uniform**.
+
+the freeze is the snow curve's shape and never its timing, because a metre of water holds something like a thousand times the heat a metre of air does. so the sea is the last thing to shut and the last thing to open: the fields whiten weeks before the bays close, and they are bare again while the ice is still in. that is one constant — `ICE_LAG` — plus a narrower pair of thresholds, and it is the whole difference between two clocks and one clock drawn twice.
+
+**depth is the rest of the physics.** a bank a foot deep gives its heat up in a week; a sound five metres deep takes the season. so the ice starts at the shoreline and walks outward as the year deepens, and it reads that depth from the **bathymetry mask the lake was already fetching** for its own depth tint — the freeze costs no texture read the water was not making anyway. `water.iceReach` is how far out that carries: at 1 the ice is confined to water shallow enough to lose its heat, at 0 the open sea freezes as readily as the bank, which is a lake rather than a coast.
+
+depth alone, though, draws a contour line around the island — a bathymetry chart with the ice-fill switched on. `water.iceBreak` breaks that line into floes, on **three sines rather than a noise fetch**. two reasons, and the second is the load-bearing one: the vertex stage needs the same ice front the fragment stage paints, and it cannot have it from a map the cheap tier's two-tap budget has no room to read twice. an analytic field is the one thing both stages can agree on exactly and for free.
+
+they have to agree because **the freeze takes the swell out of the vertex stage as well as the ripple out of the fragment stage**. under ice the surface gives up its displacement, its ripple normal, its foam band and its glitter — a shelf is flat, and a swell rolling under a sheet that is not rising with it is the giveaway that the winter is paint. the one new cost is a vertex texture fetch of the bathymetry mask, on a plane of at most sixteen thousand vertices, against a texture with no mipmaps and linear filtering: nothing to stall on and no derivative to go looking for.
+
+two smaller decisions:
+
+- **ice is laid over the finished water, not mixed into its albedo.** what is under a shelf stops mattering the moment the shelf is thick, and a depth tint showing through frozen water reads as blue plastic sheeting rather than as a winter.
+- **ice is rougher than the water it replaces, not smoother.** new ice really is glassy — but the camera's elevation sweeps across the sun's as it zooms, and a near-mirror plane at that crossing is precisely the white-out that [the lake's own roughness](#the-lake-and-the-angle-that-broke-it) exists to prevent. a frozen bay is that same flat plane with the swell taken *out* of it, which makes it the better candidate for the failure rather than the worse one. what does read correctly is snow-blown ice, which is matte and cannot blow out.
+
+the one part of a frozen bay that is genuinely white is the front between the sheet and the open water, where the floes grind and pile. that rim is `4 · cover · (1 - cover)` — a ridge wherever the cover is passing through a half — and it costs two multiplies.
+
+`season.ice`, `water.iceReach` and `water.iceBreak` are in the overlay, live and persisted, grouped under the year rather than under the water because the year is what drives them. the beck's tidal inlet is shallow the whole way up, so it shuts first and reopens last without knowing anything about the freeze — it is simply the shallowest water on the map. no draw call, no texture, no material, no pass and no fragment tap: every tier gets the winter, `minimal` included.
 
 ## the sky deck
 

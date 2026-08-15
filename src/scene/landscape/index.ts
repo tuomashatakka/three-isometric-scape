@@ -38,10 +38,10 @@ export function createLandscape (
   const layout               = createScapeLayout(config)
   const field: HeightField   = createHeightField(config, layout)
 
-  // The year lives here rather than beside the day, because the ground and the
-  // growing things are its only readers and both of them are in this module. It
-  // owns no geometry: nothing it does needs a rebuild, which is the whole reason
-  // a season can run on a clock at all.
+  // The year lives here rather than beside the day, because everything that
+  // reads it — the ground, the growing things and the lake — is in this module.
+  // It owns no geometry: nothing it does needs a rebuild, which is the whole
+  // reason a season can run on a clock at all.
   const season = createSeason(config)
 
   let root: Group | null               = null
@@ -91,8 +91,14 @@ export function createLandscape (
 
       year.time = (year.time + frame.delta * year.speed / 60) % 1
 
-      materials?.update(frame.elapsed, season.sample(year.time))
-      water?.update(frame.elapsed)
+      // Sampled once and handed to both readers. The ground takes the tint and
+      // the snow; the lake takes the freeze — and they have to be looking at
+      // the same instant of the year, or a shore whitens on a week the water
+      // beside it is not shutting on.
+      const now = season.sample(year.time)
+
+      materials?.update(frame.elapsed, now)
+      water?.update(frame.elapsed, now)
     },
 
     dispose () {

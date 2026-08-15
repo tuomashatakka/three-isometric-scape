@@ -169,6 +169,24 @@ export interface ScapeConfig {
      * enough to flare the whole lake white at the angle that catches it.
      */
     roughness: number
+
+    /**
+     * How far out of the shallows the winter ice carries, 0..1.
+     *
+     * 0 freezes the open sea as readily as the bank, which is a lake rather
+     * than a coast; 1 confines the ice to water shallow enough to lose its
+     * heat in a season. See `season.ice` for whether it freezes at all.
+     */
+    iceReach: number
+
+    /**
+     * How ragged the ice edge is, 0..1.
+     *
+     * The ice front follows depth, and depth alone draws a contour line around
+     * the island. This is what breaks that line into floes — and at 0 the
+     * winter sea reads as a bathymetry chart with the ice-fill turned on.
+     */
+    iceBreak: number
   }
   camera: {
     viewSize:    number
@@ -270,6 +288,16 @@ export interface ScapeConfig {
 
     /** How hard the year turns and withers what is green, 0..1. */
     turn: number
+
+    /**
+     * How hard the winter shuts the water, 0..1. 0 is a sea that never freezes.
+     *
+     * Separate from `snow` because they are separate winters: the land whitens
+     * on one cold night and the sea needs the whole season, so the two curves
+     * neither start nor end together. `water.iceReach` decides how far out from
+     * the bank this carries.
+     */
+    ice: number
   }
   look: {
     grade:     GradeName
@@ -316,6 +344,12 @@ export interface ScapeConfig {
 
     /** Turned leaf — what the year leans the straw toward in autumn. */
     autumn: number
+
+    /**
+     * Sea ice. Colder and greyer than lying snow on purpose — new ice is the
+     * water seen through it, and it only goes white where it has been broken.
+     */
+    ice: number
   }
 }
 
@@ -404,6 +438,8 @@ export const SCAPE_CONFIG = {
     waveHeight:     0.075,
     rippleStrength: 0.2,
     roughness:      0.62,
+    iceReach:       0.62,
+    iceBreak:       0.5,
   },
   camera: {
     viewSize:    54,
@@ -451,6 +487,7 @@ export const SCAPE_CONFIG = {
     snow:     0.85,
     snowLine: 0.6,
     turn:     0.55,
+    ice:      0.9,
   },
   look: {
     grade:      'nordic',
@@ -483,5 +520,6 @@ export const SCAPE_CONFIG = {
     yard:         0x8a8560,
     snow:         0xe6ecf0,
     autumn:       0xb4762f,
+    ice:          0xa8bcc0,
   },
 } satisfies ScapeConfig

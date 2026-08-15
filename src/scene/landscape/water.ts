@@ -14,6 +14,7 @@ import type { IUniform, Texture, WebGLProgramParametersWithUniforms } from 'thre
 import { createNoiseTexture, createSeamlessNoiseTexture } from 'threejs-scene/modules/assets'
 import type { ScapeConfig } from '../config.ts'
 import type { AtmosphereQuality } from '../quality.ts'
+import type { SeasonState } from '../season.ts'
 import type { HeightField } from './height.ts'
 
 
@@ -25,12 +26,18 @@ import type { HeightField } from './height.ts'
  * swell in the vertex stage, and a field of sun glints struck from two
  * decorrelated noise fetches — that speckle is what the surface reads as from
  * any orbit angle, where a specular lobe alone only reads from one.
+ *
+ * The year reaches it through one uniform. Winter shuts the shallows first and
+ * works outward, and everywhere the ice takes hold the surface gives up its
+ * swell, its ripple, its foam and its glitter — all of which is the same
+ * bathymetry the depth tint was already reading, so the freeze costs no fetch
+ * the lake was not making anyway.
  */
 export interface Water {
   mesh: Mesh
 
-  /** Advance swell, ripple and foam phase. Allocation-free. */
-  update(elapsed: number): void
+  /** Advance swell, ripple and foam phase, and take the year's freeze. Allocation-free. */
+  update(elapsed: number, season: SeasonState): void
   dispose(): void
 }
 
@@ -56,14 +63,68 @@ const WAVE_GLSL = /* glsl */`
   }
 `
 
+/**
+ * The freeze, shared verbatim by both stages, for the same reason the swell is.
+ *
+ * The vertex stage needs it to stop displacing water that has stopped moving
+ * and the fragment stage needs it to paint what is lying there instead; two
+ * approximations of the same ice front would show up as a swell running under a
+ * shelf that is not rising with it.
+ *
+ * The one texture fetch in here is the bathymetry mask, which the vertex stage
+ * did not previously read. That is a vertex texture fetch on at most 16k
+ * vertices — the whole lake is one plane of 24 to 128 segments a side — against
+ * a mask with no mipmaps and linear filtering, so there is no derivative to go
+ * looking for and nothing to stall on.
+ */
+const ICE_GLSL = /* glsl */`
+  uniform sampler2D uShoreMap;
+  uniform float uShoreScale;
+  uniform float uFreeze;
+  uniform float uIceReach;
+  uniform float uIceBreak;
+
+  float scapeDepth (vec2 ground) {
+    return texture2D(uShoreMap, ground * uShoreScale + 0.5).r;
+  }
+
+  // The floe field. Three sines rather than a noise fetch, because the vertex
+  // stage would otherwise need the same map the fragment stage reads and the
+  // cheap tier has a tap budget of two — and because a white-noise fetch
+  // thresholded into an edge gives salt and pepper where this gives lobes.
+  float scapeFloe (vec2 p) {
+    return 0.5 + 0.34 * sin(p.x * 0.081 + p.y * 0.043) +
+      0.26 * sin(p.y * 0.117 - p.x * 0.052) +
+      0.16 * sin((p.x - p.y) * 0.207);
+  }
+
+  /**
+   * How much ice is lying on the water at a point, 0..1.
+   *
+   * Depth is the whole physics of it: a bank a foot deep gives its heat up in a
+   * week and a sound five metres deep takes the season, so the freeze starts at
+   * the shoreline and walks outward as the year deepens rather than arriving
+   * everywhere at once. The 1.7 is what lets a fully committed winter push past
+   * the upper threshold in the shallows while the middle is still open.
+   */
+  float scapeIce (vec2 ground, float depth) {
+    float shelter = 1.0 - uIceReach * smoothstep(0.0, 0.55, depth);
+    float local   = uFreeze * shelter * 1.7 + (scapeFloe(ground) - 0.5) * uIceBreak;
+
+    return smoothstep(0.45, 0.85, local);
+  }
+`
+
 const WATER_PARS_VERTEX = /* glsl */`
   varying vec2 vWaterGround;
 ${WAVE_GLSL}
+${ICE_GLSL}
 `
 
 const WATER_SWELL_VERTEX = /* glsl */`
   #include <begin_vertex>
-  transformed.y += scapeWave(transformed.xz) * uWaveHeight;
+  float swellIce = scapeIce(transformed.xz, scapeDepth(transformed.xz));
+  transformed.y += scapeWave(transformed.xz) * uWaveHeight * (1.0 - swellIce);
 `
 
 const WATER_WORLD_VERTEX = /* glsl */`
@@ -72,36 +133,68 @@ const WATER_WORLD_VERTEX = /* glsl */`
 `
 
 const WATER_PARS_FRAGMENT = /* glsl */`
-  uniform sampler2D uShoreMap;
   uniform sampler2D uRippleMap;
   uniform sampler2D uWaveMap;
   uniform vec2 uRippleOffset;
   uniform vec3 uDeep;
   uniform vec3 uShallow;
   uniform vec3 uFoam;
-  uniform float uShoreScale;
+  uniform vec3 uIce;
   uniform float uRippleScale;
   uniform float uRippleStrength;
   uniform float uSparkleScale;
   uniform float uSparkle;
   varying vec2 vWaterGround;
 ${WAVE_GLSL}
+${ICE_GLSL}
+`
 
-  float scapeDepth () {
-    return texture2D(uShoreMap, vWaterGround * uShoreScale + 0.5).r;
-  }
+/**
+ * The ice, laid over the finished water rather than mixed into its albedo.
+ *
+ * What is under a shelf stops mattering the moment the shelf is thick, and a
+ * depth tint showing through frozen water is the one thing that reads as blue
+ * plastic sheeting rather than as a winter.
+ *
+ * The rim is where the cover is passing through a half — the front between the
+ * sheet and the open water. That is the only part of a frozen bay that is
+ * actually white, because that is where the floes grind against each other and
+ * pile; the rest of it is the sea seen through a lid.
+ */
+const WATER_ICE_FRAGMENT = /* glsl */`
+  float iceRim = 4.0 * iceCover * (1.0 - iceCover);
+  vec3 iceTone = mix(uIce, uFoam, iceRim * 0.65) * (0.9 + 0.2 * sheen);
+  diffuseColor.rgb = mix(diffuseColor.rgb, iceTone, iceCover);
+`
+
+/**
+ * Ice is matte, and deliberately rougher than the water it replaces.
+ *
+ * The tempting move is the opposite one — new ice is glassy, so drop the
+ * roughness and let it glare. But the camera's elevation sweeps across the
+ * sun's as it zooms, and a near-mirror plane at that crossing reflects the sun
+ * into every fragment at once; that is the whole reason `water.roughness` sits
+ * where it does. A frozen bay is the same flat plane with the swell taken out
+ * of it, which makes it a *better* candidate for that white-out, not a worse
+ * one. Snow-blown ice reads correctly matte and cannot blow out.
+ */
+const WATER_ROUGHNESS_FRAGMENT = /* glsl */`
+  #include <roughnessmap_fragment>
+  roughnessFactor = mix(roughnessFactor, 0.88, iceCover);
 `
 
 const WATER_COLOR_FRAGMENT = /* glsl */`
   #include <map_fragment>
-  float waterDepth = scapeDepth();
+  float waterDepth = scapeDepth(vWaterGround);
+  float iceCover   = scapeIce(vWaterGround, waterDepth);
   float openWater  = smoothstep(0.04, 0.3, waterDepth);
 
   // Foam is a band hugging the bank, not a wash over everything shallow: it
-  // fades in off the shore and back out into open water.
+  // fades in off the shore and back out into open water. Ice takes it away —
+  // surf is what a swell does at a bank, and the bank is where the ice is.
   float shoreline = smoothstep(0.0, 0.035, waterDepth) * smoothstep(0.14, 0.05, waterDepth);
   vec2 foamUv = vWaterGround * uRippleScale * 0.55 + uRippleOffset * 1.6;
-  float foam = shoreline * (0.35 + 0.5 * texture2D(uRippleMap, foamUv).r);
+  float foam = shoreline * (0.35 + 0.5 * texture2D(uRippleMap, foamUv).r) * (1.0 - iceCover);
 
   diffuseColor.rgb = mix(uShallow, uDeep, smoothstep(0.0, 0.5, waterDepth));
   diffuseColor.rgb = mix(diffuseColor.rgb, uFoam, clamp(foam, 0.0, 0.55));
@@ -123,7 +216,9 @@ const WATER_COLOR_FRAGMENT = /* glsl */`
   float glintA = texture2D(uRippleMap, sparkUv + uRippleOffset * 2.1).r;
   float glintB = texture2D(uRippleMap, sparkUv * 1.37 - uRippleOffset * 1.63).r;
   float glint  = pow(clamp(glintA * glintB * 1.42, 0.0, 1.0), 5.0);
-  diffuseColor.rgb += uFoam * glint * uSparkle * openWater;
+  diffuseColor.rgb += uFoam * glint * uSparkle * openWater * (1.0 - iceCover);
+
+${WATER_ICE_FRAGMENT}
 
   // The plane spans the whole map, so it has to vanish wherever there is no
   // water under it — otherwise dry land gets painted lake.
@@ -141,12 +236,15 @@ const WATER_COLOR_FRAGMENT = /* glsl */`
  */
 const WATER_COLOR_FRAGMENT_LITE = /* glsl */`
   #include <map_fragment>
-  float waterDepth = scapeDepth();
+  float waterDepth = scapeDepth(vWaterGround);
+  float iceCover   = scapeIce(vWaterGround, waterDepth);
 
   diffuseColor.rgb = mix(uShallow, uDeep, smoothstep(0.0, 0.5, waterDepth));
 
   float sheen = texture2D(uRippleMap, vWaterGround * uRippleScale + uRippleOffset).r;
   diffuseColor.rgb *= 0.93 + 0.15 * sheen;
+
+${WATER_ICE_FRAGMENT}
 
   diffuseColor.a *= smoothstep(0.0, 0.03, waterDepth) * clamp(0.5 + waterDepth * 1.7, 0.0, 1.0);
 `
@@ -161,7 +259,7 @@ const WATER_NORMAL_FRAGMENT_LITE = /* glsl */`
     -(swellX - swell) * uWaveHeight * 2.4,
     0.0,
     -(swellZ - swell) * uWaveHeight * 2.4
-  ));
+  ) * (1.0 - iceCover));
 `
 
 const WATER_NORMAL_FRAGMENT = /* glsl */`
@@ -182,11 +280,14 @@ const WATER_NORMAL_FRAGMENT = /* glsl */`
   float swellX = scapeWave(vWaterGround + vec2(1.6, 0.0));
   float swellZ = scapeWave(vWaterGround + vec2(0.0, 1.6));
 
+  // Everything the surface does to its own normal goes away under ice, in one
+  // multiply: a shelf is flat, and a ripple normal on it is the giveaway that
+  // the freeze is paint rather than a state the water is in.
   normal = normalize(normal + vec3(
     (ripplA - 0.5) * uRippleStrength - (swellX - swell) * uWaveHeight * 2.4,
     0.0,
     (ripplB - 0.5) * uRippleStrength - (swellZ - swell) * uWaveHeight * 2.4
-  ));
+  ) * (1.0 - iceCover));
 `
 
 /** Bake how deep the lake is at every point, from the same height field the terrain uses. */
@@ -266,6 +367,7 @@ export function createWater (
 
   const rippleOffset: IUniform<Vector2>    = { value: new Vector2() }
   const waveTime: IUniform<number>         = { value: 0 }
+  const iceColor: IUniform<Color>          = { value: new Color(config.palette.ice) }
   const uniforms: Record<string, IUniform> = {
     uShoreMap:       { value: shoreMap },
     uRippleMap:      { value: rippleMap },
@@ -274,7 +376,11 @@ export function createWater (
     uDeep:           { value: new Color(config.palette.deepWater) },
     uShallow:        { value: new Color(config.palette.shallowWater) },
     uFoam:           { value: new Color(config.palette.foam) },
+    uIce:            iceColor,
     uShoreScale:     { value: 1 / maskSpan },
+    uFreeze:         { value: 0 },
+    uIceReach:       { value: config.water.iceReach },
+    uIceBreak:       { value: config.water.iceBreak },
     uRippleScale:    { value: 1 / 34 },
     uRippleStrength: { value: config.water.rippleStrength },
     uSparkleScale:   { value: 1 / 14 },
@@ -322,6 +428,7 @@ export function createWater (
     program.fragmentShader = program.fragmentShader
       .replace('#include <common>', `#include <common>\n${WATER_PARS_FRAGMENT}`)
       .replace('#include <map_fragment>', lite ? WATER_COLOR_FRAGMENT_LITE : WATER_COLOR_FRAGMENT)
+      .replace('#include <roughnessmap_fragment>', WATER_ROUGHNESS_FRAGMENT)
       .replace('#include <normal_fragment_begin>', lite ? WATER_NORMAL_FRAGMENT_LITE : WATER_NORMAL_FRAGMENT)
   }
   material.customProgramCacheKey = () => `scape-water:${lite ? 'lite' : 'full'}`
@@ -337,12 +444,17 @@ export function createWater (
     // Read back from the config every frame rather than captured at build, so
     // the tuning overlay can drive the lake without rebuilding the scene. Four
     // uniform writes and a scalar compare is nothing next to the draw itself.
-    update (elapsed) {
+    update (elapsed, season) {
       rippleOffset.value.set(elapsed * 0.014, elapsed * 0.0092)
       waveTime.value                 = elapsed
       uniforms.uSparkle.value        = config.water.sparkle
       uniforms.uWaveHeight.value     = config.water.waveHeight
       uniforms.uRippleStrength.value = config.water.rippleStrength
+      uniforms.uFreeze.value         = season.freeze
+      uniforms.uIceReach.value       = config.water.iceReach
+      uniforms.uIceBreak.value       = config.water.iceBreak
+
+      iceColor.value.copy(season.iceColor)
 
       if (material.roughness !== config.water.roughness)
         material.roughness = config.water.roughness
@@ -360,4 +472,7 @@ export function createWater (
 
 // perf: one transparent draw. The shore mask is baked once at build from the
 // same height field the terrain uses, so bathymetry costs one texture fetch and
-// the swell costs three sines per vertex plus three more per lit fragment.
+// the swell costs three sines per vertex plus three more per lit fragment. The
+// freeze adds one vertex texture fetch of that same mask and three sines to
+// each stage — no draw, no material, no pass, and no fragment tap, which is why
+// every tier including `minimal` gets the winter.
