@@ -24,6 +24,35 @@ interface Band {
   color:  Color
 }
 
+/**
+ * The altitude band a height falls in, blended with its neighbour.
+ *
+ * Clamps rather than extrapolates at both ends: below the first band and above
+ * the last there is nothing to lerp toward, and lerping toward the band itself
+ * is the only answer that does not invent a colour the palette never authored.
+ */
+function bandAt (bands: readonly Band[], relative: number, target: Color): Color {
+  let lower = bands[0]
+  let upper = bands[bands.length - 1]
+
+  for (let index = 0; index < bands.length - 1; index += 1)
+    if (relative >= bands[index].offset && relative <= bands[index + 1].offset) {
+      lower = bands[index]
+      upper = bands[index + 1]
+      break
+    }
+
+  if (relative < bands[0].offset)
+    upper = lower
+  else if (relative > bands[bands.length - 1].offset)
+    lower = upper
+
+  const span = upper.offset - lower.offset
+  const mix  = span === 0 ? 0 : smoothstep(lower.offset, upper.offset, relative)
+
+  return target.copy(lower.color).lerp(upper.color, mix)
+}
+
 export function createTerrainPainter (config: ScapeConfig, layout: ScapeLayout): TerrainPainter {
   const { palette }    = config
   const { waterLevel } = config.terrain
@@ -39,11 +68,12 @@ export function createTerrainPainter (config: ScapeConfig, layout: ScapeLayout):
     { offset: 9, color: new Color(palette.lichen) },
   ]
 
-  const scree   = new Color(palette.scree)
-  const track   = new Color(palette.track)
-  const tilled  = new Color(palette.tilled)
-  const yard    = new Color(palette.yard)
-  const pasture = new Color(palette.pasture)
+  const scree     = new Color(palette.scree)
+  const track     = new Color(palette.track)
+  const tilled    = new Color(palette.tilled)
+  const yard      = new Color(palette.yard)
+  const pasture   = new Color(palette.pasture)
+  const streambed = new Color(palette.streambed)
 
   const corridor = layout.track.width * 1.5
 
@@ -51,25 +81,7 @@ export function createTerrainPainter (config: ScapeConfig, layout: ScapeLayout):
     paint (height, slope, x, z, target) {
       const relative = height - waterLevel
 
-      let lower = bands[0]
-      let upper = bands[bands.length - 1]
-
-      for (let index = 0; index < bands.length - 1; index += 1)
-        if (relative >= bands[index].offset && relative <= bands[index + 1].offset) {
-          lower = bands[index]
-          upper = bands[index + 1]
-          break
-        }
-
-      if (relative < bands[0].offset)
-        upper = lower
-      else if (relative > bands[bands.length - 1].offset)
-        lower = upper
-
-      const span = upper.offset - lower.offset
-      const mix  = span === 0 ? 0 : smoothstep(lower.offset, upper.offset, relative)
-
-      target.copy(lower.color).lerp(upper.color, mix)
+      bandAt(bands, relative, target)
 
       const exposed = smoothstep(0.34, 0.78, slope)
       if (exposed > 0)
@@ -97,6 +109,15 @@ export function createTerrainPainter (config: ScapeConfig, layout: ScapeLayout):
       const onTrack = 1 - smoothstep(layout.track.width * 0.42, corridor, distanceToTrack(layout, x, z))
       if (onTrack > 0)
         target.lerp(track, onTrack * 0.88)
+
+      // Last, and over the track: the beck cuts *under* the road rather than
+      // stopping at it, so the channel keeps its gravel across the crossing and
+      // the bridge reads as spanning something. The wash is strongest on the
+      // floor and thins onto the banks, which is where the altitude bands are
+      // already doing the right thing on their own.
+      const wet = layout.creek?.claimAt(x, z) ?? 0
+      if (wet > 0)
+        target.lerp(streambed, Math.min(1, wet * 1.15) * 0.74)
 
       const macro = hash2(x * 0.031, z * 0.031) * 0.14 + hash2(x * 0.19, z * 0.19) * 0.06
       target.multiplyScalar(0.92 + macro)

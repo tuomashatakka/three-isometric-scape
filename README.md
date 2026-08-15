@@ -26,6 +26,7 @@ bun run preview
 - a deterministic procedural heightfield with editable seed, scale, waterline, and palette
 - a mainland farmstead ringed by ten offshore islets, landscape only, never built on
 - a working boat harbour: a boathouse on piles with a slipway, a net rack, and stakes in the shallows
+- a beck traced downhill from a spring on the high ground, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself — no extra draw call, no extra material
 - a full day/night cycle: sun arc, dusk and night palettes, and a scrubbable clock
 - a seasonal axis running alongside it: grass and leaves wither and turn, and snow lies on what faces the sky above the snow line — all of it derived from the midsummer palette, none of it a rebuild
 - view-reactive linear fog, a matching gradient sky, deterministic drifting ground mist, and a sky cloud deck
@@ -55,6 +56,7 @@ the intended first edit is [`src/scene/config.ts`](src/scene/config.ts). `scape_
 - the deterministic world seed
 - terrain extent, resolution, amplitude, and waterline
 - the offshore islets, as fractions of the terrain half-extent
+- the beck's channel width, how deep it cuts, how far the mouth is dredged, and how much it flares
 - tree and rock instance budgets
 - initial camera framing and zoom limits
 - the clock: cycle speed, phase, the sun's bearing and noon height, and the dusk/night tints
@@ -141,7 +143,9 @@ src/
     ├── landscape/
     │   ├── index.ts                the scene module, and what raycasts
     │   ├── layout.ts               yard, cart track, field plots, ridges, pasture
-    │   ├── height.ts                authored ground, islets, fbm underneath
+    │   ├── path.ts                 route smoothing and polyline queries
+    │   ├── creek.ts                the beck: descent trace, channel, tidal mouth
+    │   ├── height.ts                authored ground, islets, beck, fbm underneath
     │   ├── terrain.ts              geometry, height/slope banded colour
     │   ├── water.ts                baked bathymetry, swell, foam, glitter
     │   └── dressing.ts             placement, hero merge, instanced scatter
@@ -345,6 +349,32 @@ two of its rules are there because the first version of the search got them wron
 the wall, the gate and the barn all pay the same way the harbour does. the wall run and the gate are hero geometry and merge into the steading's single draw; the meadow barn is a `Ploppable` like the farmstead's five, because it stands on a hillside and a merged geometry can only ever sit at one height. the drying poles are one `InstancedMesh`.
 
 **a prop that belongs to a place cannot be found by throwing darts at the island.** the drying poles were scattered through the same sampler as everything else and landed, measurably, never — the pasture is a quarter of a percent of that sampler's disc, and the few candidates that did land inside it were then rejected by the barn's claim on the middle. so a scatter can now be given its own candidate generator, and the poles get a disc the size of the pasture. the barn is set hard against the back wall for the same reason: a building's claim on the solver is a circle around its longest half, which on a twelve-metre enclosure is most of the enclosure, and pushing it back leans that circle onto the wall's own claims instead of onto the meadow.
+
+## the beck, and the inlet it cuts
+
+water now runs off the high ground. a beck springs on the highest interior ground the farm is not standing on, falls through a channel cut into the hillside, and flares out at the shore into a tidal inlet that reaches a good way inland. it is the first feature in the scape whose *shape* is found rather than authored — everything else is sited by a search and then drawn, and this one is traced.
+
+**it costs no draw call and no material.** that is the whole reason it could be a whole watercourse rather than a decal. the lake is already one plane spanning the map, drawn wherever the baked bathymetry mask says there is water under it — so anything carved below the waterline fills itself, with the swell, the depth tint, the shore foam band and the sun glitter the sea already has. the beck is a hole in the terrain, and the terrain was one draw before and is one draw now.
+
+**the course is a steepest-descent walk, because water only goes one way.** [`creek.ts`](src/scene/landscape/creek.ts) fans twenty-four bearings at every step and takes the cheapest, where the cost is the ground it lands on less two bribes: one for holding the heading it already had, and one for heading seaward. the first is what stops a quantised fan tracing a staircase — without it the walk spends as much of its length turning as descending. the second is what gets it out of the closed hollows the raw fbm has inside `islandInner`, where the island falloff has not started taking height away yet.
+
+**a nudge is not enough for the deep ones, and the fix is the honest one.** a stream that cannot descend out of a basin fills the basin and leaves over its lowest lip. so the seaward bribe grows with every step the walk fails to get further out and collapses the moment it makes ground — which is that behaviour, and it turns "usually terminates" into "always terminates", because every stalled step raises the price of staying until no rim is worth it. before it, two of four candidate courses ran out the step limit going round in circles.
+
+**the springs are not `layout.ridges`.** the obvious thing was to start from the wooded high points the conifers already cluster onto, and it produced nothing: those are ranked on the raw fbm over a square grid whose corners reach past `islandOuter`, so most of them are already under water once the falloff has had its say. traced from them, every course was a five-metre stub. a spring needs real height on ground that survives the drowning, so the search probes for that directly.
+
+**the beck is resolved last, and routes around the farm.** the yard, the fields and the walled meadow are all sited by searches of their own, and the beck's spring wanted the same hilltop the pasture was already on. teaching three searches the shape of a channel that does not exist yet is three chances to disagree about it; handing the beck one list of discs it has to miss says the same thing in one place. so the course is traced after all of them, and a course that cannot miss them is discarded rather than shaved. that is why adding a watercourse to this scape moved nothing that was already in it — the plots and the pasture are exactly where they were.
+
+**the channel is carved after the track, never before.** the road grade is sampled from a ground with no channel in it and smoothed, so levelling the track second would fill the crossing back in. carved second, the beck cuts *under* the road, and the bridge — which until now sat in whatever low patch of track it could find — has something to cross. where the two do meet, `findCrossing` sits the deck on the nearest track points the channel does not claim, because a bridge sat on the carved ground under it is a bridge lying in the beck.
+
+**the long profile is clamped to fall the whole way.** the descent obeys the raw fbm and the ground it is carved into is not that: the shore shelving lifts the bank, and an islet dropped across the mouth's path raises the seabed under it by several metres. left alone the channel inherits those rises and the scape gets a stream running up over a bar and back down. a running minimum over the smoothed profile is the one rule water has, and it makes the beck cut through whatever is in front of it.
+
+**four smoothing passes, not eight.** the same count the road grade uses. eight passes over a fourteen-point profile is very nearly one average, and a long profile averaged flat carves a level canal.
+
+the channel widens as it goes: `creek.mouthFlare` is how much broader the mouth is than the spring, and it is the knob that decides whether the scape gained a stream or a sound. below about 2 the lower reach never resolves on the mobile tier, where a terrain quad is two metres across and the whole channel is five. the bank taper reaches two and a half times the floor's own half-width — wider and the beck reads as a valley it happens to be lying in, narrower and the grid cannot resolve two sides at all.
+
+the dressing comes for free, and deliberately so. reeds already scatter in the band either side of the waterline, cobbles already go wherever the ground is low or steep, and lily pads already want shallow standing water — so the banks plant themselves, and the run added no new scatter rule to get them. what it did add is one rule in the other direction: `findShore` now rejects a bank the beck claims, because the beck reaches within a couple of yard radii of the farm and is the nearest thing under the waterline that a walk outward from the yard finds. without it the jetty gets built across a stream two metres wide and the boathouse follows it in.
+
+`creek.*` are build-time knobs like `layout` and `dressing`, so they are not in the overlay for the same reason `harbourSpread` is not: the channel is baked into the terrain mesh and into the bathymetry mask, and a slider that needs a rebuild to be seen would lie about what a slider does.
 
 ## ploppable
 
