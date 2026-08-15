@@ -31,7 +31,9 @@ import type { WebGLRenderer } from 'three'
  * stock `MeshStandardMaterial` the library's own starters use, which is the
  * one configuration already known to run on the handset.
  */
-export const SCAPE_FAMILIES = [ 'inject', 'detail', 'dressing', 'water', 'mist', 'clouds', 'post', 'shadows' ] as const
+export const SCAPE_FAMILIES = [
+  'inject', 'detail', 'dressing', 'water', 'mist', 'clouds', 'aurora', 'post', 'shadows',
+] as const
 
 export type ScapeFamily = typeof SCAPE_FAMILIES[number]
 

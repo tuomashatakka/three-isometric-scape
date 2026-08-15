@@ -265,6 +265,27 @@ export interface ScapeConfig {
 
     /** Height of the sky deck above the waterline, in metres. */
     cloudHeight: number
+
+    /**
+     * Auroral brightness, 0 takes the veils off the sky.
+     *
+     * It is also the switch, and the only one — how much of it is on any given
+     * night is the two clocks' business. See `aurora.ts`.
+     */
+    aurora: number
+
+    /**
+     * Height of the auroral deck above the waterline, in metres.
+     *
+     * Held above {@link cloudHeight} by the module whatever it is set to, so the
+     * weather passes beneath the light rather than through it. Past about 70 the
+     * deck climbs over the camera itself, which at full zoom-out is only eighty
+     * metres up, and the sky goes dark again.
+     */
+    auroraHeight: number
+
+    /** How fast the veils travel. Their own drift — an aurora does not blow on the wind. */
+    auroraSpeed: number
   }
 
   /**
@@ -407,6 +428,12 @@ export interface ScapeConfig {
      * water seen through it, and it only goes white where it has been broken.
      */
     ice: number
+
+    /** The dense heart of an auroral curtain, where it is thick enough to be green. */
+    aurora: number
+
+    /** What the same curtain thins out to at its fringes and its crown. */
+    auroraCrown: number
   }
 }
 
@@ -529,6 +556,9 @@ export const SCAPE_CONFIG = {
     cloudSpeed:   0.9,
     cloudCover:   0.5,
     cloudHeight:  34,
+    aurora:       1,
+    auroraHeight: 52,
+    auroraSpeed:  0.45,
   },
   // `time` and `azimuth` are set to land the opening frame on the light the
   // scape was graded under, so the cycle starts where the stills were taken.
@@ -587,5 +617,7 @@ export const SCAPE_CONFIG = {
     snow:         0xe6ecf0,
     autumn:       0xb4762f,
     ice:          0xa8bcc0,
+    aurora:       0x6df2a8,
+    auroraCrown:  0x7a5bd6,
   },
 } satisfies ScapeConfig

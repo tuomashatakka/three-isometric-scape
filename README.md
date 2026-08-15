@@ -32,6 +32,7 @@ bun run preview
 - a seasonal axis running alongside it: grass and leaves wither and turn, and snow lies on what faces the sky above the snow line — all of it derived from the midsummer palette, none of it a rebuild
 - view-reactive linear fog, a matching gradient sky, deterministic drifting ground mist, and a sky cloud deck
 - sea smoke standing on the open water for the weeks the air has taken the winter and the sea has not — derived from the gap between those two curves, and drawn only while it exists
+- an aurora over the dark half of the year — additive veils above the cloud deck, gated on the night and on how much night the week has, and absent from the sky the rest of the time
 - a live graphics overlay that persists to local storage and reloads what you left it at
 - a configurable 3d-lut grade with vignette, miniature tilt-shift, desktop bloom, and film grain
 - mobile and desktop atmosphere budgets selected from pointer, viewport, and pixel-density signals
@@ -63,7 +64,7 @@ the intended first edit is [`src/scene/config.ts`](src/scene/config.ts). `scape_
 - tree and rock instance budgets
 - initial camera framing and zoom limits
 - the clock: cycle speed, phase, the sun's bearing and noon height, and the dusk/night tints
-- fog density and breathing, mist amount and wind, cloud cover and ceiling, sky gradient, and the complete noon light rig
+- fog density and breathing, mist amount and wind, cloud cover and ceiling, auroral brightness, ceiling and drift, sky gradient, and the complete noon light rig
 - lut recipe, grade strength, vignette, grain, bloom, and tilt-shift strength
 - the complete scene palette
 
@@ -132,6 +133,7 @@ src/
 │   └── settings-store.ts           local-storage snapshot of those same paths
 └── scene/
     ├── atmosphere.ts               gradient sky, linear fog, sun and fill rig
+    ├── aurora.ts                   auroral veils over the dark half of the year
     ├── camera-controls.ts          pointer, touch, keyboard, focus, orbit
     ├── clouds.ts                   sky deck, faded in as the view pulls back
     ├── config.ts                   the starter's public tuning surface
@@ -142,7 +144,7 @@ src/
     ├── noise.ts                    deterministic height sampler
     ├── post.ts                     ao, ssr, sun shafts, tilt-shift, lut, bloom, grain, traa
     ├── quality.ts                  minimal/mobile/desktop/ultra gpu budgets
-    ├── season.ts                   the year: growth, leaf turn, lying snow, sea ice, sea smoke
+    ├── season.ts                   the year: growth, leaf turn, snow, sea ice, sea smoke, night length
     ├── landscape/
     │   ├── index.ts                the scene module, and what raycasts
     │   ├── layout.ts               yard, cart track, field plots, ridges, pasture
@@ -307,6 +309,42 @@ it is whiter than the mist, and for a physical reason rather than a compositiona
 `season.seaSmoke` is in the overlay, live and persisted, grouped under the year alongside the snow and the ice because it is the arithmetic between them. it is also the switch: there is nothing to steam when it is zero.
 
 **cost: nothing until it exists, and two draws when it does.** `?debug` reports **109 calls · 698k tris · 42 geo · 27 tex · 34 prog** on the desktop tier at midsummer — unchanged — and **111 · 705k · 43 · 27 · 34** at the peak of the smoke. the program count is the interesting one: the smoke's material has the same shape as the mist's, so three's cache hands it the program already linked and the scape gains none. a layer at zero strength is made *invisible* rather than transparent, because a map-wide transparent quad contributing nothing still costs every pixel it covers. the sheet count is `mistLayers / 2`, so `mobile` and `minimal` get one and `ultra` gets three; every tier gets the smoke.
+
+## the aurora, and the dark it needs
+
+the scape has had a night since the clock run and nothing has ever happened in it. this one lights it up, for the half of the year that can hold a light.
+
+**it is a deck, not a curtain, and that is a fact about the camera before it is a fact about the aurora.** an orthographic view tipped fifty degrees down puts the far distance a couple of hundred world units *above* the top of the frame: there is no horizon in this scape to hang anything against, and a wall of light standing out at sea would be rendered correctly and entirely off screen.
+
+a deck the camera looks *down* on is a fiction, and worth naming as one — the light is a hundred kilometres up and the eye is eighty metres. it is also the fiction [the sky deck](#the-sky-deck) already runs: this scape's camera flies above its own weather, and a layer it cannot see is a layer it does not have. the veils are stacked above the clouds so that at least the order is right, and the clearance is enforced in code rather than left to the two sliders agreeing.
+
+everything else follows [the sky deck](#the-sky-deck), including its zoom gate and for its reason: at the near zoom the camera sits *under* the ceiling, and the only thing a luminous sheet could do there is cover the picture.
+
+**the year is the second gate, and it is the one that had to be added.** `daylight.ts` runs one sun arc at one tilt for every week of the year — a deliberate simplification, since a scape with a real seasonal arc has a midwinter with no daylight in it at all — so a midsummer midnight there is exactly as dark as a midwinter one. that is fine for everything else in the scene and wrong for this: the reason you cannot see the aurora in june at these latitudes is not that it has stopped, it is that the sky never gets past dusk. so `season.ts` gained the one curve in it that is not about heat:
+
+```ts
+darkAmount(phase) = smoothstep(-0.9, -0.15, cos(phase · τ))
+```
+
+every other seasonal curve in this file runs late — the ground warms weeks after midsummer, the sea cools weeks after the ground, and `LAG` and `ICE_LAG` are those weeks written down. this one has no lag at all, and cannot: night length is geometry, not heat, and the sun comes back up on the day the orbit says. full dark holds from equinox to equinox through the winter, and gives out across the two months either side of midsummer.
+
+the brightness is those two gates and nothing else:
+
+```ts
+auroraBrightness(day, dark, strength) = strength · dark · (1 - smoothstep(0.02, 0.32, day))
+```
+
+no weather term, deliberately. solar activity is not something this scape models, and a random flare would be the one non-deterministic thing in a world that is otherwise a seed and a coordinate.
+
+**the colour is in the field, not over it.** unlike the mist and cloud fields — which are white, and take their tint from the clock — the auroral field is baked with colour in it, because the colour *is* the structure. an aurora is green where the curtain is dense and violet where it thins out at its fringes and its crown, so the tint is a function of the distance from an arc's centre line — the same number the alpha is computed from, and impossible to keep in step with it if it were a gradient applied afterwards. two arcs are baked, wandering as sums of sines and therefore periodic across the tile, so an arc leaves one edge at the height it enters the next; the ray noise, which has no period of its own, is cross-faded with a copy of itself one tile over until it has one. the alternative is mirrored wrapping — what the mist and the cloud fields use — and it was tried: reflecting a wandering arc turns every tile boundary into a hard chevron, and a sky full of zigzags is the one thing an aurora never looks like.
+
+the two arcs are combined with a maximum rather than a sum: two curtains overlapping do not make a brighter curtain, and adding them fills in the dark gap the second arc exists to show.
+
+it is additive, and unlit. the aurora is emission — it never darkens what is behind it — and it is the one thing in the frame the sun does not light, which is why it is also the only sheet in the scape that does not take its colour from the clock.
+
+`atmosphere.aurora` is in the overlay under the sky, live and persisted, with the ceiling and the drift beneath it. it is also the switch. the ceiling is held above `cloudHeight` by the module whatever it is set to, so the weather passes beneath the light rather than through it, and the slider stops at 70 because the camera at full zoom-out is only eighty metres up — past that the deck climbs over the eye and the sky goes dark again.
+
+**cost: one draw per veil, and none at all for most of the year.** `?debug` reports **109 calls** on the desktop tier at the authored opening frame — exactly what it reported before the aurora existed — and **112** at a midwinter midnight pulled all the way out, against **110** with the brightness scrubbed to zero. on the mobile tier the same a/b is **51** against **50**. the veils are two-sided and still one draw each: three renders a transparent double-sided material in two passes, which is right for a curved shell and waste for a flat sheet, so `forceSinglePass` is set and the measurement above is what found it. the veils are made *invisible* rather than transparent whenever the light is out, because a map-wide additive quad contributing nothing still costs every pixel it covers — and it is out for every daylight hour of every day, and every hour of the white-night weeks. the material has the same shape as the cloud deck's, so three's cache hands it the program already linked and the scape gains none. `auroraLayers` is 3 on `ultra`, 2 on `desktop`, **1 on `mobile`** and 0 on `minimal`: the phone tier gets an aurora, and the tier that only exists after a context loss gets a plain dark sky rather than a dimmer aurora.
 
 ## the sky deck
 
