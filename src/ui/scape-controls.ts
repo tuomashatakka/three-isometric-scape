@@ -176,6 +176,15 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         toggled('snow', range('season.snow', 'cover', 0, 1, 0.01), 0.85),
         range('season.snowLine', 'snow line', -1, 6, 0.1),
         range('season.turn', 'leaf turn', 0, 1, 0.01),
+        toggled(
+          'sea ice',
+          range('season.ice', 'freeze', 0, 1, 0.01),
+          0.9,
+          [
+            range('water.iceReach', 'held to the shallows', 0, 1, 0.01),
+            range('water.iceBreak', 'floe break-up', 0, 1, 0.01),
+          ],
+        ),
       ],
     },
     {
