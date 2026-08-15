@@ -117,6 +117,35 @@ export interface ScapeConfig {
     /** Width of the gap left in the pasture wall for its gate, in degrees. */
     pastureGateway: number
   }
+
+  /**
+   * The beck, and the inlet it cuts at the shore.
+   *
+   * Build-time geometry, like `layout` and unlike `water` — the channel is
+   * carved into the terrain mesh and baked into the bathymetry mask, so these
+   * are read once when the scape is generated rather than per frame, and they
+   * are deliberately absent from the tuning overlay for that reason.
+   */
+  creek: {
+
+    /** Width of the channel floor up on the hill, in metres. */
+    width: number
+
+    /** How deep the channel is cut into the ground it runs through, in metres. */
+    incision: number
+
+    /** How far below the waterline the tidal reach is dredged, in metres. */
+    mouthDepth: number
+
+    /**
+     * How much wider the mouth is than the head.
+     *
+     * The one knob that decides whether the scape gained a stream or a sound.
+     * Below about 2 the lower reach never resolves on the mobile tier, where a
+     * terrain quad is two metres across.
+     */
+    mouthFlare: number
+  }
   dressing: DressingBudget
   wind: {
     strength: number
@@ -275,9 +304,12 @@ export interface ScapeConfig {
 
     /** Mown upland grass — the clearing inside the pasture wall. */
     pasture: number
-    track:   number
-    tilled:  number
-    yard:    number
+
+    /** Wet gravel in the beck's channel, above and below the waterline alike. */
+    streambed: number
+    track:     number
+    tilled:    number
+    yard:      number
 
     /** Lying snow. The one colour the year adds that the scape has no other use for. */
     snow: number
@@ -331,6 +363,12 @@ export const SCAPE_CONFIG = {
     harbourSpread:  34,
     pastureRadius:  6,
     pastureGateway: 17,
+  },
+  creek: {
+    width:      3.4,
+    incision:   1.35,
+    mouthDepth: 2.6,
+    mouthFlare: 3.2,
   },
   dressing: {
     spruce:     260,
@@ -439,6 +477,7 @@ export const SCAPE_CONFIG = {
     scree:        0x7d7a72,
     lichen:       0x9aa088,
     pasture:      0x76803f,
+    streambed:    0x585f57,
     track:        0x7d6a4f,
     tilled:       0x6d5a44,
     yard:         0x8a8560,

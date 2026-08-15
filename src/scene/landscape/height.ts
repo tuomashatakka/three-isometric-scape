@@ -45,6 +45,26 @@ function smoothProfile (values: number[], passes: number): number[] {
   return current
 }
 
+/**
+ * A running minimum — the one rule water has.
+ *
+ * The descent that traced the beck obeys the *raw* fBm, and the ground it is
+ * carved into is not that: the shore shelving lifts the bank, and an islet
+ * dropped in the mouth's way raises the seabed under it by several metres. Left
+ * alone the channel inherits those rises and the scape gets a stream running
+ * up over a bar and back down again. Clamping the long profile to fall the
+ * whole way is what makes the beck cut *through* whatever is in front of it,
+ * which is what a beck does.
+ */
+function fallOnly (profile: number[]): number[] {
+  let floor = Infinity
+
+  return profile.map(level => {
+    floor = Math.min(floor, level)
+    return floor
+  })
+}
+
 export function createHeightField (config: ScapeConfig, layout: ScapeLayout): HeightField {
   const { waterLevel, shoreBand } = config.terrain
   const { yard, track }           = layout
@@ -147,15 +167,60 @@ export function createHeightField (config: ScapeConfig, layout: ScapeLayout): He
     return bestLevel
   }
 
+  // The beck's own long profile, sampled from the ground it runs through and
+  // smoothed the way the road grade is — and for the same reason. A channel cut
+  // to the raw fBm inherits every bump the hillside has, and a watercourse that
+  // goes up and down again is the one thing water cannot do.
+  const { creek } = layout
+
+  // Four passes, the same as the road grade and for the same reason. More is
+  // tempting on a course this short and it is a trap: eight passes over
+  // fourteen points is very nearly one average, and a long profile averaged
+  // flat carves a level canal instead of a beck.
+  const bedProfile = creek
+    ? fallOnly(smoothProfile(creek.points.map(point => graded(point.x, point.z)), 4))
+    : []
+
+  /** The floor the channel wants at a course position, in world height. */
+  function bedLevel (at: number, course: number): number {
+    const index  = Math.min(Math.floor(at), bedProfile.length - 2)
+    const local  = at - index
+    const ground = bedProfile[index] + (bedProfile[index + 1] - bedProfile[index]) * local
+
+    const cut = ground - (creek?.incisionAt(course) ?? 0)
+
+    // The tidal reach is dredged to a floor rather than merely incised: an
+    // inlet is a hole the sea sits in, and incision alone only ever tracks the
+    // ground down, which near the shore is already nearly flat.
+    const tide = creek?.tideFloor ?? cut
+    return Math.min(cut, cut + (tide - cut) * (creek?.tideAt(course) ?? 0))
+  }
+
   function heightAt (x: number, z: number): number {
     const height   = graded(x, z)
     const distance = distanceToTrack(layout, x, z)
 
-    if (distance >= corridor)
-      return height
+    const levelled = distance >= corridor
+      ? height
+      : height + (trackLevelAt(x, z) - TRACK_DEPTH - height) *
+        (1 - smoothstep(track.width * 0.5, corridor, distance))
 
-    const claim = 1 - smoothstep(track.width * 0.5, corridor, distance)
-    return height + (trackLevelAt(x, z) - TRACK_DEPTH - height) * claim
+    if (!creek || bedProfile.length < 2)
+      return levelled
+
+    // Carved *after* the track, never before. The road grade is sampled from a
+    // ground that has no channel in it, so levelling the track second would
+    // fill the crossing back in and leave the bridge spanning a puddle; this
+    // way the beck cuts under the track and the bridge has something to cross.
+    const sample = creek.sampleAt(x, z)
+
+    if (sample.claim <= 0)
+      return levelled
+
+    // Only ever downward. Past the mouth the seabed is already lower than any
+    // floor the channel would ask for, and blending toward it there would build
+    // a causeway out into the sea.
+    return Math.min(levelled, levelled + (bedLevel(sample.at, sample.course) - levelled) * sample.claim)
   }
 
   return {

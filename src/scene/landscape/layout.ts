@@ -1,13 +1,11 @@
 import { createSeededRng, smoothstep } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 import { sampleHeight } from '../noise.ts'
+import { createCreek } from './creek.ts'
+import type { Creek } from './creek.ts'
+import { distanceToPath, smoothPath } from './path.ts'
+import type { Vec2 } from './path.ts'
 
-
-/** A point on the ground plane. */
-export interface Vec2 {
-  x: number
-  z: number
-}
 
 /** The flattened shelf the buildings stand on. */
 export interface Yard extends Vec2 {
@@ -46,7 +44,10 @@ export interface ScapeLayout {
 
   /** The upland pasture, or `null` if this island has no room for one. */
   pasture: Pasture | null
-  extent:  number
+
+  /** The beck running off the high ground, or `null` if no ridge fed one. */
+  creek:  Creek | null
+  extent: number
 
   /** Radius inside which the ground is reliably above water. */
   landRadius: number
@@ -140,35 +141,6 @@ function findYard (config: ScapeConfig): Yard {
     radius: config.layout.yardRadius,
     level:  baseAt(config, best.x, best.z),
   }
-}
-
-/** Uniform Catmull-Rom through the control points, so the track never kinks. */
-function smoothPath (control: readonly Vec2[], steps: number): Vec2[] {
-  const padded         = [ control[0], ...control, control[control.length - 1] ]
-  const points: Vec2[] = []
-
-  for (let step = 0; step <= steps; step += 1) {
-    const t       = step / steps * (control.length - 1)
-    const segment = Math.min(Math.floor(t), control.length - 2)
-    const local   = t - segment
-
-    const [ p0, p1, p2, p3 ] = [
-      padded[segment], padded[segment + 1], padded[segment + 2], padded[segment + 3],
-    ]
-    const l2 = local * local
-    const l3 = l2 * local
-
-    points.push({
-      x: 0.5 * (2 * p1.x + (-p0.x + p2.x) * local +
-        (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * l2 +
-        (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * l3),
-      z: 0.5 * (2 * p1.z + (-p0.z + p2.z) * local +
-        (2 * p0.z - 5 * p1.z + 4 * p2.z - p3.z) * l2 +
-        (-p0.z + 3 * p1.z - 3 * p2.z + p3.z) * l3),
-    })
-  }
-
-  return points
 }
 
 function buildTrack (config: ScapeConfig, yard: Yard, wander: number): Vec2[] {
@@ -368,19 +340,45 @@ function findPasture (
   return best
 }
 
-/** Resolve the whole composition. Pure — same config in, same layout out. */
+/**
+ * Resolve the whole composition. Pure — same config in, same layout out.
+ *
+ * The order is a dependency chain, not a preference. The yard is found first
+ * because everything else is sited relative to the farm; the track is drawn to
+ * it; the fields and the walled meadow are sited on what the farm has not
+ * already taken; and the beck comes last, routed around all four.
+ *
+ * Last, and not first, even though water is the one thing here that genuinely
+ * does not negotiate — because the alternative is teaching three separate
+ * searches the shape of a channel that does not exist yet. Handing the beck one
+ * list of discs to miss says the same thing in one place, and it is why adding
+ * a watercourse to this scape moved nothing that was already in it.
+ */
 export function createScapeLayout (config: ScapeConfig): ScapeLayout {
-  const rng   = createSeededRng(config.seed).fork('layout')
-  const yard  = findYard(config)
-  const track = buildTrack(config, yard, rng.range(-1, 1))
-  const plots = buildPlots(config, yard, config.seed ^ 0x5c1f)
+  const rng     = createSeededRng(config.seed).fork('layout')
+  const yard    = findYard(config)
+  const track   = buildTrack(config, yard, rng.range(-1, 1))
+  const plots   = buildPlots(config, yard, config.seed ^ 0x5c1f)
+  const pasture = findPasture(config, yard, plots, track)
+
+  const creek = createCreek(
+    config,
+    (x, z) => sunkAt(config, x, z),
+    track,
+    [
+      { x: yard.x, z: yard.z, radius: yard.radius * 1.15 },
+      ...plots.map(plot => ({ x: plot.x, z: plot.z, radius: Math.max(plot.halfW, plot.halfD) })),
+      ...pasture ? [{ x: pasture.x, z: pasture.z, radius: pasture.radius }] : [],
+    ],
+  )
 
   return {
     yard,
     track:      { points: track, width: config.layout.trackWidth },
     plots,
     ridges:     findRidges(config, yard),
-    pasture:    findPasture(config, yard, plots, track),
+    pasture,
+    creek,
     extent:     config.terrain.size * 0.5,
     landRadius: landRadiusOf(config),
     waterLevel: config.terrain.waterLevel,
@@ -404,27 +402,6 @@ export function yawAlong (bearing: number): number {
 /** Shortest distance from a point to the track centreline, in world units. */
 export function distanceToTrack (layout: ScapeLayout, x: number, z: number): number {
   return distanceToPath(layout.track.points, x, z)
-}
-
-/** Shortest distance from a point to a polyline, in world units. */
-function distanceToPath (points: readonly Vec2[], x: number, z: number): number {
-  let best = Infinity
-
-  for (let index = 0; index < points.length - 1; index += 1) {
-    const a        = points[index]
-    const b        = points[index + 1]
-    const dx       = b.x - a.x
-    const dz       = b.z - a.z
-    const lengthSq = dx * dx + dz * dz
-
-    const t = lengthSq === 0
-      ? 0
-      : Math.min(1, Math.max(0, ((x - a.x) * dx + (z - a.z) * dz) / lengthSq))
-
-    best = Math.min(best, Math.hypot(x - (a.x + dx * t), z - (a.z + dz * t)))
-  }
-
-  return best
 }
 
 /** How strongly a plot claims a point, 1 at the centre falling to 0 past its edge. */
@@ -459,6 +436,8 @@ export function pastureInfluence (layout: ScapeLayout, x: number, z: number): nu
   const distance = Math.hypot(x - pasture.x, z - pasture.z)
   return Math.min(1, Math.max(0, (pasture.radius - distance) / (pasture.radius * 0.22)))
 }
+
+export type { Vec2 } from './path.ts'
 
 /** Nearest ridge influence, 0..1 — drives conifer density. */
 export function ridgeInfluence (layout: ScapeLayout, x: number, z: number): number {
