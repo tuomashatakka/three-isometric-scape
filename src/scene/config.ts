@@ -146,6 +146,45 @@ export interface ScapeConfig {
      */
     mouthFlare: number
   }
+
+  /**
+   * The paths worn between the places the farm has to be.
+   *
+   * Build-time like `creek` and `layout`, and absent from the tuning overlay for
+   * the same reason: the routes are traced across the ground once and baked into
+   * the terrain's vertex colours, and the scatter is placed around what they
+   * claim. Nothing here can move without the scape being generated again.
+   */
+  footpath: {
+
+    /** Width of the bare tread, in metres. */
+    width: number
+
+    /** Metres of thinning grass either side of the tread. */
+    verge: number
+
+    /**
+     * How hard a route works to keep off a climb.
+     *
+     * 0 walks straight lines between the anchors, which is a survey rather than
+     * a path; the useful range is a metre or so of sidestep per unit of ground
+     * gradient. Past about 3 the routes start preferring the contour so strongly
+     * that a short walk over a low shoulder becomes a long walk around it.
+     */
+    climb: number
+
+    /** Lateral wander, in metres. Nobody surveyed these. */
+    wander: number
+
+    /**
+     * How bare the treads get, 0..1.
+     *
+     * 0 is a scape nobody walks: no route is traced at all, so the grass and the
+     * stones close back over ground that would otherwise be a path. There is no
+     * separate switch, because this is the switch.
+     */
+    wear: number
+  }
   dressing: DressingBudget
   wind: {
     strength: number
@@ -335,9 +374,15 @@ export interface ScapeConfig {
 
     /** Wet gravel in the beck's channel, above and below the waterline alike. */
     streambed: number
-    track:     number
-    tilled:    number
-    yard:      number
+
+    /**
+     * Bare earth underfoot. Greyer and darker than `track`, because a cart road
+     * is gravel laid down and a footpath is only the turf taken off.
+     */
+    trodden: number
+    track:   number
+    tilled:  number
+    yard:    number
 
     /** Lying snow. The one colour the year adds that the scape has no other use for. */
     snow: number
@@ -403,6 +448,13 @@ export const SCAPE_CONFIG = {
     incision:   1.35,
     mouthDepth: 2.6,
     mouthFlare: 3.2,
+  },
+  footpath: {
+    width:  1.5,
+    verge:  0.7,
+    climb:  1.3,
+    wander: 1.1,
+    wear:   0.82,
   },
   dressing: {
     spruce:     260,
@@ -515,6 +567,7 @@ export const SCAPE_CONFIG = {
     lichen:       0x9aa088,
     pasture:      0x76803f,
     streambed:    0x585f57,
+    trodden:      0x6c6049,
     track:        0x7d6a4f,
     tilled:       0x6d5a44,
     yard:         0x8a8560,

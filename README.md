@@ -26,6 +26,7 @@ bun run preview
 - a deterministic procedural heightfield with editable seed, scale, waterline, and palette
 - a mainland farmstead ringed by ten offshore islets, landscape only, never built on
 - a working boat harbour: a boathouse on piles with a slipway, a net rack, and stakes in the shallows
+- footpaths worn between the places the farm actually goes — traced as desire lines over the ground as built, painted into the terrain it crosses, and kept clear of grass and stone without costing a draw call
 - a beck traced downhill from a spring on the high ground, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself — no extra draw call, no extra material
 - a full day/night cycle: sun arc, dusk and night palettes, and a scrubbable clock
 - a seasonal axis running alongside it: grass and leaves wither and turn, and snow lies on what faces the sky above the snow line — all of it derived from the midsummer palette, none of it a rebuild
@@ -57,6 +58,7 @@ the intended first edit is [`src/scene/config.ts`](src/scene/config.ts). `scape_
 - terrain extent, resolution, amplitude, and waterline
 - the offshore islets, as fractions of the terrain half-extent
 - the beck's channel width, how deep it cuts, how far the mouth is dredged, and how much it flares
+- the footpaths: tread width, verge, how hard a route works to keep off a climb, and how bare the treads get
 - tree and rock instance budgets
 - initial camera framing and zoom limits
 - the clock: cycle speed, phase, the sun's bearing and noon height, and the dusk/night tints
@@ -143,7 +145,10 @@ src/
     ├── landscape/
     │   ├── index.ts                the scene module, and what raycasts
     │   ├── layout.ts               yard, cart track, field plots, ridges, pasture
+    │   ├── steading.ts             where the farm's buildings and well stand
+    │   ├── landing.ts              the shoreline the jetty and the harbour are on
     │   ├── path.ts                 route smoothing and polyline queries
+    │   ├── footpath.ts             desire lines worn between the places above
     │   ├── creek.ts                the beck: descent trace, channel, tidal mouth
     │   ├── height.ts                authored ground, islets, beck, fbm underneath
     │   ├── terrain.ts              geometry, height/slope banded colour
@@ -393,9 +398,37 @@ water now runs off the high ground. a beck springs on the highest interior groun
 
 the channel widens as it goes: `creek.mouthFlare` is how much broader the mouth is than the spring, and it is the knob that decides whether the scape gained a stream or a sound. below about 2 the lower reach never resolves on the mobile tier, where a terrain quad is two metres across and the whole channel is five. the bank taper reaches two and a half times the floor's own half-width — wider and the beck reads as a valley it happens to be lying in, narrower and the grid cannot resolve two sides at all.
 
-the dressing comes for free, and deliberately so. reeds already scatter in the band either side of the waterline, cobbles already go wherever the ground is low or steep, and lily pads already want shallow standing water — so the banks plant themselves, and the run added no new scatter rule to get them. what it did add is one rule in the other direction: `findShore` now rejects a bank the beck claims, because the beck reaches within a couple of yard radii of the farm and is the nearest thing under the waterline that a walk outward from the yard finds. without it the jetty gets built across a stream two metres wide and the boathouse follows it in.
+the dressing comes for free, and deliberately so. reeds already scatter in the band either side of the waterline, cobbles already go wherever the ground is low or steep, and lily pads already want shallow standing water — so the banks plant themselves, and the run added no new scatter rule to get them. what it did add is one rule in the other direction: the landing search rejects a bank the beck claims, because the beck reaches within a couple of yard radii of the farm and is the nearest thing under the waterline that a walk outward from the yard finds. without it the jetty gets built across a stream two metres wide and the boathouse follows it in.
 
 `creek.*` are build-time knobs like `layout` and `dressing`, so they are not in the overlay for the same reason `harbourSpread` is not: the channel is baked into the terrain mesh and into the bathymetry mask, and a slider that needs a rebuild to be seen would lie about what a slider does.
+
+## the paths people wear
+
+the farm has always been a set of places — a yard with five buildings on it, a landing, a boat harbour, a walled pasture, a field or three — with nothing at all between them. now there is: a network of footpaths, worn from the well out to every one of them.
+
+**a path is found, not drawn.** [`landscape/footpath.ts`](src/scene/landscape/footpath.ts) starts each route as a straight line between two places and then relaxes it. every interior point gets two nudges per pass. the first pulls it toward the midpoint of its neighbours, which is the gradient of the route's own length and is what stops a route meandering. the second pushes it along the ground gradient, scaled by how much of a *bulge* it is — how far its own height stands above, or below, the two points either side of it.
+
+that second term is the whole idea, and it is signed for a reason. a point higher than both its neighbours is a crest the route is climbing over for nothing, so it slides downhill. a point lower than both is a hollow it drops into and has to climb back out of, so it slides up. a point that merely sits *between* its neighbours is on a steady grade — a hillside path, which is a perfectly good thing to be — and the term vanishes there however steep the ground is. so a route traverses slopes happily and refuses humps and dips, which is what a worn path does and what a shortest-path search does not. `footpath.climb` is how much sidestep a unit of gradient buys; at 0 the routes are straight lines between the anchors, which is a survey rather than a path.
+
+the difference between a bump and a footfall is one constant. `SLACK` is a third of a metre of height difference below which the bulge term reads as zero, and without it the sidestep chases the terrain's own grain and the route wanders over centimetres.
+
+**the network is a star on the well.** the one errand everybody in the place runs every day is water, so that is the ground that goes bare and that is where every other route leaves from. the spokes are the five buildings' doorways, then the outlying work: the landing, the boat harbour's bank, the pasture gateway and the near edge of each field plot. fields are met at their edge — the anchor marches in from the middle until the plot stops claiming the ground, which is exactly where its fence run stands — so a path arrives at the fence rather than walking through it.
+
+**paths go round buildings, never under them.** the yard arrangement moved out of the dressing into [`landscape/steading.ts`](src/scene/landscape/steading.ts) for this, because two copies of where a barn stands is how a path ends up leading to where the barn used to be. each building carries a rough radius, and a point that lands inside one is *projected* straight out of it after every relaxation pass rather than pushed by another force term — a path that mostly misses the barn is not a path that misses the barn. endpoints are exempt: a route to a door has to arrive at the door.
+
+**it is paint, and never height.** the routes are traced across the ground *as built* — levelled yard, graded track, carved beck and all — which is what makes them agree with the scape they cross, and also what stops them carving it: a path that sank the hillside it had just been routed over would move the hillside out from under itself on the next build. so the terrain takes the wear as vertex colour and the scatter takes it as a place not to stand, and no vertex moves.
+
+**the wear weighs itself by how green the ground already was.** this is the one thing that turns eight routes converging on one well into a network instead of a stain. a path is turf that has been walked off, so it can only show where there was turf: across the meadow the full lerp toward `palette.trodden` lands, and on the yard, the cart track and the tilled plots — ground that is bare because something else already made it bare — it barely registers. the same arithmetic the seasonal tint uses, for the same reason, on a colour the painter already has in hand.
+
+wear also falls along a route, but only mildly. traffic really does concentrate at the hub, and a steep falloff pales the tread exactly where it is the only thing saying anybody walks here — the outer end, out on the grass, is the only place the eye can read a path at all.
+
+**what the scatter does with it.** the tread joins the list of things the ground is already spoken for by, alongside the yard, the track, the plots and the pasture: no spruce, boulder, bale or tuft of grass stands on it. the threshold is set at the middle of the tread rather than at the verge, because eight routes clearing a two-metre corridor each is a bald farmyard rather than a network. one cover goes the other way — cobbles are *more* likely on a tread, because taking the turf off a hillside is how the stone under it surfaces, and it is what keeps a path from reading as a stripe of flat colour at close zoom.
+
+**cost is nothing.** no draw call, no material, no texture, no pass: the routes are traced once at build (under a millisecond for the whole network) and baked into the terrain's vertex colours, which were already being written. the per-vertex query is a bounding-box reject followed by a segment walk, about eight milliseconds across an `ultra` terrain's fifty thousand vertices. every tier gets the paths, `minimal` included.
+
+what a coarse tier does *not* get is a crisp edge. a terrain quad is 0.8 m across on desktop and 2 m on mobile, and a tread 1.5 m wide cannot resolve on either — so the wear arrives as a soft band of bare ground rather than a drawn line, and softens further the cheaper the tier. that is the honest limit of painting a metre-scale feature into vertex colour, and it is why the cobbles matter.
+
+`footpath.*` are build-time knobs like `creek.*` and `layout.*`, and are absent from the overlay for the same reason: the routes are baked into the mesh, and a slider that needs a rebuild to be seen would lie about what a slider does. `footpath.wear` at 0 is the off switch — no route is traced at all, so the grass and the stones close back over ground that would otherwise be a path.
 
 ## ploppable
 

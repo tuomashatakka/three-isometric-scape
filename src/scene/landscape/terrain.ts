@@ -2,6 +2,7 @@ import { BufferAttribute, Color, Mesh, PlaneGeometry } from 'three'
 import type { Material } from 'three'
 import { hash2, smoothstep } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
+import type { Footpaths } from './footpath.ts'
 import type { HeightField } from './height.ts'
 import { distanceToTrack, pastureInfluence, plotInfluence } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
@@ -53,7 +54,11 @@ function bandAt (bands: readonly Band[], relative: number, target: Color): Color
   return target.copy(lower.color).lerp(upper.color, mix)
 }
 
-export function createTerrainPainter (config: ScapeConfig, layout: ScapeLayout): TerrainPainter {
+export function createTerrainPainter (
+  config: ScapeConfig,
+  layout: ScapeLayout,
+  paths:  Footpaths,
+): TerrainPainter {
   const { palette }    = config
   const { waterLevel } = config.terrain
 
@@ -74,6 +79,7 @@ export function createTerrainPainter (config: ScapeConfig, layout: ScapeLayout):
   const yard      = new Color(palette.yard)
   const pasture   = new Color(palette.pasture)
   const streambed = new Color(palette.streambed)
+  const trodden   = new Color(palette.trodden)
 
   const corridor = layout.track.width * 1.5
 
@@ -110,6 +116,26 @@ export function createTerrainPainter (config: ScapeConfig, layout: ScapeLayout):
       if (onTrack > 0)
         target.lerp(track, onTrack * 0.88)
 
+      // Over the track, under the beck.
+      //
+      // Weighted by how green the ground under it already is, which is the whole
+      // reason this does not simply darken the farm. A path is *turf that has
+      // been walked off*, so it can only show where there was turf: across the
+      // meadow the full lerp lands, and on the yard, the road and the tilled
+      // plots — ground that is bare because something else already made it bare —
+      // it barely registers. Without the weight, eight routes converging on one
+      // well turn the middle of the farm into a single brown patch, which reads
+      // as a stain rather than as paths.
+      const worn = paths.wearAt(x, z)
+      if (worn > 0 && height > waterLevel + 0.1) {
+        const green = Math.min(1, Math.max(
+          0,
+          (target.g * 2 - target.r - target.b) / (target.g + 0.05),
+        ))
+
+        target.lerp(trodden, worn * config.footpath.wear * (0.3 + 0.7 * green))
+      }
+
       // Last, and over the track: the beck cuts *under* the road rather than
       // stopping at it, so the channel keeps its gravel across the crossing and
       // the bridge reads as spanning something. The wash is strongest on the
@@ -131,6 +157,7 @@ export function createTerrain (
   config:   ScapeConfig,
   layout:   ScapeLayout,
   field:    HeightField,
+  paths:    Footpaths,
   material: Material,
   segments: number,
 ): Mesh {
@@ -140,7 +167,7 @@ export function createTerrain (
 
   const positions = geometry.getAttribute('position')
   const colors    = new Float32Array(positions.count * 3)
-  const painter   = createTerrainPainter(config, layout)
+  const painter   = createTerrainPainter(config, layout, paths)
   const color     = new Color()
 
   for (let index = 0; index < positions.count; index += 1) {
