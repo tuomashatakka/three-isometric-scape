@@ -14,9 +14,13 @@ import { Ploppable } from '../props/ploppable.ts'
 import { buildStoneWallRun } from '../props/wall.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import type { Creek } from './creek.ts'
+import type { Footpaths } from './footpath.ts'
 import type { HeightField } from './height.ts'
+import { findHarbourBank, findLanding } from './landing.ts'
+import type { Spot } from './landing.ts'
 import { distanceToTrack, pastureInfluence, plotInfluence, ridgeInfluence, yawAlong } from './layout.ts'
 import type { Plot, ScapeLayout, Vec2 } from './layout.ts'
+import { steadingPlaces } from './steading.ts'
 
 
 export interface Dressing {
@@ -24,11 +28,18 @@ export interface Dressing {
   dispose(): void
 }
 
-interface Spot extends Vec2 {
-  angle: number
-}
-
 const TAU = Math.PI * 2
+
+/**
+ * How worn the ground has to be before it counts as a path.
+ *
+ * The middle of the tread, and not the verge: a footpath is bare down the middle
+ * and thinning grass either side, so the exclusion has to stop well short of
+ * where the wear does. Set at the verge instead, eight routes converging on one
+ * well clear the grass off most of a farmyard — which is a bald patch, not a
+ * network of paths.
+ */
+const TREAD = 0.55
 
 /**
  * A near-white tint. `scatterInstances` multiplies it into the baked vertex
@@ -59,6 +70,7 @@ export function createDressing (
   config:    ScapeConfig,
   layout:    ScapeLayout,
   field:     HeightField,
+  paths:     Footpaths,
   materials: ScapeMaterials,
   quality:   AtmosphereQuality,
 ): Dressing {
@@ -71,6 +83,7 @@ export function createDressing (
   const water                   = config.terrain.waterLevel
   const owned: BufferGeometry[] = []
   const plopped: Ploppable[]    = []
+  const places                  = steadingPlaces(layout.yard)
   const sampleSpot              = createSpotSampler(config, layout, rng, extent)
   const samplePasture           = createDiscSampler(rng, layout.pasture)
 
@@ -86,7 +99,7 @@ export function createDressing (
 
   // ---- feature tests -------------------------------------------------------
 
-  const { onYard, onTrack, onPlot, onPasture, clear } = createZoneTests(layout)
+  const { onYard, onTrack, onPath, onPlot, onPasture, clear } = createZoneTests(layout, paths)
 
   // ---- hero props ----------------------------------------------------------
 
@@ -145,39 +158,29 @@ export function createDressing (
     solver.reserve(x, z, Math.max(halfW, halfD) + 1.4)
   }
 
-  /** The buildings, arranged around the yard so they face each other. */
+  /**
+   * The buildings, arranged around the yard so they face each other.
+   *
+   * The arrangement itself lives in `steading.ts`, because the footpaths are
+   * worn between these places and are painted into the ground before any of
+   * this is raised on it. Two copies of the arrangement is how a path ends up
+   * leading to where the barn used to be.
+   */
   function raiseSteading (): void {
-    const facing = Math.atan2(-layout.yard.z, -layout.yard.x)
+    const { farmhouse, barn, aitta, woodshed, sauna, well, cart, logPile, flagpole } = places
 
-    const around = (offset: number, distance: number): Spot => ({
-      x:     layout.yard.x + Math.cos(facing + offset) * distance,
-      z:     layout.yard.z + Math.sin(facing + offset) * distance,
-      angle: facing + offset + Math.PI,
-    })
-
-    const house    = around(0.35, layout.yard.radius * 0.5)
-    const barn     = around(-1.55, layout.yard.radius * 0.72)
-    const aitta    = around(2.5, layout.yard.radius * 0.62)
-    const woodshed = around(-2.7, layout.yard.radius * 0.66)
-    const sauna    = around(1.55, layout.yard.radius * 0.86)
-
-    raiseBuilding('farmhouse', house.x, house.z, house.angle)
+    raiseBuilding('farmhouse', farmhouse.x, farmhouse.z, farmhouse.angle)
     raiseBuilding('barn', barn.x, barn.z, barn.angle + 0.4)
     raiseBuilding('aitta', aitta.x, aitta.z, aitta.angle)
     raiseBuilding('woodshed', woodshed.x, woodshed.z, woodshed.angle)
     raiseBuilding('sauna', sauna.x, sauna.z, sauna.angle)
 
-    const well = around(0.9, layout.yard.radius * 0.24)
     placeHero('well', well.x, well.z, rng.range(0, TAU))
-    placeHero('flagpole', layout.yard.x - Math.cos(facing) * 2.2, layout.yard.z - Math.sin(facing) * 2.2, 0)
-
-    const cart = around(-0.4, layout.yard.radius * 0.34)
+    placeHero('flagpole', flagpole.x, flagpole.z, 0)
     placeHero('cart', cart.x, cart.z, rng.range(0, TAU))
+    placeHero('logPile', logPile.x, logPile.z, rng.range(0, TAU))
 
-    const logs = around(-2.4, layout.yard.radius * 0.92)
-    placeHero('logPile', logs.x, logs.z, rng.range(0, TAU))
-
-    for (const anchor of [ well, logs ])
+    for (const anchor of [ well, logPile ])
       solver.reserve(anchor.x, anchor.z, 4)
 
     // The hay rack belongs beside a field, not in the yard.
@@ -204,8 +207,10 @@ export function createDressing (
       )
     }
 
-    // The jetty reaches from the nearest shoreline out over the water.
-    const shore = findShore(layout, field, config)
+    // The jetty reaches from the nearest shoreline out over the water — the same
+    // landing the footpath down from the yard was worn to, because both ask
+    // `landing.ts` rather than each other.
+    const shore = findLanding(layout, field, config)
     if (shore) {
       placeHeroAt('jetty', shore.x, water + 0.05, shore.z, yawAlong(shore.angle))
       placeHeroAt(
@@ -217,7 +222,7 @@ export function createDressing (
       )
       solver.reserve(shore.x, shore.z, 7)
       harbourAnchor = { x: shore.x, z: shore.z }
-      raiseHarbour(shore.angle)
+      raiseHarbour(shore)
     }
 
     // A bridge only earns its place where the track has something to cross.
@@ -237,9 +242,9 @@ export function createDressing (
      * It is pushed a little seaward of the bank for the same reason — the back
      * of the shed cuts into the slope, which is where a real one is dug in.
      */
-    function raiseHarbour (shoreAngle: number): void {
-      const bearing = shoreAngle + config.layout.harbourSpread * Math.PI / 180
-      const bank    = findBank(layout, field, config, bearing)
+    function raiseHarbour (landing: Spot): void {
+      const bearing = landing.angle + config.layout.harbourSpread * Math.PI / 180
+      const bank    = findHarbourBank(layout, field, config, landing)
 
       if (!bank)
         return
@@ -421,7 +426,7 @@ export function createDressing (
 
   const {
     conifer, stoneRule, openGround, beachRule, birchRule, plotEdge, inPasture, inYard,
-  } = createScatterRules(config, layout, field, rng, { onYard, onTrack, onPlot, onPasture, clear })
+  } = createScatterRules(config, layout, field, rng, { onYard, onTrack, onPath, onPlot, onPasture, clear })
 
   /** Populate the ground, biggest footprints first. */
   function dressGround (): void {
@@ -467,7 +472,8 @@ export function createDressing (
 
     scatterCover('grass', config.dressing.grass, (x, z) => {
       const height = heightAt(x, z)
-      return height > water + 0.2 && !onTrack(x, z) && (onPlot(x, z) === 0 || rng.next() > 0.75)
+      return height > water + 0.2 && !onTrack(x, z) && !onPath(x, z) &&
+        (onPlot(x, z) === 0 || rng.next() > 0.75)
     }, 0.6, 1.5, 0)
 
     scatterCover('heather', config.dressing.heather, (x, z) => {
@@ -481,9 +487,13 @@ export function createDressing (
       return height > water + 0.5 && (clear(x, z) && height < water + 4.5 || onPasture(x, z) > 0.25)
     }, 0.7, 1.5, 0)
 
+    // The one cover a path gains rather than loses. Take the turf off a hillside
+    // and what is under it is the same stone the cobbles already are, so the
+    // tread is where they surface — which is also what keeps a worn path from
+    // reading as a stripe of flat colour at close zoom.
     scatterCover('cobble', config.dressing.cobble, (x, z) => {
       const height = heightAt(x, z)
-      return height < water + 0.7 || field.slopeAt(x, z) > 0.5
+      return height < water + 0.7 || field.slopeAt(x, z) > 0.5 || onPath(x, z)
     }, 0.7, 1.4, 0)
 
     scatterCover('reeds', config.dressing.reeds, (x, z) => {
@@ -659,7 +669,7 @@ function createScatterRules (
   rng:    SeededRng,
   zones:  ReturnType<typeof createZoneTests>,
 ) {
-  const { onYard, onTrack, onPlot, onPasture, clear } = zones
+  const { onYard, onTrack, onPath, onPlot, onPasture, clear } = zones
 
   const heightAt = field.heightAt
   const water    = config.terrain.waterLevel
@@ -676,7 +686,7 @@ function createScatterRules (
 
     // Stones stay out of the pasture: the ones that were in it are the wall.
     stoneRule: (minLift: number) => (x: number, z: number): boolean =>
-      onYard(x, z) === 0 && !onTrack(x, z) && onPasture(x, z) === 0 &&
+      onYard(x, z) === 0 && !onTrack(x, z) && !onPath(x, z) && onPasture(x, z) === 0 &&
       heightAt(x, z) > water + minLift,
 
     openGround: (minLift: number, maxSlope: number) => (x: number, z: number): boolean =>
@@ -685,7 +695,7 @@ function createScatterRules (
     beachRule: (maxSlope: number) => (x: number, z: number): boolean => {
       const height = heightAt(x, z)
       return height > water - 0.05 && height < water + config.terrain.shoreBand * 0.7 &&
-        field.slopeAt(x, z) < maxSlope && !onTrack(x, z)
+        field.slopeAt(x, z) < maxSlope && !onTrack(x, z) && !onPath(x, z)
     },
 
     birchRule (x: number, z: number): boolean {
@@ -694,14 +704,14 @@ function createScatterRules (
     },
 
     plotEdge: (x: number, z: number): boolean =>
-      onPlot(x, z) > 0.5 && heightAt(x, z) > water + 0.8,
+      onPlot(x, z) > 0.5 && !onPath(x, z) && heightAt(x, z) > water + 0.8,
 
     /** Inside the wall, and off anything too steep to have been mown. */
     inPasture: (x: number, z: number): boolean =>
       onPasture(x, z) > 0.3 && field.slopeAt(x, z) < 0.5,
 
     inYard: (x: number, z: number): boolean =>
-      onYard(x, z) > 0.12 && !onTrack(x, z) && heightAt(x, z) > water + 0.8,
+      onYard(x, z) > 0.12 && !onTrack(x, z) && !onPath(x, z) && heightAt(x, z) > water + 0.8,
   }
 }
 
@@ -732,21 +742,28 @@ function createDiscSampler (rng: SeededRng, feature: Vec2 & { radius: number } |
 }
 
 /** Where the authored composition already claims the ground. */
-function createZoneTests (layout: ScapeLayout) {
+function createZoneTests (layout: ScapeLayout, paths: Footpaths) {
   const onYard = (x: number, z: number): number => {
     const distance = Math.hypot(x - layout.yard.x, z - layout.yard.z)
     return Math.max(0, 1 - distance / (layout.yard.radius * 1.1))
   }
   const onTrack = (x: number, z: number): boolean =>
     distanceToTrack(layout, x, z) < layout.track.width * 1.3
+  const onPath = (x: number, z: number): boolean =>
+    paths.wearAt(x, z) > TREAD
   const onPlot = (x: number, z: number): number =>
     layout.plots.reduce((claim, plot) => Math.max(claim, plotInfluence(plot, x, z)), 0)
   const onPasture = (x: number, z: number): number =>
     pastureInfluence(layout, x, z)
-  const clear = (x: number, z: number): boolean =>
-    onYard(x, z) === 0 && !onTrack(x, z) && onPlot(x, z) === 0 && onPasture(x, z) === 0
 
-  return { onYard, onTrack, onPlot, onPasture, clear }
+  // A path joins the list of things the ground is already spoken for by, which
+  // is what makes it a path rather than a stripe of paint: the tread is the one
+  // place a spruce, a boulder or a tuft of grass does not get to stand.
+  const clear = (x: number, z: number): boolean =>
+    onYard(x, z) === 0 && !onTrack(x, z) && !onPath(x, z) &&
+    onPlot(x, z) === 0 && onPasture(x, z) === 0
+
+  return { onYard, onTrack, onPath, onPlot, onPasture, clear }
 }
 
 /** The point on the track a given distance out from the yard, and its heading. */
@@ -768,70 +785,6 @@ function trackPointNear (layout: ScapeLayout, distance: number): Spot | null {
   }
 
   return null
-}
-
-/**
- * Walk out from the yard on one bearing until the ground goes under, then back
- * off to where it breaks the surface again — that point is the bank.
- *
- * `distance` is where the water was *found*, not where the bank is; the shore
- * search ranks bearings by it.
- */
-function findBank (
-  layout: ScapeLayout,
-  field:  HeightField,
-  config: ScapeConfig,
-  angle:  number,
-): Spot & { distance: number } | null {
-  const water = config.terrain.waterLevel
-  const limit = config.terrain.size * 0.46
-
-  for (let distance = 4; distance < limit; distance += 1.2) {
-    const x = layout.yard.x + Math.cos(angle) * distance
-    const z = layout.yard.z + Math.sin(angle) * distance
-
-    if (Math.hypot(x, z) > limit)
-      return null
-    if (field.heightAt(x, z) > water - 0.6)
-      continue
-
-    // Water is not the same thing as *the sea*. The beck now reaches within a
-    // couple of yard radii of the farm, and it is the nearest thing to it that
-    // a walk outward finds under the waterline — so without this the jetty gets
-    // built across a stream two metres wide and the boathouse follows it in.
-    if (layout.creek?.claimAt(x, z))
-      return null
-
-    let bank = distance
-    while (bank > 2 && field.heightAt(
-      layout.yard.x + Math.cos(angle) * bank,
-      layout.yard.z + Math.sin(angle) * bank,
-    ) < water + 0.1)
-      bank -= 0.4
-
-    return {
-      x: layout.yard.x + Math.cos(angle) * bank,
-      z: layout.yard.z + Math.sin(angle) * bank,
-      angle,
-      distance,
-    }
-  }
-
-  return null
-}
-
-/** The nearest shoreline to the yard, facing out over open water. */
-function findShore (layout: ScapeLayout, field: HeightField, config: ScapeConfig): Spot | null {
-  let best: Spot & { distance: number } | null = null
-
-  for (let step = 0; step < 48; step += 1) {
-    const found = findBank(layout, field, config, step / 48 * TAU)
-
-    if (found && (!best || found.distance < best.distance))
-      best = found
-  }
-
-  return best && { x: best.x, z: best.z, angle: best.angle }
 }
 
 /**
