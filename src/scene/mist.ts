@@ -17,6 +17,7 @@ import type { ScapeConfig } from './config.ts'
 import type { DaylightState } from './daylight.ts'
 import { sampleHeight } from './noise.ts'
 import type { AtmosphereQuality } from './quality.ts'
+import type { SeasonState } from './season.ts'
 
 
 export interface MistOptions {
@@ -26,6 +27,12 @@ export interface MistOptions {
 
   /** Live sky state — mist is the fog colour, and the fog colour has a clock now. */
   daylight: DaylightState
+
+  /**
+   * Live year state. The sea smoke is a fortnight of the winter and nothing
+   * else, so this is the only thing that decides whether it exists at all.
+   */
+  season: SeasonState
 }
 
 interface MistSheet {
@@ -40,6 +47,9 @@ interface MistSheet {
 
   /** This layer's share of the authored density. */
   weight: number
+
+  /** The live colour this family follows — the fog's, or the smoke's colder one. */
+  color: Color
 }
 
 const TEXTURE_SIZE = 128
@@ -66,6 +76,31 @@ const TILE_UNITS = 79
 /** Radial fade band, as fractions of the terrain extent. */
 const REACH_IN  = 0.16
 const REACH_OUT = 0.44
+
+/** Per-sheet opacity of the sea smoke, before the year scales it. */
+const SMOKE_ALPHA = 0.42
+
+/** How far off the water the lowest smoke sheet lies, in metres. */
+const SMOKE_RISE = 0.5
+
+/** Metres between the smoke sheets. A steam fog is shallow; this is why. */
+const SMOKE_STEP = 0.9
+
+/**
+ * Where the smoke begins and where it reaches full strength, as multiples of
+ * the island's own radius. It starts at the coastline by construction.
+ */
+const SMOKE_IN  = 1
+const SMOKE_OUT = 2
+
+/**
+ * Where the smoke gives out again, as fractions of the sheet's half-width.
+ *
+ * Both are inside 1, so the field is gone before the quad's own straight edge
+ * is — a transparent sheet with a rim on it reads as a sheet.
+ */
+const SMOKE_EDGE_IN  = 0.68
+const SMOKE_EDGE_OUT = 0.96
 
 const WHITE    = new Color('#ffffff')
 const viewAxis = new Vector3()
@@ -132,6 +167,41 @@ function sliceGeometry (width: number, height: number): PlaneGeometry {
   return geometry
 }
 
+/**
+ * A horizontal sheet that only exists off the coast.
+ *
+ * The ground mist's profile turned inside out, and for a physical reason rather
+ * than a compositional one. Sea smoke is water steaming into air colder than it
+ * is, so it stands over open water and nowhere else — which is exactly the part
+ * of the map the mist sheets have already faded out of. Nothing over the
+ * island, full strength a couple of island-radii out, and gone again before the
+ * sheet's own edge.
+ *
+ * There is no ice term in here, and there does not need to be one: the smoke
+ * only ever has a strength during the weeks the sea has not shut yet, so the
+ * open water it wants is all the water there is. See `seaSmokeAmount`.
+ */
+function smokeGeometry (size: number, landRadius: number): PlaneGeometry {
+  const geometry = new PlaneGeometry(size, size, 40, 40)
+  const position = geometry.getAttribute('position')
+  const colors   = new Float32Array(position.count * 4)
+  const half     = size * 0.5
+
+  for (let index = 0; index < position.count; index += 1) {
+    const radius = Math.hypot(position.getX(index), position.getY(index))
+    const offset = index * 4
+
+    colors[offset]     = 1
+    colors[offset + 1] = 1
+    colors[offset + 2] = 1
+    colors[offset + 3] = smoothstep(landRadius * SMOKE_IN, landRadius * SMOKE_OUT, radius) *
+      (1 - smoothstep(half * SMOKE_EDGE_IN, half * SMOKE_EDGE_OUT, radius))
+  }
+
+  geometry.setAttribute('color', new BufferAttribute(colors, 4))
+  return geometry
+}
+
 function bakeMist (data: Uint8Array, seed: number): void {
   for (let y = 0; y < TEXTURE_SIZE; y += 1)
     for (let x = 0; x < TEXTURE_SIZE; x += 1) {
@@ -156,15 +226,19 @@ export function createMistLayer ({
   config,
   quality,
   daylight,
+  season,
 }: MistOptions): AppModule<Record<string, never>> {
   const count      = Math.max(1, quality.mistLayers)
   const sliceCount = Math.max(1, Math.round(count / 2))
+  const smokeCount = Math.max(1, Math.round(count / 2))
   const sheetSize  = config.terrain.size * 2.8
   const spacing    = config.terrain.size * 0.3
   const waterLine  = config.terrain.waterLevel
   const amount     = config.atmosphere.mistAmount
+  const landRadius = config.terrain.size * 0.5 * config.terrain.islandOuter
   const geometry   = sheetGeometry(sheetSize, config.terrain.size)
   const upright    = sliceGeometry(sheetSize, MIST_HEIGHT)
+  const offshore   = smokeGeometry(sheetSize, landRadius)
   const field      = new Uint8Array(TEXTURE_SIZE * TEXTURE_SIZE * 4)
   bakeMist(field, config.seed ^ 0x53a9)
 
@@ -176,7 +250,13 @@ export function createMistLayer ({
   texture.needsUpdate = true
 
   const mistColor = new Color(config.palette.fog).lerp(WHITE, 0.32)
-  const visible   = amount > 0.01
+
+  // Whiter than the mist, and not as a matter of taste: sea smoke is water that
+  // has just condensed out of the air standing on it, where ground mist is haze
+  // the sky is lighting through. The one is nearly opaque white in the small and
+  // the other never is.
+  const smokeColor = new Color(config.palette.fog).lerp(WHITE, 0.62)
+  const visible    = amount > 0.01
 
   function tile (index: number, scale: number): Texture {
     const map = texture.clone()
@@ -185,7 +265,7 @@ export function createMistLayer ({
     return map
   }
 
-  function drift (index: number, weight: number): Omit<MistSheet, 'mesh'> {
+  function drift (index: number, weight: number, color: Color): Omit<MistSheet, 'mesh'> {
     const heading = config.seed * 0.001 + index * 0.7
 
     return {
@@ -195,6 +275,7 @@ export function createMistLayer ({
       phaseX: 0,
       phaseY: 0,
       weight,
+      color,
     }
   }
 
@@ -209,11 +290,11 @@ export function createMistLayer ({
   // `name` is carried purely so a failed program link can be attributed: three
   // prints `Material Name:` and nothing else when a driver declines to link and
   // declines to say why, and an unnamed material makes that line useless.
-  function mistMaterial (map: Texture, opacity: number, name: string): MeshBasicMaterial {
+  function mistMaterial (map: Texture, opacity: number, name: string, color: Color): MeshBasicMaterial {
     return new MeshBasicMaterial({
       name,
       map,
-      color:        mistColor,
+      color,
       transparent:  true,
       depthWrite:   false,
       vertexColors: true,
@@ -222,9 +303,41 @@ export function createMistLayer ({
     })
   }
 
+  /**
+   * One layer's per-frame work: colour, opacity, presence and wind travel.
+   *
+   * `amount` is the family's live strength — the authored mist density for the
+   * sheets and the slices, the year's own smoke for the offshore ones — and it
+   * is what decides whether the layer is drawn at all. A layer at zero is made
+   * invisible rather than transparent, because a fullscreen transparent quad
+   * that contributes nothing still costs every pixel it covers.
+   */
+  function advance (sheet: MistSheet, amount: number, delta: number): void {
+    const material = sheet.mesh.material as MeshBasicMaterial
+    const map      = material.map
+
+    material.color.copy(sheet.color)
+    material.opacity   = amount * sheet.weight
+    sheet.mesh.visible = amount > 0.01
+
+    if (!map)
+      return
+
+    const travel = delta *
+      DRIFT_SPEED *
+      sheet.speed *
+      config.atmosphere.mistWind /
+      sheetSize *
+      map.repeat.x
+
+    sheet.phaseX += sheet.driftX * travel
+    sheet.phaseY += sheet.driftZ * travel
+    map.offset.set(sheet.phaseX, sheet.phaseY)
+  }
+
   const sheets = Array.from({ length: count }, (_unused, index): MistSheet => {
     const weight   = (1 - index / (count + 1)) * LAYER_ALPHA
-    const material = mistMaterial(tile(index, 1), amount * weight, `mist-${index + 1}`)
+    const material = mistMaterial(tile(index, 1), amount * weight, `mist-${index + 1}`, mistColor)
 
     // Pinned to the world, not to the camera. A sheet that chases the focus
     // point drags its whole cloud pattern across the ground as you pan, which
@@ -237,12 +350,12 @@ export function createMistLayer ({
     mesh.frustumCulled = false
     mesh.visible       = visible
 
-    return { mesh, ...drift(index, weight) }
+    return { mesh, ...drift(index, weight, mistColor) }
   })
 
   const slices = Array.from({ length: sliceCount }, (_unused, index): MistSheet => {
     const weight   = (1 - index / (sliceCount + 1)) * SLICE_ALPHA
-    const material = mistMaterial(tile(index, 0.5), amount * weight, `mist-slice-${index + 1}`)
+    const material = mistMaterial(tile(index, 0.5), amount * weight, `mist-slice-${index + 1}`, mistColor)
 
     const mesh         = new Mesh(upright, material)
     mesh.name          = `mist-slice-${index + 1}`
@@ -251,10 +364,43 @@ export function createMistLayer ({
     mesh.frustumCulled = false
     mesh.visible       = visible
 
-    return { mesh, ...drift(index + count, weight) }
+    return { mesh, ...drift(index + count, weight, mistColor) }
   })
 
-  const all = [ ...sheets, ...slices ]
+  /**
+   * The steam off the open water, in the weeks the sea has not shut yet.
+   *
+   * Deliberately flat and deliberately low, and with no upright slices in the
+   * family. Sea smoke really is a shallow layer — a metre or two, against the
+   * nine-metre column the ground mist stands in — so the thinning that argued
+   * the slices into existence is not a failure here but the shape of the thing:
+   * seen from the near zoom, across the water rather than down onto it, two
+   * sheets a metre apart present as a bank lying along the coastline, which is
+   * exactly what steam fog looks like from the shore.
+   */
+  const smoke = Array.from({ length: smokeCount }, (_unused, index): MistSheet => {
+    const weight   = (1 - index / (smokeCount + 1)) * SMOKE_ALPHA
+    const material = mistMaterial(tile(index, 0.62), 0, `sea-smoke-${index + 1}`, smokeColor)
+
+    const mesh      = new Mesh(offshore, material)
+    mesh.name       = `sea-smoke-${index + 1}`
+    mesh.rotation.x = -Math.PI / 2
+    mesh.position.y = waterLine + SMOKE_RISE + index * SMOKE_STEP
+
+    // Under the mist, which starts at 2. Painted first so the sheets the island
+    // is standing in are composited over the steam beyond it rather than under.
+    mesh.renderOrder   = index
+    mesh.frustumCulled = false
+
+    // Off until the year says otherwise — at the authored midsummer there is
+    // nothing to draw, and the sheet is the width of the map.
+    mesh.visible = false
+
+    return { mesh, ...drift(index + count + sliceCount, weight, smokeColor) }
+  })
+
+  const drifting = [ ...sheets, ...slices ]
+  const all      = [ ...drifting, ...smoke ]
 
   return defineModule<Record<string, never>>({
     name: 'ground-mist',
@@ -271,29 +417,17 @@ export function createMistLayer ({
       // the horizon straight from the clock and it stays the same substance as
       // the fog at every hour instead of glowing white through the night.
       mistColor.copy(daylight.horizon).lerp(WHITE, 0.32)
+      smokeColor.copy(daylight.horizon).lerp(WHITE, 0.62)
 
-      for (const sheet of all) {
-        const material = sheet.mesh.material as MeshBasicMaterial
-        const map      = material.map
+      for (const sheet of drifting)
+        advance(sheet, density, frame.delta)
 
-        material.color.copy(mistColor)
-        material.opacity   = density * sheet.weight
-        sheet.mesh.visible = density > 0.01
-
-        if (!map)
-          continue
-
-        const travel = frame.delta *
-          DRIFT_SPEED *
-          sheet.speed *
-          config.atmosphere.mistWind /
-          sheetSize *
-          map.repeat.x
-
-        sheet.phaseX += sheet.driftX * travel
-        sheet.phaseY += sheet.driftZ * travel
-        map.offset.set(sheet.phaseX, sheet.phaseY)
-      }
+      // The year, not the weather. Sea smoke is off for all but a fortnight of
+      // it, and the read is the same live field the ground and the lake take
+      // their winter from — sampled once upstream, so the coast cannot be
+      // steaming on a week the bays beside it are already shut on.
+      for (const sheet of smoke)
+        advance(sheet, season.smoke, frame.delta)
 
       // The upright slices face the camera and spread along its view axis, so
       // the stack always has depth to look through whatever the elevation.
@@ -342,6 +476,7 @@ export function createMistLayer ({
       }
       geometry.dispose()
       upright.dispose()
+      offshore.dispose()
       texture.dispose()
     },
   })
@@ -349,4 +484,7 @@ export function createMistLayer ({
 
 // perf: a handful of transparent draws, a third of them upright. The shared
 // 128² alpha field is baked once and opacity is authored at build, so the only
-// per-frame work is scrolling texture offsets and yawing the slices.
+// per-frame work is scrolling texture offsets and yawing the slices. The sea
+// smoke adds no program — same material shape as the mist, so three's cache
+// hands it the one already linked — and no draw at all outside its fortnight,
+// because a layer at zero strength is made invisible rather than transparent.

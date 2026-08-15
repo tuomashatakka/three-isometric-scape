@@ -1,6 +1,13 @@
 import { describe, expect, test } from 'bun:test'
 import { SCAPE_CONFIG } from './config.ts'
-import { createSeason, freezeAmount, growthAmount, snowAmount, turnAmount } from './season.ts'
+import {
+  createSeason,
+  freezeAmount,
+  growthAmount,
+  seaSmokeAmount,
+  snowAmount,
+  turnAmount,
+} from './season.ts'
 
 
 describe('growthAmount', () => {
@@ -71,6 +78,53 @@ describe('freezeAmount', () => {
   })
 })
 
+describe('seaSmokeAmount', () => {
+  const weeks = Array.from({ length: 520 }, (_, index) => index / 520)
+
+  test('needs a winter, so there is none in summer', () => {
+    expect(seaSmokeAmount(0.5)).toBe(0)
+    expect(seaSmokeAmount(0.4)).toBe(0)
+  })
+
+  test('needs open water, so there is none at the depth of the winter', () => {
+    // The land and the sea have both taken the season by now: nothing to steam.
+    expect(seaSmokeAmount(0)).toBeLessThan(0.02)
+  })
+
+  test('smokes on the way into the winter and not on the way out', () => {
+    // The lag runs the other way in spring — the air is back and the bays are
+    // still shut — which is the difference going negative and being clamped.
+    expect(seaSmokeAmount(0.87)).toBeGreaterThan(0.5)
+    expect(seaSmokeAmount(0.13)).toBe(0)
+  })
+
+  test('peaks in the weeks between the land freezing and the sea doing it', () => {
+    const peak = weeks.reduce((best, phase) =>
+      seaSmokeAmount(phase) > seaSmokeAmount(best) ? phase : best, 0)
+
+    expect(peak).toBeGreaterThan(0.8)
+    expect(peak).toBeLessThan(1)
+  })
+
+  test('is never negative, anywhere in the year', () => {
+    for (const phase of weeks)
+      expect(seaSmokeAmount(phase)).toBeGreaterThanOrEqual(0)
+  })
+
+  test('claims fewer weeks than either winter it is the gap between', () => {
+    const steaming = weeks.filter(phase => seaSmokeAmount(phase) > 0.01).length
+    const frozen   = weeks.filter(phase => freezeAmount(phase) > 0).length
+    const white    = weeks.filter(phase => snowAmount(phase) > 0).length
+
+    expect(steaming).toBeLessThan(frozen)
+    expect(steaming).toBeLessThan(white)
+  })
+
+  test('wraps phases outside 0..1 onto the same week', () => {
+    expect(seaSmokeAmount(-1.13)).toBeCloseTo(seaSmokeAmount(0.87), 6)
+  })
+})
+
 describe('createSeason', () => {
   const season = createSeason(SCAPE_CONFIG)
 
@@ -80,6 +134,7 @@ describe('createSeason', () => {
     expect(summer.tintAmount).toBe(0)
     expect(summer.snow).toBe(0)
     expect(summer.freeze).toBe(0)
+    expect(summer.smoke).toBe(0)
   })
 
   test('withers and whitens midwinter', () => {
@@ -94,6 +149,26 @@ describe('createSeason', () => {
 
     expect(season.sample(0.06).freeze).toBeCloseTo(SCAPE_CONFIG.season.ice, 6)
     expect(mild.sample(0.06).freeze).toBe(0)
+  })
+
+  test('scales the sea smoke by how hard the coast is configured to steam', () => {
+    const still = createSeason({ ...SCAPE_CONFIG, season: { ...SCAPE_CONFIG.season, seaSmoke: 0 }})
+
+    expect(season.sample(0.87).smoke).toBeGreaterThan(0)
+    expect(still.sample(0.87).smoke).toBe(0)
+  })
+
+  test('steams before it shuts, on the same instant of the year', () => {
+    // The whole of the effect in two readings: the weeks the smoke has are the
+    // weeks the freeze has not started, and both come off the one sample. Read
+    // out rather than held — `sample` is allocation-free, so the state it hands
+    // back is the same object every time.
+    const early                       = season.sample(0.87)
+    const [ earlySmoke, earlyFreeze ] = [ early.smoke, early.freeze ]
+    const deep                        = season.sample(0)
+
+    expect(earlySmoke).toBeGreaterThan(deep.smoke)
+    expect(earlyFreeze).toBeLessThan(deep.freeze)
   })
 
   test('leans the tint toward gold only in the turn', () => {

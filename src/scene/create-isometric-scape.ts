@@ -143,7 +143,16 @@ export function createIsometricScape (
   })
   const mist = skip.has('mist')
     ? null
-    : createMistLayer({ camera, config, quality, daylight: atmosphere.daylight })
+    // Both clocks, live. The landscape and the atmosphere are both mounted
+    // ahead of the mist, so the hour and the week the sheets read have already
+    // been resolved for this frame by the time they are asked for.
+    : createMistLayer({
+      camera,
+      config,
+      quality,
+      daylight: atmosphere.daylight,
+      season:   landscape.season,
+    })
   const clouds = skip.has('clouds')
     ? null
     : createCloudLayer({ camera, config, quality, daylight: atmosphere.daylight })
