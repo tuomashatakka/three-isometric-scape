@@ -92,10 +92,15 @@ const ICE_GLSL = /* glsl */`
   // stage would otherwise need the same map the fragment stage reads and the
   // cheap tier has a tap budget of two — and because a white-noise fetch
   // thresholded into an edge gives salt and pepper where this gives lobes.
+  // The frequencies are in world units and the world got bigger, so they came
+  // down with it — floes sized for a 132-unit scape tiled visibly across a
+  // 196-unit one, and a sea of repeating lobes reads as wallpaper rather than as
+  // ice. Scaled by the same ratio, a floe is the same fraction of the water it
+  // has always been.
   float scapeFloe (vec2 p) {
-    return 0.5 + 0.34 * sin(p.x * 0.081 + p.y * 0.043) +
-      0.26 * sin(p.y * 0.117 - p.x * 0.052) +
-      0.16 * sin((p.x - p.y) * 0.207);
+    return 0.5 + 0.34 * sin(p.x * 0.0545 + p.y * 0.029) +
+      0.26 * sin(p.y * 0.0788 - p.x * 0.035) +
+      0.16 * sin((p.x - p.y) * 0.1394);
   }
 
   /**

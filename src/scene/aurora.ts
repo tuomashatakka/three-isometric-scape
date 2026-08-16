@@ -60,7 +60,16 @@ const VEIL_ALPHA   = 0.32
  * wider than the widest frame is what puts one arc across the sky and leaves
  * dark sky either side of it — and the dark either side is the entire read.
  */
-const TILE_UNITS = 140
+/**
+ * A fraction of the terrain's own extent, not a number of metres.
+ *
+ * The tile is sized against the *frame*, and the frame is sized against the
+ * island — so an island that grows without this growing with it arrives under a
+ * sky tiled half again as often, and the arcs the tile was authored to hold
+ * become a repeating field of blobs. 1.06 is the 140 units this was tuned at,
+ * over the 132-unit terrain it was tuned on.
+ */
+const TILE_FRACTION = 1.06
 
 /** Where the deck stops being sky and starts being quad, as fractions of the sheet. */
 const REACH_IN  = 0.22
@@ -234,7 +243,7 @@ export function createAuroraLayer ({
 
   function tile (index: number): Texture {
     const map = texture.clone()
-    map.repeat.setScalar(deckSize / TILE_UNITS * (1 + index * 0.21))
+    map.repeat.setScalar(deckSize / (config.terrain.size * TILE_FRACTION) * (1 + index * 0.21))
     map.offset.set(index * 0.41, index * 0.27)
     map.needsUpdate = true
     return map

@@ -77,7 +77,7 @@ describe('selectAtmosphereQuality', () => {
     expect(quality.ao).toBe(true)
     expect(quality.ssr).toBe(true)
     expect(quality.traa).toBe(true)
-    expect(quality.terrainSegments).toBe(224)
+    expect(quality.terrainSegments).toBe(288)
   })
 
   test('withholds ultra from a wide viewport without the cores to drive it', () => {

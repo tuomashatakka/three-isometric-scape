@@ -476,40 +476,86 @@ export const SCAPE_CONFIG = {
   // and it is the only place islets big enough to read as islets can stand
   // without either merging into the mainland or running off the plane's edge.
   terrain: {
-    size:        132,
-    height:      8.2,
+    // The island is a bearing away from a disc, not a radius: `sinkToIsland`
+    // warps the falloff with the coast noise, so neither of these two is a
+    // shoreline any more. `islandInner` is where the *average* bearing starts
+    // falling away and `islandOuter` where it has finished; the coast wanders
+    // either side of that band by `COAST_REACH` of its width, which is what
+    // `landRadiusOf` subtracts back off to find ground that is dry whichever way
+    // you walk. Widening the band buys raggedness and spends buildable middle.
+    size:        196,
+    height:      11.5,
     waterLevel:  -1.25,
     shoreBand:   1.15,
-    islandInner: 0.44,
-    islandOuter: 0.576,
-    seabedDrop:  7,
+    islandInner: 0.52,
+    islandOuter: 0.63,
+    seabedDrop:  9,
     // An archipelago, not a pair of outliers. Every one of these clears the
     // mainland's `islandOuter` and its neighbours' skirts, so they surface as
     // separate islands rather than merging into a reef — the spacing is the
     // whole design, and it is why the ring reads as distance.
+    // An archipelago, not a pair of outliers. Every one of these clears the
+    // mainland's warped shore and its neighbours' skirts, so they surface as
+    // separate islands rather than merging into a reef.
+    //
+    // The sizes are deliberately unequal and the spacing deliberately uneven.
+    // A ring of like-sized islets at even bearings reads as decoration however
+    // well each one is modelled — real archipelagos come in clusters with open
+    // water between them, so these are grouped: a close pair off the west shore,
+    // a scattered chain to the south, skerries too small to land on filling the
+    // gaps, and one substantial outlier holding the north-east horizon.
+    // Every one of these has to clear three things: the mainland's warped shore,
+    // its neighbours' skirts, and — the one that is easy to forget — the plane's
+    // own edge. An islet is placed by its centre and then grows a radius and a
+    // warp on top of it, so `hypot(x, z) + radius * 1.34` is the number that
+    // must stay under about 0.85. Past that the skerry is half in the void.
+    // Every one of these has to clear three things: the mainland's *warped*
+    // shore, its neighbours' skirts, and — the one that is easy to forget — the
+    // plane's own edge. An islet is placed by its centre and then grows a radius
+    // and a warp of its own on top of it, so the number that matters is
+    // `hypot(x, z) ± radius * 1.34`: it must stay outside the mainland's
+    // furthest headland (`islandOuter` plus the coast reach, about 0.70) and
+    // inside about 0.88, past which the skerry is half in the void.
     isles:       [
-      { x: -0.71, z: 0.17, radius: 0.17, height: 4.4 },
-      { x: 0.38, z: -0.63, radius: 0.14, height: 3.6 },
-      { x: 0.72, z: 0.31, radius: 0.115, height: 2.9 },
-      { x: -0.19, z: -0.7, radius: 0.1, height: 2.4 },
-      { x: 0.1, z: 0.76, radius: 0.13, height: 3.2 },
-      { x: -0.55, z: -0.52, radius: 0.12, height: 2.7 },
-      { x: 0.78, z: -0.16, radius: 0.105, height: 2.2 },
-      { x: -0.79, z: -0.14, radius: 0.09, height: 1.9 },
-      { x: 0.5, z: 0.62, radius: 0.1, height: 2.55 },
-      { x: -0.34, z: 0.72, radius: 0.115, height: 3 },
+      // The near western pair, close enough in to read as part of the place.
+      { x: -0.754, z: 0.183, radius: 0.078, height: 5.2 },
+      { x: -0.723, z: 0.376, radius: 0.045, height: 2.6 },
+
+      // The southern chain, thinning as it runs out to sea.
+      { x: 0.424, z: -0.666, radius: 0.068, height: 4.1 },
+      { x: 0.602, z: -0.66, radius: 0.042, height: 2.3 },
+      { x: 0.724, z: -0.656, radius: 0.026, height: 1.4 },
+
+      // The north-eastern outlier, and the biggest thing out there.
+      { x: 0.648, z: 0.401, radius: 0.088, height: 6.4 },
+      { x: 0.795, z: 0.243, radius: 0.036, height: 2 },
+
+      // Skerries. Barely more than rock, and the reason the water between the
+      // clusters is not simply empty.
+      { x: -0.26, z: -0.75, radius: 0.032, height: 1.6 },
+      { x: 0.106, z: 0.799, radius: 0.055, height: 3.1 },
+      { x: -0.346, z: 0.75, radius: 0.04, height: 2.2 },
+      { x: -0.702, z: -0.378, radius: 0.062, height: 3.6 },
+      { x: -0.613, z: -0.574, radius: 0.03, height: 1.5 },
+      { x: 0.794, z: -0.255, radius: 0.034, height: 1.8 },
+      { x: -0.577, z: 0.643, radius: 0.045, height: 2.5 },
+      { x: 0.372, z: 0.735, radius: 0.042, height: 2.4 },
     ],
     detailScale: 7.5,
     detailGrain: 0.34,
     detailMacro: 0.62,
   },
+  // The farmstead is not scaled with the island, and that is the point of a
+  // bigger island: one holding on a landmass that is mostly wild, rather than a
+  // landmass that is entirely one holding. Only the field count grows, because
+  // three plots on this much arable read as a smallholding on a moor.
   layout: {
-    yardRadius:     17,
+    yardRadius:     19,
     trackWidth:     3.2,
-    plotCount:      3,
+    plotCount:      4,
     fenceSpacing:   2.2,
     forestBias:     0.72,
-    harbourSpread:  34,
+    harbourSpread:  38,
     pastureRadius:  6,
     pastureGateway: 17,
   },
@@ -526,27 +572,33 @@ export const SCAPE_CONFIG = {
     wander: 1.1,
     wear:   0.82,
   },
+  // Roughly doubled against the run before this one, because the island is
+  // roughly twice the ground. A budget is a *count*, not a density, so leaving
+  // these alone would have grown the island and thinned everything standing on
+  // it — the same forest spread over twice the hillside is a wood turning into
+  // a scrub. What did not grow is the farm: one holding has the barrels, bales
+  // and firewood one holding has, whatever it is standing on.
   dressing: {
-    spruce:     260,
-    pine:       90,
-    birch:      74,
-    deadSpruce: 24,
-    sapling:    130,
-    stump:      42,
-    grass:      900,
-    heather:    260,
-    wildflower: 120,
-    reeds:      190,
-    lilyPads:   44,
-    crop:       420,
-    erratic:    26,
-    fieldStone: 92,
-    cobble:     170,
-    cairn:      8,
+    spruce:     520,
+    pine:       180,
+    birch:      148,
+    deadSpruce: 48,
+    sapling:    250,
+    stump:      80,
+    grass:      1_700,
+    heather:    500,
+    wildflower: 230,
+    reeds:      330,
+    lilyPads:   70,
+    crop:       560,
+    erratic:    52,
+    fieldStone: 176,
+    cobble:     300,
+    cairn:      14,
     hayBale:    14,
     firewood:   7,
     barrel:     9,
-    driftwood:  20,
+    driftwood:  44,
 
     mooringPost: 22,
     hayPole:     7,
@@ -564,9 +616,9 @@ export const SCAPE_CONFIG = {
     iceBreak:       0.5,
   },
   camera: {
-    viewSize:    54,
+    viewSize:    70,
     minViewSize: 8,
-    maxViewSize: 92,
+    maxViewSize: 132,
     rotation:    45,
     tiltNear:    21,
     tiltFar:     52,
@@ -583,7 +635,7 @@ export const SCAPE_CONFIG = {
     hemiGround:   0x3d4433,
     hemiStrength: 0.72,
     cloudShadow:  0.42,
-    cloudScale:   62,
+    cloudScale:   92,
     cloudSpeed:   0.9,
     cloudCover:   0.5,
     cloudHeight:  34,

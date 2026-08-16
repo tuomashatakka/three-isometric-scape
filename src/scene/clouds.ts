@@ -53,7 +53,13 @@ const DECK_ALPHA   = 0.34
  * separate clouds — the gaps are the whole effect, and there are no gaps in a
  * pattern whose features are larger than the picture.
  */
-const TILE_UNITS = 72
+/**
+ * A fraction of the terrain's own extent, not a number of metres. The gaps
+ * between clouds are the whole effect, and a tile that stays put while the
+ * island grows repeats often enough to close them. 0.545 is the 72 units this
+ * was tuned at, over the 132-unit terrain it was tuned on.
+ */
+const TILE_FRACTION = 0.545
 
 /** Where the field stops being sky and starts being sheet, as fractions of the sheet. */
 const REACH_IN  = 0.2
@@ -138,7 +144,7 @@ export function createCloudLayer ({
 
   function tile (index: number): Texture {
     const map = texture.clone()
-    map.repeat.setScalar(deckSize / TILE_UNITS * (1 + index * 0.29))
+    map.repeat.setScalar(deckSize / (config.terrain.size * TILE_FRACTION) * (1 + index * 0.29))
     map.offset.set(index * 0.37, index * 0.19)
     map.needsUpdate = true
     return map

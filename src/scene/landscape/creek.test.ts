@@ -63,12 +63,35 @@ describe('the beck', () => {
   })
 
   test('the claim is full on the centreline and gone well off it', () => {
-    const middle = creek!.points[Math.floor(creek!.points.length / 2)]
-    const reach  = creek!.halfWidthAt(1) * 4
+    const points = creek!.points
+    const middle = points[Math.floor(points.length / 2)]
+
+    /** Distance from a point to the nearest point of the course, whichever bend it is on. */
+    const toCourse = (x: number, z: number): number =>
+      Math.min(...points.map(point => Math.hypot(point.x - x, point.z - z)))
 
     expect(creek!.claimAt(middle.x, middle.z)).toBeGreaterThan(0.9)
-    expect(creek!.claimAt(middle.x + reach, middle.z)).toBe(0)
-    expect(creek!.claimAt(middle.x, middle.z + reach)).toBe(0)
+
+    // Stepped out on a ray and stopped at the first point that is genuinely
+    // clear of the *whole* course, rather than at a fixed multiple of the
+    // channel width. A beck that meanders is a beck that comes back: on this
+    // island the course doubles within twenty metres of its own midpoint, so a
+    // fixed sideways step lands in another bend and reads — correctly — as
+    // channel. The claim is a fact about distance to the water, and that is what
+    // this asks about.
+    const clear = creek!.halfWidthAt(1) * 4
+
+    for (const [ dx, dz ] of [[ 1, 0 ], [ -1, 0 ], [ 0, 1 ], [ 0, -1 ]]) {
+      let step = clear
+
+      while (step < HALF && toCourse(middle.x + dx * step, middle.z + dz * step) < clear)
+        step += clear
+
+      if (step >= HALF)
+        continue
+
+      expect(creek!.claimAt(middle.x + dx * step, middle.z + dz * step)).toBe(0)
+    }
   })
 
   test('the course runs 0 at the spring and 1 at the mouth', () => {

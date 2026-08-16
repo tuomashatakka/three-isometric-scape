@@ -1,6 +1,6 @@
 import { createSeededRng, smoothstep } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
-import { sampleHeight } from '../noise.ts'
+import { coastWarp, sampleHeight } from '../noise.ts'
 import { createCreek } from './creek.ts'
 import type { Creek } from './creek.ts'
 import { distanceToPath, smoothPath } from './path.ts'
@@ -55,12 +55,53 @@ export interface ScapeLayout {
   shoreBand:  number
 }
 
-const YARD_PROBES = 24
+// Probe grids, not probe spacings — so an island that grows without these
+// growing with it is an island searched at coarser resolution for the same
+// features. Sized to hold roughly the spacing they had at the island this
+// composition was first tuned on.
+const YARD_PROBES = 32
 const TRACK_STEPS = 26
 
-function baseAt (config: ScapeConfig, x: number, z: number): number {
-  return sampleHeight(x, z, config.seed, config.terrain.height)
+/**
+ * The radius the central massif's lift reaches to, in metres. See `noise.ts`.
+ *
+ * The mean coastline rather than either threshold — the lift is what gives the
+ * island high ground in its middle, so it should reach to about where the island
+ * ends on an average bearing.
+ */
+export function liftRadiusOf (config: ScapeConfig): number {
+  const { size, islandInner, islandOuter } = config.terrain
+
+  return size * 0.25 * (islandInner + islandOuter)
 }
+
+/**
+ * How much of the terrain amplitude the central massif is worth.
+ *
+ * Twice what the sampler assumes on its own, because this island is twice the
+ * ground it was. The fBm averages to nothing at any size, so the lift is the
+ * only thing standing between a large island and a large *flat* island — and a
+ * flat island has no upland for a pasture, no hillside for a beck, and no
+ * reason for the farm to be where the farm is.
+ */
+export const MASSIF = 0.34
+
+function baseAt (config: ScapeConfig, x: number, z: number): number {
+  return sampleHeight(x, z, config.seed, config.terrain.height, liftRadiusOf(config), MASSIF)
+}
+
+/**
+ * How far the coast may wander from the circle, as a fraction of the band
+ * between `islandInner` and `islandOuter`.
+ *
+ * Two thirds of the band. At a third the island is a disc with a wobble; at one
+ * the bays reach the inner radius and the island has no guaranteed middle left
+ * at all. The number is not free to choose on its own — `landRadiusOf` subtracts
+ * it back off to find the ground that is dry at *every* bearing, so raising this
+ * makes a raggeder coast around a smaller buildable core, and the config's
+ * `islandInner` has to pay for it.
+ */
+const COAST_REACH = 0.65
 
 /**
  * Sink a raw fBm height into the island.
@@ -70,6 +111,13 @@ function baseAt (config: ScapeConfig, x: number, z: number): number {
  * `islandOuter` and the plane's own straight edges are always far under water
  * rather than reading as the edge of the world.
  *
+ * Radial, but not *circular*. The bearing-dependent warp is what turns a disc
+ * into a coastline: the falloff moves out into headlands and in into bays, and
+ * because every other part of the scape is written against this function rather
+ * than against a radius, all of them inherit the shape. The beach shelves along
+ * it, the foam follows it, the scatter searches respect it, and the mist's land
+ * mask is cut by it — none of which had to be told.
+ *
  * `height.ts` builds the ground with this, and the layout searches ask it what
  * the ground *will* be before that ground exists. Two approximations of the
  * same falloff is how a wall gets sited on land that turns out to be sea.
@@ -78,7 +126,13 @@ export function sinkToIsland (config: ScapeConfig, x: number, z: number, height:
   const { size, waterLevel, seabedDrop, islandInner, islandOuter } = config.terrain
 
   const seabed = waterLevel - seabedDrop
-  const land   = 1 - smoothstep(islandInner, islandOuter, Math.hypot(x, z) / (size * 0.5))
+  const reach  = (islandOuter - islandInner) * COAST_REACH
+
+  // Subtracted from the *distance* rather than added to the thresholds, which is
+  // the same arithmetic and a different thing to read: a headland is ground that
+  // is nearer the middle than it looks.
+  const radius = Math.hypot(x, z) / (size * 0.5) - coastWarp(x, z, config.seed) * reach
+  const land   = 1 - smoothstep(islandInner, islandOuter, radius)
 
   return seabed + (height - seabed) * land
 }
@@ -105,8 +159,19 @@ function roughness (config: ScapeConfig, x: number, z: number, reach: number): n
   return worst
 }
 
+/**
+ * The radius that is dry whichever way you walk, in metres.
+ *
+ * Every placement search treats this as solid ground, so it has to be the
+ * *worst* bearing rather than the average one. Before the coast was warped that
+ * was simply `islandInner`; now a bay can cut a whole `COAST_REACH` of the
+ * falloff band inward, and a search that still trusted the old number sited a
+ * walled meadow with a third of its wall standing in the sea.
+ */
 function landRadiusOf (config: ScapeConfig): number {
-  return config.terrain.size * 0.5 * config.terrain.islandInner
+  const { size, islandInner, islandOuter } = config.terrain
+
+  return size * 0.5 * (islandInner - (islandOuter - islandInner) * COAST_REACH)
 }
 
 function findYard (config: ScapeConfig): Yard {
@@ -236,7 +301,7 @@ function findRidges (config: ScapeConfig, yard: Yard): Ridge[] {
   return ridges
 }
 
-const PASTURE_PROBES = 30
+const PASTURE_PROBES = 40
 const RING_PROBES    = 12
 
 /**
@@ -251,7 +316,14 @@ function ringIsDry (config: ScapeConfig, x: number, z: number, radius: number): 
     const angle = step / RING_PROBES * Math.PI * 2
     const level = sunkAt(config, x + Math.cos(angle) * radius, z + Math.sin(angle) * radius)
 
-    if (level < config.terrain.waterLevel + 1.2)
+    // Measured against the ground *before* the beach shelving, which is the
+    // only ground this search has — `height.ts` compresses the first metre or so
+    // above the waterline to about 0.44 of its height to make a beach, and it
+    // does that after every placement decision has already been taken. A ring
+    // cleared at a metre of raw height comes back at half a metre of built
+    // height, which is a wall standing in the surf. The margin is what that
+    // compression costs, paid in advance.
+    if (level < config.terrain.waterLevel + 1.9)
       return false
   }
 
@@ -285,7 +357,16 @@ function findPasture (
   // past the island falloff, where the sampled ground and the built ground
   // stop agreeing — the first version of this search drowned a third of the
   // enclosure and the centre it chose was five metres of dry hillside.
-  const reach = landRadiusOf(config) - radius
+  const landRadius = landRadiusOf(config)
+
+  // Searched out to the *mean* coastline rather than to the radius that is dry
+  // at every bearing, because unlike the yard search this one verifies its
+  // ground: `ringIsDry` walks the whole enclosure and `dryness` gates the
+  // centre, so a candidate out on a headland is checked rather than assumed, and
+  // one in a bay is rejected on the evidence. Held to the guaranteed radius
+  // instead, the search cannot reach the high ground of an island whose
+  // coastline is not a circle — which is every island.
+  const reach = liftRadiusOf(config) - radius
 
   // Clear of the yard's *graded shelf*, not just of its buildings. The yard
   // levelling reaches 1.25 radii out, so a pasture sited on the buildings alone
@@ -329,7 +410,13 @@ function findPasture (
       if (!ringIsDry(config, x, z, radius))
         continue
 
-      const score = dryness * 0.55 - rough * 2.4 + fromYard * 0.06
+      // Distance as a fraction of the island rather than in metres. The three
+      // terms are weighed against each other, and two of them are heights — so
+      // a raw distance is the one term that changes meaning when the island
+      // changes size, and on a larger one it quietly outranks the height it is
+      // supposed to be breaking ties on. Grazing land that is merely *far* is
+      // not upland.
+      const score = dryness * 0.55 - rough * 2.4 + fromYard / landRadius * 1.75
 
       if (score > bestScore) {
         bestScore = score
@@ -368,7 +455,13 @@ export function createScapeLayout (config: ScapeConfig): ScapeLayout {
     [
       { x: yard.x, z: yard.z, radius: yard.radius * 1.15 },
       ...plots.map(plot => ({ x: plot.x, z: plot.z, radius: Math.max(plot.halfW, plot.halfD) })),
-      ...pasture ? [{ x: pasture.x, z: pasture.z, radius: pasture.radius }] : [],
+      // Padded by the channel it has to clear, and not by a margin for taste.
+      // A disc handed over at exactly the pasture radius is a disc the beck may
+      // run tangent to — and the pasture radius *is* the wall line, so tangent
+      // means the channel is cut directly under the drystone. The beck missed
+      // the meadow by nothing at all and took four metres out from under its
+      // eastern wall. What it must miss is the wall plus the water.
+      ...pasture ? [{ x: pasture.x, z: pasture.z, radius: pasture.radius + config.creek.width * 2 }] : [],
     ],
   )
 

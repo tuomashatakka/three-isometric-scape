@@ -1,7 +1,7 @@
 import { smoothstep } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
-import { sampleHeight } from '../noise.ts'
-import { distanceToTrack, plotInfluence, sinkToIsland } from './layout.ts'
+import { coastWarp, sampleHeight } from '../noise.ts'
+import { MASSIF, distanceToTrack, liftRadiusOf, plotInfluence, sinkToIsland } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
 
 
@@ -25,6 +25,16 @@ export interface HeightField {
 
 /** Fraction of an islet's radius held at full height before the skirt starts. */
 const ISLE_PLATEAU  = 0.55
+
+/**
+ * How far an islet's own shore wanders from its circle, as a fraction of radius.
+ *
+ * The mainland's coast is warped for the obvious reason; a ring of perfect discs
+ * around it would give the game away just as completely, and at this scale more
+ * visibly — a small island is nearly all coastline. Kept under the plateau
+ * fraction so the warp can only reshape the skirt, never eat the crown.
+ */
+const ISLE_REACH    = 0.34
 const TRACK_DEPTH   = 0.26
 const YARD_STRENGTH = 0.94
 const PLOT_STRENGTH = 0.9
@@ -70,18 +80,24 @@ export function createHeightField (config: ScapeConfig, layout: ScapeLayout): He
   const { yard, track }           = layout
   const corridor                  = track.width * 1.7
   const half                      = config.terrain.size * 0.5
+  const lift                      = liftRadiusOf(config)
 
-  // Islets, resolved from fractions into metres once.
-  const isles = config.terrain.isles.map(isle => ({
+  // Islets, resolved from fractions into metres once. Each carries a seed of its
+  // own so the ring is a set of different islands rather than one island stamped
+  // out at eleven bearings — with a shared seed the warp is a function of world
+  // position, which at this scale is nearly constant across a single islet and
+  // would only nudge the whole disc sideways.
+  const isles = config.terrain.isles.map((isle, index) => ({
     x:      isle.x * half,
     z:      isle.z * half,
     radius: isle.radius * half,
     crown:  waterLevel + isle.height,
+    seed:   config.seed ^ 0x9e37 + index * 0x4f1b,
   }))
 
   /** Base fBm, sunk into an island, shelved at the waterline, then levelled. */
   function graded (x: number, z: number): number {
-    let height = sampleHeight(x, z, config.seed, config.terrain.height)
+    let height = sampleHeight(x, z, config.seed, config.terrain.height, lift, MASSIF)
 
     // Drown the rim. `sinkToIsland` lives in `layout.ts` because the placement
     // searches there have to agree with this exactly — see its own note.
@@ -99,7 +115,15 @@ export function createHeightField (config: ScapeConfig, layout: ScapeLayout): He
     // one-metre pebble. Holding the blend at 1 across the inner half puts the
     // waterline out at roughly 0.72 of the radius, where you asked for it.
     for (const isle of isles) {
-      const distance = Math.hypot(x - isle.x, z - isle.z)
+      // Warped like the mainland's, in the islet's own frame. The local
+      // coordinates are scaled up before the warp is sampled because the warp's
+      // wavelength is sized for a coastline tens of metres long, and an islet is
+      // a tenth of that — sampled at world scale it would return the same value
+      // across the whole disc and move the shore nowhere.
+      const dx       = x - isle.x
+      const dz       = z - isle.z
+      const warp     = coastWarp(dx * 7, dz * 7, isle.seed) * ISLE_REACH
+      const distance = Math.hypot(dx, dz) - warp * isle.radius
 
       if (distance >= isle.radius)
         continue

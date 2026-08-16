@@ -24,7 +24,7 @@ bun run preview
 ## what is included
 
 - a deterministic procedural heightfield with editable seed, scale, waterline, and palette
-- a mainland farmstead ringed by ten offshore islets, landscape only, never built on
+- a mainland farmstead on a warped, non-circular coastline, ringed by fifteen offshore islets, landscape only, never built on
 - a working boat harbour: a boathouse on piles with a slipway, a net rack, and stakes in the shallows
 - footpaths worn between the places the farm actually goes — traced as desire lines over the ground as built, painted into the terrain it crosses, and kept clear of grass and stone without costing a draw call
 - a beck traced downhill from a spring on the high ground, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself — no extra draw call, no extra material
@@ -437,6 +437,26 @@ the terrain has always been a shadow caster, but the sun's shadow frustum was fi
 
 the ground it falls on carries **two octaves of grain, and a roughness break**. one scale gives ground a texture but not a history: real soil has metre-wide patches of wear and damp under the centimetre-wide grit, and without the broad octave the fine one tiles into a visible weave the moment you zoom out past its repeat. both fetches come from the same 256² texture at different frequencies, so the second costs a sampler read and no memory. the third piece is specular — uniform roughness is the giveaway that a surface is a render, because nothing outdoors reflects evenly — so the fine grain also polishes and dulls it by a few percent, and wet silt stops being the same material as dry heath under the same vertex colour.
 
+## the shape of the island
+
+a radial falloff draws a perfect disc, and nothing in the sea is a disc. `sinkToIsland` warps the falloff itself with a two-octave noise on the bearing, so the island grows headlands where the value is high and cuts bays where it is low — and because *every* other part of the scape is written against that function rather than against a radius, all of them inherit the shape without being told: the beach shelves along it, the foam follows it, the placement searches respect it, and the mist's land mask is cut by it.
+
+the fix is deliberately not "add detail to the height". roughening the terrain under a circular falloff gives a rougher coastline that is still round. the falloff is the coastline.
+
+**`islandInner` and `islandOuter` stopped being shorelines when the coast started wandering.** they are where an *average* bearing starts and finishes falling away; the coast moves either side of that band by `COAST_REACH` of its width. so there are now three radii worth naming, and confusing them is how a wall ends up in the sea:
+
+| | what it is |
+| --- | --- |
+| `landRadiusOf` | dry whichever way you walk — `islandInner` less the whole coast reach |
+| `liftRadiusOf` | the mean coastline, and how far the central massif reaches |
+| `islandOuter` + reach | the furthest a headland can get, and what the islets must clear |
+
+every placement search that assumes solid ground uses the first. the pasture search uses the second, because unlike the others it *verifies* its ground — `ringIsDry` walks the whole enclosure — so it can go looking on a headland and be told no. held to the guaranteed radius it could not reach the high ground of an island whose coastline is not a circle, which is every island.
+
+**the massif is what makes a big island an island.** the fbm averages to nothing at any size while the falloff still has to bring the whole rim down to the same sea, so a larger island built from noise alone is a larger *flat* island — and a flat island has no upland for a pasture, no hillside for a beck, and no reason for the farm to be where the farm is. the radial lift in `noise.ts` is that shape, and it is now sized to the island rather than fixed at the 58 units the first one happened to be.
+
+**things sized in metres do not survive a change of scale.** growing the island exposed every constant that was really a fraction wearing metres: the sky and cloud decks tiled half again as often and turned to wallpaper, the sea-ice floes did the same, the pasture's distance-from-the-farm score outranked the height it was supposed to be breaking ties on, and the probe grids searched the same number of points over twice the ground. all of them are expressed against `terrain.size` now.
+
 ## islets
 
 `terrain.isles` are raised *after* the island falloff, never before. the falloff's whole job is to drown the terrain plane's rim unconditionally so its square edges never read as the edge of the world; anything meant to survive out there has to come later.
@@ -445,7 +465,9 @@ their profile is a **plateau with a skirt, not a dome**, and that is what decide
 
 they also need somewhere to stand. the ring between the mainland's shore and the plane's edge was too narrow to hold anything that would not either merge into the mainland or run off the world, so the plane is wider and `islandInner`/`islandOuter` are scaled to keep the farmstead's landmass exactly where it was. the extra span is open sea.
 
-there are ten of them, and the spacing is the design: each one clears the mainland's `islandOuter` *and* its neighbours' skirts, which is the difference between an archipelago and a reef.
+there are fifteen of them, and the spacing is the design: each one clears the mainland's *warped* shore and its neighbours' skirts, which is the difference between an archipelago and a reef. they are grouped rather than evenly spread — a close western pair, a southern chain thinning as it runs out, one substantial north-eastern outlier, and skerries filling the gaps — because a ring of like-sized islets at even bearings reads as decoration however well each one is modelled.
+
+they get the same coast warp the mainland does, sampled in each islet's own frame with a seed of its own. at world scale the warp is very nearly constant across a disc eight metres wide, so it would only nudge the whole islet sideways; sampled seven times tighter it reshapes the skirt, which is where a small island is nearly all coastline.
 
 finally they change how the scatter samples. the placement field is now mostly open sea, and a uniform disc throws most of every attempt budget into the water — the island thins out to prove it. candidates are drawn from the mainland *or* from one of the islets instead, so the islets get dressed by the same instanced meshes.
 

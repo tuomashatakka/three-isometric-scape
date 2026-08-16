@@ -28,7 +28,13 @@ export interface AtmosphereQuality {
    */
   auroraLayers: number
 
-  /** Terrain plane subdivisions per side. */
+  /**
+   * Terrain plane subdivisions per side.
+   *
+   * A count, not a density — so it is sized against `terrain.size`, and a run
+   * that grows the island has to grow these with it or the same island arrives
+   * with coarser ground under it. Roughly 0.94 metres to a segment on desktop.
+   */
   terrainSegments: number
 
   /** Multiplier on every dressing budget. */
@@ -118,7 +124,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     msaaSamples:     0,
     tiltShiftPairs:  0,
     auroraLayers:    0,
-    terrainSegments: 48,
+    terrainSegments: 60,
     scatterScale:    0.16,
     ao:              false,
     ssr:             false,
@@ -143,7 +149,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     msaaSamples:     0,
     tiltShiftPairs:  1,
     auroraLayers:    1,
-    terrainSegments: 64,
+    terrainSegments: 84,
     scatterScale:    0.32,
     ao:              false,
     ssr:             false,
@@ -172,7 +178,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     msaaSamples:     4,
     tiltShiftPairs:  2,
     auroraLayers:    2,
-    terrainSegments: 160,
+    terrainSegments: 208,
     scatterScale:    1,
     ao:              false,
     ssr:             false,
@@ -197,7 +203,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     msaaSamples:     8,
     tiltShiftPairs:  2,
     auroraLayers:    3,
-    terrainSegments: 224,
+    terrainSegments: 288,
     scatterScale:    1.5,
     ao:              true,
     ssr:             true,
