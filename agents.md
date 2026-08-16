@@ -1,0 +1,276 @@
+# agents.md
+
+the tool reference for anything working on this repository without a pair of eyes on the canvas. [`instructions.md`](instructions.md) is *what to do*; this is *what you have to do it with*. the [readme](README.md) is the design record and explains why the scene is the way it is.
+
+**the one rule that saves the most time:** almost nothing here needs a browser. world generation, prop building, path planning and the whole palette are pure typescript — no `three`, no gl context, no dom. so the fast loop is `bun` and ascii, and a screenshot is the *last* resort rather than the first.
+
+| you want to know | reach for | costs |
+| --- | --- | --- |
+| did the composition survive | `bun run scape:map --stats` | ~16 ms, no browser |
+| where is everything | `bun run scape:map` | ~16 ms, no browser |
+| what does this one prop look like | `bun run prop:map <name>` | ~40 ms, no browser |
+| what colour is where on a prop | `bun run prop:map <name> --audit` | ~40 ms, no browser |
+| what does the roster look like | `/props.html` (dev server) | one gpu context |
+| how does one prop measure up | `/props.html?prop=<name>` | one gpu context |
+| does it still draw at all | `bun run scape:shot` | ~20 s per pose |
+| did my change move the picture | `bun run scape:diff --ref origin/main` | minutes, builds a ref |
+
+---
+
+## the fast loop, in order of cost
+
+### `bun run scape:map` — the whole composition, as ascii
+
+no browser, no gpu, no dependency. [`landscape/survey.ts`](src/scene/landscape/survey.ts) resolves the ground, the farm, the landings and the paths without building a vertex, and this renders it.
+
+```sh
+bun run scape:map                      # grid + stats
+bun run scape:map --stats              # numbers only, ~100 words
+bun run scape:map --seed 999           # a different island
+bun run scape:map --window 40,-20,60   # crop: cx,cz,halfspan
+bun run scape:map --cols 150           # wider grid
+bun run scape:map --layers paths,steading
+bun run scape:map --json               # for scripting
+```
+
+the stats block is the check that catches what a still cannot — a beck that stopped tracing, an island that drowned, a pasture that never found room, footpaths that collapsed to zero. **read it before and after every change.**
+
+```text
+seed 7319  size 196m  water -1.25m  grid 96x48  2.04x4.08 m/cell
+land 19.6%  above snowline 82%  peak 9.09m @ (17, 18)
+yard (-17,-0.7) r19    track 27pts 48.8m    landRadius 44
+footpaths 20 routes, 297.5m total, longest 28.7m
+creek OK  head (19,23) 7.88m -> mouth (47,46) -14.3m  len 38.7m
+pasture (34.9,-9) r6   plots 4   ridges 5   isles 15/15 surfacing
+steading  farmhouse(-8,3) barn(-16,-14) aitta(-27,6) woodshed(-28,-7) sauna(-17,16)
+landing (-5,-13)  harbour (51,-9)
+```
+
+### `bun run prop:map` — one prop, as ascii
+
+the same bargain one scale down. builds exactly one geometry through its own z-buffered rasteriser ([`scripts/raster.ts`](scripts/raster.ts)). **use this instead of a screenshot when you touch a prop builder.**
+
+```sh
+bun run prop:map farmhouse                 # the play angle
+bun run prop:map farmhouse --view right    # the angle you can measure from
+bun run prop:map barn --view front,right   # stacked
+bun run prop:map farmhouse --audit         # palette entry by height band
+bun run prop:map --all --cols 48           # the whole roster
+bun run prop:map --list                    # names only
+bun run prop:watch farmhouse               # re-render on save
+```
+
+views: `front` `back` `right` `left` `top` `iso`. flags: `--cols`, `--cell`, `--seed`.
+
+`--audit` names the palette entry every baked facet came from and the height band it covers, so *"does `faluDark` appear above the roofline"* is one line of output. two things to know: the match is done in **linear** colour (three bakes the colour attribute out of srgb, and that is a power curve, not a scale — matched in srgb the rust chimney lands in the falu bucket); and the greys — granite, shingle, iron, trim — are near-collinear, so read them as one family.
+
+### `/props.html` — the prop viewer
+
+its own vite entry importing the roster and nothing else from the scene, so it stays loadable exactly when the terrain or the post chain is what is broken.
+
+```sh
+bun run dev     # then open /props.html
+```
+
+- **bare** — a contact sheet of all forty props, grouped `placed by hand` / `scattered`, captioned with triangle count and metres, filterable. cards flag any prop whose base is off `y = 0`.
+- **`?prop=<name>&seed=<n>`** — four orthographic viewports (top / front / left / iso) with grids, wireframe and bounds.
+
+both are real urls. `esc` returns to the sheet, `1`–`4` solo a pane, `0` restores, `f` frames, `g`/`x`/`w`/`b` toggle grid, axes, wire and bounds.
+
+### `bun run scape:shot` — a still
+
+```sh
+bun run scape:shot                                  # one frame, default pose
+bun run scape:shot --poses tour                     # 6 frames, one browser launch
+bun run scape:shot --rot 30 --zoom 12 --time 0.02
+bun run scape:shot --tier ultra --set look.bloom=0
+bun run scape:shot --skip post                      # drop the optical chain
+```
+
+`tour` is `default`, `near`, `far`, `noon`, `night`, `winter`. every capture prints a line before anything opens the image, and most runs need only that line:
+
+```text
+near   ok   5.3s  fps  15.7  draws   50  tris 0.20M  f  43  err 0  -> .scape/shots/near.png
+```
+
+three defaults are load-bearing:
+
+- **the tier is pinned, not detected** (`--tier mobile` by default). two stills at two tiers are not a comparison.
+- **it renders on swiftshader, not the gpu.** slower, exactly reproducible. `--gpu` trades that back when nobody will diff the result.
+- **the shutter waits on a frame count** (`--frames 40`), not a clock. measured: a fixed 900 ms settle gave 50 draws on one run and 108 on the next, because the cloud deck and the mist fade in over *frames*.
+
+`--set a.b=1` reaches any dotted config path — the same paths the overlay and the settings snapshot use — so a knob added to [`config.ts`](src/scene/config.ts) is reachable from a url the day it lands.
+
+### `bun run scape:diff` — what the change did
+
+```sh
+bun run scape:diff --ref origin/main --poses tour
+bun run scape:diff --clean          # drop the cached ref worktree
+```
+
+builds the reference in a detached git worktree, serves both, captures the same poses through both, prints a table. an image is written **only** for a pose that moved past `--threshold`. the `structural:` line runs `scape:map --json` on both sides.
+
+noise floor, measured: two captures of the same commit differ in ~14% of pixels by 1–2 levels, and **0.00%** at the default tolerance. a zero means zero.
+
+`.scape/` holds every artefact and is gitignored.
+
+---
+
+## the gate
+
+all four, in this order, all clean, before anything is pushed:
+
+```sh
+bun run lint        # eslint, warnings included — the repo is warning-clean
+bun run typecheck   # tsc --noEmit
+bun test            # bun test
+bun run build       # tsc --noEmit && vite build
+```
+
+`bunx eslint . --fix` first, then read the diff it produced. do not hand-format against [`@tuomashatakka/eslint-config`](https://www.npmjs.com/package/@tuomashatakka/eslint-config): no semicolons, single quotes, two-space indent, value-aligned object keys, stroustrup braces, spaces inside braces and brackets, two blank lines after the import block. it also enforces **max 400 statements-ish per function and a file line limit** — a file over it is telling you to split it.
+
+other scripts: `bun run dev` (vite on 127.0.0.1:4174), `bun run preview`.
+
+---
+
+## url overrides
+
+on the running page — useful on a device you cannot attach a debugger to:
+
+| param | does |
+| --- | --- |
+| `?debug` | live vitals in the frame counter, and opens the card whatever was last chosen |
+| `?tier=minimal\|mobile\|desktop\|ultra` | forces a tier past detection *and* past tier memory |
+| `?post=0\|1` | forces the optical chain either way |
+| `?set=look.bloom=0,daylight.time=0.5` | any dotted config path, comma separated |
+
+---
+
+## the codebase, by what you would be changing
+
+### a prop
+
+`src/scene/props/*.ts`. every builder is `(rng: SeededRng, palette: NordicPalette) => BufferGeometry` — no scene, no gl, no module state, base at `y = 0`. that purity is what makes `prop:map` and the headless tests possible; keep it.
+
+register in [`props/index.ts`](src/scene/props/index.ts) and put the name in `HERO_PROPS` (merged into the single steading draw) or `SCATTER_PROPS` (one `InstancedMesh`) deliberately.
+
+| file | holds |
+| --- | --- |
+| `palette.ts` | the nordic colour vocabulary |
+| `primitives.ts` | terse primitive constructors (`box`, `cyl`, …) |
+| `timber.ts` | cladding, gables, roofs, dormers, windows — **and the roof-plane rule** |
+| `buildings.ts` | farmhouse, barn, sauna, aitta, woodshed |
+| `structures.ts` | jetty, well, hay rack, gate, bridge, cart |
+| `shore.ts` | boathouse and slipway, net rack, mooring stakes |
+| `upland.ts` | meadow barn, hay drying poles |
+| `vegetation.ts` | spruce, pine, birch, grass, reeds, crops |
+| `stone.ts` | erratics, field stones, cobbles, cairns |
+| `objects.ts` | rowboat, bales, firewood, barrel, mailbox, driftwood |
+| `fence.ts` / `wall.ts` | ground-following runs — take a polyline, not an rng |
+| `ploppable.ts` | 2d placement with a ground-following foundation |
+| `material.ts` | the two shared materials, cloud shadow, wind, soil grain, wetness, snow |
+
+**the roof-plane rule**: a gabled roof is a *plane*, and every other part of the building either lands on it or stays under it. `roofUnderside(roof, across)` is that plane and it is exported so a building asks rather than re-derives. two descriptions of one plane is one description too many — that is exactly the bug that put dark red blocks across every roof in the scape.
+
+### the composition
+
+`src/scene/landscape/*.ts`. **the resolution order is load-bearing and lives in [`survey.ts`](src/scene/landscape/survey.ts)** — layout → height → steading → landings → network → footpaths. paths answer to the *levelled* yard and the *carved* beck, not to raw fBm.
+
+| file | holds |
+| --- | --- |
+| `survey.ts` | the pure composition, before anything is drawn — **the tools' entry point** |
+| `layout.ts` | yard, cart track, field plots, ridges, pasture, `sinkToIsland`, `yawAlong` |
+| `height.ts` | authored ground, islets, beck, fbm underneath |
+| `steading.ts` | where the buildings stand, `faceToward`, `doorstepOf` |
+| `landing.ts` | the shoreline the jetty and the harbour are on |
+| `path.ts` | polyline smoothing and queries — reuse these, do not re-derive them |
+| `network.ts` | the farm's street plan: waypoints, spanning tree, shortcuts |
+| `footpath.ts` | tracing a planned leg into a worn line, and the wear query |
+| `creek.ts` | the beck: descent trace, channel, tidal mouth |
+| `terrain.ts` | geometry, height/slope banded colour, path wear painted in |
+| `water.ts` | baked bathymetry, swell, foam, glitter, winter ice |
+| `samplers.ts` | where the dressing throws its darts — island, disc, tread |
+| `dressing.ts` | placement, hero merge, instanced scatter |
+| `index.ts` | the scene module, and what raycasts |
+
+**a yaw is not a bearing.** `rotateY(θ)` carries a prop's front (local `+z`) to `(sin θ, cos θ)`; a compass bearing points at `(cos a, sin a)`. they are reflections and agree on exactly one diagonal, which is why getting it wrong survives for months. use `faceToward(from, to)` for props and `yawAlong(bearing)` for anything laid along a line.
+
+### an atmospheric system
+
+`src/scene/*.ts` — `atmosphere.ts`, `mist.ts`, `clouds.ts`, `aurora.ts`, `rain.ts`, `post.ts`, and the three clocks `daylight.ts` / `season.ts` / `weather.ts`. composed in [`create-isometric-scape.ts`](src/scene/create-isometric-scape.ts).
+
+### a knob
+
+[`config.ts`](src/scene/config.ts) is the public tuning surface. **if it is visual and read per frame**, add a dotted path to [`ui/scape-controls.ts`](src/ui/scape-controls.ts) and it persists, resets and becomes url-addressable for free. **if it needs a rebuild to be seen** (`layout.*`, `creek.*`, `footpath.*`, `dressing.*`) leave it out of the overlay — a slider that lies about what it does is worse than no slider.
+
+there is **no `enabled` flag anywhere**: an effect is off when its strength is zero.
+
+---
+
+## house rules that are not style
+
+- **draw calls are the budget, vertices are not.** a prop with four hundred parts and one with forty cost the same draw. a *new material*, or a *new mesh that is neither merged nor instanced*, is what costs.
+- **everything generated is deterministic.** no `Math.random`, no `Date.now`, no iteration-order dependence. fork the seeded rng (`rng.fork(name)`) so adding a prop does not reshuffle every prop built after it.
+- **anything that moves needs a speed that can reach zero**, and that speed goes in `STILL` in [`scripts/scape-shot.ts`](scripts/scape-shot.ts). a hard-coded animation rate cannot be stopped, so it cannot be captured, so it silently poisons every visual diff taken after it lands.
+- **every tier still has to run.** new cost is gated on `AtmosphereQuality` in [`quality.ts`](src/scene/quality.ts); `mobile` is the one to defend. if a system cannot be made cheap, give it a tier gate and a graceful *absence*, not a broken-looking cheap version.
+- **lifecycle discipline.** generation in `build`, animation in `update`, viewport work in `resize`, teardown in `dispose`. `createApp` owns the only render loop — never add a `requestAnimationFrame`. everything allocated on the gpu is released in `dispose`.
+- **tests come with the change.** new pure builders and new pure maths get a determinism test in the neighbouring `*.test.ts`. rendering code is not unit-tested here, so keep the logic that *can* be tested out of the parts that cannot.
+
+---
+
+## threejs-scene
+
+the runtime. an imperative app shell — `createApp(canvas, options)` plus a module contract — with a deterministic clock, a seeded rng, unidirectional state flow and a strict dispose chain. [npm](https://www.npmjs.com/package/threejs-scene).
+
+```ts
+import { createApp, defineModule } from 'threejs-scene'
+
+const module = defineModule<State>({
+  name: 'thing',
+  build (ctx)                { /* create objects once, add to ctx.scene */ },
+  update (state, frame, ctx) { /* project state onto them, every sim tick */ },
+  resize (size, ctx)         { /* optional */ },
+  render (frame, ctx)        { /* optional — the last mounted one owns the draw */ },
+  dispose ()                 { /* optional */ },
+})
+```
+
+state flows down (`store → module.update → scene`), input flows back through `setState`/`dispatch` — never straight into scene objects. same seed + same tick sequence reproduces the same world, headless included.
+
+### what this repo imports
+
+| entry | used for |
+| --- | --- |
+| `threejs-scene` | `createApp`, `defineModule`, `createSeededRng`, `createRenderer`, `createIsoCamera`/`resizeIsoCamera`, `createLUT`, `createSeamlessNoiseTexture`, `smoothstep` |
+| `threejs-scene/modules/lighting` | `standardLighting()` |
+| `threejs-scene/modules/post` | `postProcessing()`, `createAo`, `createSsr`, `createTraa` |
+| `threejs-scene/modules/post/webgl` | the individual effect passes |
+| `threejs-scene/modules/assets` | `part`, `mergeParts`, `mergeGeometryList`, `kitMaterial`, `markShared`, `scatterInstances`, `createPlacementField`, `applyTaper` |
+
+### `modules/assets`, the parts this scene lives on
+
+- **`part(geometry, { at, rotate, scale, color, jitter, rng })`** transforms a primitive and bakes one jittered shade per triangle. transform order is **scale → rotateX → rotateY → rotateZ → translate**.
+- **`mergeParts(parts, { grime })`** collapses them through three's own `BufferGeometryUtils` into one non-indexed vertex-coloured geometry, and darkens toward the base. that darkening is free baked ambient occlusion and most of what makes a prop feel placed rather than floating.
+- **`kitMaterial(options)`** is the one material the whole kit shares. one material, one program, no state change between props.
+- **`scatterInstances({ geometry, material, count, place })`** stamps one `InstancedMesh`. `place()` returns `{ at, rotate, scale, tint }` or `null`.
+- **`createPlacementField({ rng, extent, heightAt, minHeight })`** is the keep-out solver. **test your own rules first and only `reserve()` an accepted spot** — `place()` claims the moment its own query passes, so a caller that then rejects on a slope test leaves a claim blocking everyone else, and a few hundred of those saturate the field with nothing in it.
+- **`markShared(resource)`** exempts a pooled resource from a `Prop`'s ownership, so `dispose()` does not blank a neighbour's material.
+
+the module also carries an llm prop-authoring dialect (`buildProp`, `validatePropSpec`, `reviewProp`, `createPropTool`, `generateProp`), procedural materials and textures, and an `ASSET_MANIFEST`. this scene does not use them — it builds its props from primitives on purpose — but they are there.
+
+### also available, unused here
+
+`modules/physics` (optional cannon-es peer: rigid bodies, cloth, position-based liquid) and the `camera/follow` rig. adding either is a real dependency decision, not a convenience.
+
+---
+
+## traps that have already cost time
+
+1. **`setViewport`/`setScissor` apply the renderer's pixel ratio themselves.** scaling again squares it, and on retina every pane becomes the full canvas.
+2. **the baked `color` attribute is linear.** palette matching must convert swatches out of srgb first or the power curve swaps rust iron and falu red.
+3. **an id selector beats any number of classes.** `#preview-canvas` (1-0-0) outranks `body[data-mode='index'] .single-only`, so a "hidden" element stays laid out and pushes content off screen — dom correct, nothing visible. debug layout by reading `getBoundingClientRect().top`, not by staring at the screenshot.
+4. **the favicon 404 logs as a console error.** filter it or every capture reads as broken.
+5. **`page.clock.install` breaks screenshots.** freezing rAF freezes the compositor and the shutter waits for a frame that never arrives. the capture tools zero every speed in the config instead.
+6. **one webgl context per page, and browsers cap you near 16.** `dispose()` frees resources but leaves the context *attached*; `forceContextLoss()` is what actually returns it.
+7. **a budget is a count, not a density.** growing the island without growing the budgets thins everything standing on it.
+8. **things sized in metres do not survive a change of scale.** express constants against `terrain.size` unless they are genuinely metres.
