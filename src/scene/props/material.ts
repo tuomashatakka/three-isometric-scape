@@ -5,6 +5,7 @@ import { NOTHING_SKIPPED } from '../audit.ts'
 import type { ScapeSkips } from '../audit.ts'
 import type { ScapeConfig } from '../config.ts'
 import type { SeasonState } from '../season.ts'
+import type { WeatherState } from '../weather.ts'
 
 /** The two materials every solid thing in the scape draws with. */
 export interface ScapeMaterials {
@@ -15,8 +16,8 @@ export interface ScapeMaterials {
   /** Instanced vegetation — same look, plus a vertex sway. */
   foliage: MeshStandardMaterial
 
-  /** Advance cloud drift, wind phase and the year. Allocation-free. */
-  update(elapsed: number, season: SeasonState): void
+  /** Advance cloud drift, wind phase, the year and the weather. Allocation-free. */
+  update(elapsed: number, season: SeasonState, weather: WeatherState): void
   dispose(): void
 }
 
@@ -275,6 +276,35 @@ function seasonFragment (lie: string): string {
 `
 }
 
+const WET_PARS_FRAGMENT = /* glsl */`
+  uniform float uWetAmount;
+`
+
+/**
+ * Rain, after it has landed.
+ *
+ * Two things happen to a surface that has been rained on and they pull in
+ * opposite directions: the albedo goes *down*, because a water film traps light
+ * that dry grains would have scattered back out, and the specular goes *up*,
+ * because that same film is smoother than anything under it. Doing only the
+ * first gives a scape somebody turned the lights down on; doing only the second
+ * gives a scape made of plastic. Together they are the whole read, and they cost
+ * two arithmetic operations on values the fragment is already holding.
+ *
+ * Weighted by the same `lie` the snow uses, and for the same reason — rain
+ * lands on what faces the sky. It is applied before the snow rather than after,
+ * so a week that is doing both ends up with white over wet rather than wet over
+ * white, which is the order the world does them in.
+ */
+function wetFragment (lie: string): string {
+  return /* glsl */`
+  float scapeWet = uWetAmount * (${lie});
+
+  diffuseColor.rgb *= 1.0 - 0.38 * scapeWet;
+  roughnessFactor   = mix(roughnessFactor, 0.24, scapeWet);
+`
+}
+
 /** Lying snow settles on what faces the sky, and slides off what does not. */
 const GROUND_LIE = 'smoothstep(0.22, 0.72, vScapeUp)'
 
@@ -337,6 +367,11 @@ export function createScapeMaterials (
     uSeasonSnowLine:   { value: config.terrain.waterLevel },
   }
 
+  // Its own record rather than a field of `season`, because it is its own clock.
+  // Both materials share the instance for the same reason they share the year's:
+  // the grass and the ground it stands in cannot be in two different showers.
+  const weather: Record<string, IUniform> = { uWetAmount: { value: 0 }}
+
   interface Injection {
     wind?:   Record<string, IUniform>
     detail?: Record<string, IUniform>
@@ -352,6 +387,7 @@ export function createScapeMaterials (
     const up             = Boolean(extra.detail) || extra.lie === GROUND_LIE
     const normalFragment = [
       extra.detail ? detailFragment : '#include <normal_fragment_begin>',
+      extra.lie ? wetFragment(extra.lie) : '',
       extra.lie ? seasonFragment(extra.lie) : '',
     ].join('\n')
 
@@ -362,7 +398,14 @@ export function createScapeMaterials (
     // injection is the answer; if it dies either way, the injection never was.
     if (!skip.has('inject'))
       material.onBeforeCompile = (program: WebGLProgramParametersWithUniforms) => {
-        Object.assign(program.uniforms, shared, extra.wind, extra.detail, extra.lie ? season : null)
+        Object.assign(
+          program.uniforms,
+          shared,
+          extra.wind,
+          extra.detail,
+          extra.lie ? season : null,
+          extra.lie ? weather : null,
+        )
 
         // The normal varying rides with the ground pass rather than with the
         // cloud shadow, so foliage — which has nothing to read it — never
@@ -386,6 +429,7 @@ export function createScapeMaterials (
             CLOUD_PARS_FRAGMENT,
             up ? UP_PARS_FRAGMENT : '',
             extra.detail ? DETAIL_PARS_FRAGMENT : '',
+            extra.lie ? WET_PARS_FRAGMENT : '',
             extra.lie ? SEASON_PARS_FRAGMENT : '',
           ].join('\n'))
           .replace('#include <color_fragment>', CLOUD_FRAGMENT)
@@ -427,7 +471,7 @@ export function createScapeMaterials (
     // Uniforms are refreshed from the config every frame rather than captured
     // at build. The scape's tuning surface is the config object, and a knob
     // that only takes effect on reload is not a knob.
-    update (elapsed, year) {
+    update (elapsed, year, sky) {
       const drift = config.atmosphere.cloudSpeed
 
       cloudOffset.value.set(elapsed * drift * 0.06, elapsed * drift * 0.021)
@@ -445,6 +489,7 @@ export function createScapeMaterials (
       season.uSeasonTintAmount.value = year.tintAmount
       season.uSeasonSnowAmount.value = year.snow
       season.uSeasonSnowLine.value   = year.snowLine
+      weather.uWetAmount.value       = sky.wet
     },
 
     dispose () {

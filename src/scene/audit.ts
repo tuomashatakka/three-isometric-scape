@@ -32,7 +32,7 @@ import type { WebGLRenderer } from 'three'
  * one configuration already known to run on the handset.
  */
 export const SCAPE_FAMILIES = [
-  'inject', 'detail', 'dressing', 'water', 'mist', 'clouds', 'aurora', 'post', 'shadows',
+  'inject', 'detail', 'dressing', 'water', 'mist', 'clouds', 'aurora', 'rain', 'post', 'shadows',
 ] as const
 
 export type ScapeFamily = typeof SCAPE_FAMILIES[number]

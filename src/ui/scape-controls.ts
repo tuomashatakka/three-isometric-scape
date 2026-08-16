@@ -207,6 +207,24 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       ],
     },
     {
+      title:    'weather',
+      controls: [
+        // Outside the switch, like the other two clocks' phases: freezing the
+        // front is exactly when you want to scrub through it.
+        { ...range('weather.time', 'time in the front', 0, 1, 0.002), live: true },
+        toggled('weather cycle', range('weather.speed', 'fronts per minute', 0, 1, 0.01), 0.14),
+        toggled(
+          'rain',
+          range('weather.rain', 'how hard it falls', 0, 1, 0.01, quality.rainDrops > 0),
+          0.9,
+          [ range('weather.fall', 'fall speed', 0, 40, 0.5) ],
+        ),
+        // Under the weather rather than under the ground, because it is the rain
+        // that puts it there and the rain's own clock that takes it away again.
+        range('weather.wet', 'wet ground', 0, 1, 0.01),
+      ],
+    },
+    {
       title:    'atmosphere',
       controls: [
         range('atmosphere.fogDensity', 'fog density', 0, 0.9, 0.01),

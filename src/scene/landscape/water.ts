@@ -15,6 +15,7 @@ import { createNoiseTexture, createSeamlessNoiseTexture } from 'threejs-scene/mo
 import type { ScapeConfig } from '../config.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import type { SeasonState } from '../season.ts'
+import type { WeatherState } from '../weather.ts'
 import type { HeightField } from './height.ts'
 
 
@@ -36,8 +37,11 @@ import type { HeightField } from './height.ts'
 export interface Water {
   mesh: Mesh
 
-  /** Advance swell, ripple and foam phase, and take the year's freeze. Allocation-free. */
-  update(elapsed: number, season: SeasonState): void
+  /**
+   * Advance swell, ripple and foam phase, and take the year's freeze and the
+   * weather's chop. Allocation-free.
+   */
+  update(elapsed: number, season: SeasonState, weather: WeatherState): void
   dispose(): void
 }
 
@@ -454,12 +458,21 @@ export function createWater (
     // Read back from the config every frame rather than captured at build, so
     // the tuning overlay can drive the lake without rebuilding the scene. Four
     // uniform writes and a scalar compare is nothing next to the draw itself.
-    update (elapsed, season) {
+    update (elapsed, season, weather) {
+      // Rain, without a uniform or a fetch of its own. A shower does two things
+      // to a lake and the shader already has a knob for each: it puts the surface
+      // into a chop that kills the glitter — a sun lobe needs a facet to hold
+      // still long enough to catch it — and it roughens the ripple that carries
+      // the shading. So the fall simply drives the two numbers the overlay
+      // drives, which also means the water's answer to the rain costs nothing
+      // per fragment and nothing per tier.
+      const fall = weather.fall
+
       rippleOffset.value.set(elapsed * 0.014, elapsed * 0.0092)
       waveTime.value                 = elapsed
-      uniforms.uSparkle.value        = config.water.sparkle
+      uniforms.uSparkle.value        = config.water.sparkle * (1 - 0.85 * fall)
       uniforms.uWaveHeight.value     = config.water.waveHeight
-      uniforms.uRippleStrength.value = config.water.rippleStrength
+      uniforms.uRippleStrength.value = config.water.rippleStrength * (1 + 0.7 * fall)
       uniforms.uFreeze.value         = season.freeze
       uniforms.uIceReach.value       = config.water.iceReach
       uniforms.uIceBreak.value       = config.water.iceBreak

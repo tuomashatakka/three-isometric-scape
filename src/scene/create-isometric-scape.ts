@@ -3,7 +3,7 @@ import type { Mesh, WebGLRenderer } from 'three'
 import { createApp, createIsoCamera, createRenderer } from 'threejs-scene'
 import type { AppModule } from 'threejs-scene'
 import { NOTHING_SKIPPED, reportPrograms } from './audit.ts'
-import type { ScapeSkips } from './audit.ts'
+import type { ScapeFamily, ScapeSkips } from './audit.ts'
 import type { ScapeConfig } from './config.ts'
 import { createAtmosphereLayer } from './atmosphere.ts'
 import { createAuroraLayer } from './aurora.ts'
@@ -13,6 +13,7 @@ import { createLandscape } from './landscape/index.ts'
 import { createMistLayer } from './mist.ts'
 import { createAtmospherePost } from './post.ts'
 import type { AtmosphereQuality } from './quality.ts'
+import { createRainLayer } from './rain.ts'
 import { createRuntime } from './runtime.ts'
 import { createVitals } from './vitals.ts'
 import type { VitalsSample } from './vitals.ts'
@@ -168,6 +169,18 @@ function describeBudget (gl: WebGL2RenderingContext): string {
   ].join(' · ')
 }
 
+/**
+ * Build a layer unless the url asked for it to be left out.
+ *
+ * A function rather than four ternaries in the composition root, because four
+ * ternaries are four branches in one already long function — and every optional
+ * layer the scape gains would add another. The thunk is what keeps it honest:
+ * a skipped family must never have its builder run, only its result discarded.
+ */
+function unless<T> (skip: ScapeSkips, family: ScapeFamily, build: () => T): T | null {
+  return skip.has(family) ? null : build()
+}
+
 export function createIsometricScape (
   canvas: HTMLCanvasElement,
   config: ScapeConfig,
@@ -205,35 +218,44 @@ export function createIsometricScape (
     groundRadius: config.terrain.size * 0.8,
     shadowDue:    runtime.shadowDue,
   })
-  const mist = skip.has('mist')
-    ? null
-    // Both clocks, live. The landscape and the atmosphere are both mounted
-    // ahead of the mist, so the hour and the week the sheets read have already
-    // been resolved for this frame by the time they are asked for.
-    : createMistLayer({
-      camera,
-      config,
-      quality,
-      daylight: atmosphere.daylight,
-      season:   landscape.season,
-    })
-  const clouds = skip.has('clouds')
-    ? null
-    : createCloudLayer({ camera, config, quality, daylight: atmosphere.daylight })
+
+  // Both clocks, live. The landscape and the atmosphere are both mounted ahead
+  // of the mist, so the hour and the week the sheets read have already been
+  // resolved for this frame by the time they are asked for.
+  const mist = unless(skip, 'mist', () => createMistLayer({
+    camera,
+    config,
+    quality,
+    daylight: atmosphere.daylight,
+    season:   landscape.season,
+  }))
+
+  const clouds = unless(skip, 'clouds', () =>
+    createCloudLayer({ camera, config, quality, daylight: atmosphere.daylight }))
 
   // Both clocks again, and for once neither of them is optional: the aurora is
   // the night's, and how dark that night gets is the year's. Returns null on any
   // tier with no veils to give, so the cheapest device simply has a plain sky
   // rather than a dimmer one.
-  const aurora = skip.has('aurora')
-    ? null
-    : createAuroraLayer({
-      camera,
-      config,
-      quality,
-      daylight: atmosphere.daylight,
-      season:   landscape.season,
-    })
+  const aurora = unless(skip, 'aurora', () => createAuroraLayer({
+    camera,
+    config,
+    quality,
+    daylight: atmosphere.daylight,
+    season:   landscape.season,
+  }))
+
+  // The second and third clocks — the weather for how hard it is falling, the
+  // year for what it falls as. Mounted after the landscape, which is what
+  // resolves both of them, so the column draws the same instant the ground
+  // beneath it is wet from. Returns null on the tier with no drops to give.
+  const rain = unless(skip, 'rain', () => createRainLayer({
+    camera,
+    config,
+    quality,
+    weather: landscape.weather,
+    season:  landscape.season,
+  }))
 
   // The whole optical chain is one module, and on the cheapest tier it is simply
   // absent — with nothing claiming the `render` hook the app falls back to
@@ -272,6 +294,7 @@ export function createIsometricScape (
     mist,
     clouds,
     aurora,
+    rain,
     post,
   ].filter((module): module is AppModule<Record<string, never>> => module !== null)
 

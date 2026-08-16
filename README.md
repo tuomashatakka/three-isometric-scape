@@ -32,6 +32,7 @@ bun run preview
 - a seasonal axis running alongside it: grass and leaves wither and turn, and snow lies on what faces the sky above the snow line — all of it derived from the midsummer palette, none of it a rebuild
 - view-reactive linear fog, a matching gradient sky, deterministic drifting ground mist, and a sky cloud deck
 - sea smoke standing on the open water for the weeks the air has taken the winter and the sea has not — derived from the gap between those two curves, and drawn only while it exists
+- weather on a third clock: fronts that cross with a squall and a lighter trailing band, falling as rain or as snow depending on the week of the year, over ground that stays dark and glossy for a while after the last drop
 - an aurora over the dark half of the year — additive veils above the cloud deck, gated on the night and on how much night the week has, and absent from the sky the rest of the time
 - a live graphics overlay that persists to local storage and reloads what you left it at
 - a configurable 3d-lut grade with vignette, miniature tilt-shift, desktop bloom, and film grain
@@ -232,8 +233,10 @@ src/
     ├── noise.ts                    deterministic height sampler
     ├── post.ts                     ao, ssr, sun shafts, tilt-shift, lut, bloom, grain, traa
     ├── quality.ts                  minimal/mobile/desktop/ultra gpu budgets
+    ├── rain.ts                     the fall, as one screen-sized column of streaks
     ├── runtime.ts                  live pixel ratio, frame cap, shadow cadence
     ├── season.ts                   the year: growth, leaf turn, snow, sea ice, sea smoke, night length
+    ├── weather.ts                  the front: showers, what they fall as, how long the ground stays wet
     ├── landscape/
     │   ├── index.ts                the scene module, and what raycasts
     │   ├── layout.ts               yard, cart track, field plots, ridges, pasture
@@ -438,6 +441,35 @@ it is whiter than the mist, and for a physical reason rather than a compositiona
 `season.seaSmoke` is in the overlay, live and persisted, grouped under the year alongside the snow and the ice because it is the arithmetic between them. it is also the switch: there is nothing to steam when it is zero.
 
 **cost: nothing until it exists, and two draws when it does.** `?debug` reports **109 calls · 698k tris · 42 geo · 27 tex · 34 prog** on the desktop tier at midsummer — unchanged — and **111 · 705k · 43 · 27 · 34** at the peak of the smoke. the program count is the interesting one: the smoke's material has the same shape as the mist's, so three's cache hands it the program already linked and the scape gains none. a layer at zero strength is made *invisible* rather than transparent, because a map-wide transparent quad contributing nothing still costs every pixel it covers. the sheet count is `mistLayers / 2`, so `mobile` and `minimal` get one and `ultra` gets three; every tier gets the smoke.
+
+## the front, and the ground it leaves wet
+
+the scape had two clocks and no weather. this one adds the third: a front that crosses, rains, clears, and leaves the ground it fell on dark for a while afterwards.
+
+`weather.ts` is built to exactly the shape of the two clocks above it — a phase, a speed, and everything else derived from the phase — and it is coupled to the second one rather than duplicating it. **what falls out of a cold sky is snow, and the scape already knows how cold this week is.** so the weather owns *how hard* it is coming down and the year owns *what*, which is why there is no snowfall strength anywhere in the config: a winter squall is a summer squall with `season.snow` in it. the same coupling shortens the streak, slows it, and takes it from a pale blue-grey toward the very white the ground is going to — the fall's colour is read live off `season.snowColor`, so a run that retunes lying snow retunes the snowfall with it and the two can never disagree.
+
+a front is **two bands and not a bell curve**. the squall comes through at full strength, gives a short clear spell, and is followed by a lighter trailing band; better than half the cycle is dry. each band is cut against the *cosine* of the phase rather than assembled from a gaussian, which is what makes it exactly periodic — this clock runs for as long as the page is open, and a curve with a seam in it would find that seam.
+
+the more interesting curve is the wet one. **rain stops in a minute and the ground it fell on takes an hour**, and a surface response tied to the fall itself dries out the instant the last drop lands — which reads, unmistakably, as somebody switching an effect off. so wetness looks *backwards*: it is a decaying maximum over the quarter-cycle behind the current phase, never below the rain falling right now, and zero once the long clear spell has had time to work. that shape is a deliberate refusal of an integrator, and the reason is determinism rather than taste. an accumulator carries the frame rate and the page's load time into its answer, so two captures of the same phase would not agree; a function of the phase alone means scrubbing the overlay and letting the clock run put the ground in exactly the same state.
+
+what a wet surface does is **two things pulling opposite ways**. the albedo goes down, because a water film traps light that dry grains would have scattered back out; the specular goes up, because that film is smoother than anything under it. only the first gives a scape somebody turned the lights down on. only the second gives a scape made of plastic. together they are the whole read, and they cost two arithmetic operations on values the fragment already holds — weighted by the same `lie` term lying snow uses, because rain lands on what faces the sky, and applied *before* the snow so a week doing both ends up with white over wet rather than wet over white.
+
+the lake answers the rain **without a uniform or a fetch of its own**. a shower does two things to water and the shader already had a knob for each: it puts the surface into a chop that kills the glitter — a sun lobe needs a facet to hold still long enough to catch it — and it roughens the ripple that carries the shading. so the fall simply drives the two numbers the overlay drives. the water's response to weather costs nothing per fragment and nothing per tier.
+
+### the column
+
+`rain.ts` draws the fall, and the one decision the module hangs off is that **the column is sized against the frame, not against the map**. a column sized to the island would put the same drops over a hundred and ninety metres at every zoom, so pulling back would thin the rain to nothing and zooming in would pack it into a wall — the same mistake the mist tiles and the auroral tiles both had to be taken off. scaled to `viewSize` instead, the drop count *is* a screen density: 2600 drops look like 2600 drops from anywhere on the zoom range, and the mobile tier's 900 cover the same picture more thinly rather than covering less of it.
+
+the whole shower is **one draw call from one static buffer**, and nothing is uploaded per frame. each drop is two triangles with its cell in the column carried alongside the quad corner; falling is `mod` on a single scalar that grows, so a drop reaching the floor reappears at the ceiling in the same instant. that scalar is metres fallen rather than seconds elapsed — which is what lets `weather.fall` be turned to zero and back up without the column jumping to where it would have been had it never stopped — and it is wrapped against the column's own height so a page left open for an hour is not counting in a float that has lost its precision.
+
+two smaller decisions:
+
+- **the streak is laid along the projected fall, not along the screen's vertical.** those are the same thing in still air and visibly not the same in wind. the fall leans on `wind.strength` — the knob the grass is already bending on, so the two systems have been introduced — and the streak's screen axis is that heading run through the model-view matrix.
+- **the column follows the camera's focus**, which is safe here in a way it is not for the mist. the mist's sheets carry a pattern that would drag across the ground as you pan; rain has no pattern to drag, because one drop is any other drop.
+
+`weather.time`, `weather.speed`, `weather.rain`, `weather.fall` and `weather.wet` are all in the overlay, live and persisted. the time knob sits outside its switch for the same reason the other two clocks' do. `weather.rain` is the switch — there is no drop to draw and no ground to wet at zero — and `weather.fall` is the knob that stops the motion, which is why both rates are in `STILL` in [`scape-shot.ts`](scripts/scape-shot.ts): a system whose animation cannot be stopped cannot be photographed twice the same way, and would poison every visual diff taken after it landed.
+
+**cost: one draw call, one program, and no allocation per frame.** the drop count is a tier gate — `minimal` gets 0 and simply never rains, `mobile` 900, `desktop` 2600, `ultra` 4200 — and the ground's half of the system is two arithmetic operations in a fragment shader that was already running, so it costs the same on a phone as on a workstation. the mesh is made *invisible* rather than transparent in the clear spell, because a screenful of transparent geometry contributing nothing still costs every pixel it covers.
 
 ## the aurora, and the dark it needs
 
