@@ -21,6 +21,7 @@ import { findHarbourBank, findLanding } from './landing.ts'
 import type { Spot } from './landing.ts'
 import { distanceToTrack, pastureInfluence, plotInfluence, ridgeInfluence, yawAlong } from './layout.ts'
 import type { Plot, ScapeLayout, Vec2 } from './layout.ts'
+import { createDiscSampler, createSpotSampler, createTreadSampler } from './samplers.ts'
 import { steadingPlaces } from './steading.ts'
 
 
@@ -595,14 +596,21 @@ export function createDressing (
       return height > water + 0.5 && (clear(x, z) && height < water + 4.5 || onPasture(x, z) > 0.25)
     }, 0.7, 1.5, 0)
 
-    // The one cover a path gains rather than loses. Take the turf off a hillside
-    // and what is under it is the same stone the cobbles already are, so the
-    // tread is where they surface — which is also what keeps a worn path from
-    // reading as a stripe of flat colour at close zoom.
+    // The shore and the scree: wherever the turf never took, the stone under it
+    // is what shows. Not foliage, whatever the default says — a cobble that
+    // takes the wind sway is a cobble that rocks in the breeze.
     scatterCover('cobble', config.dressing.cobble, (x, z) => {
       const height = heightAt(x, z)
-      return height < water + 0.7 || field.slopeAt(x, z) > 0.5 || onPath(x, z)
-    }, 0.7, 1.4, 0)
+      return height < water + 0.7 || field.slopeAt(x, z) > 0.5
+    }, 0.7, 1.4, 0, 16, false)
+
+    // The paving. Sampled along the legs themselves rather than thrown at the
+    // island, so the whole budget lands on the tread — which is the difference
+    // between a path that has stones on it and a path that is made of them.
+    const sampleTread = createTreadSampler(paths, rng.fork('tread'))
+
+    if (sampleTread)
+      scatterCover('cobble', config.dressing.pathStone, onPath, 0.42, 0.95, 0, 4, false, sampleTread)
 
     scatterCover('reeds', config.dressing.reeds, (x, z) => {
       const height = heightAt(x, z)
@@ -682,11 +690,12 @@ export function createDressing (
     fixedY:   number,
     attempts = 16,
     foliage = true,
+    sample = sampleSpot,
   ): void {
     const total = budget(count)
     root.add(stamp(name, total, () => {
       for (let attempt = 0; attempt < attempts; attempt += 1) {
-        const { x, z } = sampleSpot()
+        const { x, z } = sample()
 
         if (!accept(x, z))
           continue
@@ -727,40 +736,6 @@ function isFoliage (name: PropName): boolean {
   return FOLIAGE.has(name)
 }
 
-/**
- * A candidate-point generator, biased onto land.
- *
- * Candidates are drawn from the main island *or* from one of the islets rather
- * than uniformly over the whole field: the field is mostly open sea, and a
- * uniform disc throws most of every attempt budget into the water — the island
- * thins out to prove it. Writes into a caller-owned scratch, because this runs
- * tens of thousands of times at build.
- */
-function createSpotSampler (
-  config: ScapeConfig,
-  layout: ScapeLayout,
-  rng:    SeededRng,
-  extent: number,
-): () => Vec2 {
-  const half  = config.terrain.size * 0.5
-  const spot  = { x: 0, z: 0 }
-  const isles = config.terrain.isles.map(isle => ({
-    x:      isle.x * half,
-    z:      isle.z * half,
-    radius: isle.radius * half,
-  }))
-  const mainReach = Math.min(layout.landRadius * 1.22, extent)
-
-  return () => {
-    const isle     = isles.length > 0 && rng.next() < 0.17 ? rng.pick(isles) : null
-    const angle    = rng.next() * TAU
-    const distance = Math.sqrt(rng.next()) * (isle ? isle.radius * 1.08 : mainReach)
-
-    spot.x = (isle?.x ?? 0) + Math.cos(angle) * distance
-    spot.z = (isle?.z ?? 0) + Math.sin(angle) * distance
-    return spot
-  }
-}
 
 /**
  * What each kind of scattered prop will accept as ground.
@@ -828,31 +803,6 @@ function createScatterRules (
   }
 }
 
-/**
- * Candidates drawn from one small feature rather than from the whole island.
- *
- * The island-wide sampler is right for anything that belongs to the terrain and
- * hopeless for anything that belongs to a *place*: the pasture is a quarter of
- * a percent of its disc, and forty darts thrown at the island land in a twelve
- * metre circle about once. Anything scattered into a named feature gets its own
- * disc instead. Returns the origin when there is no feature — the accept rule
- * that goes with such a scatter rejects everything anyway, so nothing is placed.
- */
-function createDiscSampler (rng: SeededRng, feature: Vec2 & { radius: number } | null): () => Vec2 {
-  const spot = { x: 0, z: 0 }
-
-  return () => {
-    if (feature) {
-      const angle    = rng.next() * TAU
-      const distance = Math.sqrt(rng.next()) * feature.radius
-
-      spot.x = feature.x + Math.cos(angle) * distance
-      spot.z = feature.z + Math.sin(angle) * distance
-    }
-
-    return spot
-  }
-}
 
 /** Where the authored composition already claims the ground. */
 function createZoneTests (layout: ScapeLayout, paths: Footpaths) {

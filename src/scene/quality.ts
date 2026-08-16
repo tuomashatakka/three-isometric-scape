@@ -168,7 +168,14 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     waterSpan:     3,
   },
   desktop: {
-    pixelRatioMax:   1.75,
+    // One device pixel per css pixel, the same as every other tier that is
+    // actually detected. This scape is drawn through a post chain whose cost is
+    // per *pixel* — bloom, two tilt-shift pairs, god rays, the grade — so a
+    // retina desktop rendering at 1.75 pays roughly three times the fill of one
+    // rendering at 1, to sharpen an image whose whole look is soft focus and
+    // grain. Raise it from the overlay (`runtime.pixelRatio`) when the point is
+    // a crisp still rather than a smooth scape.
+    pixelRatioMax:   1,
     antialias:       true,
     shadows:         true,
     shadowMapSize:   2048,
@@ -193,7 +200,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     waterSpan:       8,
   },
   ultra: {
-    pixelRatioMax:   2,
+    pixelRatioMax:   1,
     antialias:       true,
     shadows:         true,
     shadowMapSize:   4096,

@@ -1,11 +1,12 @@
 import { describe, expect, test } from 'bun:test'
 import { createSeededRng } from 'threejs-scene'
 import { SCAPE_CONFIG } from '../config.ts'
-import { createFootpaths, footpathRoutes } from './footpath.ts'
-import type { FootpathOptions } from './footpath.ts'
+import { createFootpaths } from './footpath.ts'
+import type { FootpathOptions, Obstacle } from './footpath.ts'
 import { createHeightField } from './height.ts'
 import { findHarbourBank, findLanding } from './landing.ts'
 import { createScapeLayout, distanceToTrack, plotInfluence } from './layout.ts'
+import { footpathRoutes } from './network.ts'
 import { STEADING_BUILDINGS, steadingPlaces } from './steading.ts'
 
 
@@ -14,17 +15,19 @@ const field   = createHeightField(SCAPE_CONFIG, layout)
 const places  = steadingPlaces(layout.yard)
 const landing = findLanding(layout, field, SCAPE_CONFIG)
 
+const avoid: Obstacle[] = STEADING_BUILDINGS.map(name => places[name])
+
 const routes = footpathRoutes(layout, places, [
   landing,
   landing && findHarbourBank(layout, field, SCAPE_CONFIG, landing),
-])
+], avoid)
 
 /** The scape's own options, so the tests exercise what actually ships. */
 function scapeOptions (over: Partial<FootpathOptions> = {}): FootpathOptions {
   return {
     routes,
     heightAt: field.heightAt,
-    avoid:    STEADING_BUILDINGS.map(name => places[name]),
+    avoid,
     width:    SCAPE_CONFIG.footpath.width,
     verge:    SCAPE_CONFIG.footpath.verge,
     climb:    SCAPE_CONFIG.footpath.climb,
@@ -67,13 +70,39 @@ describe('the paths the farm wears', () => {
     expect(again.paths.map(path => path.points)).toEqual(paths.paths.map(path => path.points))
   })
 
-  test('every route starts at the well and arrives where it was sent', () => {
-    for (const path of paths.paths) {
-      const head = path.points[0]
-      const tail = path.points[path.points.length - 1]
+  test('every leg runs between two planned places, and arrives at both', () => {
+    const planned = routes.flatMap(route => [ route.from, route.to ])
+    type PointType = { x: number, z: number }
 
-      expect(Math.hypot(head.x - places.well.x, head.z - places.well.z)).toBeLessThan(1e-6)
-      expect(Math.hypot(tail.x - path.to.x, tail.z - path.to.z)).toBeLessThan(1e-6)
+    const at      = (point: PointType): boolean =>
+      planned.some(place => Math.hypot(place.x - point.x, place.z - point.z) < 1e-6)
+
+    for (const path of paths.paths) {
+      expect(at(path.points[0])).toBe(true)
+      expect(at(path.points[path.points.length - 1])).toBe(true)
+      expect(Math.hypot(
+        path.points[path.points.length - 1].x - path.to.x,
+        path.points[path.points.length - 1].z - path.to.z,
+      )).toBeLessThan(1e-6)
+    }
+  })
+
+  test('every place the plan names ends up with a tread arriving at it', () => {
+    const ends = paths.paths.flatMap(path => [ path.points[0], path.points[path.points.length - 1] ])
+
+    // The tracer is allowed to drop a leg — two names for one spot, or a leg
+    // that would only repeat the cart track. It is not allowed to drop the last
+    // leg to somewhere, which would leave a field with no way into it.
+    for (const place of routes.flatMap(route => [ route.from, route.to ]))
+      expect(ends.some(end => Math.hypot(end.x - place.x, end.z - place.z) < 1e-6)).toBe(true)
+  })
+
+  test('the wear is even along a leg — a junction has no seam in it', () => {
+    for (const path of paths.paths) {
+      const head = path.points[2]
+      const tail = path.points[path.points.length - 3]
+
+      expect(paths.wearAt(head.x, head.z)).toBeCloseTo(paths.wearAt(tail.x, tail.z), 5)
     }
   })
 
@@ -163,7 +192,7 @@ describe('the places a path is worn to', () => {
   test('a field is met at its edge, not in its middle', () => {
     for (const plot of layout.plots) {
       const gate = routes
-        .map(route => route.to)
+        .flatMap(route => [ route.from, route.to ])
         .find(point => plotInfluence(plot, point.x, point.z) > 0)
 
       expect(gate).toBeDefined()
@@ -182,7 +211,7 @@ describe('the places a path is worn to', () => {
       z: pasture.z + Math.sin(pasture.gateway) * pasture.radius,
     }
 
-    expect(routes.some(route =>
-      Math.hypot(route.to.x - gateway.x, route.to.z - gateway.z) < 1e-6)).toBe(true)
+    expect(routes.flatMap(route => [ route.from, route.to ]).some(point =>
+      Math.hypot(point.x - gateway.x, point.z - gateway.z) < 1e-6)).toBe(true)
   })
 })

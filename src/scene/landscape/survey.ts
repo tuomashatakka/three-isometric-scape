@@ -1,13 +1,15 @@
 import { createSeededRng } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
-import { createFootpaths, footpathRoutes } from './footpath.ts'
-import type { Footpaths } from './footpath.ts'
+import { createFootpaths } from './footpath.ts'
+import type { Footpaths, Obstacle } from './footpath.ts'
 import { createHeightField } from './height.ts'
 import type { HeightField } from './height.ts'
 import { findHarbourBank, findLanding } from './landing.ts'
 import type { Spot } from './landing.ts'
 import { createScapeLayout, distanceToTrack } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
+import { planFarmNetwork } from './network.ts'
+import type { FarmNetwork } from './network.ts'
 import { STEADING_BUILDINGS, steadingPlaces } from './steading.ts'
 import type { SteadingPlaces } from './steading.ts'
 
@@ -30,6 +32,9 @@ export interface ScapeSurvey {
 
   /** The second cove, along the shore from the landing. */
   harbour: Spot | null
+
+  /** The street plan: every place walked to, and every leg planned between them. */
+  network: FarmNetwork
   paths:   Footpaths
 }
 
@@ -55,10 +60,13 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
   const landing            = findLanding(layout, field, config)
   const harbour            = landing && findHarbourBank(layout, field, config, landing)
 
+  const avoid: Obstacle[] = STEADING_BUILDINGS.map(name => places[name])
+  const network           = planFarmNetwork(layout, places, [ landing, harbour ], avoid)
+
   const paths = createFootpaths({
-    routes:   footpathRoutes(layout, places, [ landing, harbour ]),
+    routes:   network.routes,
     heightAt: field.heightAt,
-    avoid:    STEADING_BUILDINGS.map(name => places[name]),
+    avoid,
     width:    config.footpath.width,
     verge:    config.footpath.verge,
     climb:    config.footpath.climb,
@@ -74,5 +82,5 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
       distanceToTrack(layout, x, z) < layout.track.width * 1.3,
   })
 
-  return { layout, field, places, landing, harbour, paths }
+  return { layout, field, places, landing, harbour, network, paths }
 }

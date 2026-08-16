@@ -44,15 +44,48 @@ export interface SteadingPlaces {
 /** The buildings, in the order a path would meet them going round the yard. */
 export const STEADING_BUILDINGS = [ 'farmhouse', 'barn', 'aitta', 'woodshed', 'sauna' ] as const
 
+/** How far out from a wall the doorstep is, in metres. */
+const DOORSTEP = 1.4
+
+/**
+ * The yaw that turns a prop's own front toward a point.
+ *
+ * Every building in the kit is modelled with its door on local `+z`, and
+ * `rotateY(θ)` carries that face to `(sin θ, cos θ)` — so the yaw wanted is
+ * `atan2(dx, dz)`, and *not* the bearing `atan2(dz, dx)` that names the same
+ * direction as a polar angle. The two are reflections of each other and agree
+ * on exactly one diagonal, which is why arranging the farm by bearing looked
+ * right on some seeds and stood the farmhouse with its door in the hedge on the
+ * rest. Everything that has to agree about where a front is — the yaw, the
+ * doorstep, the path worn to it — goes through this one function.
+ */
+export function faceToward (from: Vec2, toward: Vec2): number {
+  return Math.atan2(toward.x - from.x, toward.z - from.z)
+}
+
+/**
+ * Where a building's doorway meets the ground, outside its wall.
+ *
+ * The anchor a path is worn to. Clear of the wall by more than the clearance a
+ * route is pushed out by, so arriving at a door is never mistaken for standing
+ * inside the building.
+ */
+export function doorstepOf (place: Standing): Vec2 {
+  return {
+    x: place.x + Math.sin(place.angle) * (place.radius + DOORSTEP),
+    z: place.z + Math.cos(place.angle) * (place.radius + DOORSTEP),
+  }
+}
+
 export function steadingPlaces (yard: Yard): SteadingPlaces {
   const facing = Math.atan2(-yard.z, -yard.x)
 
-  const around = (offset: number, distance: number, radius: number): Standing => ({
-    x:     yard.x + Math.cos(facing + offset) * distance,
-    z:     yard.z + Math.sin(facing + offset) * distance,
-    angle: facing + offset + Math.PI,
-    radius,
-  })
+  const around = (offset: number, distance: number, radius: number): Standing => {
+    const x = yard.x + Math.cos(facing + offset) * distance
+    const z = yard.z + Math.sin(facing + offset) * distance
+
+    return { x, z, angle: faceToward({ x, z }, yard), radius }
+  }
 
   return {
     farmhouse: around(0.35, yard.radius * 0.5, 4),

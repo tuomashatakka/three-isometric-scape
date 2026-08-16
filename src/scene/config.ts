@@ -38,11 +38,22 @@ export interface DressingBudget {
   erratic:    number
   fieldStone: number
   cobble:     number
-  cairn:      number
-  hayBale:    number
-  firewood:   number
-  barrel:     number
-  driftwood:  number
+
+  /**
+   * Cobbles set into the tread itself — what makes the network a paved one
+   * rather than a strip of bare earth.
+   *
+   * Sampled along the traced legs rather than thrown at the island and tested,
+   * so every one of these lands on a path and the count is the count. Turn the
+   * footpath wear to zero and there are no legs to sample: the stones go with
+   * the paths they were laid on, without a second switch.
+   */
+  pathStone: number
+  cairn:     number
+  hayBale:   number
+  firewood:  number
+  barrel:    number
+  driftwood: number
 
   /** Stakes in the shallows — count before the tier scales it. */
   mooringPost: number
@@ -594,6 +605,7 @@ export const SCAPE_CONFIG = {
     erratic:    52,
     fieldStone: 176,
     cobble:     300,
+    pathStone:  900,
     cairn:      14,
     hayBale:    14,
     firewood:   7,

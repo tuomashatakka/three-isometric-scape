@@ -1,11 +1,7 @@
 import { smoothstep } from 'threejs-scene'
 import type { SeededRng } from 'threejs-scene'
-import { plotInfluence } from './layout.ts'
-import type { ScapeLayout } from './layout.ts'
 import { createPathQuery, smoothPath, smoothPolyline } from './path.ts'
 import type { Vec2 } from './path.ts'
-import { STEADING_BUILDINGS } from './steading.ts'
-import type { SteadingPlaces } from './steading.ts'
 
 
 /** Ground something already stands on, that a path has to go round. */
@@ -94,16 +90,6 @@ const PROBE = 1.1
  */
 const SLACK = 0.3
 
-/**
- * How much of its wear a route loses by the far end.
- *
- * Mild on purpose. Traffic really does concentrate at the hub, but the hub is
- * the middle of a farmyard that is bare ground already — the only place the eye
- * can read a path at all is out where it crosses grass, so a steep falloff pales
- * the tread exactly where it is the only thing saying anybody walks here.
- */
-const HEEL = 0.28
-
 /** Resampled points per route. Dense enough that the query is a segment walk. */
 const RESAMPLE = 44
 
@@ -113,8 +99,14 @@ const OFF_TRACK = 0.62
 /** Routes shorter than this are two names for the same spot, in metres. */
 const STUB = 2.5
 
-/** How far outside a building's own radius the tread is pushed, in metres. */
-const CLEARANCE = 0.6
+/**
+ * How far outside a building's own radius the tread is pushed, in metres.
+ *
+ * Exported because the network planner has to agree with it: a leg is costed as
+ * a detour exactly when the straight line between two places would come inside
+ * this, which is the same thing the tracer would then have to push it out of.
+ */
+export const CLEARANCE = 0.6
 
 /**
  * Push a point out of anything it is standing inside.
@@ -232,80 +224,6 @@ function wanderRoute (points: Vec2[], amount: number, phase: number): Vec2[] {
   })
 }
 
-/** How far out from a building's middle its doorway is taken to be, in metres. */
-const DOORSTEP = 1.4
-
-/** The point on a plot's edge nearest the yard — where its fence is, and its gate. */
-function plotGate (plot: ScapeLayout['plots'][number], toward: Vec2): Vec2 | null {
-  const bearing = Math.atan2(toward.z - plot.z, toward.x - plot.x)
-  const reach   = Math.hypot(plot.halfW, plot.halfD) + 2
-
-  for (let out = 0; out < reach; out += 0.3) {
-    const x = plot.x + Math.cos(bearing) * out
-    const z = plot.z + Math.sin(bearing) * out
-
-    if (plotInfluence(plot, x, z) < 1)
-      return { x, z }
-  }
-
-  return null
-}
-
-/**
- * Every walk the farm makes, as a pair of places.
- *
- * A star on the well, which is what a yard actually wears: the one errand
- * everybody in the place runs every day is water, so the ground around it is
- * bare and every other route leaves from it. The spokes are the five buildings'
- * doorways and then the outlying work — the landing, the boat harbour, the
- * pasture gate and the near edge of each field.
- *
- * Doorways, not middles. A route ending at a building's centre would have to be
- * dragged out of the building it just walked into, and the arrival bearing is
- * what tells a reader which side the door is on.
- */
-export function footpathRoutes (
-  layout:  ScapeLayout,
-  places:  SteadingPlaces,
-  outlying: readonly (Vec2 | null)[],
-): FootpathRoute[] {
-  const hub    = places.well
-  const routes = STEADING_BUILDINGS.map((name): FootpathRoute => {
-    const place   = places[name]
-    const bearing = Math.atan2(hub.z - place.z, hub.x - place.x)
-
-    return {
-      from: hub,
-      to:   {
-        x: place.x + Math.cos(bearing) * (place.radius + DOORSTEP),
-        z: place.z + Math.sin(bearing) * (place.radius + DOORSTEP),
-      },
-    }
-  })
-
-  if (layout.pasture)
-    routes.push({
-      from: hub,
-      to:   {
-        x: layout.pasture.x + Math.cos(layout.pasture.gateway) * layout.pasture.radius,
-        z: layout.pasture.z + Math.sin(layout.pasture.gateway) * layout.pasture.radius,
-      },
-    })
-
-  for (const plot of layout.plots) {
-    const gate = plotGate(plot, layout.yard)
-
-    if (gate)
-      routes.push({ from: hub, to: gate })
-  }
-
-  for (const place of outlying)
-    if (place)
-      routes.push({ from: hub, to: { x: place.x, z: place.z }})
-
-  return routes
-}
-
 /**
  * Every path the farm has worn into the ground it stands on.
  *
@@ -348,30 +266,26 @@ export function createFootpaths (options: FootpathOptions): Footpaths {
     traced.push({ points, to: { x: to.x, z: to.z }})
   }
 
-  const queries = traced.map(path => ({
-    query: createPathQuery(path.points, outer),
-    last:  path.points.length - 1,
-  }))
+  const queries = traced.map(path => createPathQuery(path.points, outer))
 
   return {
     paths: traced,
 
+    // Across the tread only, and never along it. A leg of the network runs
+    // between two places people have business at, so there is no far end to
+    // pale toward — and a taper that ran from one end of every leg to the other
+    // would leave a visible seam at each junction, where a leg's faded tail
+    // meets the next leg's full-strength head.
     wearAt (x, z) {
       let worn = 0
 
-      for (const { query, last } of queries) {
+      for (const query of queries) {
         const hit = query(x, z)
 
         if (hit.distance > outer)
           continue
 
-        // Wear falls along the route as well as across it. Everyone walks the
-        // first ten metres out of the gate; only the person with business at the
-        // far end walks the last ten.
-        const across = 1 - smoothstep(inner, outer, hit.distance)
-        const along  = 1 - HEEL * (hit.at / last)
-
-        worn = Math.max(worn, across * along)
+        worn = Math.max(worn, 1 - smoothstep(inner, outer, hit.distance))
       }
 
       return worn

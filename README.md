@@ -205,6 +205,57 @@ nought per cent** at the default tolerance. a zero means zero.
 
 `.scape/` holds all of it and is gitignored.
 
+## looking at one prop
+
+the three commands above answer questions about the *composition*. a mesh is a different question, and the scape
+is a bad place to ask it: a building forty metres off, at one fixed angle, under a colour grade, is exactly the
+viewing condition that let a gable end poke through its own roof for months. two things ask it directly.
+
+**`bun run prop:map`** draws one prop as ascii, from any of six angles, with no browser and no gpu — the same
+bargain `scape:map` makes, one scale down. it builds exactly one geometry, so the loop between changing a number
+in [`buildings.ts`](src/scene/props/buildings.ts) and seeing what it did is about forty milliseconds.
+
+```sh
+bun run prop:map farmhouse                 # the play angle
+bun run prop:map farmhouse --view right    # the angle you can measure from
+bun run prop:map barn --view front,right   # both, stacked
+bun run prop:map farmhouse --audit         # what colour is where, by height
+bun run prop:map --all --cols 48           # the whole roster as a contact sheet
+bun run prop:watch farmhouse               # the same, on every save
+```
+
+`--audit` is the part that earns its keep, and it is how the gable bug was proved fixed rather than believed
+fixed. it names the palette entry every baked facet came from and reports the height band it covers, so
+*"does `faluDark` appear above the roofline"* — a question about a bug — is one line of output. the match is done
+in linear colour, because three.js bakes the colour attribute out of srgb and that conversion is a curve rather
+than a scale; matched in srgb the rust chimney lands in the falu bucket. hues separate cleanly; the greys
+(granite, shingle, iron, trim) are near-collinear and trade places, so read those as one family.
+
+**`/props.html`** is the same question with a gpu behind it, and it has two modes decided by the query string.
+
+```sh
+bun run dev     # then open /props.html
+```
+
+**bare, it is a contact sheet of the whole roster** — every prop drawn at the play angle, grouped the way the
+scape spends them (placed by hand / scattered), captioned with its triangle count and its size in metres, and
+filterable. a name is a bad handle for a mesh: `aitta`, `hayRack` and `netRack` are three words that tell you
+nothing about which one you are looking for. cards whose base is not on the ground plane carry the offset in the
+corner — a few mean it (the boathouse stands on piles in the water), so it is a flag to look at rather than a
+failure. all forty thumbnails are drawn by **one** webgl context which is then handed straight back, because
+forty live contexts is well past what a browser will give you and the sheet is static once drawn.
+
+**`?prop=` names one and gets four orthographic viewports** — top, front, left and the angle the scape is played
+at — with a two-density grid in each one's own plane, a wireframe toggle and a bounding box.
+
+both are real urls, so a viewpoint is a link and Back does what it says. drag to pan, drag the iso pane to orbit,
+wheel to zoom, `1`–`4` solo a pane, `0` restores all four and `esc` returns to the sheet. the three axis panes
+never rotate — an elevation you can nudge off-axis is no longer a measurement, and you would not notice it had
+happened.
+
+it is a separate vite entry that imports the prop roster and nothing else from the scene, which is the point: it
+stays loadable exactly when the terrain, the atmosphere or the post chain is what is broken.
+
 ## project map
 
 ```text
@@ -289,7 +340,13 @@ that shape is what keeps the budget honest — detail costs vertices, not draw c
 
 [`props/fence.ts`](src/scene/props/fence.ts) and [`props/wall.ts`](src/scene/props/wall.ts) are the exceptions to the factory shape, deliberately. `buildFenceRun` takes a polyline and sets each post at its own ground height, then spans the rails from post to post so they pick up the slope on their own. a fence built from rigid identical segments either floats over dips or, if each segment is tilted to match its own patch of ground, zig-zags where neighbours disagree — real fences do neither. `buildStoneWallRun` follows the same line the same way and puts something else on it: three courses of granite per station, stations set *closer together than a stone is long* so the courses overlap. a wall is only ever a pile that happens to be long, and gaps are what separate one from a row of rocks.
 
-because prop builders never touch a scene or a gl context, the whole roster is unit-tested headlessly: attributes, base height, bounds, and byte-for-byte determinism per seed.
+[`props/timber.ts`](src/scene/props/timber.ts) holds the vocabulary every gabled building is assembled from, and one rule: **a gabled roof is a plane, and every other part of the building either lands on that plane or stays under it.** `roofUnderside(roof, across)` *is* that plane, and it is exported so a building asks the question rather than re-deriving the answer.
+
+that rule is not decoration. the buildings used to describe the roof twice — once as a pitch measured from the overhang tip, once as a stack of shrinking gable courses — and the two descriptions disagreed by up to 0.66 m, which showed up in play as dark red blocks scattered across the shingles of the farmhouse and the barn. a gable end is now one triangular prism whose upper edges lie *on* that plane by construction, so it cannot poke through a roof built from the same plane. it also costs 12 triangles where the four stacked courses cost 48.
+
+the two other heights a building is written against are its `plinthY` — a door drawn from `y = 0` is not a taller door, it is a door with its bottom quarter inside a socle that is proud of the wall — and, for anything sitting *on* the pitch, `roofUnderside` plus `roofRise`, which is the slab's thickness measured straight up rather than perpendicular.
+
+because prop builders never touch a scene or a gl context, the whole roster is unit-tested headlessly: attributes, base height, bounds, and byte-for-byte determinism per seed. [`timber.test.ts`](src/scene/props/timber.test.ts) pins the roof-plane contract itself, and `raster.test.ts` asks the finished props the same question the audit does — no gabled building shows wall paint above its own ridge.
 
 ## placement
 
