@@ -14,15 +14,13 @@ import { Ploppable, baseFootprint } from '../props/ploppable.ts'
 import type { Footprint } from '../props/ploppable.ts'
 import { buildStoneWallRun } from '../props/wall.ts'
 import type { AtmosphereQuality } from '../quality.ts'
-import type { Creek } from './creek.ts'
-import type { Footpaths } from './footpath.ts'
-import type { HeightField } from './height.ts'
-import { findHarbourBank, findLanding } from './landing.ts'
+import type { ArchipelagoSurvey, LandmassSurvey } from './archipelago.ts'
 import type { Spot } from './landing.ts'
-import { distanceToTrack, pastureInfluence, plotInfluence, ridgeInfluence, yawAlong } from './layout.ts'
-import type { Plot, ScapeLayout, Vec2 } from './layout.ts'
+import { findCrossing, isFoliage, plotOutline, trackPointNear } from './dressing-helpers.ts'
+import { createScatterRules, createZoneTests } from './dressing-zones.ts'
+import { yawAlong } from './layout.ts'
+import type { Plot, Vec2 } from './layout.ts'
 import { createDiscSampler, createSpotSampler, createTreadSampler } from './samplers.ts'
-import { steadingPlaces } from './steading.ts'
 
 
 export interface Dressing {
@@ -30,18 +28,13 @@ export interface Dressing {
   dispose(): void
 }
 
-const TAU = Math.PI * 2
+interface ScatterSampling {
+  sample?:     () => Vec2
+  quota?:      readonly (() => Vec2)[]
+  claimScale?: number
+}
 
-/**
- * How worn the ground has to be before it counts as a path.
- *
- * The middle of the tread, and not the verge: a footpath is bare down the middle
- * and thinning grass either side, so the exclusion has to stop well short of
- * where the wear does. Set at the verge instead, eight routes converging on one
- * well clear the grass off most of a farmyard — which is a bald patch, not a
- * network of paths.
- */
-const TREAD = 0.55
+const TAU = Math.PI * 2
 
 /**
  * How much ground a plinth is willing to bridge, in metres.
@@ -65,6 +58,63 @@ function shade (rng: SeededRng, low: number, high: number): string {
   return `#${clamped}${clamped}${clamped}`
 }
 
+function createDressingSampling (
+  config:      ScapeConfig,
+  archipelago: ArchipelagoSurvey,
+  rng:         SeededRng,
+) {
+  const sampleSpot = createSpotSampler(archipelago, rng)
+  const pastures   = archipelago.landmasses.flatMap(landmass => {
+    const pasture = landmass.survey.layout.pasture
+
+    return pasture
+      ? [{
+        x:      pasture.x + landmass.origin.x,
+        z:      pasture.z + landmass.origin.z,
+        radius: pasture.radius,
+      }]
+      : []
+  })
+  const yards = archipelago.landmasses.map(landmass => ({
+    x:      landmass.survey.layout.yard.x + landmass.origin.x,
+    z:      landmass.survey.layout.yard.z + landmass.origin.z,
+    radius: landmass.survey.layout.yard.radius * 0.72,
+  }))
+  const harbours = archipelago.landmasses.flatMap(landmass => {
+    const harbour = landmass.survey.harbour
+
+    return harbour
+      ? [{
+        x:      harbour.x + landmass.origin.x,
+        z:      harbour.z + landmass.origin.z,
+        radius: 30,
+      }]
+      : []
+  })
+  const samplePasture = createDiscSampler(rng, pastures)
+  const sampleYard    = createDiscSampler(rng, yards)
+  const sampleHarbour = createDiscSampler(rng, harbours)
+  const pastureQuota  = pastures.map(feature => createDiscSampler(rng, [ feature ]))
+  const yardQuota     = yards.map(feature => createDiscSampler(rng, [ feature ]))
+  const harbourQuota  = harbours.map(feature => createDiscSampler(rng, [ feature ]))
+  const homeArea      = config.terrain.size ** 2
+  const areaScale     = archipelago.landmasses.reduce(
+    (total, landmass) => total + landmass.config.terrain.size ** 2,
+    0,
+  ) / homeArea
+
+  return {
+    sampleSpot,
+    samplePasture,
+    sampleYard,
+    sampleHarbour,
+    pastureQuota,
+    yardQuota,
+    harbourQuota,
+    areaScale,
+  }
+}
+
 /**
  * Everything that stands on the ground.
  *
@@ -79,28 +129,40 @@ function shade (rng: SeededRng, low: number, high: number): string {
  *   through it would cost more than the rest of the build put together.
  */
 export function createDressing (
-  config:    ScapeConfig,
-  layout:    ScapeLayout,
-  field:     HeightField,
-  paths:     Footpaths,
-  materials: ScapeMaterials,
-  quality:   AtmosphereQuality,
+  config:       ScapeConfig,
+  archipelago:  ArchipelagoSurvey,
+  materials:    ScapeMaterials,
+  quality:      AtmosphereQuality,
 ): Dressing {
   const root = new Group()
   root.name  = 'scape-dressing'
 
-  const rng                     = createSeededRng(config.seed).fork('dressing')
-  const palette                 = resolvePalette()
-  const extent                  = config.terrain.size * 0.47
-  const water                   = config.terrain.waterLevel
-  const owned: BufferGeometry[] = []
-  const plopped: Ploppable[]    = []
-  const places                  = steadingPlaces(layout.yard)
-  const sampleSpot              = createSpotSampler(config, layout, rng, extent)
-  const samplePasture           = createDiscSampler(rng, layout.pasture)
-
+  const rng              = createSeededRng(config.seed).fork('dressing')
+  const palette          = resolvePalette()
+  const { field, paths } = archipelago
+  const extent           = archipelago.size * 0.49
+  const water            = config.terrain.waterLevel
+  const owned            = {
+    geometries: [] as BufferGeometry[],
+    instances:  [] as InstancedMesh[],
+  }
+  const plopped: Ploppable[] = []
+  const {
+    sampleSpot,
+    samplePasture,
+    sampleYard,
+    sampleHarbour,
+    pastureQuota,
+    yardQuota,
+    harbourQuota,
+    areaScale,
+  }              = createDressingSampling(config, archipelago, rng)
   const heightAt = field.heightAt
-  const budget   = (count: number): number => Math.max(1, Math.round(count * quality.scatterScale))
+  const budget   = (count: number): number =>
+    Math.max(
+      archipelago.landmasses.length,
+      Math.round(count * quality.scatterScale * areaScale),
+    )
 
   const solver = createPlacementField({
     rng:       rng.fork('solver'),
@@ -111,14 +173,14 @@ export function createDressing (
 
   // ---- feature tests -------------------------------------------------------
 
-  const { onYard, onTrack, onPath, onPlot, onPasture, clear } = createZoneTests(layout, paths)
+  const { onYard, onTrack, onPath, onPlot, onPasture, clear } = createZoneTests(archipelago)
 
   // ---- hero props ----------------------------------------------------------
 
   const heroes: BufferGeometry[] = []
 
-  /** Where the harbour ended up, so its shallows can be dressed as its own. */
-  let harbourAnchor: Vec2 | null = null
+  /** Where the harbours ended up, so their shallows can be dressed as their own. */
+  const harbourAnchors: Vec2[] = []
 
   function placeHero (name: PropName, x: number, z: number, angle: number, sink = 0.12): void {
     const geometry = buildProp(name, rng.fork(`hero-${name}`), palette)
@@ -265,70 +327,78 @@ export function createDressing (
    * this is raised on it. Two copies of the arrangement is how a path ends up
    * leading to where the barn used to be.
    */
-  function raiseSteading (): void {
-    const { farmhouse, barn, aitta, woodshed, sauna, well, cart, logPile, flagpole } = places
+  function raiseSteading (landmass: LandmassSurvey): void {
+    const { farmhouse, barn, aitta, woodshed, sauna, well, cart, logPile, flagpole } =
+      landmass.survey.places
+    const { x: ox, z: oz } = landmass.origin
 
-    raiseBuilding('farmhouse', farmhouse.x, farmhouse.z, farmhouse.angle)
-    raiseBuilding('barn', barn.x, barn.z, barn.angle + 0.4)
-    raiseBuilding('aitta', aitta.x, aitta.z, aitta.angle)
-    raiseBuilding('woodshed', woodshed.x, woodshed.z, woodshed.angle)
-    raiseBuilding('sauna', sauna.x, sauna.z, sauna.angle)
+    raiseBuilding('farmhouse', farmhouse.x + ox, farmhouse.z + oz, farmhouse.angle)
+    raiseBuilding('barn', barn.x + ox, barn.z + oz, barn.angle + 0.4)
+    raiseBuilding('aitta', aitta.x + ox, aitta.z + oz, aitta.angle)
+    raiseBuilding('woodshed', woodshed.x + ox, woodshed.z + oz, woodshed.angle)
+    raiseBuilding('sauna', sauna.x + ox, sauna.z + oz, sauna.angle)
 
-    placeHero('well', well.x, well.z, rng.range(0, TAU))
-    placeHero('flagpole', flagpole.x, flagpole.z, 0)
-    placeHero('cart', cart.x, cart.z, rng.range(0, TAU))
-    placeHero('logPile', logPile.x, logPile.z, rng.range(0, TAU))
+    placeHero('well', well.x + ox, well.z + oz, rng.range(0, TAU))
+    placeHero('flagpole', flagpole.x + ox, flagpole.z + oz, 0)
+    placeHero('cart', cart.x + ox, cart.z + oz, rng.range(0, TAU))
+    placeHero('logPile', logPile.x + ox, logPile.z + oz, rng.range(0, TAU))
 
     for (const anchor of [ well, logPile ])
-      solver.reserve(anchor.x, anchor.z, 4)
+      solver.reserve(anchor.x + ox, anchor.z + oz, 4)
 
     // The hay rack belongs beside a field, not in the yard.
-    const firstPlot: Plot | undefined = layout.plots[0]
+    const firstPlot: Plot | undefined = landmass.survey.layout.plots[0]
     if (firstPlot) {
-      const rackX = firstPlot.x + Math.cos(firstPlot.rotation) * (firstPlot.halfW + 1.6)
-      const rackZ = firstPlot.z + Math.sin(firstPlot.rotation) * (firstPlot.halfW + 1.6)
+      const rackX = firstPlot.x + ox + Math.cos(firstPlot.rotation) * (firstPlot.halfW + 1.6)
+      const rackZ = firstPlot.z + oz + Math.sin(firstPlot.rotation) * (firstPlot.halfW + 1.6)
       placeHero('hayRack', rackX, rackZ, firstPlot.rotation + Math.PI / 2)
       solver.reserve(rackX, rackZ, 5)
     }
   }
 
   /** The things that answer to the terrain rather than to the yard. */
-  function raiseOutlying (): void {
+  function raiseOutlying (landmass: LandmassSurvey): void {
+    const { survey, config: localConfig } = landmass
+    const { layout }                      = survey
+    const { x: ox, z: oz }                = landmass.origin
+
     // Track furniture: a gate where the track reaches the yard, a mailbox beside it.
     const gateSpot = trackPointNear(layout, layout.yard.radius * 1.05)
     if (gateSpot) {
-      placeHero('gate', gateSpot.x, gateSpot.z, gateSpot.angle + Math.PI / 2)
+      placeHero('gate', gateSpot.x + ox, gateSpot.z + oz, gateSpot.angle + Math.PI / 2)
       placeHero(
         'mailbox',
-        gateSpot.x + Math.cos(gateSpot.angle) * 2.1,
-        gateSpot.z + Math.sin(gateSpot.angle) * 2.1,
+        gateSpot.x + ox + Math.cos(gateSpot.angle) * 2.1,
+        gateSpot.z + oz + Math.sin(gateSpot.angle) * 2.1,
         gateSpot.angle,
       )
     }
 
-    // The jetty reaches from the nearest shoreline out over the water — the same
-    // landing the footpath down from the yard was worn to, because both ask
-    // `landing.ts` rather than each other.
-    const shore = findLanding(layout, field, config)
+    // The jetty and the route consume the same surveyed landing. A static
+    // rowboat no longer lives here; the shared fleet owns every hull.
+    const shore = survey.landing
     if (shore) {
-      placeHeroAt('jetty', shore.x, water + 0.05, shore.z, yawAlong(shore.angle))
-      placeHeroAt(
-        'rowboat',
-        shore.x + Math.cos(shore.angle) * 4.2 + Math.cos(shore.angle + Math.PI / 2) * 1.7,
-        water - 0.12,
-        shore.z + Math.sin(shore.angle) * 4.2 + Math.sin(shore.angle + Math.PI / 2) * 1.7,
-        yawAlong(shore.angle + rng.range(-0.3, 0.3)),
-      )
-      solver.reserve(shore.x, shore.z, 7)
-      harbourAnchor = { x: shore.x, z: shore.z }
-      raiseHarbour(shore)
+      const shoreX = shore.x + ox
+      const shoreZ = shore.z + oz
+
+      placeHeroAt('jetty', shoreX, water + 0.05, shoreZ, yawAlong(shore.angle))
+      solver.reserve(shoreX, shoreZ, 7)
     }
 
+    if (survey.harbour)
+      raiseHarbour(survey.harbour)
+
     // A bridge only earns its place where the track has something to cross.
-    const crossing = findCrossing(layout, field, config)
+    const crossing = findCrossing(layout, survey.field, localConfig)
     if (crossing) {
-      placeHeroAt('bridge', crossing.x, crossing.deck, crossing.z, crossing.angle)
-      solver.reserve(crossing.x, crossing.z, 4)
+      placeHeroAt(
+        'bridge',
+        crossing.x + ox,
+        crossing.deck,
+        crossing.z + oz,
+        crossing.angle,
+      )
+      solver.reserve(crossing.x + ox, crossing.z + oz, 4)
     }
 
     /**
@@ -338,25 +408,21 @@ export function createDressing (
      * the terrain the way the five farmstead buildings are: its floor is a deck
      * on piles and its slipway runs out under the surface, so a foundation cut
      * into the bank would bury exactly the part that has to be open to the lake.
-     * It is pushed a little seaward of the bank for the same reason — the back
-     * of the shed cuts into the slope, which is where a real one is dug in.
      */
-    function raiseHarbour (landing: Spot): void {
-      const bearing = landing.angle + config.layout.harbourSpread * Math.PI / 180
-      const bank    = findHarbourBank(layout, field, config, landing)
+    function raiseHarbour (bank: Spot): void {
+      const bearing = bank.angle
+      const bankX   = bank.x + ox
+      const bankZ   = bank.z + oz
+      const houseX  = bankX + Math.cos(bearing) * 1.8
+      const houseZ  = bankZ + Math.sin(bearing) * 1.8
 
-      if (!bank)
-        return
-
-      const houseX = bank.x + Math.cos(bearing) * 1.8
-      const houseZ = bank.z + Math.sin(bearing) * 1.8
-
+      harbourAnchors.push({ x: bankX, z: bankZ })
       placeHeroAt('boathouse', houseX, water + 0.05, houseZ, yawAlong(bearing))
       solver.reserve(houseX, houseZ, 8)
 
       // The rack dries nets on dry ground behind the shed, never in the shallows.
-      const rackX = bank.x - Math.cos(bearing) * 5
-      const rackZ = bank.z - Math.sin(bearing) * 5
+      const rackX = bankX - Math.cos(bearing) * 5
+      const rackZ = bankZ - Math.sin(bearing) * 5
 
       if (heightAt(rackX, rackZ) > water + 0.5) {
         placeHero('netRack', rackX, rackZ, yawAlong(bearing))
@@ -374,13 +440,18 @@ export function createDressing (
    * built, because the solver has no idea it exists and would otherwise stand a
    * spruce in the middle of it.
    */
-  function raiseUpland (): void {
-    const { pasture } = layout
+  function raiseUpland (landmass: LandmassSurvey): void {
+    const localPasture = landmass.survey.layout.pasture
 
-    if (!pasture)
+    if (!localPasture)
       return
 
-    const gap                = config.layout.pastureGateway * Math.PI / 180
+    const pasture = {
+      ...localPasture,
+      x: localPasture.x + landmass.origin.x,
+      z: localPasture.z + landmass.origin.z,
+    }
+    const gap                = landmass.config.layout.pastureGateway * Math.PI / 180
     const arc                = TAU - gap
     const stones             = Math.max(12, Math.round(pasture.radius * arc / 2))
     const line: FencePoint[] = []
@@ -396,7 +467,7 @@ export function createDressing (
     const wall = buildStoneWallRun({
       points:    line,
       heightAt,
-      rng:       rng.fork('pasture-wall'),
+      rng:       rng.fork(`pasture-wall-${landmass.id}`),
       palette,
       minHeight: water + 0.6,
     })
@@ -451,14 +522,17 @@ export function createDressing (
    * The runs join the hero merge, so all the fencing in the scape costs nothing
    * beyond the steading's single draw.
    */
-  function raiseFences (): void {
-    for (const [ index, plot ] of layout.plots.entries()) {
+  function raiseFences (landmass: LandmassSurvey): void {
+    for (const [ index, plot ] of landmass.survey.layout.plots.entries()) {
       const run = buildFenceRun({
-        points:    plotOutline(plot),
+        points: plotOutline(plot).map(point => ({
+          x: point.x + landmass.origin.x,
+          z: point.z + landmass.origin.z,
+        })),
         heightAt,
-        rng:       rng.fork(`fence-${index}`),
+        rng:       rng.fork(`fence-${landmass.id}-${index}`),
         palette,
-        spacing:   config.layout.fenceSpacing,
+        spacing:   landmass.config.layout.fenceSpacing,
         closed:    true,
         minHeight: water + 0.4,
       })
@@ -494,13 +568,15 @@ export function createDressing (
     steading.updateMatrix()
     steading.matrixAutoUpdate = false
     root.add(steading)
-    owned.push(merged)
+    owned.geometries.push(merged)
   }
 
-  raiseSteading()
-  raiseOutlying()
-  raiseUpland()
-  raiseFences()
+  for (const landmass of archipelago.landmasses) {
+    raiseSteading(landmass)
+    raiseOutlying(landmass)
+    raiseUpland(landmass)
+    raiseFences(landmass)
+  }
   mergeSteading()
 
   // ---- structural scatter --------------------------------------------------
@@ -513,13 +589,15 @@ export function createDressing (
   // rules are tested first and only an accepted spot is `reserve()`d.
 
   function tryPlace (
-    radius:   number,
-    accept:   (x: number, z: number) => boolean,
+    radius:     number,
+    accept:     (x: number, z: number) => boolean,
     attempts = 26,
     sample = sampleSpot,
+    claimScale = 1,
   ): Vec2 | null {
     const spacingClear = (x: number, z: number): boolean =>
-      solver.claims.every(claim => Math.hypot(claim.x - x, claim.z - z) > claim.radius + radius)
+      solver.claims.every(claim =>
+        Math.hypot(claim.x - x, claim.z - z) > claim.radius * claimScale + radius)
 
     for (let attempt = 0; attempt < attempts; attempt += 1) {
       const { x, z } = sample()
@@ -535,21 +613,21 @@ export function createDressing (
 
   const {
     conifer, stoneRule, openGround, beachRule, birchRule, plotEdge, inPasture, inYard,
-  } = createScatterRules(config, layout, field, rng, { onYard, onTrack, onPath, onPlot, onPasture, clear })
+  } = createScatterRules(config, archipelago, field, rng, {
+    onYard,
+    onTrack,
+    onPath,
+    onPlot,
+    onPasture,
+    clear,
+  })
 
   /** Populate the ground, biggest footprints first. */
   function dressGround (): void {
-    const forestBias = config.layout.forestBias
-
-    /**
-     * Standing water off the harbour.
-     *
-     * Tied to the harbour rather than to the waterline in general: a stake
-     * belongs to the people who drove it, and a ring of them around every islet
-     * in the archipelago would say the opposite.
-     */
+    // Standing water off the harbour. Tied to the harbour rather than to the
+    // waterline in general: a stake belongs to the people who drove it.
     const harbourShallows = (x: number, z: number): boolean => {
-      if (!harbourAnchor || Math.hypot(x - harbourAnchor.x, z - harbourAnchor.z) > 30)
+      if (!harbourAnchors.some(anchor => Math.hypot(x - anchor.x, z - anchor.z) <= 30))
         return false
 
       const height = heightAt(x, z)
@@ -560,20 +638,56 @@ export function createDressing (
     // left for a boulder, and the reverse is never a problem.
     scatterStructural('erratic', config.dressing.erratic, 1.6, stoneRule(0.2), 0.7, 1.4, 40)
     scatterStructural('cairn', config.dressing.cairn, 1.3, stoneRule(0.6), 0.85, 1.2, 40)
-    scatterStructural('pine', config.dressing.pine, 0.9, conifer(forestBias * 0.7, 2.4, 0.6), 0.7, 1.35, 40)
-    scatterStructural('spruce', config.dressing.spruce, 0.6, conifer(forestBias, 1, 0.7), 0.62, 1.5, 40)
+    scatterStructural('pine', config.dressing.pine, 0.9, conifer(0.7, 2.4, 0.6), 0.7, 1.35, 40)
+    scatterStructural('spruce', config.dressing.spruce, 0.6, conifer(1, 1, 0.7), 0.62, 1.5, 40)
     scatterStructural('birch', config.dressing.birch, 0.7, birchRule, 0.68, 1.3, 40)
     scatterStructural('deadSpruce', config.dressing.deadSpruce, 0.6, conifer(0.5, 0.8, 0.9), 0.6, 1.2, 40)
     scatterStructural('hayBale', config.dressing.hayBale, 1, plotEdge, 0.85, 1.15, 90)
-    scatterStructural('barrel', config.dressing.barrel, 0.5, inYard, 0.85, 1.1, 90)
-    scatterStructural('firewood', config.dressing.firewood, 0.7, inYard, 0.9, 1.1, 90)
+    scatterStructural(
+      'barrel',
+      config.dressing.barrel,
+      0.5,
+      inYard,
+      0.85,
+      1.1,
+      90,
+      { sample: sampleYard, quota: yardQuota, claimScale: 0.55 },
+    )
+    scatterStructural(
+      'firewood',
+      config.dressing.firewood,
+      0.7,
+      inYard,
+      0.9,
+      1.1,
+      90,
+      { sample: sampleYard, quota: yardQuota, claimScale: 0.55 },
+    )
     scatterStructural('fieldStone', config.dressing.fieldStone, 0.45, stoneRule(-0.4), 0.7, 1.5, 30)
     scatterStructural('driftwood', config.dressing.driftwood, 0.7, beachRule(0.4), 0.75, 1.3, 30)
-    scatterStructural('mooringPost', config.dressing.mooringPost, 1.1, harbourShallows, 0.8, 1.2, 34)
+    scatterStructural(
+      'mooringPost',
+      config.dressing.mooringPost,
+      1.1,
+      harbourShallows,
+      0.8,
+      1.2,
+      34,
+      { sample: sampleHarbour, quota: harbourQuota, claimScale: 0.5 },
+    )
     // Sampled from the pasture's own disc: forty darts thrown at the island
     // land inside a twelve-metre circle about once, and none of those ones
     // survive the barn's claim on the middle of it.
-    scatterStructural('hayPole', config.dressing.hayPole, 0.8, inPasture, 0.85, 1.15, 40, samplePasture)
+    scatterStructural(
+      'hayPole',
+      config.dressing.hayPole,
+      0.8,
+      inPasture,
+      0.85,
+      1.15,
+      40,
+      { sample: samplePasture, quota: pastureQuota, claimScale: 0.35 },
+    )
     scatterStructural('sapling', config.dressing.sapling, 0.35, openGround(0.5, 0.95), 0.7, 1.5, 30)
     scatterStructural('stump', config.dressing.stump, 0.35, openGround(0.6, 0.85), 0.75, 1.4, 30)
 
@@ -651,7 +765,8 @@ export function createDressing (
     // fixed point at the origin.
     mesh.updateMatrix()
     mesh.matrixAutoUpdate = false
-    owned.push(geometry)
+    owned.geometries.push(geometry)
+    owned.instances.push(mesh)
     return mesh
   }
 
@@ -663,11 +778,27 @@ export function createDressing (
     minScale: number,
     maxScale: number,
     attempts = 26,
-    sample = sampleSpot,
+    sampling: ScatterSampling = {},
   ): void {
-    const total = budget(count)
+    const total  = budget(count)
+    const sample = sampling.sample ?? sampleSpot
+    let placement = 0
+
     root.add(stamp(name, total, () => {
-      const spot = tryPlace(radius, accept, attempts, sample)
+      const quota  = sampling.quota
+      const chosen = quota && quota.length > 0
+        ? quota[placement % quota.length]
+        : sample
+
+      placement += 1
+
+      const spot = tryPlace(
+        radius,
+        accept,
+        attempts,
+        chosen,
+        sampling.claimScale,
+      )
 
       if (!spot)
         return null
@@ -719,274 +850,17 @@ export function createDressing (
         prop.dispose()
       plopped.length = 0
 
+      for (const mesh of owned.instances)
+        mesh.dispose()
+      owned.instances.length = 0
+
       root.removeFromParent()
       root.clear()
-      for (const geometry of owned)
+      for (const geometry of owned.geometries)
         geometry.dispose()
-      owned.length = 0
+      owned.geometries.length = 0
     },
   }
-}
-
-const FOLIAGE: ReadonlySet<string> = new Set([
-  'spruce', 'pine', 'birch', 'sapling', 'grass', 'heather', 'wildflower', 'reeds', 'crop', 'lilyPads',
-])
-
-function isFoliage (name: PropName): boolean {
-  return FOLIAGE.has(name)
-}
-
-
-/**
- * What each kind of scattered prop will accept as ground.
- *
- * Module-level and taking the zone tests as an argument, because a rule is a
- * pure question about a coordinate — it reads the terrain and the composition
- * and touches neither the solver nor the scene. Keeping them out here is also
- * what stops `createDressing` from becoming a single function with the whole
- * ecology inlined into it.
- *
- * `conifer` is the exception that has to share the caller's `rng`: it rolls for
- * density per candidate, so drawing from a second stream would reshuffle every
- * placement made after it.
- */
-function createScatterRules (
-  config: ScapeConfig,
-  layout: ScapeLayout,
-  field:  HeightField,
-  rng:    SeededRng,
-  zones:  ReturnType<typeof createZoneTests>,
-) {
-  const { onYard, onTrack, onPath, onPlot, onPasture, clear } = zones
-
-  const heightAt = field.heightAt
-  const water    = config.terrain.waterLevel
-
-  return {
-    conifer: (bias: number, minLift: number, maxSlope: number) =>
-      (x: number, z: number): boolean => {
-        if (!clear(x, z))
-          return false
-        if (heightAt(x, z) < water + minLift || field.slopeAt(x, z) > maxSlope)
-          return false
-        return rng.next() < 0.46 + bias * ridgeInfluence(layout, x, z)
-      },
-
-    // Stones stay out of the pasture: the ones that were in it are the wall.
-    stoneRule: (minLift: number) => (x: number, z: number): boolean =>
-      onYard(x, z) === 0 && !onTrack(x, z) && !onPath(x, z) && onPasture(x, z) === 0 &&
-      heightAt(x, z) > water + minLift,
-
-    openGround: (minLift: number, maxSlope: number) => (x: number, z: number): boolean =>
-      clear(x, z) && heightAt(x, z) > water + minLift && field.slopeAt(x, z) < maxSlope,
-
-    beachRule: (maxSlope: number) => (x: number, z: number): boolean => {
-      const height = heightAt(x, z)
-      return height > water - 0.05 && height < water + config.terrain.shoreBand * 0.7 &&
-        field.slopeAt(x, z) < maxSlope && !onTrack(x, z) && !onPath(x, z)
-    },
-
-    birchRule (x: number, z: number): boolean {
-      const height = heightAt(x, z)
-      return clear(x, z) && height > water + 0.6 && height < water + 4.6
-    },
-
-    plotEdge: (x: number, z: number): boolean =>
-      onPlot(x, z) > 0.5 && !onPath(x, z) && heightAt(x, z) > water + 0.8,
-
-    /** Inside the wall, and off anything too steep to have been mown. */
-    inPasture: (x: number, z: number): boolean =>
-      onPasture(x, z) > 0.3 && field.slopeAt(x, z) < 0.5,
-
-    inYard: (x: number, z: number): boolean =>
-      onYard(x, z) > 0.12 && !onTrack(x, z) && !onPath(x, z) && heightAt(x, z) > water + 0.8,
-  }
-}
-
-
-/** Where the authored composition already claims the ground. */
-function createZoneTests (layout: ScapeLayout, paths: Footpaths) {
-  const onYard = (x: number, z: number): number => {
-    const distance = Math.hypot(x - layout.yard.x, z - layout.yard.z)
-    return Math.max(0, 1 - distance / (layout.yard.radius * 1.1))
-  }
-  const onTrack = (x: number, z: number): boolean =>
-    distanceToTrack(layout, x, z) < layout.track.width * 1.3
-  const onPath = (x: number, z: number): boolean =>
-    paths.wearAt(x, z) > TREAD
-  const onPlot = (x: number, z: number): number =>
-    layout.plots.reduce((claim, plot) => Math.max(claim, plotInfluence(plot, x, z)), 0)
-  const onPasture = (x: number, z: number): number =>
-    pastureInfluence(layout, x, z)
-
-  // A path joins the list of things the ground is already spoken for by, which
-  // is what makes it a path rather than a stripe of paint: the tread is the one
-  // place a spruce, a boulder or a tuft of grass does not get to stand.
-  const clear = (x: number, z: number): boolean =>
-    onYard(x, z) === 0 && !onTrack(x, z) && !onPath(x, z) &&
-    onPlot(x, z) === 0 && onPasture(x, z) === 0
-
-  return { onYard, onTrack, onPath, onPlot, onPasture, clear }
-}
-
-/** The point on the track a given distance out from the yard, and its heading. */
-function trackPointNear (layout: ScapeLayout, distance: number): Spot | null {
-  const points = layout.track.points
-
-  for (let index = points.length - 1; index > 0; index -= 1) {
-    const point = points[index]
-    const gap   = Math.hypot(point.x - layout.yard.x, point.z - layout.yard.z)
-
-    if (gap >= distance) {
-      const previous = points[index - 1]
-      return {
-        x:     point.x,
-        z:     point.z,
-        angle: Math.atan2(point.z - previous.z, point.x - previous.x),
-      }
-    }
-  }
-
-  return null
-}
-
-/**
- * The `y` rotation that carries a bridge along the track at a given point.
- *
- * `yawAlong`, not the bearing itself — the bridge is long in `+z`, so it has to
- * be turned the same way the jetty is or it lies across the road it carries.
- */
-function trackYawAt (points: readonly Vec2[], index: number): number {
-  const previous = points[Math.max(0, index - 1)]
-  const point    = points[index]
-
-  return yawAlong(Math.atan2(point.z - previous.z, point.x - previous.x))
-}
-
-/**
- * The height of the ground either side of a claimed stretch of track.
- *
- * A bridge rests on its banks, and the banks are the nearest track points the
- * channel does not claim. Sitting it on the *carved* ground under it instead
- * drops the deck into the beck it is meant to be spanning.
- */
-function bankLevelAt (
-  points: readonly Vec2[],
-  field:  HeightField,
-  creek:  Creek,
-  index:  number,
-): number | null {
-  let total = 0
-  let banks = 0
-
-  for (const direction of [ -1, 1 ])
-    for (let step = 1; step < points.length; step += 1) {
-      const at = index + direction * step
-
-      if (at < 0 || at >= points.length)
-        break
-      if (creek.claimAt(points[at].x, points[at].z) > 0)
-        continue
-
-      total += field.heightAt(points[at].x, points[at].z)
-      banks += 1
-      break
-    }
-
-  return banks > 0 ? total / banks : null
-}
-
-/** Where the track runs deepest through the beck's channel, if it does at all. */
-function findBeckCrossing (
-  layout: ScapeLayout,
-  field:  HeightField,
-  creek:  Creek,
-): Spot & { deck: number } | null {
-  const points = layout.track.points
-
-  let best: { index: number, claim: number } | null = null
-
-  for (let index = 1; index < points.length - 1; index += 1) {
-    const claim = creek.claimAt(points[index].x, points[index].z)
-
-    if (claim > 0.35 && (!best || claim > best.claim))
-      best = { index, claim }
-  }
-
-  if (!best)
-    return null
-
-  const point = points[best.index]
-  const bank  = bankLevelAt(points, field, creek, best.index)
-
-  return {
-    x:     point.x,
-    z:     point.z,
-    angle: trackYawAt(points, best.index),
-    deck:  (bank ?? layout.waterLevel + 0.9) - 0.15,
-  }
-}
-
-/** Where the track dips below the waterline, if it does at all. */
-function findDipCrossing (
-  layout: ScapeLayout,
-  field:  HeightField,
-  config: ScapeConfig,
-): Spot & { deck: number } | null {
-  const points = layout.track.points
-  const water  = config.terrain.waterLevel
-
-  let best: { index: number, height: number } | null = null
-
-  for (let index = 1; index < points.length - 1; index += 1) {
-    const height = field.heightAt(points[index].x, points[index].z)
-
-    if (height > water + 0.45)
-      continue
-    if (best && height >= best.height)
-      continue
-
-    best = { index, height }
-  }
-
-  if (!best)
-    return null
-
-  const point = points[best.index]
-  return { x: point.x, z: point.z, angle: trackYawAt(points, best.index), deck: water + 0.35 }
-}
-
-/**
- * Where the track has to get across something.
- *
- * The beck first, because a bridge over running water is the one a reader can
- * read. Failing that — a seed whose beck never meets the road — the old rule
- * stands and the bridge goes over the lowest dip the track takes below the
- * waterline, which is the only other place in the scape that needs one.
- */
-function findCrossing (
-  layout: ScapeLayout,
-  field:  HeightField,
-  config: ScapeConfig,
-): Spot & { deck: number } | null {
-  return layout.creek && findBeckCrossing(layout, field, layout.creek) ||
-    findDipCrossing(layout, field, config)
-}
-
-/** The four corners of a plot, in world space and in winding order. */
-function plotOutline (plot: Plot): FencePoint[] {
-  const cos = Math.cos(plot.rotation)
-  const sin = Math.sin(plot.rotation)
-
-  return ([[ -1, -1 ], [ 1, -1 ], [ 1, 1 ], [ -1, 1 ]] as const).map(([ sx, sz ]) => {
-    const localX = sx * plot.halfW
-    const localZ = sz * plot.halfD
-
-    return {
-      x: plot.x + localX * cos - localZ * sin,
-      z: plot.z + localX * sin + localZ * cos,
-    }
-  })
 }
 
 // perf: one merged draw for the whole steading, one InstancedMesh per scattered

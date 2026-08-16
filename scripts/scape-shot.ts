@@ -28,7 +28,7 @@ export const TOURS: Record<string, Pose[]> = {
   tour: [
     { name: 'default' },
     { name: 'near', zoom: 10 },
-    { name: 'far', zoom: 130 },
+    { name: 'far', zoom: 540 },
     { name: 'noon', time: 0.5 },
     { name: 'night', time: 0.02 },
     { name: 'winter', season: 0.02 },
@@ -55,6 +55,7 @@ const STILL = [
   'atmosphere.cloudSpeed=0',
   'atmosphere.auroraSpeed=0',
   'water.waveHeight=0',
+  'boats.speed=0',
 
   // Both of the weather's rates. `speed` holds the front where `weather.time`
   // put it; `fall` stops the drops themselves, which are the only thing in the

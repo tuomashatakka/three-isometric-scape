@@ -100,7 +100,113 @@ async function structure (cwd: string): Promise<Record<string, unknown> | null> 
   }
 }
 
-function structuralLine (
+interface StructureSource {
+  land?:       number
+  creek?:      unknown
+  footpaths?:  { routes?: number }
+  peak?:       { height?: number }
+  plots?:      number
+  isles?:      { surfacing?: number }
+  landmasses?: Array<{
+    id?:        string
+    profile?:   string
+    origin?:    [number, number]
+    land?:      number
+    peak?:      { height?: number }
+    footpaths?: { routes?: number, length?: number, longest?: number }
+    plots?:     number
+    ridges?:    number
+    steading?:  Record<string, [number, number]>
+    landing?:   [number, number] | null
+    harbour?:   [number, number] | null
+  }>
+  waterways?: {
+    legs?:      number
+    length?:    number
+    connected?: boolean
+    wet?:       boolean
+    clearance?: number
+  }
+  boats?: {
+    count?:      number
+    separation?: number
+    conflicts?:  number
+  }
+}
+
+type LandmassSource = NonNullable<StructureSource['landmasses']>[number]
+
+function pointSnapshot (point: [number, number] | null | undefined, fallback = '-'): string {
+  return point?.join(',') ?? fallback
+}
+
+function pathSnapshot (paths: LandmassSource['footpaths']): string {
+  if (!paths)
+    return '?/?/?'
+
+  return `${paths.routes ?? '?'}/${paths.length ?? '?'}/${paths.longest ?? '?'}`
+}
+
+function settlementSnapshot (steading: LandmassSource['steading']): string {
+  return Object.entries(steading ?? {})
+    .sort(([ a ], [ b ]) => a.localeCompare(b))
+    .map(([ name, point ]) => `${name}@${point.join(',')}`)
+    .join(',') || '-'
+}
+
+function oneLandmassSnapshot (landmass: LandmassSource): string {
+  const origin  = pointSnapshot(landmass.origin, '?')
+  const landing = pointSnapshot(landmass.landing)
+  const harbour = pointSnapshot(landmass.harbour)
+
+  return `${landmass.id}/${landmass.profile}@${origin}:J${landing}:H${harbour}:` +
+    `land${landmass.land ?? '?'}:peak${landmass.peak?.height ?? '?'}:` +
+    `paths${pathSnapshot(landmass.footpaths)}:plots${landmass.plots ?? '?'}:` +
+    `ridges${landmass.ridges ?? '?'}:S${settlementSnapshot(landmass.steading)}`
+}
+
+function landmassSnapshot (stats: StructureSource): string {
+  if (!stats.landmasses)
+    return 'legacy-home'
+
+  return stats.landmasses.map(oneLandmassSnapshot).join('|')
+}
+
+function waterwaySnapshot (stats: StructureSource): string {
+  if (!stats.waterways)
+    return 'legacy'
+
+  const connected = stats.waterways.connected ? 'OK' : 'BROKEN'
+  const wet       = stats.waterways.wet ? 'wet' : 'DRY'
+
+  return `${stats.waterways.legs ?? '?'}/${stats.waterways.length ?? '?'}m/${connected}/${wet}/` +
+    `${stats.waterways.clearance ?? '?'}m`
+}
+
+function boatSnapshot (stats: StructureSource): string {
+  if (!stats.boats)
+    return 'legacy'
+
+  return `${stats.boats.count ?? '?'}/${stats.boats.separation ?? '?'}m/${stats.boats.conflicts ?? '?'}`
+}
+
+function structuralSnapshot (source: Record<string, unknown>): Record<string, string> {
+  const stats = source as StructureSource
+
+  return {
+    land:       `${stats.land ?? '?'}%`,
+    creek:      stats.creek ? 'OK' : 'NONE',
+    footpaths:  String(stats.footpaths?.routes ?? '?'),
+    peak:       `${stats.peak?.height ?? '?'}m`,
+    plots:      String(stats.plots ?? '?'),
+    isles:      String(stats.isles?.surfacing ?? '?'),
+    landmasses: landmassSnapshot(stats),
+    waterways:  waterwaySnapshot(stats),
+    boats:      boatSnapshot(stats),
+  }
+}
+
+export function structuralLine (
   before: Record<string, unknown> | null,
   after:  Record<string, unknown> | null,
 ): string {
@@ -113,21 +219,8 @@ function structuralLine (
   if (!after)
     return 'structural: not compared — scape:map would not survey this working tree'
 
-  const read = (source: Record<string, unknown>): Record<string, string> => {
-    const stats = source as { land: number, creek: unknown, footpaths: { routes: number }, peak: { height: number }, plots: number, isles: { surfacing: number }}
-
-    return {
-      land:      `${stats.land}%`,
-      creek:     stats.creek ? 'OK' : 'NONE',
-      footpaths: String(stats.footpaths.routes),
-      peak:      `${stats.peak.height}m`,
-      plots:     String(stats.plots),
-      isles:     String(stats.isles.surfacing),
-    }
-  }
-
-  const was  = read(before)
-  const now  = read(after)
+  const was  = structuralSnapshot(before)
+  const now  = structuralSnapshot(after)
   const same = Object.keys(was).every(key => was[key] === now[key])
 
   return `structural: ${Object.keys(was).map(key => `${key} ${was[key]}->${now[key]}`)

@@ -35,12 +35,12 @@ branch from `origin/main`, always freshly fetched. never stack a run on a previo
 before touching anything:
 
 ```sh
-bun run scape:map --stats      # ~16 ms. this is the "before" stage 5 judges against
+bun run scape:map --stats      # ~1.5 s cold. this is the "before" stage 5 judges against
 ```
 
 then read, in this order:
 
-- **[`agents.md`](agents.md)** — the tool reference. it is short, and it is what stops a run reaching for a screenshot when a forty-millisecond ascii render would have answered the question.
+- **[`agents.md`](agents.md)** — the tool reference. it is short, and it is what stops a run reaching for a screenshot when a roughly 1.5-second ascii survey would have answered the question.
 - **[`src/scene/config.ts`](src/scene/config.ts)** — the public tuning surface and the fastest map of what the scene currently has.
 - **[`src/scene/quality.ts`](src/scene/quality.ts)** — every new cost needs an answer for the mobile tier.
 - **the [readme](README.md)** section for whatever you are about to touch.
@@ -55,7 +55,7 @@ size it so the diff stays readable — roughly the scale of one existing module.
 
 directions that fit the goal, as a backlog rather than a queue:
 
-- **more world** — a second mainland across the strait, a fjord, a river with a mouth, a headland, an ice sheet, a coastal road running off the map edge
+- **more world** — an outer island chain, a fjord, a river with a mouth, a headland, an ice sheet, a coastal road running off the map edge
 - **more settlement** — a smokehouse, a windmill, a chapel, a net loft, a second steading on an islet, a pier that reaches deep water, cart ruts in the track
 - **more life at ground level** — lichen on the erratics, moss on the north faces, laundry lines, snow fences, a woodpile that grows through the year
 - **more weather** — hail, a wind that bends the grass it already scales, fog banks that roll rather than drift, lightning on the far islands
@@ -73,7 +73,7 @@ the house rules. each is load-bearing for either performance or determinism, and
 
 **everything generated is deterministic.** no `Math.random`, no `Date.now`, no iteration-order dependence. fork the seeded rng (`rng.fork(name)`) so adding a prop does not reshuffle every prop built after it.
 
-**new knobs go in the config, and in the overlay** — if they are visual *and* read per frame. a build-time knob (`layout.*`, `creek.*`, `footpath.*`, `dressing.*`) stays out of the panel, because a slider that needs a rebuild to be seen lies about what a slider does. read config per frame in `update`; never capture it at build.
+**new knobs go in the config, and in the overlay** — if they are visual *and* read per frame. a build-time knob (`archipelago.*`, `layout.*`, `creek.*`, `footpath.*`, `dressing.*`, or route-shaping `boats.*`) stays out of the panel, because a slider that needs a rebuild to be seen lies about what a slider does. read config per frame in `update`; never capture it at build.
 
 **there is no `enabled` flag.** an effect is off when its strength is zero. do not add a boolean that duplicates a number that already exists.
 

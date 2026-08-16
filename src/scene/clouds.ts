@@ -128,7 +128,7 @@ export function createCloudLayer ({
   daylight,
 }: CloudOptions): AppModule<Record<string, never>> {
   const count    = Math.max(2, quality.mistLayers)
-  const deckSize = config.terrain.size * 4.4
+  const deckSize = config.archipelago.worldSize * 4.4
   const base     = config.terrain.waterLevel + config.atmosphere.cloudHeight
   const geometry = deckGeometry(deckSize)
   const field    = new Uint8Array(TEXTURE_SIZE * TEXTURE_SIZE * 4)

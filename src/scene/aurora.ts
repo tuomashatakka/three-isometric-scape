@@ -228,7 +228,7 @@ export function createAuroraLayer ({
     return null
 
   const count    = quality.auroraLayers
-  const deckSize = config.terrain.size * 4.4
+  const deckSize = config.archipelago.worldSize * 4.4
   const geometry = veilGeometry(deckSize)
   const field    = new Uint8Array(TEXTURE_SIZE * TEXTURE_SIZE * 4)
   bakeVeil(field, config.seed ^ 0x6b19, new Color(config.palette.aurora), new Color(config.palette.auroraCrown))

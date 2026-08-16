@@ -2,6 +2,22 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## three islands, and the boats between them
+
+the home island no longer has to pretend its skerries are an archipelago. this run adds two inhabited neighbours with different ground, gives all three the same working life, and makes the water between their jetties into a road boats can actually survive.
+
+- **added** `archipelago.ts`: the existing pure survey runs once per landmass in its own local coordinates, then height, paths and ports are projected into one 520-metre world. home keeps the original ground and fifteen skerries; ridge has sharper, higher relief; meadow is broader and lower. independent seed offsets and layout proportions make them different terrain rather than translated clones
+- **gave** every island the whole holding — farmhouse, barn, aitta, woodshed, sauna, well, fields, pasture, beck, harbour, footpaths and jetty. reuse happens at the survey boundary, so there are not three almost-the-same settlement builders waiting to drift apart
+- **reserved** each island's recognisable dressing before spending the shared tier budget. even `minimal` and `mobile` place hay poles, firewood, barrels and mooring stakes on every holding instead of exhausting a global batch on whichever island happened to be iterated first
+- **made** a landing prove it reaches open sea. a shoreline pocket can be wet and still trap a boat behind its own island; the port search now rejects that cove before any route planner is asked to solve the impossible
+- **added** `waterway.ts`: three world-space ports joined as one directed ring by deterministic `a*` over the composite seabed. the planner probes the full 1.85-metre hull envelope rather than the boat's centre, simplifies only across segments that remain wet, and rejects disconnected, shallow or colliding results. seed 7319 resolves to **3 legs · 809.7 m · 0.67 m minimum clearance**
+- **dispatched** one boat from every jetty at the matching port distance. all three move one way around the same circuit with fixed offsets, removing head-on traffic by construction; a full-circuit audit puts the closest pair at **103.41 m**, against a configured seven-metre minimum and **zero conflicts**
+- **added** `boats.ts`: one rowboat geometry, one shared material, one dynamic `InstancedMesh`. only three matrices move per frame; `boats.speed = 0` performs no write or upload and is pinned by `scape:shot`, so the fleet cannot poison a still or its diff
+- **rebuilt** the rowboat geometry as a hollow 3.4-metre clinker hull: tapered stations, overlapping strakes, a keel and floorboards under three benches, narrow stems and two correctly laid oars. the solid rectangular block it replaces was neither boat-shaped nor open inside, iconic stuff :3
+- **extended** `scape:map` across the 520-metre world. it keeps the old home fields for reference compatibility, adds three world-space landmass summaries, draws every settlement, jetty, waterway and dispatched boat, and reports connectivity, wetness, clearance, separation and conflicts in text and json. `scape:diff` tolerates old json and compares the new landmass and safety fields when present
+- **proved** the contracts headlessly: three deterministic and distinct terrains; every holding complete; local paths, buildings and jetties translated without drift; one strongly connected ring; route endpoints on the matching ports; and every boat separated for a full circuit. the hull audit is deliberately independent of the planner — 360 bearings every 0.05 metres along all 809.7 metres — rather than repeating production's sampling and congratulating itself
+- **cost** the moving fleet one draw. the current mobile swiftshader quick capture is **77 draws · 0.47M tris · 11.4 fps · 0 browser errors** at 6.2 seconds, against the older documented sample of 50 draws and 0.20M tris: **+27 draws · +0.27M tris** for two complete settlements and their dressing, the wider terrain, and the fleet. the pure cold archipelago survey, including route planning and safety validation, is about **1.47 s**
+
 ## the front, and the ground it leaves wet
 
 the scape has had two clocks since the season run and no weather at all. this one adds the third: a front that crosses, rains, clears, and leaves the ground it fell on dark and glossy for a while afterwards.

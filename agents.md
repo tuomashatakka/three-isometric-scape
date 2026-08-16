@@ -6,8 +6,8 @@ the tool reference for anything working on this repository without a pair of eye
 
 | you want to know | reach for | costs |
 | --- | --- | --- |
-| did the composition survive | `bun run scape:map --stats` | ~16 ms, no browser |
-| where is everything | `bun run scape:map` | ~16 ms, no browser |
+| did the composition survive | `bun run scape:map --stats` | ~1.5 s cold, no browser |
+| where is everything | `bun run scape:map` | ~1.5 s cold, no browser |
 | what does this one prop look like | `bun run prop:map <name>` | ~40 ms, no browser |
 | what colour is where on a prop | `bun run prop:map <name> --audit` | ~40 ms, no browser |
 | what does the roster look like | `/props.html` (dev server) | one gpu context |
@@ -21,29 +21,36 @@ the tool reference for anything working on this repository without a pair of eye
 
 ### `bun run scape:map` — the whole composition, as ascii
 
-no browser, no gpu, no dependency. [`landscape/survey.ts`](src/scene/landscape/survey.ts) resolves the ground, the farm, the landings and the paths without building a vertex, and this renders it.
+no browser, no gpu, no dependency. [`landscape/archipelago.ts`](src/scene/landscape/archipelago.ts) resolves three local surveys, projects their paths and ports, and plans the water-only route without building a vertex; this renders the combined result.
 
 ```sh
 bun run scape:map                      # grid + stats
-bun run scape:map --stats              # numbers only, ~100 words
-bun run scape:map --seed 999           # a different island
-bun run scape:map --window 40,-20,60   # crop: cx,cz,halfspan
-bun run scape:map --cols 150           # wider grid
-bun run scape:map --layers paths,steading
+bun run scape:map --stats              # numbers only, including route/fleet safety
+bun run scape:map --seed 7318          # a different valid archipelago
+bun run scape:map --window 40,-20,60   # crop: cx,cz,span
+bun run scape:map --w 150              # wider grid
+bun run scape:map --layers paths,waterways,boats,buildings
 bun run scape:map --json               # for scripting
 ```
 
-the stats block is the check that catches what a still cannot — a beck that stopped tracing, an island that drowned, a pasture that never found room, footpaths that collapsed to zero. **read it before and after every change.**
+the stats block is the check that catches what a still cannot — a beck that stopped tracing, an island that drowned, a pasture that never found room, footpaths that collapsed to zero, a route that crossed land or a fleet that collided. the first block is the legacy home-island shape; the landmass, waterway and boat blocks cover the full world. **read it before and after every change.**
 
 ```text
-seed 7319  size 196m  water -1.25m  grid 96x48  2.04x4.08 m/cell
+seed 7319  world 520m  home 196m  water -1.25m  grid 96x48  5.42x10.83 m/cell
+
 land 19.6%  above snowline 82%  peak 9.09m @ (17, 18)
 yard (-17,-0.7) r19    track 27pts 48.8m    landRadius 44
-footpaths 20 routes, 297.5m total, longest 28.7m
+footpaths 16 routes, 210m total, longest 23m
 creek OK  head (19,23) 7.88m -> mouth (47,46) -14.3m  len 38.7m
 pasture (34.9,-9) r6   plots 4   ridges 5   isles 15/15 surfacing
 steading  farmhouse(-8,3) barn(-16,-14) aitta(-27,6) woodshed(-28,-7) sauna(-17,16)
-landing (-5,-13)  harbour (51,-9)
+landing (-26,-17)  harbour (-13,-28)
+landmasses 3
+home/home @ (0,0)  land 19.6% peak 9.09m  paths 16  jetty (-26,-17)
+ridge/ridge @ (-178,128)  land 15.1% peak 9.8m  paths 11  jetty (-151,138)
+meadow/meadow @ (178,128)  land 27% peak 5.68m  paths 12  jetty (151,126)
+waterways 3 legs 809.7m  connected OK  wet OK  clearance 0.67m
+boats 3  separation 103.41m  conflicts 0
 ```
 
 ### `bun run prop:map` — one prop, as ascii
@@ -90,7 +97,7 @@ bun run scape:shot --skip post                      # drop the optical chain
 `tour` is `default`, `near`, `far`, `noon`, `night`, `winter`. every capture prints a line before anything opens the image, and most runs need only that line:
 
 ```text
-near   ok   5.3s  fps  15.7  draws   50  tris 0.20M  f  43  err 0  -> .scape/shots/near.png
+near   ok   6.2s  fps  11.4  draws   77  tris 0.47M  f  43  err 0  -> .scape/shots/near.png
 ```
 
 three defaults are load-bearing:
@@ -108,7 +115,7 @@ bun run scape:diff --ref origin/main --poses tour
 bun run scape:diff --clean          # drop the cached ref worktree
 ```
 
-builds the reference in a detached git worktree, serves both, captures the same poses through both, prints a table. an image is written **only** for a pose that moved past `--threshold`. the `structural:` line runs `scape:map --json` on both sides.
+builds the reference in a detached git worktree, serves both, captures the same poses through both, prints a table. an image is written **only** for a pose that moved past `--threshold`. the `structural:` line runs `scape:map --json` on both sides, tolerates the older single-island json shape, and compares landmasses, jetties, waterways and fleet safety when present.
 
 noise floor, measured: two captures of the same commit differ in ~14% of pixels by 1–2 levels, and **0.00%** at the default tolerance. a zero means zero.
 
@@ -165,7 +172,7 @@ register in [`props/index.ts`](src/scene/props/index.ts) and put the name in `HE
 | `upland.ts` | meadow barn, hay drying poles |
 | `vegetation.ts` | spruce, pine, birch, grass, reeds, crops |
 | `stone.ts` | erratics, field stones, cobbles, cairns |
-| `objects.ts` | rowboat, bales, firewood, barrel, mailbox, driftwood |
+| `objects.ts` | hollow clinker rowboat, bales, firewood, barrel, mailbox, driftwood |
 | `fence.ts` / `wall.ts` | ground-following runs — take a polyline, not an rng |
 | `ploppable.ts` | 2d placement with a ground-following foundation |
 | `material.ts` | the two shared materials, cloud shadow, wind, soil grain, wetness, snow |
@@ -174,22 +181,27 @@ register in [`props/index.ts`](src/scene/props/index.ts) and put the name in `HE
 
 ### the composition
 
-`src/scene/landscape/*.ts`. **the resolution order is load-bearing and lives in [`survey.ts`](src/scene/landscape/survey.ts)** — layout → height → steading → landings → network → footpaths. paths answer to the *levelled* yard and the *carved* beck, not to raw fBm.
+`src/scene/landscape/*.ts`. **the local resolution order is load-bearing and lives in [`survey.ts`](src/scene/landscape/survey.ts)** — layout → height → steading → landings → network → footpaths. [`archipelago.ts`](src/scene/landscape/archipelago.ts) then projects the three finished local surveys into one world before planning ports and waterways. paths answer to the *levelled* yard and the *carved* beck, not to raw fBm; routes answer to the composite seabed, not to one island's local field.
 
 | file | holds |
 | --- | --- |
-| `survey.ts` | the pure composition, before anything is drawn — **the tools' entry point** |
+| `archipelago.ts` | local surveys projected into one field, path set and port set — **the tools' entry point** |
+| `survey.ts` | one island's pure local composition, before anything is drawn |
 | `layout.ts` | yard, cart track, field plots, ridges, pasture, `sinkToIsland`, `yawAlong` |
 | `height.ts` | authored ground, islets, beck, fbm underneath |
 | `steading.ts` | where the buildings stand, `faceToward`, `doorstepOf` |
-| `landing.ts` | the shoreline the jetty and the harbour are on |
+| `landing.ts` | one local shoreline, with an open-sea jetty and harbour |
 | `path.ts` | polyline smoothing and queries — reuse these, do not re-derive them |
 | `network.ts` | the farm's street plan: waypoints, spanning tree, shortcuts |
 | `footpath.ts` | tracing a planned leg into a worn line, and the wear query |
+| `waterway.ts` | world ports, water-only route search, hull clearance and fleet offsets |
+| `boats.ts` | one dynamic `InstancedMesh` moving the collision-safe fleet |
 | `creek.ts` | the beck: descent trace, channel, tidal mouth |
-| `terrain.ts` | geometry, height/slope banded colour, path wear painted in |
+| `terrain.ts` | shared archipelago geometry, height/slope banded colour, path wear painted in |
 | `water.ts` | baked bathymetry, swell, foam, glitter, winter ice |
 | `samplers.ts` | where the dressing throws its darts — island, disc, tread |
+| `dressing-zones.ts` | world-space keep-outs and pure scatter acceptance rules |
+| `dressing-helpers.ts` | hand-placed runs and helpers shared by each holding |
 | `dressing.ts` | placement, hero merge, instanced scatter |
 | `index.ts` | the scene module, and what raycasts |
 
@@ -201,7 +213,7 @@ register in [`props/index.ts`](src/scene/props/index.ts) and put the name in `HE
 
 ### a knob
 
-[`config.ts`](src/scene/config.ts) is the public tuning surface. **if it is visual and read per frame**, add a dotted path to [`ui/scape-controls.ts`](src/ui/scape-controls.ts) and it persists, resets and becomes url-addressable for free. **if it needs a rebuild to be seen** (`layout.*`, `creek.*`, `footpath.*`, `dressing.*`) leave it out of the overlay — a slider that lies about what it does is worse than no slider.
+[`config.ts`](src/scene/config.ts) is the public tuning surface. **if it is visual and read per frame**, add a dotted path to [`ui/scape-controls.ts`](src/ui/scape-controls.ts) and it persists, resets and becomes url-addressable for free. **if it needs a rebuild to be seen** (`archipelago.*`, `layout.*`, `creek.*`, `footpath.*`, `dressing.*`, and every `boats.*` field except `speed`) leave it out of the overlay — a slider that lies about what it does is worse than no slider.
 
 there is **no `enabled` flag anywhere**: an effect is off when its strength is zero.
 

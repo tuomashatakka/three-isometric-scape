@@ -259,7 +259,9 @@ export function createAtmosphereLayer ({
   const sunPosition = new Vector3()
   const horizon     = new Color()
   const bounceBase  = new Color(palette.meadow)
-  const tallest     = config.terrain.height + CANOPY
+  const tallest     = Math.max(
+    ...config.archipelago.landmasses.map(landmass => landmass.terrain.height),
+  ) + CANOPY
   const hemiGain    = quality.environment ? 1 : AMBIENT_TAKEOVER
 
   const lighting = standardLighting<Record<string, never>>({

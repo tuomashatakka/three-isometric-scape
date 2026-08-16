@@ -1,9 +1,10 @@
 import { SCAPE_CONFIG } from '../src/scene/config.ts'
+import { surveyArchipelago } from '../src/scene/landscape/archipelago.ts'
+import type { ArchipelagoSurvey, LandmassSurvey } from '../src/scene/landscape/archipelago.ts'
 import { distanceToTrack } from '../src/scene/landscape/layout.ts'
-import { pathLength } from '../src/scene/landscape/path.ts'
+import { createPathQuery, pathLength } from '../src/scene/landscape/path.ts'
 import { STEADING_BUILDINGS } from '../src/scene/landscape/steading.ts'
-import { surveyScape } from '../src/scene/landscape/survey.ts'
-import type { ScapeSurvey } from '../src/scene/landscape/survey.ts'
+import { sampleWaterway } from '../src/scene/landscape/waterway.ts'
 import type { ScapeConfig } from '../src/scene/config.ts'
 import { applyOverrides, parseArgs } from './args.ts'
 
@@ -26,13 +27,16 @@ const SHALLOW = 0.45
 
 export const LEGEND =
   '~ deep  - shallow  . shore  : low  = mid  + upper  * high  # peak\n' +
-  ', footpath  ≡ track  s beck  F/B/A/W/S steading  o well  J jetty  H harbour  p plot  ^ ridge'
+  ', footpath  ≡ track  · waterway  b boat  s beck  ' +
+  'F/B/A/W/S steading  o well  J jetty  H harbour  p plot  ^ ridge'
 
 export interface Layers {
   height:    boolean
   creek:     boolean
   paths:     boolean
   track:     boolean
+  waterways: boolean
+  boats:     boolean
   buildings: boolean
 }
 
@@ -41,6 +45,8 @@ export const ALL_LAYERS: Layers = {
   creek:     true,
   paths:     true,
   track:     true,
+  waterways: true,
+  boats:     true,
   buildings: true,
 }
 
@@ -77,11 +83,9 @@ export function glyphFor (
   return LAND_RAMP[band]
 }
 
-export interface MapStats {
+interface CompositionStats {
   seed:       number
   size:       number
-  waterLevel: number
-  grid:       { w: number, h: number, metres: number, metresZ: number }
   land:       number
   snowbound:  number
   peak:       { height: number, x: number, z: number }
@@ -99,6 +103,31 @@ export interface MapStats {
   harbour:    [ number, number ] | null
 }
 
+export interface LandmassMapStats extends CompositionStats {
+  id:      string
+  profile: string
+  origin:  [ number, number ]
+}
+
+export interface MapStats extends CompositionStats {
+  waterLevel: number
+  worldSize:  number
+  grid:       { w: number, h: number, metres: number, metresZ: number }
+  landmasses: LandmassMapStats[]
+  waterways:  {
+    legs:      number
+    length:    number
+    connected: boolean
+    wet:       boolean
+    clearance: number
+  }
+  boats: {
+    count:      number
+    separation: number
+    conflicts:  number
+  }
+}
+
 const round = (value: number, places = 1): number => Number(value.toFixed(places))
 
 /**
@@ -108,17 +137,11 @@ const round = (value: number, places = 1): number => Number(value.toFixed(places
  * trace, an island that drowned, a pasture that never found room — each one is
  * a single field here and none of them are legible in eighty columns of ascii.
  */
-export function surveyStats (
-  config:  ScapeConfig,
-  survey:  ScapeSurvey,
-  window:  Window,
-  w:       number,
-  h:       number,
-): MapStats {
+function compositionStats (landmass: LandmassSurvey, w: number, h: number): CompositionStats {
+  const { config, origin, survey }                         = landmass
   const { layout, field, places, landing, harbour, paths } = survey
-  const { waterLevel }                                     = config.terrain
-  const half                                               = window.size * 0.5
-  const cell                                               = window.size / w
+  const { waterLevel, size }                               = config.terrain
+  const half                                               = size * 0.5
 
   let land      = 0
   let snowbound = 0
@@ -126,8 +149,8 @@ export function surveyStats (
 
   for (let row = 0; row < h; row += 1)
     for (let col = 0; col < w; col += 1) {
-      const x      = window.x - half + (col + 0.5) * cell
-      const z      = window.z - half + (row + 0.5) * (window.size / h)
+      const x      = -half + (col + 0.5) * size / w
+      const z      = -half + (row + 0.5) * size / h
       const height = field.heightAt(x, z)
 
       if (height > peak.height)
@@ -143,19 +166,29 @@ export function surveyStats (
     }
 
   const lengths = paths.paths.map(path => pathLength(path.points))
+  const worldX  = (x: number): number => x + origin.x
+  const worldZ  = (z: number): number => z + origin.z
 
   return {
-    seed:       config.seed,
-    size:       config.terrain.size,
-    waterLevel,
-    grid:       { w, h, metres: round(cell, 2), metresZ: round(window.size / h, 2) },
-    land:       round(100 * land / (w * h)),
-    snowbound:  land ? round(100 * snowbound / land) : 0,
-    peak:       { height: round(peak.height, 2), x: Math.round(peak.x), z: Math.round(peak.z) },
+    seed:      config.seed,
+    size,
+    land:      round(100 * land / (w * h)),
+    snowbound: land ? round(100 * snowbound / land) : 0,
+    peak:      {
+      height: round(peak.height, 2),
+      x:      Math.round(worldX(peak.x)),
+      z:      Math.round(worldZ(peak.z)),
+    },
     landRadius: round(layout.landRadius),
-    yard:       { x: round(layout.yard.x), z: round(layout.yard.z), radius: round(layout.yard.radius) },
-    track:      { points: layout.track.points.length, length: round(pathLength(layout.track.points)) },
-
+    yard:       {
+      x:      round(worldX(layout.yard.x)),
+      z:      round(worldZ(layout.yard.z)),
+      radius: round(layout.yard.radius),
+    },
+    track: {
+      points: layout.track.points.length,
+      length: round(pathLength(layout.track.points)),
+    },
     footpaths: {
       routes:  paths.paths.length,
       length:  round(lengths.reduce((sum, one) => sum + one, 0)),
@@ -164,45 +197,111 @@ export function surveyStats (
 
     // Head and mouth carry their own ground height, because a single "fall"
     // figure measured between them is a lie: the mouth is dredged below the
-    // waterline and sits on a seabed that is nine metres further down again, so
-    // the drop it reports is mostly bathymetry the beck never ran over.
+    // waterline and sits on a seabed that is nine metres further down again.
     creek: layout.creek && {
       head: [
-        Math.round(layout.creek.head.x),
-        Math.round(layout.creek.head.z),
+        Math.round(worldX(layout.creek.head.x)),
+        Math.round(worldZ(layout.creek.head.z)),
         round(field.heightAt(layout.creek.head.x, layout.creek.head.z), 2),
       ],
       mouth: [
-        Math.round(layout.creek.mouth.x),
-        Math.round(layout.creek.mouth.z),
+        Math.round(worldX(layout.creek.mouth.x)),
+        Math.round(worldZ(layout.creek.mouth.z)),
         round(field.heightAt(layout.creek.mouth.x, layout.creek.mouth.z), 2),
       ],
       length: round(layout.creek.length),
     },
-
     pasture: layout.pasture && {
-      x:      round(layout.pasture.x),
-      z:      round(layout.pasture.z),
+      x:      round(worldX(layout.pasture.x)),
+      z:      round(worldZ(layout.pasture.z)),
       radius: round(layout.pasture.radius),
     },
-
     plots:  layout.plots.length,
     ridges: layout.ridges.length,
-
-    isles: {
+    isles:  {
       total:     config.terrain.isles.length,
       surfacing: config.terrain.isles.filter(isle => {
-        const scale = config.terrain.size * 0.5
+        const scale = size * 0.5
         return field.heightAt(isle.x * scale, isle.z * scale) > waterLevel
       }).length,
     },
-
     steading: Object.fromEntries(
-      Object.entries(places).map(([ name, spot ]) => [ name, [ Math.round(spot.x), Math.round(spot.z) ]]),
+      Object.entries(places).map(([ name, spot ]) => [
+        name,
+        [ Math.round(worldX(spot.x)), Math.round(worldZ(spot.z)) ],
+      ]),
     ),
+    landing: landing && [ Math.round(worldX(landing.x)), Math.round(worldZ(landing.z)) ],
+    harbour: harbour && [ Math.round(worldX(harbour.x)), Math.round(worldZ(harbour.z)) ],
+  }
+}
 
-    landing: landing && [ Math.round(landing.x), Math.round(landing.z) ],
-    harbour: harbour && [ Math.round(harbour.x), Math.round(harbour.z) ],
+function waterwaysConnected (survey: ArchipelagoSurvey): boolean {
+  const ids = survey.ports.map(port => port.id)
+  if (ids.length === 0)
+    return false
+
+  const seen  = new Set([ ids[0] ])
+  const queue = [ ids[0] ]
+
+  while (queue.length > 0) {
+    const from = queue.pop()!
+
+    for (const leg of survey.waterways.route.legs)
+      if (leg.from === from && !seen.has(leg.to)) {
+        seen.add(leg.to)
+        queue.push(leg.to)
+      }
+  }
+
+  return seen.size === ids.length
+}
+
+export function surveyStats (
+  config: ScapeConfig,
+  survey: ArchipelagoSurvey,
+  window: Window,
+  w:      number,
+  h:      number,
+): MapStats {
+  const landmasses = survey.landmasses.map(landmass => ({
+    id:      landmass.id,
+    profile: landmass.profile,
+    origin:  [ round(landmass.origin.x), round(landmass.origin.z) ] as [number, number],
+    ...compositionStats(landmass, w, h),
+  }))
+  const home = landmasses.find(landmass => landmass.id === survey.home.id)
+
+  if (!home)
+    throw new Error('the map could not find the home landmass')
+
+  const { id: _id, profile: _profile, origin: _origin, ...legacy } = home
+  const { waterways }                                              = survey
+
+  return {
+    ...legacy,
+    seed:       config.seed,
+    waterLevel: survey.waterLevel,
+    worldSize:  survey.size,
+    grid:       {
+      w,
+      h,
+      metres:  round(window.size / w, 2),
+      metresZ: round(window.size / h, 2),
+    },
+    landmasses,
+    waterways: {
+      legs:      waterways.route.legs.length,
+      length:    round(waterways.route.length),
+      connected: waterwaysConnected(survey),
+      wet:       waterways.minimumClearance + 1e-6 >= config.boats.clearance,
+      clearance: round(waterways.minimumClearance, 2),
+    },
+    boats: {
+      count:      waterways.boatOffsets.length,
+      separation: round(waterways.minimumSeparation, 2),
+      conflicts:  waterways.minimumSeparation + 1e-6 < config.boats.separation ? 1 : 0,
+    },
   }
 }
 
@@ -215,48 +314,85 @@ export function surveyStats (
  * path, because a path that ran under a barn would be the bug worth seeing.
  */
 export function renderGrid (
-  config: ScapeConfig,
-  survey: ScapeSurvey,
-  window: Window,
-  w:      number,
-  h:      number,
-  layers: Layers,
+  config:       ScapeConfig,
+  archipelago:  ArchipelagoSurvey,
+  window:       Window,
+  w:            number,
+  h:            number,
+  layers:       Layers,
 ): string {
-  const { layout, field, places, landing, harbour, paths } = survey
-  const { waterLevel, height: amplitude, seabedDrop }      = config.terrain
-  const half                                               = window.size * 0.5
-  const cellX                                              = window.size / w
-  const cellZ                                              = window.size / h
+  const { field, paths, waterways }                   = archipelago
+  const { waterLevel, height: amplitude, seabedDrop } = config.terrain
+  const half                                          = window.size * 0.5
+  const cellX                                         = window.size / w
+  const cellZ                                         = window.size / h
+  const routeReach                                    = Math.max(cellX, cellZ) * 0.48
+  const routeAt                                       = createPathQuery(waterways.route.points, routeReach)
 
   const at = (x: number, z: number): [ number, number ] => [
     Math.floor((x - window.x + half) / cellX),
     Math.floor((z - window.z + half) / cellZ),
   ]
 
+  function overlayAt (
+    x:        number,
+    z:        number,
+    landmass: LandmassSurvey | null,
+    localX:   number,
+    localZ:   number,
+  ): string | null {
+    const creek = landmass?.survey.layout.creek
+
+    if (layers.creek && creek && creek.claimAt(localX, localZ) > 0.35)
+      return 's'
+
+    if (layers.paths && paths.wearAt(x, z) > 0.25)
+      return ','
+
+    // At the default world grid one character spans several metres of ground,
+    // is wider than the cart track itself — testing the true half-width would
+    // sample the road only where a cell centre happened to land on it, and
+    // draw a dotted line through a continuous thing.
+    if (
+      layers.track &&
+      landmass &&
+      distanceToTrack(landmass.survey.layout, localX, localZ) <
+        Math.max(landmass.survey.layout.track.width * 0.5, cellX * 0.5)
+    )
+      return '≡'
+
+    if (layers.waterways && routeAt(x, z).distance < routeReach)
+      return '·'
+
+    return null
+  }
+
+  function glyphAt (x: number, z: number): string {
+    const landmass = field.landmassAt(x, z)
+    const localX   = landmass ? x - landmass.origin.x : x
+    const localZ   = landmass ? z - landmass.origin.z : z
+    const overlay  = overlayAt(x, z, landmass, localX, localZ)
+
+    if (overlay)
+      return overlay
+
+    if (!layers.height)
+      return ' '
+
+    return glyphFor(
+      field.heightAt(x, z),
+      waterLevel,
+      landmass?.config.terrain.height ?? amplitude,
+      seabedDrop,
+    )
+  }
+
   const grid = Array.from({ length: h }, (_row, row) =>
     Array.from({ length: w }, (_col, col) => {
       const x = window.x - half + (col + 0.5) * cellX
       const z = window.z - half + (row + 0.5) * cellZ
 
-      if (!layers.height)
-        return ' '
-
-      const ground = glyphFor(field.heightAt(x, z), waterLevel, amplitude, seabedDrop)
-
-      if (layers.creek && layout.creek && layout.creek.claimAt(x, z) > 0.35)
-        return 's'
-
-      if (layers.paths && paths.wearAt(x, z) > 0.25)
-        return ','
-
-      // At the default grid one character is over two metres of ground, which
-      // is wider than the cart track itself — testing the true half-width would
-      // sample the road only where a cell centre happened to land on it, and
-      // draw a dotted line through a continuous thing.
-      if (layers.track && distanceToTrack(layout, x, z) < Math.max(layout.track.width * 0.5, cellX * 0.5))
-        return '≡'
-
-      return ground
+      return glyphAt(x, z)
     }))
 
   function stamp (x: number, z: number, glyph: string): void {
@@ -266,24 +402,35 @@ export function renderGrid (
       grid[row][col] = glyph
   }
 
-  if (layers.buildings) {
-    for (const ridge of layout.ridges)
-      stamp(ridge.x, ridge.z, '^')
+  if (layers.buildings)
+    for (const landmass of archipelago.landmasses) {
+      const { layout, places, landing, harbour } = landmass.survey
+      const worldX                               = (x: number): number => x + landmass.origin.x
+      const worldZ                               = (z: number): number => z + landmass.origin.z
 
-    for (const plot of layout.plots)
-      stamp(plot.x, plot.z, 'p')
+      for (const ridge of layout.ridges)
+        stamp(worldX(ridge.x), worldZ(ridge.z), '^')
 
-    for (const name of STEADING_BUILDINGS)
-      stamp(places[name].x, places[name].z, name[0].toUpperCase())
+      for (const plot of layout.plots)
+        stamp(worldX(plot.x), worldZ(plot.z), 'p')
 
-    stamp(places.well.x, places.well.z, 'o')
+      for (const name of STEADING_BUILDINGS)
+        stamp(worldX(places[name].x), worldZ(places[name].z), name[0].toUpperCase())
 
-    if (landing)
-      stamp(landing.x, landing.z, 'J')
+      stamp(worldX(places.well.x), worldZ(places.well.z), 'o')
 
-    if (harbour)
-      stamp(harbour.x, harbour.z, 'H')
-  }
+      if (landing)
+        stamp(worldX(landing.x), worldZ(landing.z), 'J')
+
+      if (harbour)
+        stamp(worldX(harbour.x), worldZ(harbour.z), 'H')
+    }
+
+  if (layers.boats)
+    for (const offset of waterways.boatOffsets) {
+      const boat = sampleWaterway(waterways.route, offset, { x: 0, z: 0, angle: 0 })
+      stamp(boat.x, boat.z, 'b')
+    }
 
   return grid.map(row => row.join('')).join('\n')
 }
@@ -315,6 +462,18 @@ export function formatStats (stats: MapStats): string {
     `steading  ${steading}`,
     `landing ${stats.landing ? `(${stats.landing})` : 'NONE'}  ` +
       `harbour ${stats.harbour ? `(${stats.harbour})` : 'NONE'}`,
+    `landmasses ${stats.landmasses.length}`,
+    ...stats.landmasses.map(landmass =>
+      `${landmass.id}/${landmass.profile} @ (${landmass.origin})  ` +
+      `land ${landmass.land}% peak ${landmass.peak.height}m  ` +
+      `paths ${landmass.footpaths.routes}  ` +
+      `jetty ${landmass.landing ? `(${landmass.landing})` : 'NONE'}`),
+    `waterways ${stats.waterways.legs} legs ${stats.waterways.length}m  ` +
+      `connected ${stats.waterways.connected ? 'OK' : 'BROKEN'}  ` +
+      `wet ${stats.waterways.wet ? 'OK' : 'DRY'}  ` +
+      `clearance ${stats.waterways.clearance}m`,
+    `boats ${stats.boats.count}  separation ${stats.boats.separation}m  ` +
+      `conflicts ${stats.boats.conflicts}`,
   ]
 
   return lines.join('\n')
@@ -331,7 +490,9 @@ function readLayers (raw: string | undefined): Layers {
     creek:     wanted.has('creek'),
     paths:     wanted.has('paths'),
     track:     wanted.has('track'),
-    buildings: wanted.has('buildings'),
+    waterways: wanted.has('waterways'),
+    boats:     wanted.has('boats'),
+    buildings: wanted.has('buildings') || wanted.has('steading'),
   }
 }
 
@@ -346,7 +507,7 @@ function main (): void {
       '  --seed 1234           shorthand for --set seed=1234',
       '  --set a.b=1           dotted config override, repeatable',
       '  --window x,z,size     crop to a square of world, in metres',
-      '  --layers height,paths,track,creek,buildings',
+      '  --layers height,paths,track,creek,waterways,boats,buildings',
       '  --stats               stats block only, no grid',
       '  --json                machine-readable stats',
     ].join('\n'))
@@ -362,11 +523,11 @@ function main (): void {
   const h       = Math.max(4, Math.round(args.num('h', 48)))
   const cropped = args.str('window')?.split(',')
     .map(Number)
+  const survey         = surveyArchipelago(config)
   const window: Window = cropped?.length === 3
     ? { x: cropped[0], z: cropped[1], size: cropped[2] }
-    : { x: 0, z: 0, size: config.terrain.size }
+    : { x: 0, z: 0, size: survey.size }
 
-  const survey = surveyScape(config)
   const stats  = surveyStats(config, survey, window, w, h)
 
   if (args.has('json')) {
@@ -374,7 +535,8 @@ function main (): void {
     return
   }
 
-  const head = `seed ${stats.seed}  size ${stats.size}m  water ${stats.waterLevel}m  ` +
+  const head = `seed ${stats.seed}  world ${stats.worldSize}m  home ${stats.size}m  ` +
+    `water ${stats.waterLevel}m  ` +
     `grid ${w}x${h}  ${stats.grid.metres}x${stats.grid.metresZ} m/cell` +
     (cropped?.length === 3 ? `  window (${window.x},${window.z}) ${window.size}m` : '')
 

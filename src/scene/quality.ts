@@ -107,7 +107,7 @@ export interface AtmosphereQuality {
   /** Lake plane subdivisions per side. */
   waterSegments: number
 
-  /** Lake plane extent, as a multiple of the terrain size. */
+  /** Lake plane baseline extent; the archipelago also enforces a world-sized minimum. */
   waterSpan: number
 }
 

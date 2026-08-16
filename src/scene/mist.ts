@@ -115,19 +115,30 @@ const viewAxis = new Vector3()
  * place, so the alpha is baked to fall off radially: dense on the island, gone
  * by the time the eye is out at sea, and never an edge you can see.
  */
-function sheetGeometry (size: number, extent: number): PlaneGeometry {
-  const geometry = new PlaneGeometry(size, size, 40, 40)
+function sheetGeometry (size: number, config: ScapeConfig): PlaneGeometry {
+  const geometry = new PlaneGeometry(size, size, 72, 72)
   const position = geometry.getAttribute('position')
   const colors   = new Float32Array(position.count * 4)
 
   for (let index = 0; index < position.count; index += 1) {
-    const radius = Math.hypot(position.getX(index), position.getY(index))
+    const x      = position.getX(index)
+    const z      = position.getY(index)
     const offset = index * 4
+    let alpha    = 0
+
+    for (const landmass of config.archipelago.landmasses) {
+      const distance = Math.hypot(x - landmass.origin[0], z - landmass.origin[1])
+      alpha = Math.max(alpha, 1 - smoothstep(
+        landmass.terrain.size * REACH_IN,
+        landmass.terrain.size * REACH_OUT,
+        distance,
+      ))
+    }
 
     colors[offset]     = 1
     colors[offset + 1] = 1
     colors[offset + 2] = 1
-    colors[offset + 3] = 1 - smoothstep(extent * REACH_IN, extent * REACH_OUT, radius)
+    colors[offset + 3] = alpha
   }
 
   geometry.setAttribute('color', new BufferAttribute(colors, 4))
@@ -181,20 +192,34 @@ function sliceGeometry (width: number, height: number): PlaneGeometry {
  * only ever has a strength during the weeks the sea has not shut yet, so the
  * open water it wants is all the water there is. See `seaSmokeAmount`.
  */
-function smokeGeometry (size: number, landRadius: number): PlaneGeometry {
-  const geometry = new PlaneGeometry(size, size, 40, 40)
+function smokeGeometry (size: number, config: ScapeConfig): PlaneGeometry {
+  const geometry = new PlaneGeometry(size, size, 72, 72)
   const position = geometry.getAttribute('position')
   const colors   = new Float32Array(position.count * 4)
   const half     = size * 0.5
 
   for (let index = 0; index < position.count; index += 1) {
-    const radius = Math.hypot(position.getX(index), position.getY(index))
+    const x      = position.getX(index)
+    const z      = position.getY(index)
+    const radius = Math.hypot(x, z)
     const offset = index * 4
+    let offshore = 1
+
+    for (const landmass of config.archipelago.landmasses) {
+      const landRadius = landmass.terrain.size * 0.5 * landmass.terrain.islandOuter
+      const distance   = Math.hypot(x - landmass.origin[0], z - landmass.origin[1])
+
+      offshore = Math.min(offshore, smoothstep(
+        landRadius * SMOKE_IN,
+        landRadius * SMOKE_OUT,
+        distance,
+      ))
+    }
 
     colors[offset]     = 1
     colors[offset + 1] = 1
     colors[offset + 2] = 1
-    colors[offset + 3] = smoothstep(landRadius * SMOKE_IN, landRadius * SMOKE_OUT, radius) *
+    colors[offset + 3] = offshore *
       (1 - smoothstep(half * SMOKE_EDGE_IN, half * SMOKE_EDGE_OUT, radius))
   }
 
@@ -231,14 +256,13 @@ export function createMistLayer ({
   const count      = Math.max(1, quality.mistLayers)
   const sliceCount = Math.max(1, Math.round(count / 2))
   const smokeCount = Math.max(1, Math.round(count / 2))
-  const sheetSize  = config.terrain.size * 2.8
+  const sheetSize  = config.archipelago.worldSize * 2.8
   const spacing    = config.terrain.size * 0.3
   const waterLine  = config.terrain.waterLevel
   const amount     = config.atmosphere.mistAmount
-  const landRadius = config.terrain.size * 0.5 * config.terrain.islandOuter
-  const geometry   = sheetGeometry(sheetSize, config.terrain.size)
+  const geometry   = sheetGeometry(sheetSize, config)
   const upright    = sliceGeometry(sheetSize, MIST_HEIGHT)
-  const offshore   = smokeGeometry(sheetSize, landRadius)
+  const offshore   = smokeGeometry(sheetSize, config)
   const field      = new Uint8Array(TEXTURE_SIZE * TEXTURE_SIZE * 4)
   bakeMist(field, config.seed ^ 0x53a9)
 

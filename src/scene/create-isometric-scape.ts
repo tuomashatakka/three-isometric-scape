@@ -215,7 +215,7 @@ export function createIsometricScape (
     camera,
     config,
     quality,
-    groundRadius: config.terrain.size * 0.8,
+    groundRadius: config.archipelago.worldSize * 0.8,
     shadowDue:    runtime.shadowDue,
   })
 
@@ -278,7 +278,7 @@ export function createIsometricScape (
     canvas,
     landscape,
     limits:          config.camera,
-    maxFocus:        config.terrain.size * 0.48,
+    maxFocus:        config.archipelago.worldSize * 0.48,
     reducedMotion:   options.reducedMotion,
     onFocus:         options.onFocus,
     onManualControl: options.onManualControl,

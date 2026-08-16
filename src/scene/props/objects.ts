@@ -7,49 +7,118 @@ import { ball, box, cyl, deg, spread } from './primitives.ts'
 
 /** Loose objects — the clutter that says the farm is lived in. */
 
-/** A clinker rowboat, long axis on `z`. Sits on its keel at `y = 0`. */
-export function buildRowboat (rng: SeededRng, palette: NordicPalette): BufferGeometry {
-  const parts: BufferGeometry[] = []
-  const length                  = 3.4
+interface HullStation {
+  z:         number
+  halfWidth: number
+}
 
-  parts.push(part(box(1.02, 0.3, length), {
-    at: [ 0, 0.18, 0 ], color: palette.tarWood, jitter: 0.11, rng,
-  }))
+const HULL_STATIONS: readonly HullStation[] = [
+  { z: -1.7, halfWidth: 0.12 },
+  { z: -1.15, halfWidth: 0.47 },
+  { z: -0.42, halfWidth: 0.64 },
+  { z: 0.42, halfWidth: 0.64 },
+  { z: 1.15, halfWidth: 0.47 },
+  { z: 1.7, halfWidth: 0.12 },
+]
 
-  for (const [ index, sx ] of [ -1, 1 ].entries())
-    for (const [ strake, spec ] of [
-      { y: 0.36, out: 0.5, tilt: 12 },
-      { y: 0.56, out: 0.6, tilt: 20 },
-    ].entries())
-      parts.push(part(box(0.09, 0.24, length * (1 - strake * 0.05)), {
-        at:     [ sx * spec.out, spec.y, 0 ],
-        rotate: [ 0, 0, deg(sx * spec.tilt) ],
-        color:  (index + strake) % 2 === 0 ? palette.trimWhite : palette.trimShadow,
+/** One overlapping plank course down both sides of a tapered hull. */
+function addStrake (
+  parts:  BufferGeometry[],
+  rng:    SeededRng,
+  scale:  number,
+  y:      number,
+  height: number,
+  color:  string,
+): void {
+  for (const sx of [ -1, 1 ])
+    for (let index = 0; index < HULL_STATIONS.length - 1; index += 1) {
+      const from   = HULL_STATIONS[index]
+      const to     = HULL_STATIONS[index + 1]
+      const dx     = sx * (to.halfWidth - from.halfWidth) * scale
+      const dz     = to.z - from.z
+      const length = Math.hypot(dx, dz)
+
+      parts.push(part(box(0.085, height, length + 0.035), {
+        at: [
+          sx * (from.halfWidth + to.halfWidth) * scale * 0.5,
+          y,
+          (from.z + to.z) * 0.5,
+        ],
+        rotate: [ 0, Math.atan2(dx, dz), 0 ],
+        color,
         jitter: 0.09,
         rng,
       }))
+    }
+}
 
+/**
+ * A hollow clinker rowboat, long axis on `z`.
+ *
+ * The overlapping strakes flare out in three courses and taper into narrow
+ * stems. The keel is the only part that reaches `y = 0`; the open interior sits
+ * above it instead of being filled by one rectangular hull block.
+ */
+export function buildRowboat (rng: SeededRng, palette: NordicPalette): BufferGeometry {
+  const parts: BufferGeometry[] = []
+
+  // Keel and floorboards: enough bottom to float, low enough to leave a visible
+  // cavity between the benches and the bilge.
+  parts.push(part(box(0.18, 0.14, 3.28), {
+    at: [ 0, 0.07, 0 ], color: palette.tarWood, jitter: 0.1, rng,
+  }))
+  parts.push(part(box(0.46, 0.08, 2.5), {
+    at: [ 0, 0.18, 0 ], color: palette.woodDark, jitter: 0.11, rng,
+  }))
+
+  // Clinker courses overlap vertically and step outward toward the gunwale.
+  addStrake(parts, rng, 0.7, 0.24, 0.28, palette.tarWood)
+  addStrake(parts, rng, 0.86, 0.39, 0.27, palette.trimShadow)
+  addStrake(parts, rng, 1, 0.55, 0.27, palette.trimWhite)
+  addStrake(parts, rng, 1.03, 0.71, 0.08, palette.woodDark)
+
+  // Narrow stems close the two pointed ends without filling the interior.
   for (const sz of [ -1, 1 ])
-    parts.push(part(box(0.75, 0.5, 0.14), {
-      at:     [ 0, 0.42, sz * (length / 2 - 0.08) ],
-      rotate: [ deg(sz * 16), 0, 0 ],
-      color:  palette.trimWhite,
-      jitter: 0.08,
+    parts.push(part(box(0.17, 0.75, 0.16), {
+      at: [ 0, 0.375, sz * 1.68 ], color: palette.trimWhite, jitter: 0.08, rng,
+    }))
+
+  for (const [ index, z ] of spread(3, 1.5).entries())
+    parts.push(part(box(index === 1 ? 1.2 : 1.05, 0.08, 0.22), {
+      at: [ 0, 0.61, z ], color: palette.woodLight, jitter: 0.12, rng,
+    }))
+
+  // A matched pair of oars lies in the xz plane. Cylinders start on the y axis,
+  // so the 90-degree x rotation is the load-bearing part of this transform.
+  const oarAngle  = deg(68)
+  const oarLength = 2.25
+  const direction = { x: Math.sin(oarAngle), z: Math.cos(oarAngle) }
+
+  for (const sign of [ -1, 1 ]) {
+    const z = sign * 0.28
+
+    parts.push(part(cyl(0.04, 0.04, oarLength, 6), {
+      at:     [ 0, 0.8, z ],
+      rotate: [ deg(90), oarAngle, 0 ],
+      color:  palette.wood,
+      jitter: 0.1,
       rng,
     }))
 
-  for (const z of spread(2, 1.5))
-    parts.push(part(box(1.05, 0.08, 0.24), {
-      at: [ 0, 0.5, z ], color: palette.woodLight, jitter: 0.12, rng,
-    }))
+    const bladeReach = oarLength * 0.5 + 0.18
 
-  parts.push(part(cyl(0.045, 0.05, 2.1, 5), {
-    at:     [ 0.2, 0.58, 0.2 ],
-    rotate: [ deg(4), deg(-9), 0 ],
-    color:  palette.wood,
-    jitter: 0.1,
-    rng,
-  }))
+    parts.push(part(box(0.15, 0.045, 0.44), {
+      at: [
+        sign * direction.x * bladeReach,
+        0.8,
+        z + sign * direction.z * bladeReach,
+      ],
+      rotate: [ 0, oarAngle, 0 ],
+      color:  palette.woodLight,
+      jitter: 0.1,
+      rng,
+    }))
+  }
 
   return mergeParts(parts, { grime: 0.9, grimeFloor: 0.52 })
 }

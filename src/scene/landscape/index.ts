@@ -12,11 +12,14 @@ import { createSeason } from '../season.ts'
 import type { SeasonState } from '../season.ts'
 import { createWeather } from '../weather.ts'
 import type { WeatherState } from '../weather.ts'
+import { surveyArchipelago } from './archipelago.ts'
+import type { ArchipelagoSurvey } from './archipelago.ts'
+import { createBoatFleet } from './boats.ts'
+import type { BoatFleet } from './boats.ts'
 import { createDressing } from './dressing.ts'
 import type { Dressing } from './dressing.ts'
 import type { ScapeLayout } from './layout.ts'
-import { surveyScape } from './survey.ts'
-import { createTerrain } from './terrain.ts'
+import { createArchipelagoTerrain } from './terrain.ts'
 import { createWater } from './water.ts'
 import type { Water } from './water.ts'
 
@@ -25,9 +28,10 @@ export interface Landscape {
   module: AppModule<Record<string, never>>
 
   /** What click-to-focus raycasts against: terrain and water, nothing else. */
-  surfaces: Object3D[]
+  surfaces:    Object3D[]
   heightAt(x: number, z: number): number
-  layout:   ScapeLayout
+  layout:      ScapeLayout
+  archipelago: ArchipelagoSurvey
 
   /**
    * The live instant of the year, resolved once per frame by this module's
@@ -52,11 +56,11 @@ export function createLandscape (
 ): Landscape {
   const surfaces: Object3D[] = []
 
-  // The ground, the farm, the landings and the paths worn between them. The
-  // order they resolve in matters and lives in `survey.ts`, which is pure — the
-  // same survey the ascii map renders from, so the tool and the scene can never
-  // disagree about where anything is.
-  const { layout, field, paths } = surveyScape(config)
+  // Each island resolves in the original local survey, then their fields, paths
+  // and ports are projected into one deterministic world.
+  const archipelago = surveyArchipelago(config)
+  const { field }   = archipelago
+  const { layout }  = archipelago.home.survey
 
   // The year lives here rather than beside the day, because everything that
   // reads it — the ground, the growing things and the lake — is in this module.
@@ -73,6 +77,7 @@ export function createLandscape (
   let root: Group | null               = null
   let materials: ScapeMaterials | null = null
   let dressing: Dressing | null        = null
+  let fleet: BoatFleet | null          = null
   let water: Water | null              = null
 
   const module = defineModule<Record<string, never>>({
@@ -84,7 +89,12 @@ export function createLandscape (
 
       materials = createScapeMaterials(config, skip, quality.detailTaps)
 
-      const terrain = createTerrain(config, layout, field, paths, materials.ground, quality.terrainSegments)
+      const terrain = createArchipelagoTerrain(
+        config,
+        archipelago,
+        materials.ground,
+        quality.terrainSegments,
+      )
 
       surfaces.push(terrain)
       root.add(terrain)
@@ -102,8 +112,13 @@ export function createLandscape (
       }
 
       if (!skip.has('dressing')) {
-        dressing = createDressing(config, layout, field, paths, materials, quality)
-        root.add(dressing.object)
+        dressing = createDressing(config, archipelago, materials, quality)
+        fleet = createBoatFleet({
+          config,
+          network:  archipelago.waterways,
+          material: materials.ground,
+        })
+        root.add(dressing.object, fleet.mesh)
       }
 
       ctx.scene.add(root)
@@ -132,10 +147,12 @@ export function createLandscape (
 
       materials?.update(frame.elapsed, now, front)
       water?.update(frame.elapsed, now, front)
+      fleet?.update(frame.delta)
     },
 
     dispose () {
       dressing?.dispose()
+      fleet?.dispose()
       water?.dispose()
 
       if (root) {
@@ -152,6 +169,7 @@ export function createLandscape (
       surfaces.length = 0
       root      = null
       dressing  = null
+      fleet     = null
       water     = null
       materials = null
     },
@@ -162,10 +180,11 @@ export function createLandscape (
     surfaces,
     heightAt: field.heightAt,
     layout,
+    archipelago,
     season:   season.state,
     weather:  weather.state,
   }
 }
 
-// perf: one terrain draw, one water draw, one merged steading draw, and one
-// InstancedMesh per scattered prop type. Every mesh shares one of two materials.
+// perf: one merged terrain draw, one water draw, one merged settlement draw,
+// one moving fleet draw, and one InstancedMesh per scattered prop type.

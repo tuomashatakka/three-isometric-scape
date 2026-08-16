@@ -45,7 +45,7 @@ export interface Water {
   dispose(): void
 }
 
-const SHORE_RESOLUTION = 192
+const SHORE_RESOLUTION = 512
 const MAX_DEPTH        = 3.2
 
 /**
@@ -335,18 +335,20 @@ export function createWater (
   // budget the surface draws from two.
   const lite = quality.detailTaps < 6
 
-  // Two spans, deliberately. The bathymetry mask only covers the terrain, but
-  // the surface runs far past it so the island sits in open water that reaches
-  // the fog instead of ending on a visible edge. The mask clamps at its border,
-  // and because the island falloff drowns the terrain rim, that border already
-  // reads as full depth — so everything outside is simply deep water.
+  // Two spans, deliberately. The bathymetry mask covers the inhabited world,
+  // but the surface runs far past it so the archipelago sits in open water that
+  // reaches the fog instead of ending on a visible edge. The mask clamps at its
+  // border, where the composite field is already deep seabed.
   //
   // How *far* past it is a tier decision. The plane only has to outrun the fog,
   // and the fog closes within `groundRadius * 2` of the camera — so the cheap
   // tiers can carry a third of the surface for the same horizon, which is a
   // third of the vertices in the one mesh that is guaranteed to fill the frame.
-  const maskSpan = config.terrain.size * 1.02
-  const surface  = config.terrain.size * quality.waterSpan
+  const maskSpan = config.archipelago.worldSize * 1.02
+  const surface  = Math.max(
+    config.archipelago.worldSize * 3,
+    config.terrain.size * quality.waterSpan,
+  )
   const segments = quality.waterSegments
   const geometry = new PlaneGeometry(surface, surface, segments, segments)
   geometry.rotateX(-Math.PI / 2)

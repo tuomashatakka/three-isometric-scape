@@ -1,7 +1,9 @@
 import { BufferAttribute, Color, Mesh, PlaneGeometry } from 'three'
-import type { Material } from 'three'
+import type { BufferGeometry, Material } from 'three'
 import { hash2, smoothstep } from 'threejs-scene'
+import { mergeGeometryList } from 'threejs-scene/modules/assets'
 import type { ScapeConfig } from '../config.ts'
+import type { ArchipelagoSurvey } from './archipelago.ts'
 import type { Footpaths } from './footpath.ts'
 import type { HeightField } from './height.ts'
 import { distanceToTrack, pastureInfluence, plotInfluence } from './layout.ts'
@@ -153,16 +155,14 @@ export function createTerrainPainter (
   }
 }
 
-export function createTerrain (
+function terrainGeometry (
   config:   ScapeConfig,
   layout:   ScapeLayout,
   field:    HeightField,
   paths:    Footpaths,
-  material: Material,
   segments: number,
-): Mesh {
-  const { size } = config.terrain
-  const geometry = new PlaneGeometry(size, size, segments, segments)
+): BufferGeometry {
+  const geometry = new PlaneGeometry(config.terrain.size, config.terrain.size, segments, segments)
   geometry.rotateX(-Math.PI / 2)
 
   const positions = geometry.getAttribute('position')
@@ -181,7 +181,10 @@ export function createTerrain (
 
   geometry.setAttribute('color', new BufferAttribute(colors, 3))
   geometry.computeVertexNormals()
+  return geometry
+}
 
+function terrainMesh (geometry: BufferGeometry, material: Material): Mesh {
   const terrain         = new Mesh(geometry, material)
   terrain.name          = 'terrain'
   terrain.receiveShadow = true
@@ -193,6 +196,71 @@ export function createTerrain (
   terrain.updateMatrix()
   terrain.matrixAutoUpdate = false
   return terrain
+}
+
+export function createTerrain (
+  config:   ScapeConfig,
+  layout:   ScapeLayout,
+  field:    HeightField,
+  paths:    Footpaths,
+  material: Material,
+  segments: number,
+): Mesh {
+  return terrainMesh(terrainGeometry(config, layout, field, paths, segments), material)
+}
+
+/**
+ * One seabed and three independently sampled terrain patches, merged into one
+ * draw. Each patch keeps the original island's metres-per-segment density.
+ */
+export function createArchipelagoTerrain (
+  config:       ScapeConfig,
+  archipelago:  ArchipelagoSurvey,
+  material:     Material,
+  baseSegments: number,
+): Mesh {
+  const pieces: BufferGeometry[] = []
+  const seabed                   = new PlaneGeometry(archipelago.size, archipelago.size, 1, 1)
+  seabed.rotateX(-Math.PI / 2)
+
+  const seabedPositions = seabed.getAttribute('position')
+  const seabedColors    = new Float32Array(seabedPositions.count * 3)
+  const seabedColor     = new Color(config.palette.silt)
+
+  for (let index = 0; index < seabedPositions.count; index += 1) {
+    seabedPositions.setY(
+      index,
+      config.terrain.waterLevel - config.terrain.seabedDrop - 0.3,
+    )
+    seabedColor.toArray(seabedColors, index * 3)
+  }
+
+  seabed.setAttribute('color', new BufferAttribute(seabedColors, 3))
+  pieces.push(seabed)
+
+  for (const landmass of archipelago.landmasses) {
+    const segments = Math.max(
+      24,
+      Math.round(baseSegments * landmass.config.terrain.size / config.terrain.size),
+    )
+    const geometry = terrainGeometry(
+      landmass.config,
+      landmass.survey.layout,
+      landmass.survey.field,
+      landmass.survey.paths,
+      segments,
+    )
+
+    geometry.translate(landmass.origin.x, 0, landmass.origin.z)
+    pieces.push(geometry)
+  }
+
+  const merged = mergeGeometryList(pieces, false)
+  for (const piece of pieces)
+    piece.dispose()
+
+  merged.computeBoundingSphere()
+  return terrainMesh(merged, material)
 }
 
 // perf: one draw. Colour and height are baked at build time, so the per-frame

@@ -23,8 +23,9 @@ bun run preview
 
 ## what is included
 
-- a deterministic procedural heightfield with editable seed, scale, waterline, and palette
-- a mainland farmstead on a warped, non-circular coastline, ringed by fifteen offshore islets, landscape only, never built on
+- three deterministic inhabited islands, each surveyed in its own local frame with a distinct home, ridge, or meadow terrain profile
+- a farmstead, fields, pasture, beck, footpaths, harbour, and jetty on every island; the home island also keeps its fifteen offshore skerries, landscape only, never built on
+- one water-only route joining all three jetties, with a boat dispatched from each and kept apart on a one-way circuit
 - a working boat harbour: a boathouse on piles with a slipway, a net rack, and stakes in the shallows
 - footpaths worn between the places the farm actually goes — traced as desire lines over the ground as built, painted into the terrain it crosses, and kept clear of grass and stone without costing a draw call
 - a beck traced downhill from a spring on the high ground, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself — no extra draw call, no extra material
@@ -42,7 +43,7 @@ bun run preview
 - a compact mobile post chain that keeps the colour grade and tilt-shift while leaving bloom, grain, and hardware shadows to desktop
 - an on-page diagnostics log — tier signals, gpu, frame stalls, gl errors, whatever three said on its way down — because a phone has no devtools. it survives a reload, so a crash does not destroy its own record
 - url overrides for testing on the device you cannot attach a debugger to: `?debug` adds live vitals, `?tier=minimal|mobile|desktop|ultra` forces a tier past detection and past memory, `?post=0|1` forces the optical chain either way
-- one terrain draw, one water draw, two instanced tree draws, and one instanced rock draw
+- one merged terrain draw, one water draw, one merged settlement draw, one instanced fleet draw, and one instanced draw per scattered prop type
 - an orthographic dimetric camera built with `threejs-scene`
 - click or tap focus with an eased landing and automatic revolution
 - pointer rotation, modified/right-button panning, wheel zoom, two-finger pan and pinch
@@ -58,8 +59,9 @@ there is deliberately no chat surface, llm schema, prop authoring tool, or hidde
 the intended first edit is [`src/scene/config.ts`](src/scene/config.ts). `scape_config` owns:
 
 - the deterministic world seed
-- terrain extent, resolution, amplitude, and waterline
-- the offshore islets, as fractions of the terrain half-extent
+- shared world extent and waterline, plus each inhabited island's origin, terrain profile, relief, coast, and settlement proportions
+- the home island's offshore skerries, as fractions of its terrain half-extent
+- boat speed, route clearance, hull separation, navigation-grid scale, and jetty reach
 - the beck's channel width, how deep it cuts, how far the mouth is dredged, and how much it flares
 - the footpaths: tread width, verge, how hard a route works to keep off a climb, and how bare the treads get
 - tree and rock instance budgets
@@ -71,7 +73,7 @@ the intended first edit is [`src/scene/config.ts`](src/scene/config.ts). `scape_
 
 terrain generation lives in [`src/scene/noise.ts`](src/scene/noise.ts). the sampler is pure: a coordinate, seed, and amplitude always produce the same height. that keeps surface geometry, raycast focus, and instance placement in agreement.
 
-[`src/scene/landscape.ts`](src/scene/landscape.ts) owns the physical scape. atmosphere is split into [`atmosphere.ts`](src/scene/atmosphere.ts), [`mist.ts`](src/scene/mist.ts), and [`post.ts`](src/scene/post.ts), so depth haze, transparent weather, and fullscreen optics each keep an independent gpu budget and disposal path. compose future systems in [`src/scene/create-isometric-scape.ts`](src/scene/create-isometric-scape.ts):
+[`src/scene/landscape/index.ts`](src/scene/landscape/index.ts) owns the physical scape. atmosphere is split into [`atmosphere.ts`](src/scene/atmosphere.ts), [`mist.ts`](src/scene/mist.ts), and [`post.ts`](src/scene/post.ts), so depth haze, transparent weather, and fullscreen optics each keep an independent gpu budget and disposal path. compose future systems in [`src/scene/create-isometric-scape.ts`](src/scene/create-isometric-scape.ts):
 
 ```ts
 const app = createApp(canvas, {
@@ -128,23 +130,26 @@ the scape is grown by a scheduled, unattended llm run. [`instructions.md`](instr
 the enhancement run is unattended, and stage 5 of its brief asks it to *look at* what it built. it cannot. these
 three commands are what it looks with instead, and they are ordered by what they cost to read.
 
-**`bun run scape:map`** draws the whole composition as ascii — ground, beck, footpaths, cart track, the steading,
-the landings — and then says in numbers what a picture cannot. it needs no browser, no gpu and no dependency,
-because [`landscape/survey.ts`](src/scene/landscape/survey.ts) is pure: the ground, the farm, the landings and the
-routes worn between them all resolve without a vertex being built. the whole survey takes about seven
-milliseconds, and sampling a ninety-six by forty-eight grid on top of it about nine more.
+**`bun run scape:map`** draws the whole composition as ascii — three grounds, their becks, paths, steadings and
+jetties, then the waterway and its boats — and says in numbers what a picture cannot. it needs no browser or gpu:
+[`landscape/archipelago.ts`](src/scene/landscape/archipelago.ts) runs the three pure local surveys, projects their
+world-facing paths and ports, and plans the water-only route without building a vertex. route planning owns most
+of the roughly 1.5-second cold build, which keeps this the cheap structural loop even with its stronger safety proof.
 
 ```sh
 bun run scape:map                 # grid and stats
-bun run scape:map --stats         # the numbers alone, about a hundred words
-bun run scape:map --seed 999      # a different island
-bun run scape:map --window 40,-20,60   # crop to the harbour
+bun run scape:map --stats         # home compatibility fields + all island and fleet checks
+bun run scape:map --seed 7318     # a different valid archipelago
+bun run scape:map --window 0,0,180    # crop: centre x,z,span
+bun run scape:map --w 150         # a wider grid
+bun run scape:map --layers paths,waterways,boats,buildings
 bun run scape:map --json          # for scripting
 ```
 
-the stats block is the part that earns its keep. a beck that failed to trace, an island that drowned, a pasture
-that never found room and a set of footpaths that collapsed to nothing are all *invisible* in a still at the
-default pose, and all of them are one field here.
+the stats block is the part that earns its keep. it keeps the old home-island fields so an older reference still
+diffs cleanly, then reports all three landmass summaries and the claims the fleet depends on: one connected leg
+per jetty, a wet hull envelope, route clearance, boat separation and zero conflicts. a beck that failed to trace,
+an island that drowned or a route that crossed land is *invisible* in a still at the default pose and one field here.
 
 **`bun run scape:shot`** photographs it. the pose, the clock, the year and the tier all come off the command line
 and go in through `?set=`, which addresses knobs by the same dotted paths the graphics overlay and the settings
@@ -162,7 +167,7 @@ exactly what the brief asks for and where most of this scape's historical bugs l
 before anything opens the image:
 
 ```text
-near         ok          5.3s  fps  15.7  draws   50  tris 0.20M  f  43  err 0  -> .scape/shots/near.png
+near         ok          6.2s  fps  11.4  draws   77  tris 0.47M  f  43  err 0  -> .scape/shots/near.png
 ```
 
 most runs need only those lines. console errors, a lost context and a scape that never reached its first draw all
@@ -190,7 +195,9 @@ bun run scape:diff --ref origin/main --poses tour
 it builds the reference in a detached git worktree, serves both builds statically, captures the same poses through
 both, and prints a table. a diff image is written **only** for a pose that moved past `--threshold`, so an
 unchanged run costs a few lines and a changed one points straight at the frame worth opening. the `structural:`
-line runs `scape:map --json` on both sides, which catches a world-model regression that no single pose would show.
+line runs `scape:map --json` on both sides. it understands the legacy single-island shape and compares the new
+landmass array, waterways and boat-safety fields when both sides have them, catching a world-model regression that
+no single pose would show.
 
 the reference worktree is cached under `.scape/ref`, because building one is the slowest thing either tool does
 and comparing against `origin/main` twice in an afternoon should pay for it once. `bun run scape:diff --clean`
@@ -290,16 +297,23 @@ src/
     ├── weather.ts                  the front: showers, what they fall as, how long the ground stays wet
     ├── landscape/
     │   ├── index.ts                the scene module, and what raycasts
+    │   ├── archipelago.ts          three local surveys projected into one world
+    │   ├── boats.ts                the moving fleet, in one dynamic instance buffer
     │   ├── layout.ts               yard, cart track, field plots, ridges, pasture
     │   ├── steading.ts             where the farm's buildings and well stand
     │   ├── landing.ts              the shoreline the jetty and the harbour are on
     │   ├── path.ts                 route smoothing and polyline queries
     │   ├── survey.ts               the pure composition, before anything is drawn
+    │   ├── network.ts              the holding's street plan
     │   ├── footpath.ts             desire lines worn between the places above
+    │   ├── waterway.ts             wet-route planning and collision-safe fleet offsets
     │   ├── creek.ts                the beck: descent trace, channel, tidal mouth
     │   ├── height.ts                authored ground, islets, beck, fbm underneath
-    │   ├── terrain.ts              geometry, height/slope banded colour
+    │   ├── terrain.ts              shared geometry, height/slope banded colour
     │   ├── water.ts                baked bathymetry, swell, foam, glitter, winter ice
+    │   ├── samplers.ts             where the dressing throws its darts
+    │   ├── dressing-zones.ts       world-space keep-outs and scatter rules
+    │   ├── dressing-helpers.ts     hand-placed runs shared by each holding
     │   └── dressing.ts             placement, hero merge, instanced scatter
     └── props/
         ├── index.ts                the roster, hero vs scattered
@@ -645,15 +659,27 @@ their profile is a **plateau with a skirt, not a dome**, and that is what decide
 
 they also need somewhere to stand. the ring between the mainland's shore and the plane's edge was too narrow to hold anything that would not either merge into the mainland or run off the world, so the plane is wider and `islandInner`/`islandOuter` are scaled to keep the farmstead's landmass exactly where it was. the extra span is open sea.
 
-there are fifteen of them, and the spacing is the design: each one clears the mainland's *warped* shore and its neighbours' skirts, which is the difference between an archipelago and a reef. they are grouped rather than evenly spread — a close western pair, a southern chain thinning as it runs out, one substantial north-eastern outlier, and skerries filling the gaps — because a ring of like-sized islets at even bearings reads as decoration however well each one is modelled.
+there are fifteen of them around the home island, and the spacing is the design: each one clears that island's *warped* shore and its neighbours' skirts, which is the difference between skerries and a reef. they are grouped rather than evenly spread — a close western pair, a southern chain thinning as it runs out, one substantial north-eastern outlier, and skerries filling the gaps — because a ring of like-sized islets at even bearings reads as decoration however well each one is modelled.
 
 they get the same coast warp the mainland does, sampled in each islet's own frame with a seed of its own. at world scale the warp is very nearly constant across a disc eight metres wide, so it would only nudge the whole islet sideways; sampled seven times tighter it reshapes the skirt, which is where a small island is nearly all coastline.
 
 finally they change how the scatter samples. the placement field is now mostly open sea, and a uniform disc throws most of every attempt budget into the water — the island thins out to prove it. candidates are drawn from the mainland *or* from one of the islets instead, so the islets get dressed by the same instanced meshes.
 
+## three inhabited islands, one water road
+
+the home island is no longer the whole world. `archipelago.ts` runs the original pure survey three times in local coordinates, once each for the home, ridge and meadow profiles, then projects only the contracts that have to meet in world space: height, worn paths, jetties and their navigable water entries. this keeps every yard, beck and shoreline solver reasoning in the metre scale it was written for while the renderer sees one 520-metre field. each island gets the same working holding — five buildings, a well, plots, pasture, beck, harbour, footpaths and jetty — without copying the survey logic three times.
+
+the profiles are deliberately not palette swaps. they have independent seeds, extents, relief, coast bands and settlement proportions, so the western island rises into a sharper ridge while the eastern one spreads into lower meadow ground. only the home profile inherits the fifteen decorative skerries; they remain landscape, while all three large landmasses are inhabited. dressing reserves each island's recognisable work first — hay poles, firewood, barrels and mooring stakes — before it spends the rest of a tier's budget, so `minimal` and `mobile` do not exhaust a global batch on the home island and leave its neighbours as empty geometry.
+
+`waterway.ts` turns the three jetty landings into world-space ports, walks outward until the whole hull has navigable depth, and joins them with a deterministic `a*` search over the shared seabed. every candidate segment is probed along its length and around a 1.85-metre circular hull envelope. the simplified route is accepted only when that envelope stays below the waterline by `boats.clearance`; at seed 7319 the circuit is 809.7 metres and its tightest measured clearance is 0.67 metres.
+
+the legs form one directed ring, and one boat starts at each port distance on that same ring. all boats move in one direction at one speed, so there is no opposing lane and their offsets never change. the build samples a full circuit before accepting it and refuses a fleet whose closest pair breaches `boats.separation`; the default three remain 103.41 metres apart at their closest. `boats.ts` writes the three moving matrices into one dynamic `InstancedMesh`, and `boats.speed = 0` freezes it without an upload so stills remain still.
+
+the rowboat was rebuilt for the job rather than scaling the old solid block. it is a hollow 3.4-metre clinker hull with tapered stations, overlapping strakes, a keel and floorboards below three benches, narrow stems and a matched pair of oars. the route's circular envelope covers that complete geometry at every heading, which is why the wet-route proof protects the boat rather than just its centre point.
+
 ## the boat harbour
 
-the farm already owned a jetty and a rowboat; it now has somewhere to keep the boat. a boathouse stands in the next cove along from the landing, a net rack dries gear on the bank behind it, and stakes are driven into the shallows off both.
+each holding owns a jetty and has somewhere to keep a boat. a boathouse stands in the next cove along from the landing, a net rack dries gear on the bank behind it, and stakes are driven into the shallows off both.
 
 three decisions in it are worth keeping.
 

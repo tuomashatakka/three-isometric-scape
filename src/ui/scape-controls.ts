@@ -270,6 +270,7 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         range('water.waveHeight', 'swell', 0, 0.4, 0.005),
         range('water.rippleStrength', 'ripple', 0, 0.6, 0.01),
         range('water.roughness', 'roughness', 0.05, 1, 0.01),
+        range('boats.speed', 'boat speed', 0, 12, 0.1),
       ],
     },
     {

@@ -1,15 +1,16 @@
 import { describe, expect, test } from 'bun:test'
 import { SCAPE_CONFIG } from '../src/scene/config.ts'
 import type { ScapeConfig } from '../src/scene/config.ts'
-import { surveyScape } from '../src/scene/landscape/survey.ts'
+import { surveyArchipelago } from '../src/scene/landscape/archipelago.ts'
 import { applyOverrides, coerce, parseArgs } from './args.ts'
 import { ALL_LAYERS, LAND_RAMP, WATER_RAMP, glyphFor, renderGrid, surveyStats } from './scape-map.ts'
 import { shotUrl } from './scape-shot.ts'
 
 
-const WINDOW = { x: 0, z: 0, size: SCAPE_CONFIG.terrain.size }
-
-const clone = (): ScapeConfig => structuredClone(SCAPE_CONFIG) as ScapeConfig
+const clone       = (): ScapeConfig => structuredClone(SCAPE_CONFIG) as ScapeConfig
+const config      = clone()
+const archipelago = surveyArchipelago(config)
+const WINDOW      = { x: 0, z: 0, size: archipelago.size }
 
 
 describe('the height ramp', () => {
@@ -46,29 +47,31 @@ describe('the height ramp', () => {
 
 describe('the map', () => {
   test('one seed draws one grid, byte for byte', () => {
-    const a = renderGrid(clone(), surveyScape(clone()), WINDOW, 48, 24, ALL_LAYERS)
-    const b = renderGrid(clone(), surveyScape(clone()), WINDOW, 48, 24, ALL_LAYERS)
+    const a = renderGrid(config, archipelago, WINDOW, 48, 24, ALL_LAYERS)
+    const b = renderGrid(config, archipelago, WINDOW, 48, 24, ALL_LAYERS)
 
     expect(a).toBe(b)
     expect(a.split('\n')).toHaveLength(24)
     expect(a.split('\n').every(row => [ ...row ].length === 48)).toBe(true)
   })
 
-  test('a different seed is a different island', () => {
+  test('a different seed is a different archipelago', () => {
     const other = clone()
 
-    other.seed = 999
+    other.seed = 7_318
 
-    expect(renderGrid(other, surveyScape(other), WINDOW, 48, 24, ALL_LAYERS))
-      .not.toBe(renderGrid(clone(), surveyScape(clone()), WINDOW, 48, 24, ALL_LAYERS))
+    expect(renderGrid(other, surveyArchipelago(other), WINDOW, 48, 24, ALL_LAYERS))
+      .not.toBe(renderGrid(config, archipelago, WINDOW, 48, 24, ALL_LAYERS))
   })
 
   test('dropping every overlay leaves only ground', () => {
-    const bare = renderGrid(clone(), surveyScape(clone()), WINDOW, 48, 24, {
+    const bare = renderGrid(config, archipelago, WINDOW, 48, 24, {
       ...ALL_LAYERS,
       creek:     false,
       paths:     false,
       track:     false,
+      waterways: false,
+      boats:     false,
       buildings: false,
     })
 
@@ -77,12 +80,34 @@ describe('the map', () => {
     for (const glyph of bare.replace(/\n/gu, ''))
       expect(ground).toContain(glyph)
   })
+
+  test('shows all jetties, the waterways and the dispatched boats', () => {
+    const mapped = renderGrid(config, archipelago, WINDOW, 160, 80, ALL_LAYERS)
+
+    expect(mapped.match(/J/gu)).toHaveLength(archipelago.ports.length)
+    expect(mapped).toContain('·')
+    expect(mapped.match(/b/gu)).toHaveLength(archipelago.waterways.boatOffsets.length)
+  })
+
+  test('can isolate a waterway layer without the height field', () => {
+    const mapped = renderGrid(config, archipelago, WINDOW, 96, 48, {
+      ...ALL_LAYERS,
+      height:    false,
+      creek:     false,
+      paths:     false,
+      track:     false,
+      boats:     false,
+      buildings: false,
+    })
+
+    expect(mapped).toContain('·')
+    expect(mapped).not.toMatch(/[~\-.:=+*#]/u)
+  })
 })
 
 
 describe('the stats', () => {
-  const config = clone()
-  const stats  = surveyStats(config, surveyScape(config), WINDOW, 96, 48)
+  const stats = surveyStats(config, archipelago, WINDOW, 96, 48)
 
   test('the authored scape is an island, not a puddle and not a continent', () => {
     expect(stats.land).toBeGreaterThan(5)
@@ -106,9 +131,46 @@ describe('the stats', () => {
     expect(stats.landing).not.toBeNull()
   })
 
+  test('reports all three distinct inhabited landmasses', () => {
+    expect(stats.landmasses).toHaveLength(3)
+    expect(new Set(stats.landmasses.map(landmass => landmass.id)).size).toBe(3)
+    expect(new Set(stats.landmasses.map(landmass => landmass.profile)).size).toBe(3)
+
+    for (const landmass of stats.landmasses) {
+      expect(landmass.land).toBeGreaterThan(5)
+      expect(landmass.peak.height).toBeGreaterThan(config.terrain.waterLevel)
+      expect(landmass.footpaths.routes).toBeGreaterThan(0)
+      expect(landmass.landing).not.toBeNull()
+    }
+  })
+
+  test('reports every building in world coordinates', () => {
+    for (const summary of stats.landmasses) {
+      const landmass = archipelago.landmasses.find(candidate => candidate.id === summary.id)!
+
+      for (const [ name, spot ] of Object.entries(landmass.survey.places))
+        expect(summary.steading[name]).toEqual([
+          Math.round(spot.x + landmass.origin.x),
+          Math.round(spot.z + landmass.origin.z),
+        ])
+    }
+  })
+
+  test('reports a connected wet network and a separated boat at every port', () => {
+    expect(stats.waterways.legs).toBe(stats.landmasses.length)
+    expect(stats.waterways.connected).toBe(true)
+    expect(stats.waterways.wet).toBe(true)
+    expect(stats.waterways.clearance).toBeGreaterThanOrEqual(config.boats.clearance)
+    expect(stats.boats.count).toBe(stats.landmasses.length)
+    expect(stats.boats.separation).toBeGreaterThanOrEqual(config.boats.separation)
+    expect(stats.boats.conflicts).toBe(0)
+  })
+
   test('it is the same survey twice', () => {
-    expect(surveyStats(clone(), surveyScape(clone()), WINDOW, 32, 16))
-      .toEqual(surveyStats(clone(), surveyScape(clone()), WINDOW, 32, 16))
+    const again = clone()
+
+    expect(surveyStats(again, surveyArchipelago(again), WINDOW, 32, 16))
+      .toEqual(surveyStats(config, archipelago, WINDOW, 32, 16))
   })
 })
 
@@ -181,6 +243,7 @@ describe('the capture url', () => {
     expect(set).toContain('season.speed=0')
     expect(set).toContain('wind.strength=0')
     expect(set).toContain('look.grain=0')
+    expect(set).toContain('boats.speed=0')
   })
 
   test('a pose writes the knobs it names and no others', () => {

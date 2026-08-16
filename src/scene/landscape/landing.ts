@@ -2,9 +2,12 @@ import type { ScapeConfig } from '../config.ts'
 import type { HeightField } from './height.ts'
 import type { ScapeLayout } from './layout.ts'
 import type { Vec2 } from './path.ts'
+import { BOAT_HULL_RADIUS } from './waterway.ts'
 
 
-const TAU = Math.PI * 2
+const TAU             = Math.PI * 2
+const CHANNEL_HALF    = BOAT_HULL_RADIUS
+const CHANNEL_SAMPLES = [ -CHANNEL_HALF, 0, CHANNEL_HALF ] as const
 
 /** A point on the ground with a bearing attached. */
 export interface Spot extends Vec2 {
@@ -70,6 +73,39 @@ export function findBank (
  * same question twice and eventually disagree, and a path that stops four
  * metres short of the landing is worse than no path at all.
  */
+function reachesOpenSea (
+  layout: ScapeLayout,
+  field:  HeightField,
+  config: ScapeConfig,
+  bank:   Spot & { distance: number },
+): boolean {
+  const limit = config.terrain.size * 0.46
+  const water = config.terrain.waterLevel
+
+  // Start beyond the visible jetty. The bank itself is meant to be shallow;
+  // after that, a boat-width corridor must stay submerged all the way out of
+  // the island's authored radius. This rejects inland tarns and barred lagoons
+  // without teaching the shoreline finder anything about the world origin.
+  for (
+    let distance = bank.distance + config.boats.dockReach;
+    distance < limit;
+    distance += 1.1
+  )
+    for (const lateral of CHANNEL_SAMPLES) {
+      const x = layout.yard.x +
+        Math.cos(bank.angle) * distance +
+        Math.cos(bank.angle + Math.PI / 2) * lateral
+      const z = layout.yard.z +
+        Math.sin(bank.angle) * distance +
+        Math.sin(bank.angle + Math.PI / 2) * lateral
+
+      if (field.heightAt(x, z) > water - config.boats.clearance)
+        return false
+    }
+
+  return true
+}
+
 export function findLanding (
   layout: ScapeLayout,
   field:  HeightField,
@@ -80,7 +116,11 @@ export function findLanding (
   for (let step = 0; step < 48; step += 1) {
     const found = findBank(layout, field, config, step / 48 * TAU)
 
-    if (found && (!best || found.distance < best.distance))
+    if (
+      found &&
+      reachesOpenSea(layout, field, config, found) &&
+      (!best || found.distance < best.distance)
+    )
       best = found
   }
 

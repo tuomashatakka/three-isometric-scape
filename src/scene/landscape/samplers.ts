@@ -1,7 +1,6 @@
 import type { SeededRng } from 'threejs-scene'
-import type { ScapeConfig } from '../config.ts'
+import type { ArchipelagoSurvey } from './archipelago.ts'
 import type { Footpaths } from './footpath.ts'
-import type { ScapeLayout } from './layout.ts'
 import type { Vec2 } from './path.ts'
 
 
@@ -32,27 +31,48 @@ const TAU = Math.PI * 2
  * tens of thousands of times at build.
  */
 export function createSpotSampler (
-  config: ScapeConfig,
-  layout: ScapeLayout,
-  rng:    SeededRng,
-  extent: number,
+  archipelago: ArchipelagoSurvey,
+  rng:         SeededRng,
 ): () => Vec2 {
-  const half  = config.terrain.size * 0.5
-  const spot  = { x: 0, z: 0 }
-  const isles = config.terrain.isles.map(isle => ({
-    x:      isle.x * half,
-    z:      isle.z * half,
-    radius: isle.radius * half,
-  }))
-  const mainReach = Math.min(layout.landRadius * 1.22, extent)
+  const spot                                                               = { x: 0, z: 0 }
+  const regions: { x: number, z: number, radius: number, reach: number }[] = []
+  let total = 0
+
+  for (const landmass of archipelago.landmasses) {
+    const radius = landmass.survey.layout.landRadius * 1.22
+
+    total += radius * radius
+    regions.push({
+      x:     landmass.origin.x,
+      z:     landmass.origin.z,
+      radius,
+      reach: total,
+    })
+
+    const half = landmass.config.terrain.size * 0.5
+    for (const isle of landmass.config.terrain.isles) {
+      const isleRadius = isle.radius * half * 1.08
+
+      // Small skerries need a little more than literal area weighting or a whole
+      // scatter budget can miss them. The main islands still dominate.
+      total += isleRadius * isleRadius * 3
+      regions.push({
+        x:      landmass.origin.x + isle.x * half,
+        z:      landmass.origin.z + isle.z * half,
+        radius: isleRadius,
+        reach:  total,
+      })
+    }
+  }
 
   return () => {
-    const isle     = isles.length > 0 && rng.next() < 0.17 ? rng.pick(isles) : null
-    const angle    = rng.next() * TAU
-    const distance = Math.sqrt(rng.next()) * (isle ? isle.radius * 1.08 : mainReach)
+    const want   = rng.next() * total
+    const region = regions.find(candidate => candidate.reach >= want) ?? regions[regions.length - 1]
+    const angle  = rng.next() * TAU
+    const radius = Math.sqrt(rng.next()) * region.radius
 
-    spot.x = (isle?.x ?? 0) + Math.cos(angle) * distance
-    spot.z = (isle?.z ?? 0) + Math.sin(angle) * distance
+    spot.x = region.x + Math.cos(angle) * radius
+    spot.z = region.z + Math.sin(angle) * radius
     return spot
   }
 }
@@ -134,14 +154,23 @@ export function createTreadSampler (paths: Footpaths, rng: SeededRng): (() => Ve
  * disc instead. Returns the origin when there is no feature — the accept rule
  * that goes with such a scatter rejects everything anyway, so nothing is placed.
  */
-export function createDiscSampler (rng: SeededRng, feature: Vec2 & { radius: number } | null): () => Vec2 {
+export function createDiscSampler (
+  rng:      SeededRng,
+  features: readonly (Vec2 & { radius: number })[],
+): () => Vec2 {
   const spot = { x: 0, z: 0 }
+  let next   = 0
 
   return () => {
-    if (feature) {
+    if (features.length > 0) {
+      // Named places get a quota, not a lottery. Alternating the feature before
+      // drawing within its disc keeps sparse props represented on every island
+      // while callers still merge them into one instanced draw.
+      const feature  = features[next]
       const angle    = rng.next() * TAU
       const distance = Math.sqrt(rng.next()) * feature.radius
 
+      next   = (next + 1) % features.length
       spot.x = feature.x + Math.cos(angle) * distance
       spot.z = feature.z + Math.sin(angle) * distance
     }
