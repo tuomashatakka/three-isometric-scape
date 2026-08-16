@@ -384,6 +384,11 @@ export function createDressing (
     steading.name          = 'farmstead'
     steading.castShadow    = true
     steading.receiveShadow = true
+
+    // Every building in it is baked into the merged geometry at its own place,
+    // so the mesh holding them all sits at the origin and never leaves.
+    steading.updateMatrix()
+    steading.matrixAutoUpdate = false
     root.add(steading)
     owned.push(merged)
   }
@@ -530,6 +535,11 @@ export function createDressing (
 
     mesh.name          = name
     mesh.frustumCulled = false
+
+    // The placements live in the instance matrices; the mesh carrying them is a
+    // fixed point at the origin.
+    mesh.updateMatrix()
+    mesh.matrixAutoUpdate = false
     owned.push(geometry)
     return mesh
   }

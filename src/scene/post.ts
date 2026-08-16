@@ -101,6 +101,14 @@ export function createAtmospherePost ({
   let size                            = { width: 1, height: 1 }
   let amount                          = config.look.tiltShift
 
+  // The chain's own copy of the surface. An `EffectComposer` snapshots the
+  // renderer's pixel ratio when it is built and never looks again, so a live
+  // ratio change has to be handed to it separately — and the last buffer it was
+  // sized for is what tells a repeated resize apart from a real one.
+  let surfaceRatio = 0
+  let bufferWidth  = 0
+  let bufferHeight = 0
+
   function applyBlur (): void {
     for (const pair of pairs) {
       pair.horizontal.uniforms.h.value = BLUR_PIXELS * pair.step * amount / Math.max(1, size.width)
@@ -225,6 +233,26 @@ export function createAtmospherePost ({
    * can follow the config live, which is what makes the tuning overlay
    * immediate rather than a reload.
    */
+  /**
+   * Keep the chain on the same surface the renderer is drawing to.
+   *
+   * `scene/runtime.ts` moves the renderer; this moves the composer after it.
+   * Split in two on purpose — the cheapest tiers have no composer at all, and
+   * the pixel ratio still has to work there.
+   */
+  function syncSurface (): void {
+    const next = config.runtime.pixelRatio
+
+    if (!composer || next === surfaceRatio)
+      return
+
+    surfaceRatio = next
+
+    // Fans out to every pass in the chain on its own, which is all of ours —
+    // they were added to this composer rather than kept beside it.
+    composer.setPixelRatio(next)
+  }
+
   function syncLook (): void {
     if (grade)
       grade.uniforms.uVignette.value = config.look.vignette
@@ -269,8 +297,9 @@ export function createAtmospherePost ({
         ctx.composer.renderTarget2.samples = quality.msaaSamples
       }
 
-      size     = { width: ctx.width, height: ctx.height }
-      composer = ctx.composer
+      size         = { width: ctx.width, height: ctx.height }
+      composer     = ctx.composer
+      surfaceRatio = config.runtime.pixelRatio
 
       const chain: Pass[] = []
       extras = []
@@ -338,6 +367,7 @@ export function createAtmospherePost ({
     update (state, frame, ctx) {
       aimFocus()
       aimSun()
+      syncSurface()
       syncLook()
       if (film)
         film.uniforms.uTime.value = frame.elapsed
@@ -345,6 +375,21 @@ export function createAtmospherePost ({
     },
 
     resize (next, ctx) {
+      // A phone's collapsing url bar fires the observer dozens of times a
+      // second, and most of those are the same buffer arriving again behind a
+      // fractional css size. Rebuilding two hdr ping-pong targets and every
+      // pass's own target for a size they already have is how a resize becomes
+      // a lost context — so the comparison is on the buffer, not on the css box.
+      const ratio  = ctx.renderer.getPixelRatio()
+      const width  = Math.round(next.width * ratio)
+      const height = Math.round(next.height * ratio)
+
+      if (width === bufferWidth && height === bufferHeight)
+        return
+
+      bufferWidth  = width
+      bufferHeight = height
+
       inner.resize?.(next, ctx)
       lut?.setSize(next.width, next.height)
       film?.setSize(next.width, next.height)
@@ -364,18 +409,23 @@ export function createAtmospherePost ({
       inner.dispose?.()
       luts.dispose()
 
-      pairs    = []
-      extras   = []
-      grade    = null
-      lut      = null
-      film     = null
-      godRays  = null
-      bloom    = null
-      composer = null
+      pairs        = []
+      extras       = []
+      grade        = null
+      lut          = null
+      film         = null
+      godRays      = null
+      bloom        = null
+      composer     = null
+      surfaceRatio = 0
+      bufferWidth  = 0
+      bufferHeight = 0
     },
   })
 }
 
 // perf: mobile runs one tilt-shift pair plus grade and lut. Desktop adds a
 // second pair, bloom, god rays, grain and 4x msaa. Ultra adds GTAO, screen-space
-// reflections on the lake, anamorphic streaks and a TRAA resolve.
+// reflections on the lake, anamorphic streaks and a TRAA resolve. Every target
+// in the chain is reallocated only when the drawing buffer behind it actually
+// changed size.

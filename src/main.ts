@@ -13,13 +13,17 @@ import {
 import { readSkips } from './scene/audit.ts'
 import { createTierMemory } from './scene/tier-memory.ts'
 import { createDiagnostics } from './ui/diagnostics.ts'
+import { createFpsMeter } from './ui/fps-meter.ts'
 import { createGraphicsPanel } from './ui/graphics-panel.ts'
+import { readCardHidden, writeCardHidden } from './ui/overlay-state.ts'
+import { createScapeCard } from './ui/scape-card.ts'
 import { createScapeControls } from './ui/scape-controls.ts'
 import { createSettingsStore } from './ui/settings-store.ts'
 
 
 const firstCanvas = document.querySelector<HTMLCanvasElement>('[data-scape]')
 const statusSlot  = document.querySelector<HTMLOutputElement>('#scape-status')
+const cardSlot    = document.querySelector<HTMLElement>('#scape-card')
 
 if (!firstCanvas || !statusSlot)
   throw new Error('three-iso requires the scape canvas and status output')
@@ -89,8 +93,38 @@ const GRACE = 9000
  */
 const MAX_LOSSES = 2
 
+/**
+ * Frames between shadow-map rebuilds, on the tiers that have shadows.
+ *
+ * Three rebuilds the entire depth pass — the terrain, the merged steading and
+ * every scattered instance — on every frame it draws, at up to 4096². The sun
+ * crosses this sky over minutes and the foliage sway is a slow shader animation,
+ * so a map that is one frame old is a map nobody can tell from a fresh one, and
+ * it costs half the pass. The panel exposes it; this is only where it starts.
+ */
+const SHADOW_CADENCE = 2
+
 interface Mounted {
   dispose(): void
+}
+
+/**
+ * Point the runtime knobs at whatever tier is in force.
+ *
+ * These three are the only values in the config that are not authored, and the
+ * only ones the settings snapshot deliberately forgets — so this is the whole
+ * story of where they come from. Called before the store captures the authored
+ * values, again when a reset asks for them back, and again after a context loss
+ * has bought a cheaper tier, because the budget that just failed is the one
+ * thing the rebuild must not be handed.
+ */
+function seedRuntime (from: AtmosphereQuality): void {
+  // The tier's number is a *ceiling* on the display's, and the knob is applied
+  // straight to the renderer — so seeding the ceiling on a device below it would
+  // hand the scape more pixels than it has ever drawn.
+  SCAPE_CONFIG.runtime.pixelRatio    = Math.min(globalThis.devicePixelRatio || 1, from.pixelRatioMax)
+  SCAPE_CONFIG.runtime.frameCap      = from.frameRate
+  SCAPE_CONFIG.runtime.shadowCadence = from.shadows ? SHADOW_CADENCE : 1
 }
 
 /**
@@ -173,9 +207,26 @@ function startingQuality (): AtmosphereQuality {
 // — only which knobs render as available differs — so one store covers them all.
 const initialQuality = startingQuality()
 
+seedRuntime(initialQuality)
+
 const settings = createSettingsStore(SCAPE_CONFIG, createScapeControls(initialQuality))
 
 settings.load()
+
+// Built once and outside `mount`: the card is markup that shipped with the page
+// and it survives the canvas being replaced under it after a context loss.
+//
+// `?debug` opens it whatever was last chosen. The log inside is the only crash
+// report a phone gives, and a debugging surface you have to already know a
+// keyboard shortcut to reach is not one.
+const card = cardSlot && firstCanvas.parentElement
+  ? createScapeCard({
+    card:     cardSlot,
+    host:     firstCanvas.parentElement,
+    hidden:   params.has('debug') ? false : readCardHidden() ?? true,
+    onToggle: hidden => writeCardHidden(hidden),
+  })
+  : null
 
 let canvas                  = firstCanvas
 let quality                 = initialQuality
@@ -185,12 +236,17 @@ let proving                 = 0
 let losses                  = 0
 
 function mount (): void {
+  // Built before the scape, because the scape is handed the callback that feeds
+  // it. Verbose adds what the frame was spent on to what it cost.
+  const meter = createFpsMeter({ verbose: params.has('debug') })
+
   const scape = createIsometricScape(canvas, SCAPE_CONFIG, {
     quality,
     reducedMotion,
     diagnostics,
     skip,
     auditOnly: auditing,
+    onVitals:  sample => meter.update(sample),
 
     // The camera talks constantly, and none of it survives a crash worth
     // reading. It stays out of the log and off the one surface the log owns.
@@ -214,10 +270,17 @@ function mount (): void {
     tier:      quality.tier,
     collapsed: compactLayout || coarsePointer,
     onChange:  () => settings.save(),
-    onReset:   () => settings.reset(),
+
+    // The performance section is outside the snapshot, so `reset` cannot give
+    // its values back the way it gives the others back — they are re-derived
+    // from the tier instead, which is where they came from in the first place.
+    onReset: () => {
+      seedRuntime(quality)
+      settings.reset()
+    },
   })
 
-  canvas.parentElement?.append(panel.element)
+  canvas.parentElement?.append(panel.element, meter.element)
 
   // A tier that holds this long without dropping the context is a tier the
   // device can simply be handed next time, rather than being walked down to
@@ -232,6 +295,7 @@ function mount (): void {
 
   mounted = {
     dispose () {
+      meter.dispose()
       panel.dispose()
       scape.dispose()
     },
@@ -298,6 +362,11 @@ function loseContext (): void {
   diagnostics.say(`falling back to the ${next.tier} tier in ${RECOVERY_DELAY}ms`)
   quality = next
 
+  // Including whatever the reader had dragged the performance knobs to. A
+  // device that has just given up its context does not get to keep the budget
+  // it gave it up on.
+  seedRuntime(next)
+
   window.clearTimeout(recovering)
   recovering = window.setTimeout(() => {
     renewCanvas()
@@ -347,5 +416,6 @@ window.addEventListener('pagehide', event => {
 
   window.clearTimeout(recovering)
   settings.dispose()
+  card?.dispose()
   unmount()
 })

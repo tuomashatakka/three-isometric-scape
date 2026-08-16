@@ -186,6 +186,12 @@ export function createTerrain (
   terrain.name          = 'terrain'
   terrain.receiveShadow = true
   terrain.castShadow    = true
+
+  // The island never moves. Recomposing its matrix from a position, a rotation
+  // and a scale that are the same three values every frame is a small cost, but
+  // it is a cost with no possible effect.
+  terrain.updateMatrix()
+  terrain.matrixAutoUpdate = false
   return terrain
 }
 

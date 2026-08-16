@@ -438,6 +438,11 @@ export function createWater (
   mesh.position.y    = config.terrain.waterLevel
   mesh.receiveShadow = true
 
+  // The swell is entirely in the shader — the plane itself sits at the
+  // waterline and stays there, so its matrix is composed once and left alone.
+  mesh.updateMatrix()
+  mesh.matrixAutoUpdate = false
+
   return {
     mesh,
 

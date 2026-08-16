@@ -39,6 +39,16 @@ export interface AtmosphereOptions {
   config:       ScapeConfig
   groundRadius: number
   quality:      AtmosphereQuality
+
+  /**
+   * Whether the shadow map will actually be rebuilt on this frame.
+   *
+   * The fitted frustum is written into `sun.shadow.camera` and read only when
+   * the map renders, so fitting it on a frame that will reuse the last map is
+   * work with nowhere to go. `scene/runtime.ts` owns the cadence and answers
+   * this; without one, every frame draws its own map and every frame needs a fit.
+   */
+  shadowDue?(): boolean
 }
 
 export interface FogRange {
@@ -236,6 +246,7 @@ export function createAtmosphereLayer ({
   config,
   groundRadius,
   quality,
+  shadowDue = () => true,
 }: AtmosphereOptions): Atmosphere {
   const { atmosphere, palette } = config
   const daylight                = createDaylight(config)
@@ -283,6 +294,13 @@ export function createAtmosphereLayer ({
   let previousFog: Scene['fog']               = null
   let previousBackground: Scene['background'] = null
 
+  // What the ramp was last painted from. These two colours are the entire input
+  // to `paintSky`, so colours that match can only produce bytes that match.
+  const paintedHorizon = new Color()
+  const paintedTop     = new Color()
+
+  let painted = false
+
   /**
    * Repaint the sky ramp, and only hand it to the gpu when it has actually
    * changed.
@@ -307,6 +325,18 @@ export function createAtmosphereLayer ({
    * cost a buffer anyway. On a slow dawn that is almost every frame.
    */
   function paintSky (): void {
+    // Cheaper still than finding out the bytes match: notice that the colours
+    // they would have been computed from match, and never run the ramp at all.
+    // On a stopped clock — which is most of the time anyone spends looking at a
+    // paused scape — that is sixty-four texels and a hundred and ninety-two
+    // gamma curves a frame that never happen.
+    if (painted && paintedHorizon.equals(horizon) && paintedTop.equals(sky.skyTop))
+      return
+
+    paintedHorizon.copy(horizon)
+    paintedTop.copy(sky.skyTop)
+    painted = true
+
     let changed = false
 
     for (let index = 0; index < SKY_STEPS; index += 1) {
@@ -397,7 +427,7 @@ export function createAtmosphereLayer ({
     rig.sun.target.position.copy(target)
     rig.sun.target.updateMatrixWorld()
 
-    if (rig.sun.castShadow)
+    if (rig.sun.castShadow && shadowDue())
       fitShadow(rig.sun, camera, target, viewSize, tallest)
 
     // The ground bounce carries a little of the key light's colour, so it warms
@@ -456,6 +486,7 @@ export function createAtmosphereLayer ({
   return { module, sunPosition, daylight: sky }
 }
 
-// perf: one sky texture upload while the view changes, one linear-fog update,
-// a colour resolve and a shadow-frustum fit per frame; no render-loop
-// allocations and no extra draws.
+// perf: one sky texture upload while the view changes, one linear-fog update
+// and a colour resolve per frame; no render-loop allocations and no extra
+// draws. The sky ramp is only recomputed when the colours behind it moved, and
+// the shadow frustum is only refitted on the frames the map is rebuilt on.

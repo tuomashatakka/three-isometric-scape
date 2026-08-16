@@ -56,6 +56,19 @@ export type ScapeControl = RangeControl | SelectControl | ToggleControl
 export interface ControlSection {
   title:    string
   controls: ScapeControl[]
+
+  /**
+   * Whether the snapshot should remember this section. Defaults to yes.
+   *
+   * Everything else on the panel describes the place, and a place is worth
+   * keeping. The performance section describes the budget the place is drawn on,
+   * and that is seeded from whatever tier the device resolved to *this* load. A
+   * pixel ratio or an uncapped frame rate kept from one session and replayed
+   * into the next is how a device that has already lost a context gets handed
+   * back the budget that took it — underneath a tier the memory had correctly
+   * held down.
+   */
+  persist?: boolean
 }
 
 const GRADES: readonly GradeName[] = [
@@ -103,13 +116,15 @@ export function readText (root: object, path: string): string {
   return typeof value === 'string' ? value : ''
 }
 
-/** Every leaf path the overlay exposes, in declaration order. */
+/** Every leaf path the overlay persists, in declaration order. */
 export function controlPaths (sections: readonly ControlSection[]): string[] {
-  return sections.flatMap(section => section.controls.flatMap(
-    control => control.kind === 'toggle'
-      ? control.children.map(child => child.path)
-      : [ control.path ],
-  ))
+  return sections
+    .filter(section => section.persist !== false)
+    .flatMap(section => section.controls.flatMap(
+      control => control.kind === 'toggle'
+        ? control.children.map(child => child.path)
+        : [ control.path ],
+    ))
 }
 
 function range (
@@ -254,6 +269,22 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       controls: [
         range('camera.tiltNear', 'tilt zoomed in', 8, 60, 1),
         range('camera.tiltFar', 'tilt zoomed out', 8, 70, 1),
+      ],
+    },
+
+    // The only section that changes what the frame costs rather than what it
+    // shows, and the only one the snapshot deliberately forgets. See `persist`.
+    {
+      title:    'performance',
+      persist:  false,
+      controls: [
+        range('runtime.pixelRatio', 'pixel ratio', 0.5, 2, 0.05),
+
+        // Zero is the top of the range, not the bottom of it: an uncapped loop
+        // draws on every animation frame the display offers, which is the most
+        // expensive thing this slider can ask for.
+        range('runtime.frameCap', 'frame cap · 0 free', 0, 120, 5),
+        range('runtime.shadowCadence', 'shadow every n frames', 1, 4, 1, quality.shadows),
       ],
     },
   ]

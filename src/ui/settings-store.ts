@@ -24,11 +24,17 @@ const DELAY = 220
  * Access alone throws in a sandboxed frame and in Safari's private mode — not
  * the write, the *property read*. A graphics overlay is not worth taking the
  * scene down for, so a missing store degrades to "settings do not persist".
+ *
+ * Exported because it is the lesson rather than the helper. Anything else in the
+ * ui that wants to remember something should reach for this instead of learning
+ * about Safari's private mode a second time.
+ *
+ * @param probe - A key to read, to prove the store answers rather than throws.
  */
-function openStorage (): Storage | null {
+export function openStorage (probe: string): Storage | null {
   try {
     const store = globalThis.localStorage
-    store.getItem(KEY)
+    store.getItem(probe)
     return store
   }
   catch {
@@ -66,7 +72,7 @@ function parse (raw: string | null): Record<string, unknown> {
 export function createSettingsStore (
   config:   object,
   sections: readonly ControlSection[],
-  storage:  Storage | null = openStorage(),
+  storage:  Storage | null = openStorage(KEY),
 ): SettingsStore {
   const paths    = controlPaths(sections)
   const authored = paths.map(path => readPath(config, path))

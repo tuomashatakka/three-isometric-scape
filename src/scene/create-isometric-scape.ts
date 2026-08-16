@@ -1,6 +1,6 @@
-import { Vector3 } from 'three'
-import type { Mesh } from 'three'
-import { createApp, createIsoCamera } from 'threejs-scene'
+import { Vector2, Vector3 } from 'three'
+import type { Mesh, WebGLRenderer } from 'three'
+import { createApp, createIsoCamera, createRenderer } from 'threejs-scene'
 import type { AppModule } from 'threejs-scene'
 import { NOTHING_SKIPPED, reportPrograms } from './audit.ts'
 import type { ScapeSkips } from './audit.ts'
@@ -13,7 +13,9 @@ import { createLandscape } from './landscape/index.ts'
 import { createMistLayer } from './mist.ts'
 import { createAtmospherePost } from './post.ts'
 import type { AtmosphereQuality } from './quality.ts'
+import { createRuntime } from './runtime.ts'
 import { createVitals } from './vitals.ts'
+import type { VitalsSample } from './vitals.ts'
 
 
 export interface IsometricScape {
@@ -49,6 +51,9 @@ export interface IsometricScapeOptions {
   auditOnly?: boolean
   onFocus(point: Vector3): void
   onManualControl(): void
+
+  /** Fresh frame numbers, four times a second, for an on-screen readout. */
+  onVitals?(sample: VitalsSample): void
 
   /**
    * The GPU took the context away.
@@ -102,6 +107,58 @@ function describeGpu (gl: WebGL2RenderingContext): string {
  * Firefox reports a canned adapter string here, so the numbers are also the only
  * honest description of the device it will give up.
  */
+/**
+ * The renderer, with one door closed behind it.
+ *
+ * Built here rather than left to `createApp` so that `setSize` can be wrapped
+ * before anything is allowed to call it. The library's resize observer has no
+ * debounce, and a phone's collapsing url bar fires it dozens of times a second
+ * with fractional css sizes — most of which round to the *same* drawing buffer.
+ * Every one of those reallocates the swap chain for no change at all, and swap
+ * chain allocation is exactly what this scape has already watched fail on a
+ * handset. So a resize to a buffer the renderer already has is not a resize.
+ */
+function buildRenderer (
+  canvas:  HTMLCanvasElement,
+  quality: AtmosphereQuality,
+  shadows: boolean,
+): WebGLRenderer {
+  const renderer = createRenderer({
+    canvas,
+    antialias:           quality.antialias,
+    pixelRatioMax:       quality.pixelRatioMax,
+    shadows,
+    toneMappingExposure: 0.98,
+  })
+
+  const resize = renderer.setSize.bind(renderer)
+  const buffer = renderer.getDrawingBufferSize(new Vector2())
+
+  // Seeded from the buffer `createRenderer` just allocated, so the first thing
+  // to ask for that same buffer — the runtime module, applying a pixel ratio the
+  // tier already chose — does not reallocate it to arrive where it already is.
+  let width  = buffer.x
+  let height = buffer.y
+
+  renderer.setSize = (nextWidth: number, nextHeight: number, updateStyle?: boolean): void => {
+    // The ratio is part of the comparison because it is part of the buffer. A
+    // live pixel-ratio change keeps the css box and replaces everything behind
+    // it, and that is a resize even though nothing on screen moved.
+    const ratio        = renderer.getPixelRatio()
+    const bufferWidth  = Math.round(nextWidth * ratio)
+    const bufferHeight = Math.round(nextHeight * ratio)
+
+    if (bufferWidth === width && bufferHeight === height)
+      return
+
+    width  = bufferWidth
+    height = bufferHeight
+    resize(nextWidth, nextHeight, updateStyle)
+  }
+
+  return renderer
+}
+
 function describeBudget (gl: WebGL2RenderingContext): string {
   return [
     `varyings ${gl.getParameter(gl.MAX_VARYING_COMPONENTS)}c`,
@@ -135,12 +192,18 @@ export function createIsometricScape (
   // the zoom level — and its `build` hook runs before anything reads the pose.
   const { quality } = options
   const skip        = options.skip ?? NOTHING_SKIPPED
-  const landscape   = createLandscape(config, quality, skip)
-  const atmosphere  = createAtmosphereLayer({
+
+  // Built before anything that asks it a question. It owns the shadow map's
+  // refresh rate, and the atmosphere has to know the answer before it decides
+  // whether fitting a frustum is worth doing this frame.
+  const runtime    = createRuntime(config)
+  const landscape  = createLandscape(config, quality, skip)
+  const atmosphere = createAtmosphereLayer({
     camera,
     config,
     quality,
     groundRadius: config.terrain.size * 0.8,
+    shadowDue:    runtime.shadowDue,
   })
   const mist = skip.has('mist')
     ? null
@@ -200,6 +263,9 @@ export function createIsometricScape (
   })
 
   const modules = [
+    // First, so everything it changes is already in force on the frame it
+    // changed them on — and so `shadowDue` is settled before it is asked.
+    runtime.module,
     landscape.module,
     controls,
     atmosphere.module,
@@ -218,13 +284,8 @@ export function createIsometricScape (
     // framecapper's rate is a shared singleton, so a tier that wants no cap has
     // to say so rather than inherit whatever the last scape asked for.
     loop:     { fps: quality.frameRate },
-    renderer: {
-      antialias:           quality.antialias,
-      pixelRatioMax:       quality.pixelRatioMax,
-      shadows:             quality.shadows && !skip.has('shadows'),
-      toneMappingExposure: 0.98,
-    },
-    use: modules,
+    renderer: buildRenderer(canvas, quality, quality.shadows && !skip.has('shadows')),
+    use:      modules,
   })
 
   // Mounted after everything it measures, and last of all so that nothing it
@@ -235,6 +296,7 @@ export function createIsometricScape (
     verbose:  diagnostics.verbose,
     report:   line => diagnostics.vitals(line),
     notice:   message => diagnostics.say(message),
+    sample:   options.onVitals,
   })
 
   app.use(vitals.module)
@@ -320,7 +382,8 @@ export function createIsometricScape (
   }
 }
 
-// perf: createApp owns the only render loop, resize observer, renderer and
-// teardown path. scene modules share that lifecycle rather than adding raf work.
-// The loop is paced to `quality.frameRate` and parked whenever the document is
-// hidden, so the gpu is only ever asked for frames somebody is looking at.
+// perf: createApp owns the only render loop, resize observer and teardown path.
+// scene modules share that lifecycle rather than adding raf work. The loop is
+// paced to `config.runtime.frameCap` and parked whenever the document is
+// hidden, so the gpu is only ever asked for frames somebody is looking at, and
+// a resize to a buffer the renderer already has costs nothing at all.

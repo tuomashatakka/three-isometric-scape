@@ -435,6 +435,37 @@ export interface ScapeConfig {
     /** What the same curtain thins out to at its fringes and its crown. */
     auroraCrown: number
   }
+
+  /**
+   * What the machine is asked for, rather than what the scape is made of.
+   *
+   * Everything else here describes the place. These three describe the budget it
+   * is drawn on, and they are the only values in the config that are seeded from
+   * the resolved quality tier rather than authored — which is also why they are
+   * the only section the settings store deliberately does not persist. A pixel
+   * ratio kept from one session and replayed into the next is how a device that
+   * has already lost a context gets handed back the budget that took it.
+   */
+  runtime: {
+
+    /** Ceiling on `devicePixelRatio`, applied live. */
+    pixelRatio: number
+
+    /** Frames drawn per second. 0 draws on every animation frame the display offers. */
+    frameCap: number
+
+    /**
+     * Frames between shadow-map rebuilds. 1 rebuilds every frame.
+     *
+     * Three rebuilds the whole depth pass — terrain, the merged steading and
+     * every scattered instance — on every single frame by default, at up to
+     * 4096². Nothing in this scape moves fast enough to need that: the sun
+     * crosses the sky over minutes and the foliage sway is a slow shader
+     * animation, so refreshing the map every other frame is invisible and costs
+     * half the pass.
+     */
+    shadowCadence: number
+  }
 }
 
 export const SCAPE_CONFIG = {
@@ -619,5 +650,14 @@ export const SCAPE_CONFIG = {
     ice:          0xa8bcc0,
     aurora:       0x6df2a8,
     auroraCrown:  0x7a5bd6,
+  },
+
+  // Placeholders. `main.ts` overwrites all three from the resolved tier before
+  // the settings store is built, so these are only ever what a test or a
+  // headless import sees.
+  runtime: {
+    pixelRatio:    1,
+    frameCap:      0,
+    shadowCadence: 1,
   },
 } satisfies ScapeConfig

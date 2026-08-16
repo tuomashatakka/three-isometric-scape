@@ -3,6 +3,26 @@ import { defineModule } from 'threejs-scene'
 import type { AppModule } from 'threejs-scene'
 
 
+/**
+ * The last quarter-second, as numbers rather than as a sentence.
+ *
+ * `snapshot` exists for the log, where a line of prose is what a phone screen
+ * can carry. A readout on the canvas wants the figures, and wants them often
+ * enough to twitch — so it gets its own cadence and its own shape rather than a
+ * string somebody has to parse back apart.
+ */
+export interface VitalsSample {
+  fps: number
+
+  /** Mean frame time over the sample window, in milliseconds. */
+  ms: number
+
+  /** The worst frame of the whole run so far, in milliseconds. */
+  worst:     number
+  calls:     number
+  triangles: number
+}
+
 /** What the scape reports about itself while it is running. */
 export interface Vitals {
   module: AppModule<Record<string, never>>
@@ -22,19 +42,46 @@ export interface VitalsOptions {
 
   /** An event worth a line of its own in the log. */
   notice(message: string): void
+
+  /** Fresh numbers for an on-screen readout, four times a second. */
+  sample?(sample: VitalsSample): void
 }
 
 /** How often the live line is pushed out, in seconds. */
 const REPORT_EVERY = 4
 
 /**
- * How often `getError` is asked.
+ * How often `sample` is handed fresh numbers, in seconds.
+ *
+ * Fast enough that a reader watching the counter sees the frame rate move when
+ * they do something, slow enough that the digits stay readable rather than
+ * strobing. Kept on its own accumulator so the four-second log window above is
+ * unchanged by anything a readout wants.
+ */
+const SAMPLE_EVERY = 0.25
+
+/**
+ * How often `getError` is asked, while the run is still young.
  *
  * It is a synchronising call — it drains the command queue — so it is not free
  * and it does not belong in a frame. Once a second is enough to catch an
  * `OUT_OF_MEMORY` on its way to becoming a lost context.
  */
 const ERROR_EVERY = 1
+
+/**
+ * And how often once the run has settled.
+ *
+ * Every loss on record landed inside the first few seconds, and a probe that
+ * has been answering `NO_ERROR` for a quarter of a minute is buying very little.
+ * The stall it costs, though, it costs for as long as the tab is open — so past
+ * the window where the answer is interesting it backs off to the rate the log
+ * runs at. `?debug` keeps the close watch for as long as anyone wants it.
+ */
+const ERROR_EVERY_SETTLED = 4
+
+/** How long the close watch lasts, in seconds. See `ERROR_EVERY_SETTLED`. */
+const WATCHFUL = 15
 
 /** A frame this slow is long enough for a mobile driver watchdog to notice. */
 const STALL = 250
@@ -70,7 +117,7 @@ const GL_ERRORS: Record<number, string> = {
  * context, because the frame context reports the *nominal* delta once the loop
  * is paced — which is exactly the number that hides a device failing to keep up.
  */
-export function createVitals ({ renderer, verbose, report, notice }: VitalsOptions): Vitals {
+export function createVitals ({ renderer, verbose, report, notice, sample }: VitalsOptions): Vitals {
   let last     = performance.now()
   let frames   = 0
   let span     = 0
@@ -78,6 +125,13 @@ export function createVitals ({ renderer, verbose, report, notice }: VitalsOptio
   let sinceLog = 0
   let sinceGl  = 0
   let resizes  = 0
+
+  // The readout's own window, and the age of the run that decides how closely
+  // the driver is questioned.
+  let sinceSample  = 0
+  let sampleFrames = 0
+  let sampleSpan   = 0
+  let total        = 0
 
   // Sticky across windows: a stall that has already been reported still
   // explains a loss ten seconds later, so the worst frame of the whole run is
@@ -117,6 +171,43 @@ export function createVitals ({ renderer, verbose, report, notice }: VitalsOptio
     ].join(' · ')
   }
 
+  /**
+   * Hand the readout the window that just closed, and open another.
+   *
+   * Its own accumulator rather than the log's, because the two want opposite
+   * things: the log wants a settled average of the last few seconds, and a
+   * counter on the canvas wants to move when the scape does.
+   */
+  function emit (): void {
+    if (!sample || sinceSample < SAMPLE_EVERY)
+      return
+
+    sample({
+      fps: sampleSpan > 0 ? sampleFrames / sampleSpan : 0,
+      ms:  sampleFrames > 0 ? sampleSpan * 1000 / sampleFrames : 0,
+      worst,
+      calls,
+      triangles,
+    })
+
+    sinceSample  = 0
+    sampleFrames = 0
+    sampleSpan   = 0
+  }
+
+  /** Ask the driver whether anything has gone wrong since we last asked. */
+  function probe (gl: WebGLRenderingContext | WebGL2RenderingContext): void {
+    if (sinceGl < (verbose || total < WATCHFUL ? ERROR_EVERY : ERROR_EVERY_SETTLED))
+      return
+
+    sinceGl = 0
+
+    const code = gl.getError()
+
+    if (code !== 0)
+      notice(`gl error ${GL_ERRORS[code] ?? `0x${code.toString(16)}`}`)
+  }
+
   return {
     snapshot: line,
 
@@ -146,8 +237,10 @@ export function createVitals ({ renderer, verbose, report, notice }: VitalsOptio
           notice(`first frame ${delta.toFixed(0)}ms`)
         }
         else {
-          frames += 1
-          span   += delta / 1000
+          frames       += 1
+          span         += delta / 1000
+          sampleFrames += 1
+          sampleSpan   += delta / 1000
 
           const record = delta > worst * 1.25
 
@@ -166,16 +259,12 @@ export function createVitals ({ renderer, verbose, report, notice }: VitalsOptio
 
         sinceLog       += delta / 1000
         sinceGl        += delta / 1000
+        sinceSample    += delta / 1000
         sinceStallLine += delta / 1000
+        total          += delta / 1000
 
-        if (sinceGl >= ERROR_EVERY) {
-          sinceGl = 0
-
-          const code = ctx.renderer.getContext().getError()
-
-          if (code !== 0)
-            notice(`gl error ${GL_ERRORS[code] ?? `0x${code.toString(16)}`}`)
-        }
+        emit()
+        probe(ctx.renderer.getContext())
 
         if (sinceLog < REPORT_EVERY)
           return
@@ -211,5 +300,7 @@ export function createVitals ({ renderer, verbose, report, notice }: VitalsOptio
   }
 }
 
-// perf: one wall-clock read and a handful of counters per frame, one
-// synchronising `getError` per second, and a line pushed out every four.
+// perf: one wall-clock read and a handful of counters per frame, a readout
+// sample four times a second, a synchronising `getError` once a second while
+// the run is young and every four once it has settled, and a log line every
+// four.

@@ -98,6 +98,7 @@ keeping generation in `build`, animation in `update`, resize work in `resize`, a
 | shift + left / right | rotate |
 | shift + up / down, + / − | zoom |
 | escape | stop automatic revolution |
+| h | hide or show the card in the top-left corner |
 
 pan is the primary gesture because on a map, dragging means *move the map* to everyone who has ever used one; orbiting is the specialist verb and takes the modifier.
 
@@ -128,7 +129,11 @@ src/
 ├── main.ts                         browser entry and accessible status
 ├── style.css                       full-viewport responsive shell
 ├── ui/
+│   ├── diagnostics.ts              the log, printed where a phone can read it
+│   ├── fps-meter.ts                the frame counter in the bottom-left corner
 │   ├── graphics-panel.ts           the overlay, built from real form elements
+│   ├── overlay-state.ts            whether the card was last left hidden
+│   ├── scape-card.ts               the card in the top-left, and its handle
 │   ├── scape-controls.ts           which config paths it exposes, in sections
 │   └── settings-store.ts           local-storage snapshot of those same paths
 └── scene/
@@ -144,6 +149,7 @@ src/
     ├── noise.ts                    deterministic height sampler
     ├── post.ts                     ao, ssr, sun shafts, tilt-shift, lut, bloom, grain, traa
     ├── quality.ts                  minimal/mobile/desktop/ultra gpu budgets
+    ├── runtime.ts                  live pixel ratio, frame cap, shadow cadence
     ├── season.ts                   the year: growth, leaf turn, snow, sea ice, sea smoke, night length
     ├── landscape/
     │   ├── index.ts                the scene module, and what raycasts
@@ -222,9 +228,41 @@ there is no `enabled` flag anywhere in the config: an effect is off when its str
 
 what a slider cannot do is change the *shape* of the chain. which passes exist at all is a quality-tier decision made once when the composer is built, so a knob whose pass the tier never created renders greyed rather than lying about what it does.
 
+### the card, and the corner it was in
+
+the card in the top-left — the title, the gestures, and the diagnostics log — **starts hidden** and is toggled by the chevron beside it or by `h`. the choice is remembered in its own local-storage key, `three-iso.overlay.v1`.
+
+the handle is pinned to the *figure* rather than to the card, for the same reason `.gfx-toggle` sits outside `.gfx`: a control that hides along with the thing it controls is a one-way door. the card slides off the left edge and the chevron stays exactly where it was.
+
+the card is hidden rather than removed. the log inside it is the only crash report a phone gives and it goes on collecting whether or not anyone is watching, so it stays in the document — `inert` is what keeps a card parked off-screen out of the tab order and out of the hit test. **`?debug` opens it whatever was last chosen**, because a debugging surface you have to already know a keyboard shortcut to reach is not one.
+
+the offset on the handle is a `left` and not a `transform`, and that is not a preference. a percentage inside `translateX` resolves against the *element's own* width — so `--card-width`, which carries a `calc(100% - 2rem)`, collapsed to a negative six pixels against a 26-pixel button and parked the handle on top of the card it had just opened. in `left` the same percentage resolves against the containing block, which is the figure, which is what the card measures against too.
+
+### the frame counter
+
+`.fps` sits in the bottom-left and reads `58 fps · 17.2 ms`, with `41 calls · 812k tris` added under `?debug`. it is deliberately in neither the card nor the panel: both of those are things you put away, and a frame counter you have to open is a frame counter that was not measuring the thing you were looking at when it got slow.
+
+it times nothing itself. [`vitals.ts`](src/scene/vitals.ts) has been measuring the frame all along — for the log, and for the snapshot written at the moment a context is lost — and this is a second view of that one measurement, taken on its own quarter-second cadence so the log's four-second window is unchanged.
+
+### the performance section
+
+three knobs at the bottom of the panel, applied live by [`runtime.ts`](src/scene/runtime.ts):
+
+| knob | what it does |
+| --- | --- |
+| pixel ratio | rescales the drawing buffer, and the composer behind it |
+| frame cap | `0` draws on every animation frame the display offers |
+| shadow every n frames | how often the shadow map is rebuilt |
+
+the last one is the one worth explaining. three rebuilds the entire shadow depth pass — the terrain, the merged steading and every scattered instance — on **every frame it draws**, at up to 4096². nothing in this scape moves fast enough to need that: the sun crosses the sky over minutes and the foliage sway is a slow shader animation. `runtime.ts` takes `shadowMap.autoUpdate` off the renderer and hands the map out on a cadence instead, and `atmosphere.ts` only fits the sun's frustum on the frames the map is actually being rebuilt on — the fit is written into `sun.shadow.camera` and read only when the map renders, so fitting it on any other frame is work with nowhere to go.
+
+measured in headless chromium on an m5, desktop tier at ratio 1.75: cadence 1 draws **110 calls** a frame, cadence 4 draws **73**. the frame rate barely moves there, because that machine is fill-rate bound rather than draw-call bound — the same run has ratio 1.75 at 18fps, ratio 1.0 at 31 and ratio 0.5 at 44. the cadence is for the devices where the depth pass *is* the bill, which is every phone this scape has ever lost a context on.
+
+**this section is deliberately not persisted.** its three values are seeded from whatever quality tier the device resolved to on *this* load, re-seeded when a context loss buys a cheaper one, and re-seeded again by `reset`. a pixel ratio or an uncapped frame rate kept from one session and replayed into the next is exactly how a device that has already lost a context gets handed back the budget that took it — underneath a tier [`tier-memory.ts`](src/scene/tier-memory.ts) had correctly held down.
+
 ### settings that stick
 
-the overlay writes a debounced snapshot of every exposed path under one local-storage key, and applies it before the scene is built. two details carry the weight:
+the overlay writes a debounced snapshot of every exposed path under one local-storage key, and applies it before the scene is built. a section can opt out with `persist: false`, and the performance section above is the only one that does. two details carry the weight for everything else:
 
 - **stored values are only accepted when their type still matches the config.** a snapshot from an older build, or a hand-edited one, cannot poke a string into a uniform and take the shader down on load — it is simply ignored, field by field.
 - **`reset` removes the key rather than overwriting it with the defaults.** re-authoring a value in `config.ts` should reach anyone who has pressed reset, and it cannot if reset leaves a snapshot of the old defaults sitting in front of it.

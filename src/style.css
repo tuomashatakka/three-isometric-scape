@@ -27,6 +27,13 @@ body {
 }
 
 .scape {
+  /* The card's box, named once. The handle that hides the card has to know
+     exactly how far to step aside, and it is not inside the card — so the two
+     read the same three values rather than each carrying their own copy. */
+  --card-width: min(29rem, calc(100% - 2rem));
+  --card-inset-x: max(1rem, env(safe-area-inset-left));
+  --card-inset-y: max(1rem, env(safe-area-inset-top));
+
   position: relative;
   isolation: isolate;
   overflow: hidden;
@@ -67,14 +74,43 @@ canvas:focus-visible {
 .scape-card {
   position: absolute;
   z-index: 2;
-  top: max(1rem, env(safe-area-inset-top));
-  left: max(1rem, env(safe-area-inset-left));
-  width: min(29rem, calc(100% - 2rem));
+  top: var(--card-inset-y);
+  left: var(--card-inset-x);
+  width: var(--card-width);
   padding: clamp(1rem, 2.2vw, 1.35rem);
   border: 1px solid rgb(226 242 164 / 16%);
   background: rgb(21 24 20 / 86%);
   box-shadow: 0 1.5rem 4rem rgb(4 6 4 / 22%);
   backdrop-filter: blur(0.5rem);
+  transition: transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* Slid away rather than removed. The diagnostics log lives in here and goes on
+   collecting whether or not anyone is watching it, so the card has to stay in
+   the document — `inert` is what keeps a card parked off-screen out of the tab
+   order and out of the hit test. See `ui/scape-card.ts`. */
+.scape-card[data-hidden="true"] {
+  transform: translateX(calc(-100% - var(--card-inset-x)));
+}
+
+/* Pinned to the figure, not to the card, so it is still there once the card has
+   gone. When the card is out it steps aside to sit past its right edge.
+
+   Offset through `left` rather than a transform, and not by preference: a
+   percentage inside `translateX` resolves against the *element's own* width, so
+   `--card-width` — which carries a `calc(100% - 2rem)` — collapsed to a negative
+   six pixels against a 26px button and parked the handle on top of the card it
+   had just opened. In `left` the same percentage resolves against the
+   containing block, which is the figure, which is what the card measures too. */
+.card-toggle {
+  position: absolute;
+  top: calc(var(--card-inset-y) + 0.55rem);
+  left: calc(var(--card-inset-x) + var(--card-width) + 0.5rem);
+  transition: left 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.scape:has(.scape-card[data-hidden="true"]) .card-toggle {
+  left: var(--card-inset-x);
 }
 
 .scape-kicker,
@@ -138,6 +174,32 @@ h1 {
   display: none;
 }
 
+/* ---- frame readout ------------------------------------------------------- */
+
+/* Its own corner, deliberately. The card and the panel are both things you put
+   away, and a frame counter you have to open is a frame counter that was not
+   measuring the thing you were looking at when it got slow. */
+.fps {
+  position: absolute;
+  z-index: 2;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  left: max(1rem, env(safe-area-inset-left));
+  padding: 0.3rem 0.55rem;
+  color: #d9f18f;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.66rem;
+  line-height: 1.2;
+  letter-spacing: 0.04rem;
+
+  /* Digits that keep their column. Proportional numerals make a counter twitch
+     sideways on every sample, which reads as the page being busy. */
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  background: rgb(21 24 20 / 86%);
+  border: 1px solid rgb(226 242 164 / 16%);
+  backdrop-filter: blur(0.5rem);
+}
+
 /* ---- graphics overlay ---------------------------------------------------- */
 
 .gfx {
@@ -198,11 +260,17 @@ h1 {
 
 /* The handle stays outside the panel so it can still be reached once the panel
    has slid off the edge — a collapse control that collapses with the thing it
-   controls is a one-way door. */
+   controls is a one-way door. The card's handle at the other corner is the same
+   idea and the same object, so it is the same rule. */
 .gfx-toggle {
   position: absolute;
   top: 0.55rem;
   right: calc(100% + 0.5rem);
+}
+
+.gfx-toggle,
+.card-toggle {
+  z-index: 2;
   width: 1.6rem;
   height: 1.6rem;
   color: #d9f18f;
@@ -216,7 +284,9 @@ h1 {
 }
 
 .gfx-toggle:hover,
-.gfx-toggle:focus-visible {
+.gfx-toggle:focus-visible,
+.card-toggle:hover,
+.card-toggle:focus-visible {
   color: #19182e;
   background: #d9f18f;
 }
@@ -363,11 +433,20 @@ noscript {
     display: list-item;
   }
 
+  .scape {
+    --card-width: min(25rem, calc(100% - 1.5rem));
+    --card-inset-x: max(0.75rem, env(safe-area-inset-left));
+    --card-inset-y: max(0.75rem, env(safe-area-inset-top));
+  }
+
   .scape-card {
-    top: max(0.75rem, env(safe-area-inset-top));
-    left: max(0.75rem, env(safe-area-inset-left));
-    width: min(25rem, calc(100% - 1.5rem));
     padding: 0.9rem 1rem;
+  }
+
+  .fps {
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    left: max(0.75rem, env(safe-area-inset-left));
+    font-size: 0.62rem;
   }
 
   .scape-kicker {
@@ -396,13 +475,17 @@ noscript {
 @media (prefers-reduced-transparency: reduce) {
   .scape-card,
   .gfx,
-  .gfx-toggle {
+  .gfx-toggle,
+  .card-toggle,
+  .fps {
     background: #151814;
     backdrop-filter: none;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .scape-card,
+  .card-toggle,
   .gfx,
   .gfx-nested {
     transition: none;

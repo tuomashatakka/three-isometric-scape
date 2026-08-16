@@ -38,10 +38,29 @@ const SECTIONS: ControlSection[] = [
   },
 ]
 
-type ConfigReturnType = { look: { grade: string; bloom: number }}
+// The performance section in the real panel. Its values are seeded from the
+// resolved quality tier every load, so remembering them would mean replaying one
+// device's budget onto whatever the next load turns out to be.
+const WITH_RUNTIME: ControlSection[] = [
+  ...SECTIONS,
+  {
+    title:    'performance',
+    persist:  false,
+    controls: [{ kind: 'range', path: 'runtime.pixelRatio', label: 'pixel ratio', min: 0.5, max: 2, step: 0.05 }],
+  },
+]
+
+type ConfigReturnType = {
+  look:     { grade: string; bloom: number }
+  runtime?: { pixelRatio: number }
+}
 
 function config (): ConfigReturnType {
   return { look: { grade: 'nordic', bloom: 0.34 }}
+}
+
+function configWithRuntime (): Required<ConfigReturnType> {
+  return { look: { grade: 'nordic', bloom: 0.34 }, runtime: { pixelRatio: 1 }}
 }
 
 describe('paths', () => {
@@ -63,6 +82,10 @@ describe('paths', () => {
 
   test('collect every leaf a section exposes, toggles included', () => {
     expect(controlPaths(SECTIONS)).toEqual([ 'look.grade', 'look.bloom' ])
+  })
+
+  test('leave out the sections that opted out of being remembered', () => {
+    expect(controlPaths(WITH_RUNTIME)).toEqual([ 'look.grade', 'look.bloom' ])
   })
 })
 
@@ -116,6 +139,26 @@ describe('createSettingsStore', () => {
 
     expect(scape.look.bloom).toBe(0.34)
     expect(storage.getItem('three-iso.graphics.v1')).toBeNull()
+  })
+
+  test('never saves or restores a section that opted out', async () => {
+    const storage = memoryStorage()
+    const first   = configWithRuntime()
+    const store   = createSettingsStore(first, WITH_RUNTIME, storage)
+
+    first.look.bloom         = 1
+    first.runtime.pixelRatio = 2
+    store.save()
+    await Bun.sleep(300)
+
+    expect(storage.getItem('three-iso.graphics.v1')).not.toContain('runtime.pixelRatio')
+
+    const second = configWithRuntime()
+    createSettingsStore(second, WITH_RUNTIME, storage).load()
+
+    // The knob the reader dragged is gone; everything beside it came back.
+    expect(second.look.bloom).toBe(1)
+    expect(second.runtime.pixelRatio).toBe(1)
   })
 
   test('degrades quietly when there is no storage at all', () => {
