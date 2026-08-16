@@ -10,7 +10,8 @@ import type { FencePoint } from '../props/fence.ts'
 import { buildProp, resolvePalette } from '../props/index.ts'
 import type { PropName } from '../props/index.ts'
 import type { ScapeMaterials } from '../props/material.ts'
-import { Ploppable } from '../props/ploppable.ts'
+import { Ploppable, baseFootprint } from '../props/ploppable.ts'
+import type { Footprint } from '../props/ploppable.ts'
 import { buildStoneWallRun } from '../props/wall.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import type { Creek } from './creek.ts'
@@ -40,6 +41,16 @@ const TAU = Math.PI * 2
  * network of paths.
  */
 const TREAD = 0.55
+
+/**
+ * How much ground a plinth is willing to bridge, in metres.
+ *
+ * A foundation exists to take up the difference between a level floor and
+ * ground that is not; past about a metre it stops reading as a foundation and
+ * starts reading as a building on stilts. That is a siting problem, and the
+ * honest fix is to move the building rather than to grow more stone under it.
+ */
+const PLINTH_REACH = 1.1
 
 /**
  * A near-white tint. `scatterInstances` multiplies it into the baked vertex
@@ -122,6 +133,72 @@ export function createDressing (
     heroes.push(geometry)
   }
 
+  /** The drop across a building's footprint, which is the plinth it would need. */
+  function plinthFor (footprint: Footprint, x: number, z: number, angle: number): number {
+    const cos = Math.cos(angle)
+    const sin = Math.sin(angle)
+    let low  = Infinity
+    let high = heightAt(x, z)
+
+    for (let step = 0; step < 16; step += 1) {
+      const around = step / 16 * TAU
+      const lx     = footprint.x + Math.cos(around) * footprint.halfW
+      const lz     = footprint.z + Math.sin(around) * footprint.halfD
+      const level  = heightAt(x + lx * cos - lz * sin, z + lx * sin + lz * cos)
+
+      low  = Math.min(low, level)
+      high = Math.max(high, level)
+    }
+
+    return high - low
+  }
+
+  /**
+   * Walk a building in from where it was wanted to where it can stand.
+   *
+   * The upland barn is the case this exists for. `findPasture` measures the
+   * roughness of the meadow at 0.55 of its radius, and the barn was then set at
+   * 0.68 — out past the ground that was actually tested, with a footprint that
+   * reaches past the wall on top of that. On this island that left two thirds of
+   * it over the shoulder where the pasture falls away, needing three and a half
+   * metres of plinth: a stone tower with a hay barn on it.
+   *
+   * So the spot is *found* rather than asserted, the way every other placement
+   * in this scape is. It gives up the offset before it gives up standing on the
+   * ground, and if nothing on the line qualifies it takes the flattest of them
+   * rather than refusing to build the barn.
+   *
+   * **Only for buildings nothing is routed to.** The five steading buildings
+   * must not use this: their doorstep paths are traced in `survey.ts` from
+   * `steadingPlaces`, before any of this runs, so a building that moved here
+   * would leave its path leading to where it used to be. The upland barn is
+   * safe because the meadow's path is worn to the *gateway* in the wall, which
+   * is a fact about the pasture and not about the barn inside it.
+   */
+  function standable (footprint: Footprint, x: number, z: number, angle: number, toward: Vec2): Vec2 {
+    let best     = { x, z }
+    let bestDrop = Infinity
+
+    for (let step = 0; step <= 10; step += 1) {
+      const t    = step / 10
+      const cx   = x + (toward.x - x) * t
+      const cz   = z + (toward.z - z) * t
+      const drop = plinthFor(footprint, cx, cz, angle)
+
+      if (drop < bestDrop) {
+        bestDrop = drop
+        best     = { x: cx, z: cz }
+      }
+
+      // Far enough in. Keeping the barn as near the wall as it can honestly
+      // stand is the whole point of walking rather than jumping to the middle.
+      if (drop <= PLINTH_REACH)
+        return { x: cx, z: cz }
+    }
+
+    return best
+  }
+
   /**
    * A building, stood on ground-following footings.
    *
@@ -131,13 +208,24 @@ export function createDressing (
    * from the footprint and grows a foundation down onto whatever is under it.
    * Five extra draws against the same material is not a state change.
    */
-  function raiseBuilding (name: PropName, x: number, z: number, angle: number): void {
+  function raiseBuilding (
+    name:   PropName,
+    x:      number,
+    z:      number,
+    angle:  number,
+    toward: Vec2 | null = null,
+  ): void {
     const geometry = buildProp(name, rng.fork(`hero-${name}`), palette)
-    geometry.computeBoundingBox()
 
-    const bounds = geometry.boundingBox
-    const halfW  = bounds ? (bounds.max.x - bounds.min.x) * 0.5 : 3
-    const halfD  = bounds ? (bounds.max.z - bounds.min.z) * 0.5 : 3
+    // What the building stands on, not what it reaches over. Measured from the
+    // geometry at its base rather than from the bounding box, because a roof
+    // overhang put the plinth a quarter of a metre outside the aitta's walls
+    // and levelled the floor against ground no wall of it touches.
+    const footprint = baseFootprint(geometry)
+    const site      = toward ? standable(footprint, x, z, angle, toward) : { x, z }
+
+    x = site.x
+    z = site.z
 
     const body         = new Mesh(geometry, materials.ground)
     body.name          = name
@@ -148,14 +236,24 @@ export function createDressing (
     prop.addPart('body', body)
     prop.plop(x, z, {
       angle,
-      footprint:  [ halfW * 0.9, halfD * 0.9 ],
+      footprint:  { ...footprint, halfW: footprint.halfW * 0.9, halfD: footprint.halfD * 0.9 },
       skirt:      materials.ground,
       skirtColor: palette.granite,
     })
 
     root.add(prop)
     plopped.push(prop)
-    solver.reserve(x, z, Math.max(halfW, halfD) + 1.4)
+
+    // The claim still answers to the whole prop, roof included — two barns that
+    // do not overlap at the sill can still overlap at the eaves.
+    geometry.computeBoundingBox()
+
+    const bounds = geometry.boundingBox
+    const reach  = bounds
+      ? Math.max(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z) * 0.5
+      : 3
+
+    solver.reserve(x, z, reach + 1.4)
   }
 
   /**
@@ -330,11 +428,16 @@ export function createDressing (
     // wall's own claims, and the meadow keeps a middle to stand hay in.
     const barnAngle = pasture.gateway + Math.PI
 
+    // Set back against the wall, then walked in toward the middle until the
+    // ground under the whole of it is within a plinth's reach of level. The
+    // meadow is only sited for the flatness of its middle, so the back of it is
+    // not ground anything was promised it could stand on.
     raiseBuilding(
       'meadowBarn',
       pasture.x + Math.cos(barnAngle) * pasture.radius * 0.68,
       pasture.z + Math.sin(barnAngle) * pasture.radius * 0.68,
       yawAlong(pasture.gateway),
+      pasture,
     )
   }
 

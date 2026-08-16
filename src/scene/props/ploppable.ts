@@ -6,17 +6,32 @@ import { Prop } from 'threejs-scene/modules/assets'
 /** Ground height at a point, in world units. */
 export type GroundAt = (x: number, z: number) => number
 
+/**
+ * The rectangle a prop actually stands on, in its own axes.
+ *
+ * Carries a centre because a prop's extent is rarely symmetric about its
+ * origin — the barn's is three quarters of a metre off in `z` — and a plinth
+ * built symmetrically around the origin for an asymmetric building overhangs
+ * one wall and leaves the opposite one standing in mid-air.
+ */
+export interface Footprint {
+  x:     number
+  z:     number
+  halfW: number
+  halfD: number
+}
+
 export interface PlopOptions {
 
   /** Yaw in radians. @defaultValue 0 */
   angle?: number
 
   /**
-   * Half-extents of the prop's footprint in its own axes. Given one, `plop`
-   * levels against the whole footprint instead of a single point and grows a
+   * The ground the prop stands on, in its own axes. Given one, `plop` levels
+   * against the whole footprint instead of a single point and grows a
    * foundation to bridge the drop.
    */
-  footprint?: readonly [number, number]
+  footprint?: Footprint
 
   /** Extra sink below the resolved floor level, in metres. @defaultValue 0.05 */
   sink?: number
@@ -39,9 +54,67 @@ const SKIRT_BURY = 0.55
 
 const DEFAULT_SKIRT = 0x6d685f
 
+/**
+ * How far above its base a prop still counts as standing on the ground.
+ *
+ * The measurement this bounds is "what does this building rest on", and the
+ * answer is never its bounding box: a roof overhangs, a gable reaches past the
+ * wall beneath it, and a ladder leans out into thin air. Taken from the full
+ * extent, the aitta's footprint is a quarter wider than the hut itself.
+ */
+const BASE_REACH = 0.6
+
+/**
+ * The rectangle a prop actually stands on.
+ *
+ * Only geometry within {@link BASE_REACH} of the base is measured, and the
+ * result carries its own centre rather than assuming the prop is symmetric
+ * about its origin — most are not.
+ */
+export function baseFootprint (geometry: BufferGeometry, fallback = 3): Footprint {
+  const position = geometry.getAttribute('position')
+
+  let minX = Infinity
+  let maxX = -Infinity
+  let minZ = Infinity
+  let maxZ = -Infinity
+
+  geometry.computeBoundingBox()
+
+  const floor = geometry.boundingBox?.min.y ?? 0
+
+  for (let index = 0; index < position.count; index += 1) {
+    if (position.getY(index) > floor + BASE_REACH)
+      continue
+
+    minX = Math.min(minX, position.getX(index))
+    maxX = Math.max(maxX, position.getX(index))
+    minZ = Math.min(minZ, position.getZ(index))
+    maxZ = Math.max(maxZ, position.getZ(index))
+  }
+
+  // A prop with nothing near its base at all — nothing in this scape, but the
+  // caller should get a usable square rather than an Infinity.
+  if (!Number.isFinite(minX) || !Number.isFinite(minZ))
+    return { x: 0, z: 0, halfW: fallback, halfD: fallback }
+
+  return {
+    x:     (minX + maxX) * 0.5,
+    z:     (minZ + maxZ) * 0.5,
+    halfW: (maxX - minX) * 0.5,
+    halfD: (maxZ - minZ) * 0.5,
+  }
+}
+
 /** Sample points around a rectangle's perimeter, in the prop's local axes. */
-function outlinePoints (halfW: number, halfD: number, steps: number): number[][] {
-  const corners            = [[ -halfW, -halfD ], [ halfW, -halfD ], [ halfW, halfD ], [ -halfW, halfD ]]
+function outlinePoints (footprint: Footprint, steps: number): number[][] {
+  const { x, z, halfW, halfD } = footprint
+
+  const corners = [
+    [ x - halfW, z - halfD ], [ x + halfW, z - halfD ],
+    [ x + halfW, z + halfD ], [ x - halfW, z + halfD ],
+  ]
+
   const points: number[][] = []
 
   for (let side = 0; side < 4; side += 1) {
@@ -90,9 +163,15 @@ function buildBand (
     const nx = (bz - az) / length
     const nz = -(bx - ax) / length
 
+    // Wound so the *outward* face is the front face. This was backwards, and
+    // under `flatShading` — which the scape's ground material uses — it is the
+    // only thing that matters: three derives the shading normal from the
+    // winding and never reads the attribute below, so a reversed quad is both
+    // culled and lit inside out. The visible symptom was a building standing
+    // on nothing, its plinth present but facing away from every camera.
     const corners = [
-      [ ax, SKIRT_TOP, az ], [ ax, aLow, az ], [ bx, bLow, bz ],
-      [ ax, SKIRT_TOP, az ], [ bx, bLow, bz ], [ bx, SKIRT_TOP, bz ],
+      [ ax, SKIRT_TOP, az ], [ bx, bLow, bz ], [ ax, aLow, az ],
+      [ ax, SKIRT_TOP, az ], [ bx, SKIRT_TOP, bz ], [ bx, bLow, bz ],
     ]
 
     for (const [ vertex, [ px, py, pz ]] of corners.entries()) {
@@ -158,7 +237,7 @@ export class Ploppable extends Prop {
 
     const cos    = Math.cos(angle)
     const sin    = Math.sin(angle)
-    const points = outlinePoints(footprint[0], footprint[1], OUTLINE_STEPS)
+    const points = outlinePoints(footprint, OUTLINE_STEPS)
     const world  = points.map(([ lx, lz ]) => [
       x + lx * cos - lz * sin,
       z + lx * sin + lz * cos,
