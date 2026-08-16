@@ -1,271 +1,141 @@
 # three-iso
 
-a small, production-minded starter for building an isometric scape with vanilla three.js and [threejs-scene](https://www.npmjs.com/package/threejs-scene). it borrows the public-viewer interaction language from playworld’s `/world/` route without carrying over chat, persistence, schemas, tools, or world-authoring runtime.
+a production-minded isometric scape in vanilla three.js and [threejs-scene](https://www.npmjs.com/package/threejs-scene): a nordic island with a farmstead on it, three clocks running over it, and a graphics budget that survives contact with a phone.
 
-## start
+this readme is the **design record**. most of the non-obvious decisions here are explained, and several of those explanations are bugs that come straight back if the reasoning is discarded. two shorter files sit beside it:
+
+- **[`agents.md`](agents.md)** — the tool reference. every script, every flag, the module surface, the traps. **read this first if you are here to change something.**
+- **[`instructions.md`](instructions.md)** — the standing brief for the unattended enhancement run that grows the scene.
 
 ```sh
 bun install
-bun run dev
+bun run dev        # http://127.0.0.1:4174
 ```
 
-open [http://127.0.0.1:4174](http://127.0.0.1:4174).
+---
 
-other project checks:
+## working on it
+
+**almost nothing here needs a browser.** world generation, prop building, path planning and the whole palette are pure typescript — no `three`, no gl context, no dom. that is deliberate, and it is what the tooling is built on: the loop between changing a number and seeing what it did should not go through a screenshot.
+
+| you want to know | reach for | costs |
+| --- | --- | --- |
+| did the composition survive | `bun run scape:map --stats` | ~16 ms, no browser |
+| where is everything | `bun run scape:map` | ~16 ms, no browser |
+| what does this one prop look like | `bun run prop:map <name>` | ~40 ms, no browser |
+| what colour is where on a prop | `bun run prop:map <name> --audit` | ~40 ms, no browser |
+| what does the roster look like | `/props.html` | one gpu context |
+| how does one prop measure up | `/props.html?prop=<name>` | one gpu context |
+| does it still draw at all | `bun run scape:shot` | ~20 s per pose |
+| did my change move the picture | `bun run scape:diff --ref origin/main` | minutes, builds a ref |
+
+the gate, all four clean before anything ships:
 
 ```sh
-bun run lint
+bun run lint        # warnings included — the repo is warning-clean
 bun run typecheck
 bun test
 bun run build
-bun run preview
 ```
 
-## what is included
+### the ascii instruments
 
-- three deterministic inhabited islands, each surveyed in its own local frame with a distinct home, ridge, or meadow terrain profile
-- a farmstead, fields, pasture, beck, footpaths, harbour, and jetty on every island; the home island also keeps its fifteen offshore skerries, landscape only, never built on
-- one water-only route joining all three jetties, with a boat dispatched from each and kept apart on a one-way circuit
-- synchronized ferries that wait at the shorter crossings, hold for seven seconds after the last arrival, turn smoothly onto the next leg, and leave v-shaped ripples behind them while moving
+`scape:map` draws the whole composition — ground, beck, footpaths, cart track, steading, landings — and then says in numbers what a picture cannot. it needs no browser, no gpu and no dependency, because [`landscape/survey.ts`](src/scene/landscape/survey.ts) is pure: the ground, the farm, the landings and the network worn between them all resolve without a vertex being built. the survey is about seven milliseconds, and sampling a 96×48 grid on top of it about nine more.
+
+the stats block is the part that earns its keep. a beck that failed to trace, an island that drowned, a pasture that never found room and a set of footpaths that collapsed to nothing are all *invisible* in a still at the default pose, and all of them are one field here.
+
+`prop:map` is the same bargain one scale down, with its own z-buffered rasteriser. a building forty metres off, at one fixed angle, under a colour grade is exactly the viewing condition that let a gable end poke through its own roof for months — and `--audit`, which names the palette entry every baked facet came from and the height band it covers, turns *"does `faluDark` appear above the roofline"* into one line of output.
+
+the audit has to match in **linear** colour. three bakes the colour attribute out of srgb and that conversion is a power curve rather than a scale, so a swatch compared in srgb does not point the same way as its own facets: matched wrong, the rust chimney lands in the falu bucket and hides the very fault the tool exists to find. hues separate cleanly; the greys (granite, shingle, iron, trim) are near-collinear and trade places, so read those as one family.
+
+### the prop viewer
+
+`/props.html` is the same question with a gpu behind it, in two modes decided by the query string.
+
+**bare, it is a contact sheet of the whole roster** — every prop drawn at the play angle, grouped the way the scape spends them, captioned with triangle count and metres, filterable. a name is a bad handle for a mesh: `aitta`, `hayRack` and `netRack` are three words that tell you nothing about which one you are looking for. cards whose base is off the ground plane carry the offset in the corner — a few mean it, so it is a flag to look at rather than a failure. all forty thumbnails come from **one** webgl context which is then handed straight back, because forty live contexts is well past what a browser will give you and the sheet is static once drawn.
+
+**`?prop=` names one and gets four orthographic viewports** — top, front, left and the play angle — with a two-density grid in each one's own plane, a wireframe toggle and a bounding box. one renderer and four scissor rectangles rather than four canvases, so what you compare across panes is guaranteed to be the same upload. the three axis panes never rotate: an elevation you can nudge off-axis is no longer a measurement, and you would not notice it had happened.
+
+it is a separate vite entry importing the roster and nothing else from the scene, which is the point — it stays loadable exactly when the terrain, the atmosphere or the post chain is what is broken.
+
+### the captures
+
+`scape:shot` photographs the scape headlessly. the pose, clock, year and tier come off the command line and go in through `?set=`, which addresses knobs by the same dotted paths the graphics overlay and the settings snapshot use — so a knob added to [`config.ts`](src/scene/config.ts) is reachable from a url the day it lands, with nothing wired for it.
+
+three defaults are load-bearing:
+
+- **the tier is pinned, not detected.** `readQualitySignals` answers from cores, pointer and viewport, so an unpinned capture picks a different tier on a laptop than on a build box — and two stills at two tiers are not a comparison, they are two different scapes.
+- **it renders on swiftshader, not the gpu.** software rasterisation is slower and exactly reproducible. a real adapter draws the same frame differently machine to machine, which turns every diff into an argument about how much noise counts as noise.
+- **the shutter waits on a frame count, not a clock.** measured rather than assumed: a fixed nine-hundred-millisecond settle gave fifty draw calls on one run and a hundred and eight on the next, because the cloud deck and the mist fade in over *frames*.
+
+`scape:diff` builds a reference in a detached git worktree, serves both builds, captures the same poses through both and prints a table. a diff image is written **only** for a pose that moved past the threshold, and the `structural:` line runs `scape:map --json` on both sides to catch a world-model regression no single pose would show. a git ref rather than a stored baseline is deliberate: an unattended run starts from a fresh clone with no `.scape/` in it, so a baseline-file design fails on the exact workload it exists for.
+
+the noise floor was measured, not guessed. two independent captures of the same commit differ in about fourteen per cent of their pixels by one or two levels — float ordering in the post chain — and in **nought point nought nought per cent** at the default tolerance. a zero means zero.
+
+`.scape/` holds all of it and is gitignored.
+
+---
+
+## what is in the scape
+
+- a deterministic procedural heightfield with editable seed, scale, waterline and palette
+- a mainland farmstead on a warped, non-circular coastline, ringed by fifteen offshore islets
+- a cobbled network of paths between every place the farm goes — planned as a graph, worn as desire lines, paved with stones sampled along the treads themselves
 - a working boat harbour: a boathouse on piles with a slipway, a net rack, and stakes in the shallows
-- footpaths worn between the places the farm actually goes — traced as desire lines over the ground as built, painted into the terrain it crosses, and kept clear of grass and stone without costing a draw call
-- a beck traced downhill from a spring on the high ground, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself — no extra draw call, no extra material
-- a full day/night cycle: sun arc, dusk and night palettes, and a scrubbable clock
-- a seasonal axis running alongside it: grass and leaves wither and turn, and snow lies on what faces the sky above the snow line — all of it derived from the midsummer palette, none of it a rebuild
-- view-reactive linear fog, a matching gradient sky, deterministic drifting ground mist, and a sky cloud deck
-- sea smoke standing on the open water for the weeks the air has taken the winter and the sea has not — derived from the gap between those two curves, and drawn only while it exists
-- weather on a third clock: fronts that cross with a squall and a lighter trailing band, falling as rain or as snow depending on the week of the year, over ground that stays dark and glossy for a while after the last drop
-- an aurora over the dark half of the year — additive veils above the cloud deck, gated on the night and on how much night the week has, and absent from the sky the rest of the time
+- a walled upland hay meadow with a barn, a gate and drying poles
+- a beck traced downhill from a spring, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself
+- **three clocks** — a day, a year, and a weather front — each a phase and a speed, each deriving everything else from that phase
+- sun arc, dusk and night palettes, seasonal growth, leaf turn, lying snow, sea ice, sea smoke, and rain that leaves the ground wet
+- an aurora over the dark half of the year, gated on the night and on how much night the week has
+- view-reactive fog, a gradient sky, deterministic drifting ground mist, and a sky cloud deck
+- a configurable 3d-lut grade with vignette, miniature tilt-shift, bloom and film grain
 - a live graphics overlay that persists to local storage and reloads what you left it at
-- a configurable 3d-lut grade with vignette, miniature tilt-shift, desktop bloom, and film grain
-- mobile and desktop atmosphere budgets selected from pointer, viewport, and pixel-density signals
-- phone tiers skip hardware shadow maps, avoiding the hidden mesh-depth pass that firefox rejects on the pixel 10 while keeping cloud shadow and direct-light shape
-- a scape that survives a lost webgl context: it rebuilds itself one tier cheaper rather than asking you to reload, and remembers the verdict so the next load starts there instead of earning it again
-- a compact mobile post chain that keeps the colour grade and tilt-shift while leaving bloom, grain, and hardware shadows to desktop
-- an on-page diagnostics log — tier signals, gpu, frame stalls, gl errors, whatever three said on its way down — because a phone has no devtools. it survives a reload, so a crash does not destroy its own record
-- an always-visible frame readout with live camera xyz and orthographic zoom in world metres
-- url overrides for testing on the device you cannot attach a debugger to: `?debug` adds live vitals, `?tier=minimal|mobile|desktop|ultra` forces a tier past detection and past memory, `?post=0|1` forces the optical chain either way
-- one merged terrain draw, one water draw, one merged settlement draw, one instanced fleet draw, and one instanced draw per scattered prop type
-- an orthographic dimetric camera built with `threejs-scene`
-- click or tap terrain focus with an eased landing and automatic revolution, or select a boat for an eased third-person chase
-- pointer rotation, modified/right-button panning, wheel zoom, two-finger pan and pinch; manual pan or rotation leaves boat follow
-- complete keyboard equivalents and a visible canvas focus state
-- responsive semantic html with coarse-pointer and reduced-motion behavior
-- relative vite asset paths, suitable for a github pages subroute
-- deterministic unit tests plus the current `@tuomashatakka/eslint-config`
+- mobile and desktop atmosphere budgets selected from pointer, viewport and pixel-density signals
+- a scape that survives a lost webgl context: it rebuilds one tier cheaper rather than asking you to reload, and remembers the verdict
+- an on-page diagnostics log that survives a reload, because a phone has no devtools
+- an orthographic dimetric camera, click-to-focus with an eased landing, full keyboard equivalents
+- one terrain draw, one water draw, one merged steading draw, and one `InstancedMesh` per scattered prop type
 
-there is deliberately no chat surface, llm schema, prop authoring tool, or hidden app service. the only persisted state is the graphics overlay's own snapshot, under one key. this is the visual/runtime floor for a new isometric project.
-
-## shape the scape
-
-the intended first edit is [`src/scene/config.ts`](src/scene/config.ts). `scape_config` owns:
-
-- the deterministic world seed
-- shared world extent and waterline, plus each inhabited island's origin, terrain profile, relief, coast, and settlement proportions
-- the home island's offshore skerries, as fractions of its terrain half-extent
-- boat speed, route clearance, hull separation, navigation-grid scale, jetty reach, and water wake strength
-- the beck's channel width, how deep it cuts, how far the mouth is dredged, and how much it flares
-- the footpaths: tread width, verge, how hard a route works to keep off a climb, and how bare the treads get
-- tree and rock instance budgets
-- initial camera framing and zoom limits
-- the clock: cycle speed, phase, the sun's bearing and noon height, and the dusk/night tints
-- fog density and breathing, mist amount and wind, cloud cover and ceiling, auroral brightness, ceiling and drift, sky gradient, and the complete noon light rig
-- lut recipe, grade strength, vignette, grain, bloom, and tilt-shift strength
-- the complete scene palette
-
-terrain generation lives in [`src/scene/noise.ts`](src/scene/noise.ts). the sampler is pure: a coordinate, seed, and amplitude always produce the same height. that keeps surface geometry, raycast focus, and instance placement in agreement.
-
-[`src/scene/landscape/index.ts`](src/scene/landscape/index.ts) owns the physical scape. atmosphere is split into [`atmosphere.ts`](src/scene/atmosphere.ts), [`mist.ts`](src/scene/mist.ts), and [`post.ts`](src/scene/post.ts), so depth haze, transparent weather, and fullscreen optics each keep an independent gpu budget and disposal path. compose future systems in [`src/scene/create-isometric-scape.ts`](src/scene/create-isometric-scape.ts):
-
-```ts
-const app = createApp(canvas, {
-  use: [
-    standardLighting(),
-    landscape.module,
-    weatherModule,
-    controls,
-  ],
-})
-```
-
-keeping generation in `build`, animation in `update`, resize work in `resize`, and cleanup in `dispose` prevents parallel render loops and orphaned gpu resources.
+there is deliberately no chat surface, llm schema, prop authoring tool or hidden app service. the only persisted state is the graphics overlay's own snapshot, under one key.
 
 ## controls
 
 | input | action |
 | --- | --- |
-| click or tap a boat | ease into a third-person chase, looking ahead along its live heading |
-| click or tap terrain | ease to the selected surface point, then revolve around it |
-| primary drag or one-finger drag | leave boat follow and pan |
-| shift-drag, ctrl-drag, middle-drag, or right-drag | leave boat follow and rotate |
-| two-finger gesture | leave boat follow, then pan and pinch-zoom together |
+| click or tap | ease to the selected surface point, then revolve around it |
+| primary drag or one-finger drag | pan |
+| shift-drag, ctrl-drag, middle-drag, or right-drag | rotate |
+| two-finger gesture | pan and pinch-zoom together |
 | wheel | zoom |
 | arrow keys | pan |
 | shift + left / right | rotate |
 | shift + up / down, + / − | zoom |
-| escape | leave boat follow or stop automatic revolution |
+| escape | stop automatic revolution |
 | h | hide or show the card in the top-left corner |
 
-pan is the primary gesture because on a map, dragging means *move the map* to everyone who has ever used one; orbiting is the specialist verb and takes the modifier. while following a boat, the wheel can still change the 22-metre chase view; escape or any pan/rotate gesture hands the camera back to the map.
+pan is the primary gesture because on a map, dragging means *move the map* to everyone who has ever used one; orbiting is the specialist verb and takes the modifier.
 
-**tilt is not an input.** it is a function of the zoom — pushed in you get a low, near-horizontal, cinematic angle, pulled out you get the map. dragging elevation is how a view ends up under the waterline or staring straight down by accident, and the right elevation is fully determined by how close you are anyway. binding one to the other removes a control and improves every frame it used to produce.
+**tilt is not an input.** it is a function of the zoom — pushed in you get a low, near-horizontal, cinematic angle; pulled out you get the map. dragging elevation is how a view ends up under the waterline or staring straight down by accident, and the right elevation is fully determined by how close you are anyway. binding one to the other removes a control and improves every frame it used to produce.
 
-every motion — drag, wheel, tap, keypress, the idle revolution — writes only to a *target* pose. one exponential integrator in `update` chases it, so there is no per-verb tween and nothing can move the camera without being eased.
+every motion — drag, wheel, tap, keypress, the idle revolution — writes only to a *target* pose. one exponential integrator in `update` chases it, so there is no per-verb tween and nothing can move the camera without being eased. with `prefers-reduced-motion: reduce` the integrator snaps rather than eases.
 
-with `prefers-reduced-motion: reduce`, the integrator snaps rather than eases and selecting a place does not start a revolution.
+url overrides for a device you cannot attach a debugger to: `?debug` adds live vitals, `?tier=minimal|mobile|desktop|ultra` forces a tier past detection and past memory, `?post=0|1` forces the optical chain either way, `?set=a.b=1` reaches any config path.
 
-## deployment
+## shape the scape
 
-`vite.config.ts` uses `base: './'`, so built assets resolve relative to whatever github pages route contains the app.
+the intended first edit is [`src/scene/config.ts`](src/scene/config.ts). `SCAPE_CONFIG` owns the seed, terrain extent and waterline, the islets, the beck, the footpaths, the dressing budgets, camera framing and zoom limits, all three clocks, the whole light and atmosphere rig, the optical chain, and the complete palette.
 
-```sh
-bun run build
+a knob that is **visual and read per frame** also belongs in [`ui/scape-controls.ts`](src/ui/scape-controls.ts) as a dotted path, which makes it persist, reset and become url-addressable for free. a knob that needs a **rebuild** to be seen — `layout.*`, `creek.*`, `footpath.*`, `dressing.*` — stays out of the overlay, because a slider that lies about what it does is worse than no slider.
+
+compose new systems in [`create-isometric-scape.ts`](src/scene/create-isometric-scape.ts):
+
+```ts
+const app = createApp(canvas, {
+  use: [ standardLighting(), landscape.module, weatherModule, controls ],
+})
 ```
 
-publish the generated `dist/` directory to the desired pages path. for a project page this is normally `https://<owner>.github.io/<repository>/`; for a nested site route, copy `dist/` into that route’s deployment artifact.
-
-## the enhancement run
-
-the scape is grown by a scheduled, unattended llm run. [`instructions.md`](instructions.md) is its standing brief: pick one theme, build it under the draw-call, determinism and lifecycle rules the rest of this readme explains, prove it with `lint`, `typecheck`, `test` and `build`, then open a pull request and merge it once [`pr-checks.yml`](.github/workflows/pr-checks.yml) is green. every pull request into `main` runs those same four checks, whoever opened it.
-
-## debugging the scape
-
-the enhancement run is unattended, and stage 5 of its brief asks it to *look at* what it built. it cannot. these
-three commands are what it looks with instead, and they are ordered by what they cost to read.
-
-**`bun run scape:map`** draws the whole composition as ascii — three grounds, their becks, paths, steadings and
-jetties, then the waterway and its boats — and says in numbers what a picture cannot. it needs no browser or gpu:
-[`landscape/archipelago.ts`](src/scene/landscape/archipelago.ts) runs the three pure local surveys, projects their
-world-facing paths and ports, and plans the water-only route without building a vertex. route planning owns most
-of the roughly 1.5-second cold build, which keeps this the cheap structural loop even with its stronger safety proof.
-
-```sh
-bun run scape:map                 # grid and stats
-bun run scape:map --stats         # home compatibility fields + all island and fleet checks
-bun run scape:map --seed 7318     # a different valid archipelago
-bun run scape:map --window 0,0,180    # crop: centre x,z,span
-bun run scape:map --w 150         # a wider grid
-bun run scape:map --layers paths,waterways,boats,buildings
-bun run scape:map --json          # for scripting
-```
-
-the stats block is the part that earns its keep. it keeps the old home-island fields so an older reference still
-diffs cleanly, then reports all three landmass summaries and the claims the fleet depends on: one connected leg
-per jetty, a wet hull envelope, route clearance, boat separation and zero conflicts. a beck that failed to trace,
-an island that drowned or a route that crossed land is *invisible* in a still at the default pose and one field here.
-
-**`bun run scape:shot`** photographs it. the pose, the clock, the year and the tier all come off the command line
-and go in through `?set=`, which addresses knobs by the same dotted paths the graphics overlay and the settings
-snapshot already use — so a knob added to [`config.ts`](src/scene/config.ts) is reachable from a url on the day it
-lands, with nothing wired for it.
-
-```sh
-bun run scape:shot --poses tour   # the six frames stage 5 asks for, one browser launch
-bun run scape:shot --rot 30 --zoom 12 --time 0.02
-bun run scape:shot --tier ultra --set look.bloom=0
-```
-
-`tour` is `default`, `near`, `far`, `noon`, `night` and `winter` — both zoom extremes and across the day, which is
-exactly what the brief asks for and where most of this scape's historical bugs lived. every capture prints a line
-before anything opens the image:
-
-```text
-near         ok          6.2s  fps  11.4  draws   77  tris 0.47M  f  43  err 0  -> .scape/shots/near.png
-```
-
-most runs need only those lines. console errors, a lost context and a scape that never reached its first draw all
-show up there, and a run that reads them has already learned the thing an image would have told it.
-
-three defaults are load-bearing and worth knowing about:
-
-- **the tier is pinned, not detected.** `readQualitySignals` answers from cores, pointer and viewport, so an
-  unpinned capture picks a different tier on a laptop than on a build box — and two stills at two tiers are not a
-  comparison, they are two different scapes.
-- **it renders on swiftshader, not the gpu.** software rasterisation is slower and exactly reproducible. a real
-  adapter draws the same frame differently from one machine to the next, which turns every diff into an argument
-  about how much noise counts as noise. `--gpu` trades that back when nobody is going to diff the result.
-- **the shutter waits on a frame count, not a clock.** this one was measured rather than assumed: settling for a
-  fixed nine hundred milliseconds produced fifty draw calls on one run and a hundred and eight on the next,
-  because the cloud deck and the mist fade in over frames and the machine draws a different number of them each
-  time. `--frames 40` is the same everywhere.
-
-**`bun run scape:diff`** says whether the change moved anything, and reports numbers before it reports pictures.
-
-```sh
-bun run scape:diff --ref origin/main --poses tour
-```
-
-it builds the reference in a detached git worktree, serves both builds statically, captures the same poses through
-both, and prints a table. a diff image is written **only** for a pose that moved past `--threshold`, so an
-unchanged run costs a few lines and a changed one points straight at the frame worth opening. the `structural:`
-line runs `scape:map --json` on both sides. it understands the legacy single-island shape and compares the new
-landmass array, waterways and boat-safety fields when both sides have them, catching a world-model regression that
-no single pose would show.
-
-the reference worktree is cached under `.scape/ref`, because building one is the slowest thing either tool does
-and comparing against `origin/main` twice in an afternoon should pay for it once. `bun run scape:diff --clean`
-gives them back.
-
-a git ref rather than a stored baseline is deliberate: an unattended run starts from a fresh clone with no
-`.scape/` in it, so a baseline-file design fails on the exact workload it exists for. `--accept` and a bare
-`scape:diff` give the baseline flow anyway, for iterating inside one session.
-
-the noise floor was measured, not guessed. two independent captures of the same commit differ in about fourteen
-per cent of their pixels by one or two levels — float ordering in the post chain — and in **nought point nought
-nought per cent** at the default tolerance. a zero means zero.
-
-`.scape/` holds all of it and is gitignored.
-
-## looking at one prop
-
-the three commands above answer questions about the *composition*. a mesh is a different question, and the scape
-is a bad place to ask it: a building forty metres off, at one fixed angle, under a colour grade, is exactly the
-viewing condition that let a gable end poke through its own roof for months. two things ask it directly.
-
-**`bun run prop:map`** draws one prop as ascii, from any of six angles, with no browser and no gpu — the same
-bargain `scape:map` makes, one scale down. it builds exactly one geometry, so the loop between changing a number
-in [`buildings.ts`](src/scene/props/buildings.ts) and seeing what it did is about forty milliseconds.
-
-```sh
-bun run prop:map farmhouse                 # the play angle
-bun run prop:map farmhouse --view right    # the angle you can measure from
-bun run prop:map barn --view front,right   # both, stacked
-bun run prop:map farmhouse --audit         # what colour is where, by height
-bun run prop:map --all --cols 48           # the whole roster as a contact sheet
-bun run prop:watch farmhouse               # the same, on every save
-```
-
-`--audit` is the part that earns its keep, and it is how the gable bug was proved fixed rather than believed
-fixed. it names the palette entry every baked facet came from and reports the height band it covers, so
-*"does `faluDark` appear above the roofline"* — a question about a bug — is one line of output. the match is done
-in linear colour, because three.js bakes the colour attribute out of srgb and that conversion is a curve rather
-than a scale; matched in srgb the rust chimney lands in the falu bucket. hues separate cleanly; the greys
-(granite, shingle, iron, trim) are near-collinear and trade places, so read those as one family.
-
-**`/props.html`** is the same question with a gpu behind it, and it has two modes decided by the query string.
-
-```sh
-bun run dev     # then open /props.html
-```
-
-**bare, it is a contact sheet of the whole roster** — every prop drawn at the play angle, grouped the way the
-scape spends them (placed by hand / scattered), captioned with its triangle count and its size in metres, and
-filterable. a name is a bad handle for a mesh: `aitta`, `hayRack` and `netRack` are three words that tell you
-nothing about which one you are looking for. cards whose base is not on the ground plane carry the offset in the
-corner — a few mean it (the boathouse stands on piles in the water), so it is a flag to look at rather than a
-failure. all forty thumbnails are drawn by **one** webgl context which is then handed straight back, because
-forty live contexts is well past what a browser will give you and the sheet is static once drawn.
-
-**`?prop=` names one and gets four orthographic viewports** — top, front, left and the angle the scape is played
-at — with a two-density grid in each one's own plane, a wireframe toggle and a bounding box.
-
-both are real urls, so a viewpoint is a link and Back does what it says. drag to pan, drag the iso pane to orbit,
-wheel to zoom, `1`–`4` solo a pane, `0` restores all four and `esc` returns to the sheet. the three axis panes
-never rotate — an elevation you can nudge off-axis is no longer a measurement, and you would not notice it had
-happened.
-
-it is a separate vite entry that imports the prop roster and nothing else from the scene, which is the point: it
-stays loadable exactly when the terrain, the atmosphere or the post chain is what is broken.
+keeping generation in `build`, animation in `update`, resize work in `resize` and cleanup in `dispose` prevents parallel render loops and orphaned gpu resources.
 
 ## project map
 
@@ -273,6 +143,11 @@ stays loadable exactly when the terrain, the atmosphere or the post chain is wha
 src/
 ├── main.ts                         browser entry and accessible status
 ├── style.css                       full-viewport responsive shell
+├── prop-preview/                   /props.html — contact sheet and quad view
+│   ├── main.ts                     two-mode routing off the query string
+│   ├── contact-sheet.ts            forty thumbnails from one throwaway context
+│   ├── quad-view.ts                four scissored ortho viewports, one renderer
+│   └── preview.css                 the instrument's own chrome
 ├── ui/
 │   ├── diagnostics.ts              the log, printed where a phone can read it
 │   ├── fps-meter.ts                the frame counter in the bottom-left corner
@@ -285,49 +160,50 @@ src/
     ├── atmosphere.ts               gradient sky, linear fog, sun and fill rig
     ├── aurora.ts                   auroral veils over the dark half of the year
     ├── camera-controls.ts          pointer, touch, keyboard, focus, orbit
-    ├── camera-follow.ts            allocation-free third-person boat chase target
+    ├── camera-follow.ts            riding a moving fleet instance instead of the map
     ├── clouds.ts                   sky deck, faded in as the view pulls back
-    ├── config.ts                   the starter's public tuning surface
+    ├── config.ts                   the public tuning surface
     ├── create-isometric-scape.ts   app/module composition root
-    ├── daylight.ts                 the clock: sun arc and derived sky palette
+    ├── daylight.ts                 clock one: sun arc and derived sky palette
+    ├── season.ts                   clock two: growth, turn, snow, ice, smoke, night
+    ├── weather.ts                  clock three: the front, what falls, how long it stays wet
+    ├── rain.ts                     the fall, as one screen-sized column of streaks
     ├── lut.ts                      cached cinematic colour-grade recipes
-    ├── mist.ts                     drifting ground-mist sheets, and the sea smoke off the coast
+    ├── mist.ts                     ground-mist sheets, and the sea smoke off the coast
     ├── noise.ts                    deterministic height sampler
     ├── post.ts                     ao, ssr, sun shafts, tilt-shift, lut, bloom, grain, traa
     ├── quality.ts                  minimal/mobile/desktop/ultra gpu budgets
-    ├── rain.ts                     the fall, as one screen-sized column of streaks
     ├── runtime.ts                  live pixel ratio, frame cap, shadow cadence
-    ├── season.ts                   the year: growth, leaf turn, snow, sea ice, sea smoke, night length
-    ├── weather.ts                  the front: showers, what they fall as, how long the ground stays wet
+    ├── tier-memory.ts              what the device last proved it could not do
+    ├── vitals.ts                   the one frame measurement everything else reads
     ├── landscape/
-    │   ├── index.ts                the scene module, and what raycasts
-    │   ├── archipelago.ts          three local surveys projected into one world
-    │   ├── boat-motion.ts          synchronized legs, jetty waits, dwell and turning maths
-    │   ├── boats.ts                live fleet poses and wakes, in one dynamic instance buffer
+    │   ├── survey.ts               the pure composition, before anything is drawn
+    │   ├── archipelago.ts          every inhabited island, joined by what faces the world
     │   ├── layout.ts               yard, cart track, field plots, ridges, pasture
-    │   ├── steading.ts             where the farm's buildings and well stand
+    │   ├── height.ts               authored ground, islets, beck, fbm underneath
+    │   ├── steading.ts             where the buildings stand, and which way they face
     │   ├── landing.ts              the shoreline the jetty and the harbour are on
     │   ├── path.ts                 route smoothing and polyline queries
-    │   ├── survey.ts               the pure composition, before anything is drawn
-    │   ├── network.ts              the holding's street plan
-    │   ├── footpath.ts             desire lines worn between the places above
-    │   ├── waterway.ts             wet-route planning and collision-safe fleet offsets
+    │   ├── network.ts              the farm's street plan: places, tree, shortcuts
+    │   ├── footpath.ts             a planned leg traced into a worn line
     │   ├── creek.ts                the beck: descent trace, channel, tidal mouth
-    │   ├── height.ts                authored ground, islets, beck, fbm underneath
-    │   ├── terrain.ts              shared geometry, height/slope banded colour
-    │   ├── water.ts                bathymetry, swell, foam, glitter, winter ice and boat wakes
+    │   ├── waterway.ts             the navigable water between the ports
+    │   ├── boats.ts                the fleet, and the wake it leaves
+    │   ├── boat-motion.ts          one shared departure clock, one leg each
+    │   ├── terrain.ts              geometry, banded colour, path wear painted in
+    │   ├── water.ts                bathymetry, swell, foam, glitter, winter ice
     │   ├── samplers.ts             where the dressing throws its darts
-    │   ├── dressing-zones.ts       world-space keep-outs and scatter rules
-    │   ├── dressing-helpers.ts     hand-placed runs shared by each holding
-    │   └── dressing.ts             placement, hero merge, instanced scatter
+    │   ├── dressing-zones.ts       what the composition already claims the ground for
+    │   ├── dressing-helpers.ts     the placement questions that are pure geometry
+    │   ├── dressing.ts             placement, hero merge, instanced scatter
+    │   └── index.ts                the scene module, and what raycasts
     └── props/
         ├── index.ts                the roster, hero vs scattered
         ├── palette.ts              the nordic colour vocabulary
-        ├── material.ts             shared material, cloud shadow, wind, soil grain
+        ├── material.ts             shared materials, cloud shadow, wind, wetness, snow
         ├── ploppable.ts            2d placement with a ground-following foundation
         ├── primitives.ts           terse primitive constructors
-        ├── fence.ts                continuous ground-following fence runs
-        ├── wall.ts                 continuous ground-following drystone walls
+        ├── fence.ts / wall.ts      continuous ground-following runs
         ├── timber.ts               cladding, gable and roof vocabulary
         ├── buildings.ts            barn, farmhouse, sauna, aitta, woodshed
         ├── structures.ts           jetty, well, hay rack, gate, bridge, cart
@@ -340,16 +216,28 @@ src/
 scripts/
 ├── args.ts                         the shared command line, and dotted-path overrides
 ├── browser.ts                      finding a chromium, and serving what it looks at
-├── scape-map.ts                    the whole composition as ascii, without a browser
+├── raster.ts                       the ascii rasteriser and the palette audit
+├── prop-map.ts                     one prop as ascii, from six angles
+├── scape-map.ts                    the whole composition as ascii
 ├── scape-shot.ts                   headless stills, posed and pinned
 └── scape-diff.ts                   what a change did to the picture, in numbers
 ```
 
-the renderer uses a device-tier pixel-ratio cap, the scene uses one `createapp` render loop, and the post module is the only frame renderer. the `ultra` tier adds ambient occlusion, screen-space reflections on the lake, anamorphic streaks and a traa resolve; it is only selected for a wide viewport on a many-core machine with a mouse. pointer state is cancelled cleanly; teardown releases geometries, materials, sky, mist, cloud-shadow and bathymetry textures, composer targets, fullscreen passes, and every baked lut. those defaults matter more than squeezing another ornamental system into a starter, tragically enough~ n__n
+## budget
 
-the touch tier is the one with a hard ceiling to respect. it drops the pmrem room environment — twelve megabytes of rgba16f for an ambient term the hemisphere light already approximates — paces the draw at 30 fps, and sizes the lake to the fog rather than to the map. the loop parks whenever the document is hidden, because a backgrounded phone that keeps drawing is a phone heating up for nobody.
+one `createApp` render loop; the post module is the only frame renderer. teardown releases geometries, materials, sky, mist, cloud-shadow and bathymetry textures, composer targets, fullscreen passes and every baked lut.
 
-if the gpu takes the context away anyway, that is treated as the device answering a question about its budget: `reduceatmospherequality` steps one tier down, the canvas is replaced with a fresh one — a canvas only ever hands out a single context, restored or not — and the scape rebuilds itself. the `minimal` tier at the bottom of that ladder is never detected into; it gives up the post chain entirely and lets the renderer draw straight to the canvas. once there is nothing left to give up the scape says so rather than looping.
+**the default pixel ratio is 1.0 on every tier that is actually detected.** this scape is drawn through a per-pixel post chain — bloom, two tilt-shift pairs, god rays, the grade — so a retina desktop at 1.75 pays roughly three times the fill to sharpen an image whose whole look is soft focus and grain. `runtime.pixelRatio` in the overlay raises it when the point is a crisp still rather than a smooth scape.
+
+the `ultra` tier adds ambient occlusion, screen-space reflections on the lake, anamorphic streaks and a traa resolve; it is only selected for a wide viewport on a many-core machine with a mouse.
+
+the touch tier is the one with a hard ceiling to respect. it drops the pmrem room environment — twelve megabytes of rgba16f for an ambient term the hemisphere light already approximates — paces the draw at 30 fps, and sizes the lake to the fog rather than to the map. phone tiers also skip hardware shadow maps, avoiding the hidden mesh-depth pass firefox rejects on the pixel 10, while keeping cloud shadow and direct-light shape. the loop parks whenever the document is hidden, because a backgrounded phone that keeps drawing is a phone heating up for nobody.
+
+if the gpu takes the context away anyway, that is treated as the device answering a question about its budget: `reduceAtmosphereQuality` steps one tier down, the canvas is replaced with a fresh one — a canvas only ever hands out a single context, restored or not — and the scape rebuilds itself. the `minimal` tier at the bottom is never detected into; it gives up the post chain entirely. once there is nothing left to give up the scape says so rather than looping.
+
+---
+
+# the design record
 
 ## props
 
@@ -360,291 +248,83 @@ that shape is what keeps the budget honest — detail costs vertices, not draw c
 - **hero props** are placed by hand at layout anchors and merged into a *single* geometry, so the whole steading plus all its fencing is one draw
 - **scattered props** are stamped through `scatterInstances`, one `InstancedMesh` each, with a near-white per-instance tint that varies the shade of a prop without repainting it
 
-[`props/fence.ts`](src/scene/props/fence.ts) and [`props/wall.ts`](src/scene/props/wall.ts) are the exceptions to the factory shape, deliberately. `buildFenceRun` takes a polyline and sets each post at its own ground height, then spans the rails from post to post so they pick up the slope on their own. a fence built from rigid identical segments either floats over dips or, if each segment is tilted to match its own patch of ground, zig-zags where neighbours disagree — real fences do neither. `buildStoneWallRun` follows the same line the same way and puts something else on it: three courses of granite per station, stations set *closer together than a stone is long* so the courses overlap. a wall is only ever a pile that happens to be long, and gaps are what separate one from a row of rocks.
+[`fence.ts`](src/scene/props/fence.ts) and [`wall.ts`](src/scene/props/wall.ts) are the deliberate exceptions to the factory shape. `buildFenceRun` takes a polyline and sets each post at its own ground height, then spans the rails post to post so they pick up the slope on their own — a fence built from rigid identical segments either floats over dips or, tilted per segment, zig-zags where neighbours disagree, and real fences do neither. `buildStoneWallRun` follows the same line and puts three courses of granite per station on it, stations set *closer together than a stone is long* so the courses overlap: a wall is only ever a pile that happens to be long, and gaps are what separate one from a row of rocks.
 
-[`props/timber.ts`](src/scene/props/timber.ts) holds the vocabulary every gabled building is assembled from, and one rule: **a gabled roof is a plane, and every other part of the building either lands on that plane or stays under it.** `roofUnderside(roof, across)` *is* that plane, and it is exported so a building asks the question rather than re-deriving the answer.
+### the roof is a plane
 
-that rule is not decoration. the buildings used to describe the roof twice — once as a pitch measured from the overhang tip, once as a stack of shrinking gable courses — and the two descriptions disagreed by up to 0.66 m, which showed up in play as dark red blocks scattered across the shingles of the farmhouse and the barn. a gable end is now one triangular prism whose upper edges lie *on* that plane by construction, so it cannot poke through a roof built from the same plane. it also costs 12 triangles where the four stacked courses cost 48.
+[`timber.ts`](src/scene/props/timber.ts) holds the vocabulary every gabled building is assembled from, and one rule: **a gabled roof is a plane, and every other part of the building either lands on that plane or stays under it.** `roofUnderside(roof, across)` *is* that plane, and it is exported so a building asks the question rather than re-deriving the answer.
+
+that rule is not decoration. the buildings used to describe the roof twice — once as a pitch measured from the overhang tip, once as a stack of shrinking gable courses — and the two disagreed by up to 0.66 m, which showed up in play as dark red blocks scattered across the shingles. a gable end is now one triangular prism whose upper edges lie *on* that plane by construction, so it cannot poke through a roof built from the same plane. it also costs 12 triangles where four stacked courses cost 48.
 
 the two other heights a building is written against are its `plinthY` — a door drawn from `y = 0` is not a taller door, it is a door with its bottom quarter inside a socle that is proud of the wall — and, for anything sitting *on* the pitch, `roofUnderside` plus `roofRise`, which is the slab's thickness measured straight up rather than perpendicular.
 
-because prop builders never touch a scene or a gl context, the whole roster is unit-tested headlessly: attributes, base height, bounds, and byte-for-byte determinism per seed. [`timber.test.ts`](src/scene/props/timber.test.ts) pins the roof-plane contract itself, and `raster.test.ts` asks the finished props the same question the audit does — no gabled building shows wall paint above its own ridge.
+because prop builders never touch a scene or a gl context, the whole roster is unit-tested headlessly: attributes, base height, bounds, and byte-for-byte determinism per seed.
+
+### ploppable
+
+placement in a landscape is a two-dimensional decision — you choose *where* on the map a barn goes, never how high — but every scene-graph api asks for three numbers and lets you get the third one wrong. [`ploppable.ts`](src/scene/props/ploppable.ts) extends the library's `Prop` with the ground field bound at construction, so callers pass the two coordinates they have an opinion about.
+
+given a footprint it also fixes what makes flat-based props look pasted on. it levels the floor against the *highest* corner — sink to the mean and the uphill half ends up under the turf; sink to the low side and the building climbs out of the hill it should be cut into — then extrudes a foundation whose lower edge follows `heightAt` all the way round.
+
+this is why the five farmstead buildings are the only props that leave the merged steading draw. a merged geometry is baked at build time and can only ever sit at one height; five extra draws against the same material is not a state change.
 
 ## placement
 
-[`landscape/dressing.ts`](src/scene/landscape/dressing.ts) uses two placement strategies, chosen by what the prop is for.
+[`dressing.ts`](src/scene/landscape/dressing.ts) uses two strategies, chosen by what the prop is for.
 
-**structural** props — trees, boulders, bales — go through `createPlacementField`, which owns the claims registry and enforces mutual spacing. the candidate loop lives in `dressing.ts` rather than in the solver: `place()` claims a spot the moment it satisfies the *query*, so a caller that then rejects it on its own rules (a slope test, a ridge-density roll) leaves a claim behind that blocks everyone else. a few hundred of those and the field is saturated with nothing in it. the rules are tested first, and only an accepted spot is `reserve()`d.
+**structural** props — trees, boulders, bales — go through `createPlacementField`, which owns the claims registry and enforces mutual spacing. the candidate loop lives in `dressing.ts` rather than in the solver: `place()` claims a spot the moment it satisfies the *query*, so a caller that then rejects it on its own rules leaves a claim behind that blocks everyone else. a few hundred of those and the field is saturated with nothing in it. the rules are tested first, and only an accepted spot is `reserve()`d.
 
-**ground cover** — grass, crops, cobbles — uses a plain jittered scatter with no mutual test at all. overlap is invisible at that density, and the solver's spacing check is `O(claims)` per attempt, so routing nine hundred grass tufts through it would cost more than the rest of the build put together.
+**ground cover** — grass, crops, cobbles — uses a plain jittered scatter with no mutual test. overlap is invisible at that density, and the solver's spacing check is `O(claims)` per attempt, so routing nine hundred grass tufts through it would cost more than the rest of the build put together.
 
-## sun shafts
+**where the darts are thrown matters as much as what accepts them**, and [`samplers.ts`](src/scene/landscape/samplers.ts) is the three answers to that. the island sampler draws from the mainland *or* an islet rather than uniformly over a field that is mostly open sea. the disc sampler narrows to one named feature: the pasture is a quarter of a percent of the island's disc, and the drying poles scattered through the island sampler landed, measurably, never. the tread sampler walks the traced path network itself, which is what turns a budget of nine hundred cobbles into nine hundred cobbles on the path rather than eleven.
 
-`createGodRaysPass` projects the light and disables itself only when the light is *behind* the camera. under an orthographic projection that test almost never fires: the atmosphere models the sun 150 units from the focus, which lands somewhere around ndc y = 3 — permanently off frame, still "in front". the radial march then runs from every fragment toward a point far outside the image and smears the whole sky into a white wash, and any aliased highlight in frame becomes a streak pointing at it.
+## the farm's street plan
 
-so the shafts get their own virtual sun in [`post.ts`](src/scene/post.ts): placed a fraction of the frame away along the real sun direction, clamped just past the frame edge, and faded to nothing as it leaves the view. the direction is honest — it is taken live from the atmosphere's sun — but the distance is a framing decision, because an orthographic camera has no vanishing point to inherit one from.
+the farm is a set of places — a yard with five buildings on it, a landing, a boat harbour, a walled pasture, four field plots — and the paths between them are the composition, not scenery.
 
-the same class of bug is why the water's ripple map carries mipmaps: a 128px noise texture sampled at roughly one texel per pixel aliases into a field of bright specks, and the ray pass turns every speck into a streak.
+**it is a network, not a star.** the first version had every route leaving the well and ending somewhere, which is what you get from asking *how does a person reach each place*. it is wrong in the one way a reader notices: getting from the barn to the woodshed meant walking to the middle of the yard and out again, past a door you were already standing at. [`network.ts`](src/scene/landscape/network.ts) plans it in three steps instead.
 
-## the graphics overlay
+1. **places first.** the well, each building's *doorway*, each field's gate, the meadow gateway, the landing and the harbour.
+2. **a minimum spanning tree over them**, costed so a leg that would have to detour round a building is dearer than one that would not — 2.6× — which makes the tree prefer the open side of the yard to the squeeze between two walls. that alone joins everything to everything by the shortest total length there is.
+3. **shortcuts**, because a tree has no loops: two doors ten metres apart can be a forty-metre walk from each other through the well. any pair the tree makes a real detour of, close enough to be worth it and clear of every building, gets a direct leg. that is what closes the ring round the yard.
 
-a panel on the right edge exposes the scene's optics, daylight, atmosphere, mist, water, ground and camera tilt, with a switch per effect and its parameters nested underneath. it collapses to a handle, starts collapsed on touch and narrow viewports, and resets to the authored values.
+it is pure and rng-free — the same layout always plans the same network. the wander that keeps the result from looking surveyed is applied later, when the legs are traced.
 
-the thing worth knowing about it is that **it holds no state**. every control reads and writes `SCAPE_CONFIG` directly, and the scene modules re-read that config every frame — uniforms are refreshed in each module's `update`, not captured at build. so there is exactly one copy of every number, the panel and the scene cannot drift apart, and nothing has to be pushed anywhere when a slider moves. the readme has always called `config.ts` the public tuning surface; the overlay is what makes that literally true at runtime.
+**a yaw is not a bearing, and this cost months.** `rotateY(θ)` carries a prop's front (local `+z`) to `(sin θ, cos θ)`; a compass bearing points at `(cos a, sin a)`. the two are reflections about the diagonal and agree on exactly one heading, so getting it wrong looks right on some seeds and puts the farmhouse door in the hedge on the rest. the steading had been arranged by bearing since it landed. `faceToward(from, to)` is now the one function everything that has to agree about a front goes through — the yaw, the doorstep, the leg worn to it — and [`yawAlong`](src/scene/landscape/layout.ts) is its counterpart for anything laid *along* a line rather than facing down one. that same conversion had already been found once, when the jetty ran across the water it was meant to run into.
 
-**a control is a path, not a closure.** each knob is declared as a dotted string into the config — `look.bloom`, `daylight.time` — rather than as a `get`/`set` pair. a closure can only be *called*; a string can be collected, compared and written to disk, which is why the same declaration list drives the panel, the local-storage snapshot and the reset without any of them enumerating the scene's settings a second time. add a knob to [`scape-controls.ts`](src/ui/scape-controls.ts) and it persists by construction.
+**a path is found, not drawn.** [`footpath.ts`](src/scene/landscape/footpath.ts) starts each planned leg as a straight line and relaxes it. every interior point gets two nudges per pass. the first pulls it toward the midpoint of its neighbours, which is the gradient of the route's own length and is what stops it meandering. the second pushes it along the ground gradient, scaled by how much of a *bulge* it is — how far its own height stands above, or below, the two points either side of it.
 
-there is no `enabled` flag anywhere in the config: an effect is off when its strength is zero. so a switch is a view of the number underneath it — it remembers what it turned off at, restores that on the way back, and follows its own slider if you drag that to zero yourself.
+that second term is the whole idea, and it is signed for a reason. a point higher than both neighbours is a crest the route is climbing for nothing, so it slides downhill. a point lower than both is a hollow it has to climb out of, so it slides up. a point that merely sits *between* its neighbours is on a steady grade — a hillside path, which is a perfectly good thing to be — and the term vanishes there however steep the ground is. so a route traverses slopes happily and refuses humps and dips, which is what a worn path does and what a shortest-path search does not. `footpath.climb` is how much sidestep a unit of gradient buys; at 0 the routes are straight lines, which is a survey rather than a path.
 
-what a slider cannot do is change the *shape* of the chain. which passes exist at all is a quality-tier decision made once when the composer is built, so a knob whose pass the tier never created renders greyed rather than lying about what it does.
+the difference between a bump and a footfall is one constant: `SLACK` is a third of a metre of height difference below which the bulge term reads as zero, and without it the sidestep chases the terrain's own grain and the route wanders over centimetres.
 
-### the card, and the corner it was in
+**paths go round buildings, never under them.** the yard arrangement lives in [`steading.ts`](src/scene/landscape/steading.ts) rather than in the dressing, because two copies of where a barn stands is how a path ends up leading to where the barn used to be. each building carries a rough radius, and a point that lands inside one is *projected* straight out of it after every relaxation pass rather than pushed by another force term — a path that mostly misses the barn is not a path that misses the barn. endpoints are exempt: a route to a door has to arrive at the door, and `doorstepOf` puts that anchor a pace outside the wall, further out than the clearance a route is pushed by.
 
-the card in the top-left — the title, the gestures, and the diagnostics log — **starts hidden** and is toggled by the chevron beside it or by `h`. the choice is remembered in its own local-storage key, `three-iso.overlay.v1`.
+**a field is met at its gate, cut toward its neighbour.** the anchor marches out from the plot's middle until the plot stops claiming the ground, which is exactly where its fence run stands — so a path arrives at the fence rather than walking through it. and the bearing it marches on points at the nearest *building*, not at the middle of the yard, because that is the neighbour the network is going to join it to. aimed at the yard and then joined to the barn, the gate ends up round the wrong corner of the fence.
 
-the handle is pinned to the *figure* rather than to the card, for the same reason `.gfx-toggle` sits outside `.gfx`: a control that hides along with the thing it controls is a one-way door. the card slides off the left edge and the chevron stays exactly where it was.
+**it is paint, and never height.** the legs are traced across the ground *as built* — levelled yard, graded track, carved beck and all — which is what makes them agree with the scape they cross, and also what stops them carving it: a path that sank the hillside it had just been routed over would move that hillside out from under itself on the next build. the terrain takes the wear as vertex colour and the scatter takes it as a place not to stand, and no vertex moves.
 
-the card is hidden rather than removed. the log inside it is the only crash report a phone gives and it goes on collecting whether or not anyone is watching, so it stays in the document — `inert` is what keeps a card parked off-screen out of the tab order and out of the hit test. **`?debug` opens it whatever was last chosen**, because a debugging surface you have to already know a keyboard shortcut to reach is not one.
+**the wear weighs itself by how green the ground already was.** this is what turns a dozen legs converging on a yard into a network instead of a stain. a path is turf that has been walked off, so it can only show where there was turf: across the meadow the full lerp toward `palette.trodden` lands, and on the yard, the cart track and the tilled plots — ground that is bare because something else already made it bare — it barely registers. the same arithmetic the seasonal tint uses, on a colour the painter already has in hand.
 
-the offset on the handle is a `left` and not a `transform`, and that is not a preference. a percentage inside `translateX` resolves against the *element's own* width — so `--card-width`, which carries a `calc(100% - 2rem)`, collapsed to a negative six pixels against a 26-pixel button and parked the handle on top of the card it had just opened. in `left` the same percentage resolves against the containing block, which is the figure, which is what the card measures against too.
+wear does **not** fall along a leg. it used to, mildly, back when every route started at the well and traffic really did concentrate at the hub. on a network both ends of a leg are places somebody has business at, and a taper running from one end to the other leaves a visible seam at every junction where a faded tail meets a full-strength head.
 
-### the frame counter
+**cobbles are what make it a paved network rather than a bare stripe.** they are sampled *along the traced legs* — a segment picked in proportion to its length, a point along it, a jitter across the bare middle — rather than thrown at the island and tested. the island sampler is the wrong instrument for paving: the treads are a few hundred square metres of a landmass that is tens of thousands, so all but a handful of darts miss and the budget that survives gravels a path instead of cobbling it. no legs, no paving — turn `footpath.wear` to zero and the stones go with the paths they were laid on, without a second switch saying so.
 
-`.fps` sits in the bottom-left and reads `58 fps · 17.2 ms` on its first line and `xyz 12.4 81.0 -36.2 · zoom 500.0m` beneath it. the coordinates are the live camera position and zoom is the orthographic frame height, all in world metres; under `?debug`, `41 calls · 812k tris` joins the performance line. it is deliberately in neither the card nor the panel: both of those are things you put away, and a frame counter you have to open is a frame counter that was not measuring the thing you were looking at when it got slow.
+this matters more than it sounds, because **a coarse tier cannot resolve a tread**. a terrain quad is 0.8 m across on desktop and 2 m on mobile, and a tread 1.5 m wide cannot resolve on either — so the vertex-colour wear arrives as a soft band of bare ground rather than a drawn line, and softens further the cheaper the tier. the stones are what carry the edge.
 
-it times nothing itself and it does not query the camera separately. [`vitals.ts`](src/scene/vitals.ts) has been measuring the frame all along — for the log, and for the snapshot written at the moment a context is lost — and now samples camera xyz and `viewSize` beside those same figures. the meter is a second view of that one measurement, taken on its own quarter-second cadence so the log's four-second window is unchanged.
+**what the scatter does with it.** the tread joins the list of things the ground is already spoken for by, alongside the yard, the track, the plots and the pasture: no spruce, boulder, bale or tuft of grass stands on it. the threshold is set at the middle of the tread rather than at the verge, because a dozen routes each clearing a two-metre corridor is a bald farmyard rather than a network.
 
-### the performance section
+**cost is one draw call** — the second `InstancedMesh` of cobbles. the legs are planned and traced once at build, under a millisecond for the whole network, and baked into terrain vertex colours that were already being written. the per-vertex query is a bounding-box reject followed by a segment walk. every tier gets the paths, `minimal` included.
 
-three knobs at the bottom of the panel, applied live by [`runtime.ts`](src/scene/runtime.ts):
-
-| knob | what it does |
-| --- | --- |
-| pixel ratio | rescales the drawing buffer, and the composer behind it |
-| frame cap | `0` draws on every animation frame the display offers |
-| shadow every n frames | how often the shadow map is rebuilt |
-
-the last one is the one worth explaining. three rebuilds the entire shadow depth pass — the terrain, the merged steading and every scattered instance — on **every frame it draws**, at up to 4096². nothing in this scape moves fast enough to need that: the sun crosses the sky over minutes and the foliage sway is a slow shader animation. `runtime.ts` takes `shadowMap.autoUpdate` off the renderer and hands the map out on a cadence instead, and `atmosphere.ts` only fits the sun's frustum on the frames the map is actually being rebuilt on — the fit is written into `sun.shadow.camera` and read only when the map renders, so fitting it on any other frame is work with nowhere to go.
-
-measured in headless chromium on an m5, desktop tier at ratio 1.75: cadence 1 draws **110 calls** a frame, cadence 4 draws **73**. the frame rate barely moves there, because that machine is fill-rate bound rather than draw-call bound — the same run has ratio 1.75 at 18fps, ratio 1.0 at 31 and ratio 0.5 at 44. the cadence is for the devices where the depth pass *is* the bill, which is every phone this scape has ever lost a context on.
-
-**this section is deliberately not persisted.** its three values are seeded from whatever quality tier the device resolved to on *this* load, re-seeded when a context loss buys a cheaper one, and re-seeded again by `reset`. a pixel ratio or an uncapped frame rate kept from one session and replayed into the next is exactly how a device that has already lost a context gets handed back the budget that took it — underneath a tier [`tier-memory.ts`](src/scene/tier-memory.ts) had correctly held down.
-
-### settings that stick
-
-the overlay writes a debounced snapshot of every exposed path under one local-storage key, and applies it before the scene is built. a section can opt out with `persist: false`, and the performance section above is the only one that does. two details carry the weight for everything else:
-
-- **stored values are only accepted when their type still matches the config.** a snapshot from an older build, or a hand-edited one, cannot poke a string into a uniform and take the shader down on load — it is simply ignored, field by field.
-- **`reset` removes the key rather than overwriting it with the defaults.** re-authoring a value in `config.ts` should reach anyone who has pressed reset, and it cannot if reset leaves a snapshot of the old defaults sitting in front of it.
-
-the authored values are captured when the store is constructed, *before* `load` runs — after that the config no longer holds them, and reset is the only thing that has them.
-
-`localStorage` access alone throws in a sandboxed frame and in safari's private mode — the property read, not the write. a graphics overlay is not worth taking the scene down for, so a missing store degrades to "settings do not persist".
-
-the panel's controls also carry `autocomplete="off"`, which is not cosmetic. browsers restore a reloaded form's controls to whatever the user left them at, *after* the page's own initialisation — so a reload would put stale numbers back into the sliders and fire `input` for them, showing values the scene does not have and saving them over the real snapshot. right for a form; wrong for a view of external state.
-
-## the clock
-
-`daylight.ts` resolves a phase of the cycle into a sun direction and a complete sky. the authored atmosphere palette stays the **noon anchor** and everything else is derived from it: dusk is that anchor pulled toward one warm colour, night toward one cold one. that is a deliberate trade against a keyframed palette per hour — retuning the scape is still a matter of editing colours that were already there, and no time of day can drift out of the family the rest of the scene was graded for.
-
-the one place the arc is not honest is where it has to be. **the key light never goes below the horizon**, however far under it the sun actually is. a directional light that follows the real arc down there lights the terrain from underneath: shadows invert, every north face blows out, and the shadow-frustum fit degenerates. so the arc governs the light's *colour and strength*, which is what night actually looks like, while the direction is held just above ground — and the result reads as moonlight instead of as a rendering bug.
-
-the clock lives in the config as a phase and a speed, which means scrubbing the overlay's time slider and letting the cycle run are the same operation on the same number. the time knob sits outside its switch on purpose: freezing the cycle is exactly when you want to scrub it.
-
-## the year
-
-`season.ts` is the clock's second hand, and deliberately the same machine. a phase, a speed, and colours that are *derived* rather than keyframed: the authored palette stays the **midsummer anchor**, winter is that anchor pulled toward one dead straw and then toward one snow white, autumn is the same straw with a gold leaned into it. no month has its own palette, so retuning the scape is still a matter of editing the colours that were already in `palette`.
-
-the year does not touch the shape of the world. the height field, the layout and every prop are built once from the seed and never rebuilt — **snow here is a surface response, not accumulation**. that is the whole reason a season can run on a live clock at all: a system that drifted the terrain would have to regenerate an island to get from august to november, and the frame it did that on would be a frame you could count.
-
-three curves come out of the phase, and none of them is a straight sine.
-
-- **growth lags the sun.** the ground warms and cools slower than the thing warming it, so the growing season peaks a twentieth of a year after midsummer and the first frost arrives before the shortest day. it is one constant in the file and it is why autumn here feels longer than spring.
-- **the turn is one-sided.** warmth falls twice a year and only one of those falls turns anything gold. spring loses its snow to bare ground and greens straight off it, which is what the growth curve alone already says — so the turn curve simply does not exist before midsummer.
-- **snow is a plateau, not a peak.** it comes on around a fifth of the year out from midwinter and holds, because a snow cover that is only ever briefly total reads as a glitch rather than as a winter.
-
-the interesting problem is that **two materials carry the entire scape**. a flat seasonal mix would take the falu red off the barn and the grey off the granite along with the green off the meadow. so the tint weighs itself by how far the fragment's own albedo leans green — the one thing grass, leaves, moss and heather have in common and paint, stone, sand and water have not — and then by how *light* that green is, which is what separates a birch canopy that goes gold from a spruce that stays black-green all winter. both are arithmetic on a colour the fragment is already holding. neither costs a fetch, an attribute or a branch.
-
-lying snow needs world height, to keep it off the beach the sea keeps warm and off the seabed under the shallows. **it gets that height without a varying.** `vViewPosition` is minus the view-space position and the view matrix is rigid, so a fragment's world height is the camera's height less that position projected onto the view matrix's second column — one dot product against two uniforms three already declares. on a program that argues about its budget with a handset offering sixty varying components in total, a dot product is the cheaper end of that trade by a wide margin.
-
-what is left is the snow line itself, and a fixed contour round an island reads as a stripe someone painted on it. the line wanders instead, on a cheap two-term sine field in world x and z, so the edge of the cover breaks up into patches without any of them drifting when the camera moves.
-
-`season.time`, `season.speed`, `season.snow`, `season.snowLine`, `season.turn` and `season.seaSmoke` are all in the overlay and all live. the time knob sits outside its switch for the same reason the time of day does: freezing the year is exactly when you want to scrub it. the whole system adds no draw call, no texture, no material and no pass — it runs on every tier, including the phone, because there is nothing in it a phone could fail at.
-
-## the winter the water gets
-
-the year reached the land first and left the sea a summer green all through january. `season.ts`'s fourth curve is the freeze, and the lake reads it through **one uniform**.
-
-the freeze is the snow curve's shape and never its timing, because a metre of water holds something like a thousand times the heat a metre of air does. so the sea is the last thing to shut and the last thing to open: the fields whiten weeks before the bays close, and they are bare again while the ice is still in. that is one constant — `ICE_LAG` — plus a narrower pair of thresholds, and it is the whole difference between two clocks and one clock drawn twice.
-
-**depth is the rest of the physics.** a bank a foot deep gives its heat up in a week; a sound five metres deep takes the season. so the ice starts at the shoreline and walks outward as the year deepens, and it reads that depth from the **bathymetry mask the lake was already fetching** for its own depth tint — the freeze costs no texture read the water was not making anyway. `water.iceReach` is how far out that carries: at 1 the ice is confined to water shallow enough to lose its heat, at 0 the open sea freezes as readily as the bank, which is a lake rather than a coast.
-
-depth alone, though, draws a contour line around the island — a bathymetry chart with the ice-fill switched on. `water.iceBreak` breaks that line into floes, on **three sines rather than a noise fetch**. two reasons, and the second is the load-bearing one: the vertex stage needs the same ice front the fragment stage paints, and it cannot have it from a map the cheap tier's two-tap budget has no room to read twice. an analytic field is the one thing both stages can agree on exactly and for free.
-
-they have to agree because **the freeze takes the swell out of the vertex stage as well as the ripple out of the fragment stage**. under ice the surface gives up its displacement, its ripple normal, its foam band and its glitter — a shelf is flat, and a swell rolling under a sheet that is not rising with it is the giveaway that the winter is paint. the one new cost is a vertex texture fetch of the bathymetry mask, on a plane of at most sixteen thousand vertices, against a texture with no mipmaps and linear filtering: nothing to stall on and no derivative to go looking for.
-
-two smaller decisions:
-
-- **ice is laid over the finished water, not mixed into its albedo.** what is under a shelf stops mattering the moment the shelf is thick, and a depth tint showing through frozen water reads as blue plastic sheeting rather than as a winter.
-- **ice is rougher than the water it replaces, not smoother.** new ice really is glassy — but the camera's elevation sweeps across the sun's as it zooms, and a near-mirror plane at that crossing is precisely the white-out that [the lake's own roughness](#the-lake-and-the-angle-that-broke-it) exists to prevent. a frozen bay is that same flat plane with the swell taken *out* of it, which makes it the better candidate for the failure rather than the worse one. what does read correctly is snow-blown ice, which is matte and cannot blow out.
-
-the one part of a frozen bay that is genuinely white is the front between the sheet and the open water, where the floes grind and pile. that rim is `4 · cover · (1 - cover)` — a ridge wherever the cover is passing through a half — and it costs two multiplies.
-
-`season.ice`, `water.iceReach` and `water.iceBreak` are in the overlay, live and persisted, grouped under the year rather than under the water because the year is what drives them. the beck's tidal inlet is shallow the whole way up, so it shuts first and reopens last without knowing anything about the freeze — it is simply the shallowest water on the map. no draw call, no texture, no material, no pass and no fragment tap: every tier gets the winter, `minimal` included.
-
-## sea smoke
-
-the scape has had two winters since the run above — the land's and the sea's — and `ICE_LAG` is the fact that they are weeks apart. this run draws what lives in the gap between them.
-
-steam fog forms when air moves over water warmer than it is. that is the definition, and the scape already holds both halves of it: `snowAmount` is how much winter the land has taken, `freezeAmount` is how much the water has, and the land takes it first. so **sea smoke is not a curve of its own — it is the difference of the two the scape already had**:
-
-```ts
-seaSmokeAmount(phase) = max(0, snowAmount(phase) - freezeAmount(phase))
-```
-
-three things fall out of that for free, and all three are the point.
-
-- **it is one-sided.** come spring the lag runs the other way — the air is back and the bays are still shut — so the difference goes negative and the clamp takes it. a coast smokes on its way *into* the winter and not on its way out, which is what a coast does. nothing had to be written to make that true.
-- **it needs open water, and it cannot get the timing wrong.** the smoke only ever has a strength during the weeks the sea has not shut, so there is no ice term anywhere in the geometry or the shader: the open water it wants is all the water there is. an ice-front test would have been a second opinion about the freeze, and two opinions about one thing eventually disagree.
-- **it peaks near 0.83, not 1**, a fortnight or so before midwinter. that is not a scale wanting a correction. the most open water a cold sky ever gets is however much of the year the lag leaves between the two curves, and normalising it would be inventing weather the physics does not have.
-
-the geometry is the ground mist's radial profile turned inside out — nothing over the island, full strength a couple of island-radii out, gone again before the sheet's own edge, because a rim on a transparent quad reads as a quad. the two families therefore never overlap: the mist stands on the island all year and the smoke stands exactly where the mist has already faded to nothing.
-
-it is flat, low and slice-free, unlike the mist. sea smoke really is a shallow layer — a metre or two against the mist's nine-metre column — so the thinning that argued the [upright slices](#mist-that-stays-where-the-ground-is) into existence is not a failure here but the shape of the thing. seen from the near zoom, across the water rather than down onto it, two sheets a metre apart present as a bank lying along the coastline, which is what steam fog looks like from a shore.
-
-it is whiter than the mist, and for a physical reason rather than a compositional one: sea smoke is water that has just condensed out of the air standing on it, where ground mist is haze the sky is lighting through. it follows the clock like the mist does — same horizon colour, pulled twice as far toward white.
-
-`season.seaSmoke` is in the overlay, live and persisted, grouped under the year alongside the snow and the ice because it is the arithmetic between them. it is also the switch: there is nothing to steam when it is zero.
-
-**cost: nothing until it exists, and two draws when it does.** `?debug` reports **109 calls · 698k tris · 42 geo · 27 tex · 34 prog** on the desktop tier at midsummer — unchanged — and **111 · 705k · 43 · 27 · 34** at the peak of the smoke. the program count is the interesting one: the smoke's material has the same shape as the mist's, so three's cache hands it the program already linked and the scape gains none. a layer at zero strength is made *invisible* rather than transparent, because a map-wide transparent quad contributing nothing still costs every pixel it covers. the sheet count is `mistLayers / 2`, so `mobile` and `minimal` get one and `ultra` gets three; every tier gets the smoke.
-
-## the front, and the ground it leaves wet
-
-the scape had two clocks and no weather. this one adds the third: a front that crosses, rains, clears, and leaves the ground it fell on dark for a while afterwards.
-
-`weather.ts` is built to exactly the shape of the two clocks above it — a phase, a speed, and everything else derived from the phase — and it is coupled to the second one rather than duplicating it. **what falls out of a cold sky is snow, and the scape already knows how cold this week is.** so the weather owns *how hard* it is coming down and the year owns *what*, which is why there is no snowfall strength anywhere in the config: a winter squall is a summer squall with `season.snow` in it. the same coupling shortens the streak, slows it, and takes it from a pale blue-grey toward the very white the ground is going to — the fall's colour is read live off `season.snowColor`, so a run that retunes lying snow retunes the snowfall with it and the two can never disagree.
-
-a front is **two bands and not a bell curve**. the squall comes through at full strength, gives a short clear spell, and is followed by a lighter trailing band; better than half the cycle is dry. each band is cut against the *cosine* of the phase rather than assembled from a gaussian, which is what makes it exactly periodic — this clock runs for as long as the page is open, and a curve with a seam in it would find that seam.
-
-the more interesting curve is the wet one. **rain stops in a minute and the ground it fell on takes an hour**, and a surface response tied to the fall itself dries out the instant the last drop lands — which reads, unmistakably, as somebody switching an effect off. so wetness looks *backwards*: it is a decaying maximum over the quarter-cycle behind the current phase, never below the rain falling right now, and zero once the long clear spell has had time to work. that shape is a deliberate refusal of an integrator, and the reason is determinism rather than taste. an accumulator carries the frame rate and the page's load time into its answer, so two captures of the same phase would not agree; a function of the phase alone means scrubbing the overlay and letting the clock run put the ground in exactly the same state.
-
-what a wet surface does is **two things pulling opposite ways**. the albedo goes down, because a water film traps light that dry grains would have scattered back out; the specular goes up, because that film is smoother than anything under it. only the first gives a scape somebody turned the lights down on. only the second gives a scape made of plastic. together they are the whole read, and they cost two arithmetic operations on values the fragment already holds — weighted by the same `lie` term lying snow uses, because rain lands on what faces the sky, and applied *before* the snow so a week doing both ends up with white over wet rather than wet over white.
-
-the lake answers the rain **without a uniform or a fetch of its own**. a shower does two things to water and the shader already had a knob for each: it puts the surface into a chop that kills the glitter — a sun lobe needs a facet to hold still long enough to catch it — and it roughens the ripple that carries the shading. so the fall simply drives the two numbers the overlay drives. the water's response to weather costs nothing per fragment and nothing per tier.
-
-### the column
-
-`rain.ts` draws the fall, and the one decision the module hangs off is that **the column is sized against the frame, not against the map**. a column sized to the island would put the same drops over a fixed patch at every zoom, so pulling back would thin the rain to nothing and zooming in would pack it into a wall — the same mistake the mist tiles and the auroral tiles both had to be taken off. its span, rise, streak length and girth all follow the live `viewSize`, so moving from one 196-metre island to a 520-metre world and a 560-metre maximum view preserves the shower's screen density: 2600 drops look like 2600 drops anywhere on the zoom range, and the mobile tier's 900 cover the same picture more thinly rather than covering less of it.
-
-the whole shower is **one draw call from one static buffer**, and nothing is uploaded per frame. each drop is two triangles with its cell in the column carried alongside the quad corner; falling is `mod` on a single scalar that grows, so a drop reaching the floor reappears at the ceiling in the same instant. that scalar is metres fallen rather than seconds elapsed — which is what lets `weather.fall` be turned to zero and back up without the column jumping to where it would have been had it never stopped — and it is wrapped against the column's own height so a page left open for an hour is not counting in a float that has lost its precision.
-
-two smaller decisions:
-
-- **the streak is laid along the projected fall, not along the screen's vertical.** those are the same thing in still air and visibly not the same in wind. the fall leans on `wind.strength` — the knob the grass is already bending on, so the two systems have been introduced — and the streak's screen axis is that heading run through the model-view matrix.
-- **the column follows the camera's focus**, which is safe here in a way it is not for the mist. the mist's sheets carry a pattern that would drag across the ground as you pan; rain has no pattern to drag, because one drop is any other drop.
-
-`weather.time`, `weather.speed`, `weather.rain`, `weather.fall` and `weather.wet` are all in the overlay, live and persisted. the time knob sits outside its switch for the same reason the other two clocks' do. `weather.rain` is the switch — there is no drop to draw and no ground to wet at zero — and `weather.fall` is the knob that stops the motion, which is why both rates are in `STILL` in [`scape-shot.ts`](scripts/scape-shot.ts): a system whose animation cannot be stopped cannot be photographed twice the same way, and would poison every visual diff taken after it landed.
-
-**cost: one draw call, one program, and no allocation per frame.** the drop count is a tier gate — `minimal` gets 0 and simply never rains, `mobile` 900, `desktop` 2600, `ultra` 4200 — and the ground's half of the system is two arithmetic operations in a fragment shader that was already running, so it costs the same on a phone as on a workstation. the mesh is made *invisible* rather than transparent in the clear spell, because a screenful of transparent geometry contributing nothing still costs every pixel it covers.
-
-## the aurora, and the dark it needs
-
-the scape has had a night since the clock run and nothing has ever happened in it. this one lights it up, for the half of the year that can hold a light.
-
-**it is a deck, not a curtain, and that is a fact about the camera before it is a fact about the aurora.** an orthographic view tipped fifty degrees down puts the far distance a couple of hundred world units *above* the top of the frame: there is no horizon in this scape to hang anything against, and a wall of light standing out at sea would be rendered correctly and entirely off screen.
-
-a deck the camera looks *down* on is a fiction, and worth naming as one — the light is a hundred kilometres up and the eye is eighty metres. it is also the fiction [the sky deck](#the-sky-deck) already runs: this scape's camera flies above its own weather, and a layer it cannot see is a layer it does not have. the veils are stacked above the clouds so that at least the order is right, and the clearance is enforced in code rather than left to the two sliders agreeing.
-
-everything else follows [the sky deck](#the-sky-deck), including its zoom gate and for its reason: at the near zoom the camera sits *under* the ceiling, and the only thing a luminous sheet could do there is cover the picture. its quad reaches with the 520-metre archipelago, while the repeated curtain is 1.575 times the maximum frame height; world coverage can grow without multiplying the number of arcs in the picture.
-
-**the year is the second gate, and it is the one that had to be added.** `daylight.ts` runs one sun arc at one tilt for every week of the year — a deliberate simplification, since a scape with a real seasonal arc has a midwinter with no daylight in it at all — so a midsummer midnight there is exactly as dark as a midwinter one. that is fine for everything else in the scene and wrong for this: the reason you cannot see the aurora in june at these latitudes is not that it has stopped, it is that the sky never gets past dusk. so `season.ts` gained the one curve in it that is not about heat:
-
-```ts
-darkAmount(phase) = smoothstep(-0.9, -0.15, cos(phase · τ))
-```
-
-every other seasonal curve in this file runs late — the ground warms weeks after midsummer, the sea cools weeks after the ground, and `LAG` and `ICE_LAG` are those weeks written down. this one has no lag at all, and cannot: night length is geometry, not heat, and the sun comes back up on the day the orbit says. full dark holds from equinox to equinox through the winter, and gives out across the two months either side of midsummer.
-
-the brightness is those two gates and nothing else:
-
-```ts
-auroraBrightness(day, dark, strength) = strength · dark · (1 - smoothstep(0.02, 0.32, day))
-```
-
-no weather term, deliberately. solar activity is not something this scape models, and a random flare would be the one non-deterministic thing in a world that is otherwise a seed and a coordinate.
-
-**the colour is in the field, not over it.** unlike the mist and cloud fields — which are white, and take their tint from the clock — the auroral field is baked with colour in it, because the colour *is* the structure. an aurora is green where the curtain is dense and violet where it thins out at its fringes and its crown, so the tint is a function of the distance from an arc's centre line — the same number the alpha is computed from, and impossible to keep in step with it if it were a gradient applied afterwards. two arcs are baked, wandering as sums of sines and therefore periodic across the tile, so an arc leaves one edge at the height it enters the next; the ray noise, which has no period of its own, is cross-faded with a copy of itself one tile over until it has one. the alternative is mirrored wrapping — what the mist and the cloud fields use — and it was tried: reflecting a wandering arc turns every tile boundary into a hard chevron, and a sky full of zigzags is the one thing an aurora never looks like.
-
-the two arcs are combined with a maximum rather than a sum: two curtains overlapping do not make a brighter curtain, and adding them fills in the dark gap the second arc exists to show.
-
-it is additive, and unlit. the aurora is emission — it never darkens what is behind it — and it is the one thing in the frame the sun does not light, which is why it is also the only sheet in the scape that does not take its colour from the clock.
-
-`atmosphere.aurora` is in the overlay under the sky, live and persisted, with the ceiling and the drift beneath it. it is also the switch. the ceiling is held above `cloudHeight` by the module whatever it is set to, so the weather passes beneath the light rather than through it. height remains an authored distance in metres; only the deck's reach and its frame-relative tile respond to the larger world.
-
-**cost: one draw per veil, and none at all for most of the year.** `?debug` reports **109 calls** on the desktop tier at the authored opening frame — exactly what it reported before the aurora existed — and **112** at a midwinter midnight pulled all the way out, against **110** with the brightness scrubbed to zero. on the mobile tier the same a/b is **51** against **50**. the veils are two-sided and still one draw each: three renders a transparent double-sided material in two passes, which is right for a curved shell and waste for a flat sheet, so `forceSinglePass` is set and the measurement above is what found it. the veils are made *invisible* rather than transparent whenever the light is out, because a map-wide additive quad contributing nothing still costs every pixel it covers — and it is out for every daylight hour of every day, and every hour of the white-night weeks. the material has the same shape as the cloud deck's, so three's cache hands it the program already linked and the scape gains none. `auroraLayers` is 3 on `ultra`, 2 on `desktop`, **1 on `mobile`** and 0 on `minimal`: the phone tier gets an aurora, and the tier that only exists after a context loss gets a plain dark sky rather than a dimmer aurora.
-
-## the sky deck
-
-overhead cloud is the ground mist's technique moved up: world-pinned sheets of a baked alpha field, scrolling on the wind. two things had to differ.
-
-- **the tile answers to the frame, while the deck answers to the world.** the quad reaches 4.4 archipelago widths so it survives the full pan, but a texture tile stays at 0.809 of the maximum frame height. sizing both from the 520-metre world would magnify every cloud into a wash; sizing both from the old home island would repeat them into wallpaper. the gaps are the whole effect.
-- **the field is thresholded, not raised to a power.** the mist keeps a little of itself everywhere, which is right for something you are standing in. cloud read from underneath has to have holes, or it is just a grey filter over the frame.
-
-the deck fades in as the view pulls back, and that gate is not a performance dodge: an orthographic camera zoomed in sits *below* the ceiling, so the only thing overhead cloud could do there is cover the picture. pull out and the camera climbs past it, and the deck becomes what it is meant to be — weather between you and the islands.
-
-it is also unfogged, deliberately. linear fog fades by distance from the camera and the deck is the furthest thing in frame, so leaving it in dissolves every cloud into the fog colour exactly when it comes into view. it takes its colour from the clock instead, like the mist does — cloud is the one surface here with nothing but ambient on it, and if it does not follow the sky it stays daylight-white through the night.
-
-## framing the sea
-
-an orthographic camera's distance along its view axis changes nothing you can see — but it decides where the frustum's *bottom edge* sits in world space. let that edge drop under the waterline and the lower band of the frame is made of rays that start below the sea and point down; they can never intersect a horizontal plane above them, so the water simply stops partway up the screen and the background shows through.
-
-[`camera-controls.ts`](src/scene/camera-controls.ts) therefore lifts the camera with the zoom rather than sitting at a fixed radius, keeping the frustum clear of the waterline at every tilt. it costs nothing — the projection is unchanged — and it is why the sea reaches the bottom of the frame at the shallowest angle the controls allow.
-
-that distance carries a second, non-obvious load: the atmosphere reads it to place the fog, as `near = radius - viewSize * 0.9`. clearing the waterline needs *less* distance the steeper the view gets, so once tilt became a function of zoom, the lift began to swing — and with it the fog band, which collapsed onto the camera and washed the whole frame grey at high elevations. the lift now has a floor proportional to `viewSize`, which keeps the fog where it was authored at every angle.
-
-## the lake, and the angle that broke it
-
-binding tilt to zoom sweeps the camera's elevation through a range that crosses the sun's. that turned out to be a good stress test of the water, which failed it twice:
-
-- **a near-mirror plane has no good answer at that crossing.** at low roughness the whole flat surface reflects the sun into every fragment at once, and the lake stops being water and becomes one white highlight the size of the sea. the surface is rough now, which spreads the lobe until no angle can concentrate it — and rough dielectrics then pick up the pale overcast sky instead, so `envMapIntensity` is cut to give the depth tint its colour back.
-- **a narrow lobe also makes the sea change colour when you orbit.** short of an outright white-out, a tight highlight still means the lake is pale grey facing the sun and dark teal facing away — the water reads as a different material depending on which way you turned. broadening the lobe further is what makes the two headings agree.
-- **the ripple normals came from a white-noise texture.** minified past one texel per pixel that lands a different random normal in every pixel, so wherever the mirror direction drifted into the spray, isolated pixels fired at full strength. which angles triggered it was pure luck, which is why it stayed invisible until something moved the elevation. shading now reads a *smooth* fractal field; the speckled texture is kept, but only ever tints.
-
-what the roughness gave away, the glitter pays back: two noise fields at incommensurate scales, multiplied and raised to a high power, so the product spikes only where both crests coincide. that exponent is the whole control — threshold it gently instead and the *mean* of the product clears the cut, every fragment lights up, and the lake becomes a sheet of white paper.
-
-the larger world splits water scale three ways. the bathymetry mask follows the 520-metre inhabited field, the visible plane reaches four world widths so its edge stays beyond a full pan and zoom, and the old 196-metre ice pattern is scaled across the archipelago instead of repeating 2.65 times more often. ripple and glitter texture units remain authored metres; making the map wider is not a reason to make every wave wider.
-
-two related calibrations came out of the same pass:
-
-- **bloom threshold sits above the fog.** bloom is for highlights, and the fog colour scatters toward the sun until its linear luminance is around 0.85. at the old 0.86 a frame full of lit haze crossed the threshold everywhere at once and bloomed itself into a white-out.
-- **direction tints the light, it does not re-expose the shot.** the atmosphere scatters its horizon colour toward the sun by view heading, and that colour is both the fog and the sky's lower band — so at the original strength the same island was a washed-out miniature facing one way and a dark, moody one facing the other. the scatter is a third of what it was.
-
-## mist that stays where the ground is
-
-the sheets used to chase the camera's focus point, which drags the whole cloud pattern across the ground as you pan — and a mist that moves with the camera reads as the *island* moving, the one thing ground mist must never do. they are pinned to the world now, which costs two things and pays for both:
-
-- the sheet reaches 4.4 archipelago widths so its faded edge stays beyond a two-to-one maximum view at full pan, and its land mask keeps roughly twenty metres between samples as that quad grows. the pattern's world size has nothing to do with either: every wisp tile remains 79 metres. tie the repeat to the sheet and widening it magnifies every wisp — a few big soft blobs, bilinearly smoothed until the gaps close, which is how ground mist becomes a white-out.
-- a flat sheet that survives any pan also lies over every pixel of open water in frame, four deep. ground mist collects over land and shallows in the first place, so the alpha is baked into the vertices and falls off radially: dense on the island, gone by the time the eye is out at sea.
-
-**the mist stands up as well as lying down.** stacked horizontal sheets only have depth when you look *across* them, so a mist built from them alone thins out exactly as the view tips down, until it is a set of planes seen edge-on. alongside them is the standard trick for volumetric fog: upright slices that face the viewer, spaced along the view axis at 0.445 of the *live* frame height, so the stack keeps the same depth at the 8-metre near view and the 560-metre map view alike. their alpha is dense at the waterline and gone by the top, and falls off both sides so the slab never shows a vertical edge.
-
-those slices follow the focus point rather than the world origin — a stack pinned to the origin falls behind the camera the moment you pan to the far side of the map, and the upright mist simply stops existing there. following the focus is only safe because the *pattern* does not come along: each slice feeds its own displacement along its local x axis back into the texture offset, so every wisp stays over the same patch of ground while the quad slides underneath it.
-
-**density follows the authored amount, and nothing else.** it used to be scaled each frame by the view elevation, which meant orbiting or zooming quietly changed the weather. mist belongs to the world, not to where you happen to be standing, so the camera has no say in how much of it there is — only the clock does, and only over its colour.
-
-## ground that casts
-
-the terrain has always been a shadow caster, but the sun's shadow frustum was fitted with a margin sized for the tallest *prop* — about a spruce. the terrain is by far the tallest thing in the scene, so every ridge shadow was clipped where it left the visible ground, and hills read as though they were lit from inside. the margin is derived from the terrain's own relief now, which is what lets a low sun throw a ridge's shadow the length of the frame, and an islet's across the water it stands in.
-
-the ground it falls on carries **two octaves of grain, and a roughness break**. one scale gives ground a texture but not a history: real soil has metre-wide patches of wear and damp under the centimetre-wide grit, and without the broad octave the fine one tiles into a visible weave the moment you zoom out past its repeat. both fetches come from the same 256² texture at different frequencies, so the second costs a sampler read and no memory. the third piece is specular — uniform roughness is the giveaway that a surface is a render, because nothing outdoors reflects evenly — so the fine grain also polishes and dulls it by a few percent, and wet silt stops being the same material as dry heath under the same vertex colour.
+`footpath.*` and `dressing.pathStone` are build-time knobs and are absent from the overlay for the same reason `creek.*` and `layout.*` are.
 
 ## the shape of the island
 
-a radial falloff draws a perfect disc, and nothing in the sea is a disc. `sinkToIsland` warps the falloff itself with a two-octave noise on the bearing, so the island grows headlands where the value is high and cuts bays where it is low — and because *every* other part of the scape is written against that function rather than against a radius, all of them inherit the shape without being told: the beach shelves along it, the foam follows it, the placement searches respect it, and the mist's land mask is cut by it.
+a radial falloff draws a perfect disc, and nothing in the sea is a disc. `sinkToIsland` warps the falloff itself with a two-octave noise on the bearing, so the island grows headlands where the value is high and cuts bays where it is low — and because *every* other part of the scape is written against that function rather than against a radius, all of them inherit the shape without being told: the beach shelves along it, the foam follows it, the placement searches respect it, the mist's land mask is cut by it.
 
-the fix is deliberately not "add detail to the height". roughening the terrain under a circular falloff gives a rougher coastline that is still round. the falloff is the coastline.
+the fix is deliberately not "add detail to the height". roughening the terrain under a circular falloff gives a rougher coastline that is still round. **the falloff is the coastline.**
 
-**`islandInner` and `islandOuter` stopped being shorelines when the coast started wandering.** they are where an *average* bearing starts and finishes falling away; the coast moves either side of that band by `COAST_REACH` of its width. so there are now three radii worth naming, and confusing them is how a wall ends up in the sea:
+`islandInner` and `islandOuter` stopped being shorelines the moment the coast started wandering. they are where an *average* bearing starts and finishes falling away; the coast moves either side of that band by `COAST_REACH` of its width. so there are three radii worth naming, and confusing them is how a wall ends up in the sea:
 
 | | what it is |
 | --- | --- |
@@ -652,130 +332,280 @@ the fix is deliberately not "add detail to the height". roughening the terrain u
 | `liftRadiusOf` | the mean coastline, and how far the central massif reaches |
 | `islandOuter` + reach | the furthest a headland can get, and what the islets must clear |
 
-every placement search that assumes solid ground uses the first. the pasture search uses the second, because unlike the others it *verifies* its ground — `ringIsDry` walks the whole enclosure — so it can go looking on a headland and be told no. held to the guaranteed radius it could not reach the high ground of an island whose coastline is not a circle, which is every island.
+every placement search that assumes solid ground uses the first. the pasture search uses the second, because unlike the others it *verifies* its ground — `ringIsDry` walks the whole enclosure — so it can go looking on a headland and be told no.
 
-**the massif is what makes a big island an island.** the fbm averages to nothing at any size while the falloff still has to bring the whole rim down to the same sea, so a larger island built from noise alone is a larger *flat* island — and a flat island has no upland for a pasture, no hillside for a beck, and no reason for the farm to be where the farm is. the radial lift in `noise.ts` is that shape, and it is now sized to the island rather than fixed at the 58 units the first one happened to be.
+**the massif is what makes a big island an island.** the fbm averages to nothing at any size while the falloff still has to bring the whole rim down to the same sea, so a larger island built from noise alone is a larger *flat* island — and a flat island has no upland for a pasture, no hillside for a beck, and no reason for the farm to be where the farm is.
 
-**things sized in metres do not survive a change of scale.** growing the island exposed every constant that was really a fraction wearing metres: the sky and cloud decks tiled half again as often and turned to wallpaper, the sea-ice floes did the same, the pasture's distance-from-the-farm score outranked the height it was supposed to be breaking ties on, and the probe grids searched the same number of points over twice the ground. all of them are expressed against `terrain.size` now.
+**things sized in metres do not survive a change of scale.** growing the island exposed every constant that was really a fraction wearing metres: the sky and cloud decks tiled half again as often and turned to wallpaper, the sea-ice floes did the same, the pasture's distance score outranked the height it was supposed to be breaking ties on, and the probe grids searched the same number of points over twice the ground. all of them are expressed against `terrain.size` now.
 
 ## islets
 
 `terrain.isles` are raised *after* the island falloff, never before. the falloff's whole job is to drown the terrain plane's rim unconditionally so its square edges never read as the edge of the world; anything meant to survive out there has to come later.
 
-their profile is a **plateau with a skirt, not a dome**, and that is what decides whether they read as islands at all. the seabed is seven metres down and the crown is a couple of metres up, so the blend has to reach roughly 0.7 before the ground breaks the surface — and a smooth dome only gets there near its very centre. an eleven-metre islet surfaced as a one-metre pebble. holding the blend at 1 across the inner 55% puts the waterline out at about 0.72 of the radius, which is an island with a beach on it.
+their profile is a **plateau with a skirt, not a dome**, and that decides whether they read as islands at all. the seabed is seven metres down and the crown a couple of metres up, so the blend has to reach roughly 0.7 before the ground breaks the surface — and a smooth dome only gets there near its very centre. an eleven-metre islet surfaced as a one-metre pebble. holding the blend at 1 across the inner 55% puts the waterline out at about 0.72 of the radius, which is an island with a beach on it.
 
-they also need somewhere to stand. the ring between the mainland's shore and the plane's edge was too narrow to hold anything that would not either merge into the mainland or run off the world, so the plane is wider and `islandInner`/`islandOuter` are scaled to keep the farmstead's landmass exactly where it was. the extra span is open sea.
-
-there are fifteen of them around the home island, and the spacing is the design: each one clears that island's *warped* shore and its neighbours' skirts, which is the difference between skerries and a reef. they are grouped rather than evenly spread — a close western pair, a southern chain thinning as it runs out, one substantial north-eastern outlier, and skerries filling the gaps — because a ring of like-sized islets at even bearings reads as decoration however well each one is modelled.
-
-they get the same coast warp the mainland does, sampled in each islet's own frame with a seed of its own. at world scale the warp is very nearly constant across a disc eight metres wide, so it would only nudge the whole islet sideways; sampled seven times tighter it reshapes the skirt, which is where a small island is nearly all coastline.
-
-finally they change how the scatter samples. the placement field is now mostly open sea, and a uniform disc throws most of every attempt budget into the water — the island thins out to prove it. candidates are drawn from the mainland *or* from one of the islets instead, so the islets get dressed by the same instanced meshes.
-
-## three inhabited islands, one water road
-
-the home island is no longer the whole world. `archipelago.ts` runs the original pure survey three times in local coordinates, once each for the home, ridge and meadow profiles, then projects only the contracts that have to meet in world space: height, worn paths, jetties and their navigable water entries. this keeps every yard, beck and shoreline solver reasoning in the metre scale it was written for while the renderer sees one 520-metre field. each island gets the same working holding — five buildings, a well, plots, pasture, beck, harbour, footpaths and jetty — without copying the survey logic three times.
-
-the profiles are deliberately not palette swaps. they have independent seeds, extents, relief, coast bands and settlement proportions, so the western island rises into a sharper ridge while the eastern one spreads into lower meadow ground. only the home profile inherits the fifteen decorative skerries; they remain landscape, while all three large landmasses are inhabited. dressing reserves each island's recognisable work first — hay poles, firewood, barrels and mooring stakes — before it spends the rest of a tier's budget, so `minimal` and `mobile` do not exhaust a global batch on the home island and leave its neighbours as empty geometry.
-
-`waterway.ts` turns the three jetty landings into world-space ports, walks outward until the whole hull has navigable depth, and joins them with a deterministic `a*` search over the shared seabed. every candidate segment is probed along its length and around a 1.85-metre circular hull envelope. the simplified route is accepted only when that envelope stays below the waterline by `boats.clearance`; at seed 7319 the circuit is 809.7 metres and its tightest measured clearance is 0.67 metres.
-
-the legs form one directed ring, and one boat starts at each jetty. every dispatch sends all three onto their next leg at the same speed; a boat on a shorter crossing waits at its destination until the longest leg has arrived, then all three dwell for seven seconds before the next dispatch. there is still no opposing lane, and the scheduled audit includes both those early waits and the all-docked dwell before it accepts the configured separation. the default schedule's measured minimum is 115.79 metres against the configured seven. `boat-motion.ts` owns that pure clock; `boats.ts` projects it into three matrices in one dynamic `InstancedMesh`. `boats.speed = 0` freezes poses, wakes and gpu uploads so stills remain still.
-
-a hull aims five metres ahead and behind its route sample, then turns toward that chord at no more than 1.4 radians per second. it no longer snaps at a simplified path corner, and the same damped bearing is the authority for the matrix, wake and chase camera. each moving boat emits a stable source 1.45 metres behind its stern; the existing water shader expands that into two v-shaped arms and a stern ripple in foam and albedo, suppresses it while docked or frozen, and lets `water.wakeStrength = 0` remove it without another flag, displaced geometry or draw.
-
-clicking or tapping an instanced hull selects its live pose and eases the existing orthographic camera into a 22-metre third-person view, with its look target six metres ahead of the boat and facing along its travel. `camera-follow.ts` stores only the selected instance and four scalar target values; the fleet remains the single source of motion. escape, a terrain or empty-space selection, or any pan/rotate drag leaves follow, while the wheel can adjust the chase zoom without breaking selection.
-
-the rowboat was rebuilt for the job rather than scaling the old solid block. it is a hollow 3.4-metre clinker hull with tapered stations, overlapping strakes, a keel and floorboards below three benches, narrow stems and a matched pair of oars. the route's circular envelope covers that complete geometry at every heading, which is why the wet-route proof protects the boat rather than just its centre point.
-
-## the boat harbour
-
-each holding owns a jetty and has somewhere to keep a boat. a boathouse stands in the next cove along from the landing, a net rack dries gear on the bank behind it, and stakes are driven into the shallows off both.
-
-three decisions in it are worth keeping.
-
-**a bearing is not a rotation.** `rotateY` sends `+z` to `(sin y, cos y)`, while a compass bearing points at `(cos a, sin a)` — the two are mirrored about the diagonal. the jetty had been rotated by the shoreline bearing itself, so it ran *across* the water it was supposed to run into; how wrong it looked was a function of which bearing the seed happened to pick, which is why it survived. [`yawAlong`](src/scene/landscape/layout.ts) is that conversion, and it does double duty: the same rotation that points a `+z`-long prop out to sea puts an `+x`-long one broadside to it, which is exactly where a net rack belongs.
-
-**the boathouse is anchored to the water, not to the ground.** the five farmstead buildings are `Ploppable`s that level a floor against the highest corner and grow a foundation down onto the terrain. do that here and the foundation buries the one part that has to be open — the mouth, and the slipway running out of it under the surface. so the boathouse is placed at the waterline the way the jetty is, on its own piles, and pushed a little seaward of the bank so the back of the shed cuts into the slope the way a real one is dug in. being a hero prop it merges into the steading geometry, so the whole harbour costs no draw call at all.
-
-**a stake belongs to whoever drove it.** the mooring posts are the one scattered prop with a *placement* rule rather than a terrain rule: shallows, but only within thirty metres of the harbour. scattered on depth alone they would ring every islet in the archipelago, which says the opposite of what a harbour says. that is one `InstancedMesh`, and the only draw call this run adds.
-
-`layout.harbourSpread` is how far around the shore the boathouse sits from the jetty, in degrees. it is a build-time knob like the rest of `layout` and `dressing`, so it is not in the overlay — the panel only carries values the modules re-read every frame, and a knob that needs a rebuild to be seen would lie about what a slider does.
-
-## the upland pasture
-
-the farm ploughs the flat ground beside the yard and grazes what is left. up the slope from the steading there is now a walled hay meadow: a drystone wall around it, a gap in the wall facing back down at the farm with a gate in it, a meadow barn at the back, and hay drying on poles in between. the ground inside is painted as mown grass rather than as the heath the altitude bands would otherwise give it, so the clearing reads from the far zoom as somewhere kept rather than somewhere bare.
-
-**siting it is the whole problem, and it is a search over ground that does not exist yet.** the island is about sixty metres across and the farmyard's graded shelf already claims twenty-one of them, so there is not much left that is high, flat, dry, off the track, off the plots and not the farm. `findPasture` in [`layout.ts`](src/scene/landscape/layout.ts) probes for it against the raw fbm the way `findYard` does, and returns `null` rather than relaxing a rule if the island has no room — a smaller world or a larger `pastureRadius` genuinely means there is nowhere, and every caller copes with the absence.
-
-two of its rules are there because the first version of the search got them wrong in ways that are worth keeping written down.
-
-**a centre being on land says nothing about the ring.** the enclosure is a disc, and the wall stands on its edge. sited on its centre's own height, the search picked a shoulder above a cove: five metres of dry hillside in the middle, and a third of the wall thirty metres out where the island falloff had already drowned the ground. so the whole disc has to fit inside `landRadius`, and twelve probes around the wall line have to come back dry as well.
-
-**it has to agree with the ground that gets built.** `height.ts` sinks the raw fbm into the island before anything else touches it, and the layout searches run before `height.ts` exists — so they were reading a height the terrain would never have. [`sinkToIsland`](src/scene/landscape/layout.ts) is now that falloff, in one place, called by the height field and by the search that has to predict it. two approximations of the same curve is exactly how a wall gets built on the sea.
-
-the wall, the gate and the barn all pay the same way the harbour does. the wall run and the gate are hero geometry and merge into the steading's single draw; the meadow barn is a `Ploppable` like the farmstead's five, because it stands on a hillside and a merged geometry can only ever sit at one height. the drying poles are one `InstancedMesh`.
-
-**a prop that belongs to a place cannot be found by throwing darts at the island.** the drying poles were scattered through the same sampler as everything else and landed, measurably, never — the pasture is a quarter of a percent of that sampler's disc, and the few candidates that did land inside it were then rejected by the barn's claim on the middle. so a scatter can now be given its own candidate generator, and the poles get a disc the size of the pasture. the barn is set hard against the back wall for the same reason: a building's claim on the solver is a circle around its longest half, which on a twelve-metre enclosure is most of the enclosure, and pushing it back leans that circle onto the wall's own claims instead of onto the meadow.
+there are fifteen, grouped rather than evenly spread — a close western pair, a southern chain thinning as it runs out, one substantial north-eastern outlier, skerries filling the gaps — because a ring of like-sized islets at even bearings reads as decoration however well each one is modelled. each clears the mainland's *warped* shore and its neighbours' skirts, which is the difference between an archipelago and a reef. they get the same coast warp the mainland does, sampled in each islet's own frame seven times tighter: at world scale the warp is nearly constant across a disc eight metres wide and would only nudge the whole islet sideways.
 
 ## the beck, and the inlet it cuts
 
-water now runs off the high ground. a beck springs on the highest interior ground the farm is not standing on, falls through a channel cut into the hillside, and flares out at the shore into a tidal inlet that reaches a good way inland. it is the first feature in the scape whose *shape* is found rather than authored — everything else is sited by a search and then drawn, and this one is traced.
+a beck springs on the highest interior ground the farm is not standing on, falls through a channel cut into the hillside, and flares out at the shore into a tidal inlet reaching a good way inland. it is the first feature whose *shape* is found rather than authored — everything else is sited by a search and then drawn, and this one is traced.
 
-**it costs no draw call and no material.** that is the whole reason it could be a whole watercourse rather than a decal. the lake is already one plane spanning the map, drawn wherever the baked bathymetry mask says there is water under it — so anything carved below the waterline fills itself, with the swell, the depth tint, the shore foam band and the sun glitter the sea already has. the beck is a hole in the terrain, and the terrain was one draw before and is one draw now.
+**it costs no draw call and no material.** the lake is already one plane spanning the map, drawn wherever the baked bathymetry mask says there is water under it — so anything carved below the waterline fills itself, with the swell, depth tint, shore foam and glitter the sea already has. the beck is a hole in the terrain, and the terrain was one draw before and is one draw now.
 
-**the course is a steepest-descent walk, because water only goes one way.** [`creek.ts`](src/scene/landscape/creek.ts) fans twenty-four bearings at every step and takes the cheapest, where the cost is the ground it lands on less two bribes: one for holding the heading it already had, and one for heading seaward. the first is what stops a quantised fan tracing a staircase — without it the walk spends as much of its length turning as descending. the second is what gets it out of the closed hollows the raw fbm has inside `islandInner`, where the island falloff has not started taking height away yet.
+**the course is a steepest-descent walk, because water only goes one way.** [`creek.ts`](src/scene/landscape/creek.ts) fans twenty-four bearings at every step and takes the cheapest, where the cost is the ground it lands on less two bribes: one for holding the heading it already had, and one for heading seaward. the first stops a quantised fan tracing a staircase. the second gets it out of the closed hollows the raw fbm has inside `islandInner`.
 
-**a nudge is not enough for the deep ones, and the fix is the honest one.** a stream that cannot descend out of a basin fills the basin and leaves over its lowest lip. so the seaward bribe grows with every step the walk fails to get further out and collapses the moment it makes ground — which is that behaviour, and it turns "usually terminates" into "always terminates", because every stalled step raises the price of staying until no rim is worth it. before it, two of four candidate courses ran out the step limit going round in circles.
+**a nudge is not enough for the deep ones.** a stream that cannot descend out of a basin fills the basin and leaves over its lowest lip — so the seaward bribe grows with every step the walk fails to get further out and collapses the moment it makes ground. that turns "usually terminates" into "always terminates", because every stalled step raises the price of staying until no rim is worth it. before it, two of four candidate courses ran out the step limit going round in circles.
 
-**the springs are not `layout.ridges`.** the obvious thing was to start from the wooded high points the conifers already cluster onto, and it produced nothing: those are ranked on the raw fbm over a square grid whose corners reach past `islandOuter`, so most of them are already under water once the falloff has had its say. traced from them, every course was a five-metre stub. a spring needs real height on ground that survives the drowning, so the search probes for that directly.
+**the springs are not `layout.ridges`.** the obvious thing was to start from the wooded high points the conifers cluster onto, and it produced five-metre stubs: those are ranked on the raw fbm over a square grid whose corners reach past `islandOuter`, so most are already under water once the falloff has had its say.
 
-**the beck is resolved last, and routes around the farm.** the yard, the fields and the walled meadow are all sited by searches of their own, and the beck's spring wanted the same hilltop the pasture was already on. teaching three searches the shape of a channel that does not exist yet is three chances to disagree about it; handing the beck one list of discs it has to miss says the same thing in one place. so the course is traced after all of them, and a course that cannot miss them is discarded rather than shaved. that is why adding a watercourse to this scape moved nothing that was already in it — the plots and the pasture are exactly where they were.
+**the beck is resolved last, and routes around the farm.** teaching three searches the shape of a channel that does not exist yet is three chances to disagree about it; handing the beck one list of discs it has to miss says the same thing in one place. that is why adding a watercourse moved nothing that was already in the scape.
 
-**the channel is carved after the track, never before.** the road grade is sampled from a ground with no channel in it and smoothed, so levelling the track second would fill the crossing back in. carved second, the beck cuts *under* the road, and the bridge — which until now sat in whatever low patch of track it could find — has something to cross. where the two do meet, `findCrossing` sits the deck on the nearest track points the channel does not claim, because a bridge sat on the carved ground under it is a bridge lying in the beck.
+**the channel is carved after the track, never before.** the road grade is sampled from a ground with no channel in it and then smoothed, so levelling the track second would fill the crossing back in. carved second, the beck cuts *under* the road, and `findCrossing` sits the bridge deck on the nearest track points the channel does not claim — a bridge sat on the carved ground under it is a bridge lying in the beck.
 
-**the long profile is clamped to fall the whole way.** the descent obeys the raw fbm and the ground it is carved into is not that: the shore shelving lifts the bank, and an islet dropped across the mouth's path raises the seabed under it by several metres. left alone the channel inherits those rises and the scape gets a stream running up over a bar and back down. a running minimum over the smoothed profile is the one rule water has, and it makes the beck cut through whatever is in front of it.
+**the long profile is clamped to fall the whole way.** the descent obeys the raw fbm and the ground it is carved into is not that: the shore shelving lifts the bank, an islet across the mouth's path raises the seabed. left alone the scape gets a stream running up over a bar and back down. a running minimum over the smoothed profile is the one rule water has.
 
-**four smoothing passes, not eight.** the same count the road grade uses. eight passes over a fourteen-point profile is very nearly one average, and a long profile averaged flat carves a level canal.
+`creek.mouthFlare` decides whether the scape gained a stream or a sound; below about 2 the lower reach never resolves on the mobile tier, where a terrain quad is two metres across and the whole channel is five.
 
-the channel widens as it goes: `creek.mouthFlare` is how much broader the mouth is than the spring, and it is the knob that decides whether the scape gained a stream or a sound. below about 2 the lower reach never resolves on the mobile tier, where a terrain quad is two metres across and the whole channel is five. the bank taper reaches two and a half times the floor's own half-width — wider and the beck reads as a valley it happens to be lying in, narrower and the grid cannot resolve two sides at all.
+## the upland pasture
 
-the dressing comes for free, and deliberately so. reeds already scatter in the band either side of the waterline, cobbles already go wherever the ground is low or steep, and lily pads already want shallow standing water — so the banks plant themselves, and the run added no new scatter rule to get them. what it did add is one rule in the other direction: the landing search rejects a bank the beck claims, because the beck reaches within a couple of yard radii of the farm and is the nearest thing under the waterline that a walk outward from the yard finds. without it the jetty gets built across a stream two metres wide and the boathouse follows it in.
+up the slope from the steading there is a walled hay meadow: a drystone wall, a gap facing back down at the farm with a gate in it, a meadow barn at the back, hay drying on poles. the ground inside is painted as mown grass rather than the heath the altitude bands would give it, so the clearing reads from the far zoom as somewhere kept rather than somewhere bare.
 
-`creek.*` are build-time knobs like `layout` and `dressing`, so they are not in the overlay for the same reason `harbourSpread` is not: the channel is baked into the terrain mesh and into the bathymetry mask, and a slider that needs a rebuild to be seen would lie about what a slider does.
+**siting it is a search over ground that does not exist yet**, and two of its rules are there because the first version got them wrong.
 
-## the paths people wear
+**a centre being on land says nothing about the ring.** sited on its centre's own height, the search picked a shoulder above a cove: five metres of dry hillside in the middle, and a third of the wall thirty metres out where the falloff had already drowned the ground. so the whole disc has to fit inside `landRadius`, and twelve probes around the wall line have to come back dry.
 
-the farm has always been a set of places — a yard with five buildings on it, a landing, a boat harbour, a walled pasture, a field or three — with nothing at all between them. now there is: a network of footpaths, worn from the well out to every one of them.
+**it has to agree with the ground that gets built.** `height.ts` sinks the raw fbm into the island before anything else touches it, and the layout searches run before `height.ts` exists — so they were reading a height the terrain would never have. `sinkToIsland` is now that falloff, in one place, called by the height field *and* by the search that has to predict it. two approximations of the same curve is exactly how a wall gets built on the sea.
 
-**a path is found, not drawn.** [`landscape/footpath.ts`](src/scene/landscape/footpath.ts) starts each route as a straight line between two places and then relaxes it. every interior point gets two nudges per pass. the first pulls it toward the midpoint of its neighbours, which is the gradient of the route's own length and is what stops a route meandering. the second pushes it along the ground gradient, scaled by how much of a *bulge* it is — how far its own height stands above, or below, the two points either side of it.
+the barn is set hard against the back wall: a building's claim on the solver is a circle around its longest half, which on a twelve-metre enclosure is most of the enclosure, and pushing it back leans that circle onto the wall's own claims instead of onto the meadow.
 
-that second term is the whole idea, and it is signed for a reason. a point higher than both its neighbours is a crest the route is climbing over for nothing, so it slides downhill. a point lower than both is a hollow it drops into and has to climb back out of, so it slides up. a point that merely sits *between* its neighbours is on a steady grade — a hillside path, which is a perfectly good thing to be — and the term vanishes there however steep the ground is. so a route traverses slopes happily and refuses humps and dips, which is what a worn path does and what a shortest-path search does not. `footpath.climb` is how much sidestep a unit of gradient buys; at 0 the routes are straight lines between the anchors, which is a survey rather than a path.
+## the boat harbour
 
-the difference between a bump and a footfall is one constant. `SLACK` is a third of a metre of height difference below which the bulge term reads as zero, and without it the sidestep chases the terrain's own grain and the route wanders over centimetres.
+a boathouse stands in the next cove along from the landing, a net rack dries gear on the bank behind it, and stakes are driven into the shallows off both.
 
-**the network is a star on the well.** the one errand everybody in the place runs every day is water, so that is the ground that goes bare and that is where every other route leaves from. the spokes are the five buildings' doorways, then the outlying work: the landing, the boat harbour's bank, the pasture gateway and the near edge of each field plot. fields are met at their edge — the anchor marches in from the middle until the plot stops claiming the ground, which is exactly where its fence run stands — so a path arrives at the fence rather than walking through it.
+**the boathouse is anchored to the water, not to the ground.** the five farmstead buildings are `Ploppable`s that level a floor and grow a foundation down onto the terrain — do that here and the foundation buries the one part that has to be open, the mouth and the slipway running out of it under the surface. so it is placed at the waterline the way the jetty is, on its own piles, and pushed a little seaward so the back of the shed cuts into the slope the way a real one is dug in. being a hero prop it merges into the steading geometry, so the whole harbour costs no draw call at all.
 
-**paths go round buildings, never under them.** the yard arrangement moved out of the dressing into [`landscape/steading.ts`](src/scene/landscape/steading.ts) for this, because two copies of where a barn stands is how a path ends up leading to where the barn used to be. each building carries a rough radius, and a point that lands inside one is *projected* straight out of it after every relaxation pass rather than pushed by another force term — a path that mostly misses the barn is not a path that misses the barn. endpoints are exempt: a route to a door has to arrive at the door.
+**a stake belongs to whoever drove it.** the mooring posts are the one scattered prop with a *placement* rule rather than a terrain rule: shallows, but only within thirty metres of the harbour. scattered on depth alone they would ring every islet in the archipelago, which says the opposite of what a harbour says.
 
-**it is paint, and never height.** the routes are traced across the ground *as built* — levelled yard, graded track, carved beck and all — which is what makes them agree with the scape they cross, and also what stops them carving it: a path that sank the hillside it had just been routed over would move the hillside out from under itself on the next build. so the terrain takes the wear as vertex colour and the scatter takes it as a place not to stand, and no vertex moves.
+## the clock
 
-**the wear weighs itself by how green the ground already was.** this is the one thing that turns eight routes converging on one well into a network instead of a stain. a path is turf that has been walked off, so it can only show where there was turf: across the meadow the full lerp toward `palette.trodden` lands, and on the yard, the cart track and the tilled plots — ground that is bare because something else already made it bare — it barely registers. the same arithmetic the seasonal tint uses, for the same reason, on a colour the painter already has in hand.
+`daylight.ts` resolves a phase into a sun direction and a complete sky. the authored atmosphere palette stays the **noon anchor** and everything else is derived from it: dusk is that anchor pulled toward one warm colour, night toward one cold one. a deliberate trade against a keyframed palette per hour — retuning the scape is still editing colours that were already there, and no time of day can drift out of the family the rest of the scene was graded for.
 
-wear also falls along a route, but only mildly. traffic really does concentrate at the hub, and a steep falloff pales the tread exactly where it is the only thing saying anybody walks here — the outer end, out on the grass, is the only place the eye can read a path at all.
+the one place the arc is not honest is where it has to be. **the key light never goes below the horizon**, however far under it the sun actually is. a directional light following the real arc down there lights the terrain from underneath: shadows invert, every north face blows out, the shadow-frustum fit degenerates. so the arc governs the light's *colour and strength*, which is what night actually looks like, while the direction is held just above ground — and the result reads as moonlight instead of as a rendering bug.
 
-**what the scatter does with it.** the tread joins the list of things the ground is already spoken for by, alongside the yard, the track, the plots and the pasture: no spruce, boulder, bale or tuft of grass stands on it. the threshold is set at the middle of the tread rather than at the verge, because eight routes clearing a two-metre corridor each is a bald farmyard rather than a network. one cover goes the other way — cobbles are *more* likely on a tread, because taking the turf off a hillside is how the stone under it surfaces, and it is what keeps a path from reading as a stripe of flat colour at close zoom.
+## the year
 
-**cost is nothing.** no draw call, no material, no texture, no pass: the routes are traced once at build (under a millisecond for the whole network) and baked into the terrain's vertex colours, which were already being written. the per-vertex query is a bounding-box reject followed by a segment walk, about eight milliseconds across an `ultra` terrain's fifty thousand vertices. every tier gets the paths, `minimal` included.
+`season.ts` is the clock's second hand and deliberately the same machine: a phase, a speed, and colours *derived* rather than keyframed. the authored palette stays the **midsummer anchor**; winter is that anchor pulled toward one dead straw and then toward one snow white, autumn the same straw with a gold leaned into it.
 
-what a coarse tier does *not* get is a crisp edge. a terrain quad is 0.8 m across on desktop and 2 m on mobile, and a tread 1.5 m wide cannot resolve on either — so the wear arrives as a soft band of bare ground rather than a drawn line, and softens further the cheaper the tier. that is the honest limit of painting a metre-scale feature into vertex colour, and it is why the cobbles matter.
+the year does not touch the shape of the world. the height field, the layout and every prop are built once from the seed and never rebuilt — **snow here is a surface response, not accumulation**. that is the whole reason a season can run on a live clock: a system that drifted the terrain would have to regenerate an island to get from august to november, and the frame it did that on would be a frame you could count.
 
-`footpath.*` are build-time knobs like `creek.*` and `layout.*`, and are absent from the overlay for the same reason: the routes are baked into the mesh, and a slider that needs a rebuild to be seen would lie about what a slider does. `footpath.wear` at 0 is the off switch — no route is traced at all, so the grass and the stones close back over ground that would otherwise be a path.
+three curves come out of the phase, and none is a straight sine.
 
-## ploppable
+- **growth lags the sun.** the ground warms and cools slower than the thing warming it, so the growing season peaks a twentieth of a year after midsummer and the first frost arrives before the shortest day. one constant, and it is why autumn here feels longer than spring.
+- **the turn is one-sided.** warmth falls twice a year and only one of those falls turns anything gold. spring loses its snow to bare ground and greens straight off it, so the turn curve simply does not exist before midsummer.
+- **snow is a plateau, not a peak.** it comes on around a fifth of the year out from midwinter and holds, because a cover that is only ever briefly total reads as a glitch rather than as a winter.
 
-placement in a landscape is a two-dimensional decision — you choose *where* on the map a barn goes, never how high — but every scene-graph api asks for three numbers and lets you get the third one wrong. [`props/ploppable.ts`](src/scene/props/ploppable.ts) extends the library's `Prop` with the ground field bound at construction, so callers pass the two coordinates they have an opinion about.
+the interesting problem is that **two materials carry the entire scape**. a flat seasonal mix would take the falu red off the barn and the grey off the granite along with the green off the meadow. so the tint weighs itself by how far the fragment's own albedo leans green — the one thing grass, leaves, moss and heather have in common and paint, stone, sand and water have not — and then by how *light* that green is, which separates a birch canopy that goes gold from a spruce that stays black-green all winter. both are arithmetic on a colour the fragment already holds; neither costs a fetch, an attribute or a branch.
 
-given a footprint it also fixes what makes flat-based props look pasted on. it levels the floor against the *highest* corner — sink to the mean and the uphill half of the floor ends up under the turf; sink to the low side and the building climbs out of the hill it should be cut into — then extrudes a foundation whose lower edge follows `heightAt` all the way round. buried on the high side, standing proud on the low one, the way a real plinth meets a slope.
+lying snow needs world height, to keep it off the beach and off the seabed under the shallows. **it gets that height without a varying.** `vViewPosition` is minus the view-space position and the view matrix is rigid, so a fragment's world height is the camera's height less that position projected onto the view matrix's second column — one dot product against two uniforms three already declares. on a program arguing about its budget with a handset offering sixty varying components in total, that is the cheaper end of the trade by a wide margin.
 
-this is why the five buildings are the only props that leave the merged steading draw. a merged geometry is baked at build time and can only ever sit at one height; five extra draws against the same material is not a state change.
+a fixed contour round an island reads as a stripe someone painted on it, so the snow line wanders on a cheap two-term sine field in world x and z.
+
+the whole system adds no draw call, no texture, no material and no pass — it runs on every tier.
+
+## the winter the water gets
+
+the year reached the land first and left the sea a summer green all through january. the fourth curve is the freeze, and the lake reads it through **one uniform**.
+
+the freeze is the snow curve's shape and never its timing, because a metre of water holds something like a thousand times the heat a metre of air does. the sea is the last thing to shut and the last thing to open: the fields whiten weeks before the bays close, and are bare again while the ice is still in. that is one constant — `ICE_LAG` — plus a narrower pair of thresholds, and it is the whole difference between two clocks and one clock drawn twice.
+
+**depth is the rest of the physics.** a bank a foot deep gives its heat up in a week; a sound five metres deep takes the season. so the ice starts at the shoreline and walks outward, reading depth from the **bathymetry mask the lake was already fetching** for its own depth tint. `water.iceReach` is how far out that carries.
+
+depth alone draws a contour line around the island — a bathymetry chart with the ice-fill switched on. `water.iceBreak` breaks it into floes on **three sines rather than a noise fetch**, and the second reason is the load-bearing one: the vertex stage needs the same ice front the fragment stage paints, and it cannot have it from a map the cheap tier's two-tap budget has no room to read twice. an analytic field is the one thing both stages can agree on exactly and for free.
+
+they have to agree because **the freeze takes the swell out of the vertex stage as well as the ripple out of the fragment stage**. under ice the surface gives up its displacement, ripple normal, foam band and glitter — a shelf is flat, and a swell rolling under a sheet that is not rising with it is the giveaway that the winter is paint.
+
+two smaller decisions:
+
+- **ice is laid over the finished water, not mixed into its albedo.** a depth tint showing through frozen water reads as blue plastic sheeting.
+- **ice is rougher than the water it replaces, not smoother.** new ice really is glassy — but the camera's elevation sweeps across the sun's as it zooms, and a near-mirror plane at that crossing is precisely the white-out the lake's own roughness exists to prevent. what reads correctly is snow-blown ice, which is matte and cannot blow out.
+
+the one genuinely white part of a frozen bay is the front between sheet and open water, where the floes grind and pile. that rim is `4 · cover · (1 - cover)` — a ridge wherever the cover passes through a half — and it costs two multiplies.
+
+## sea smoke
+
+steam fog forms when air moves over water warmer than it is. the scape already holds both halves: `snowAmount` is how much winter the land has taken, `freezeAmount` how much the water has, and the land takes it first. so **sea smoke is not a curve of its own — it is the difference of the two the scape already had**:
+
+```ts
+seaSmokeAmount(phase) = max(0, snowAmount(phase) - freezeAmount(phase))
+```
+
+three things fall out for free, and all three are the point.
+
+- **it is one-sided.** come spring the lag runs the other way and the difference goes negative, so the clamp takes it. a coast smokes on its way *into* the winter and not on its way out. nothing had to be written to make that true.
+- **it needs open water and cannot get the timing wrong.** the smoke only has a strength during the weeks the sea has not shut, so there is no ice term anywhere in the geometry or the shader. an ice-front test would have been a second opinion about the freeze, and two opinions about one thing eventually disagree.
+- **it peaks near 0.83, not 1**, a fortnight before midwinter. that is not a scale wanting a correction — the most open water a cold sky ever gets is however much of the year the lag leaves between the two curves.
+
+the geometry is the ground mist's radial profile turned inside out: nothing over the island, full strength a couple of island-radii out, gone before the sheet's own edge. the two families never overlap. it is flat, low and slice-free, unlike the mist — sea smoke really is a shallow layer, a metre or two against the mist's nine-metre column. it is whiter than the mist for a physical reason: sea smoke is water that has just condensed out of the air standing on it, where ground mist is haze the sky is lighting through.
+
+**cost: nothing until it exists, and two draws when it does.** the smoke's material has the same shape as the mist's, so three's cache hands it the program already linked and the scape gains none.
+
+## the front, and the ground it leaves wet
+
+`weather.ts` is the third clock, built to exactly the shape of the two above it and coupled to the second rather than duplicating it. **what falls out of a cold sky is snow, and the scape already knows how cold this week is.** so the weather owns *how hard* it is coming down and the year owns *what* — which is why there is no snowfall strength anywhere in the config. the same coupling shortens the streak, slows it, and takes it from a pale blue-grey toward the very white the ground is going to, reading its colour live off `season.snowColor` so the two can never disagree.
+
+a front is **two bands and not a bell curve**. the squall comes through at full strength, gives a short clear spell, and is followed by a lighter trailing band; better than half the cycle is dry. each band is cut against the *cosine* of the phase rather than assembled from a gaussian, which makes it exactly periodic — this clock runs for as long as the page is open, and a curve with a seam in it would find that seam.
+
+the more interesting curve is the wet one. **rain stops in a minute and the ground it fell on takes an hour**, and a surface response tied to the fall itself dries out the instant the last drop lands, which reads unmistakably as somebody switching an effect off. so wetness looks *backwards*: a decaying maximum over the quarter-cycle behind the current phase, never below the rain falling right now, zero once the long clear spell has had time to work. that shape is a deliberate refusal of an integrator, and the reason is determinism rather than taste — an accumulator carries the frame rate and the page's load time into its answer, so two captures of the same phase would not agree.
+
+what a wet surface does is **two things pulling opposite ways**. albedo goes down, because a water film traps light dry grains would have scattered back out; specular goes up, because that film is smoother than anything under it. only the first gives a scape somebody turned the lights down on; only the second gives a scape made of plastic. together they are the whole read, and they cost two arithmetic operations on values the fragment already holds — weighted by the same `lie` term lying snow uses, and applied *before* the snow so a week doing both ends up with white over wet.
+
+the lake answers the rain **without a uniform or a fetch of its own**: a shower puts the surface into a chop that kills the glitter and roughens the ripple, and the shader already had a knob for each.
+
+### the column
+
+`rain.ts` draws the fall, and the module hangs off one decision: **the column is sized against the frame, not against the map**. a column sized to the island would put the same drops over a hundred and ninety metres at every zoom, so pulling back would thin the rain to nothing and zooming in would pack it into a wall — the same mistake the mist tiles and the auroral tiles both had to be taken off. scaled to `viewSize`, the drop count *is* a screen density.
+
+the whole shower is **one draw call from one static buffer**, and nothing is uploaded per frame. each drop is two triangles with its cell carried alongside the quad corner; falling is `mod` on a single scalar that grows, so a drop reaching the floor reappears at the ceiling in the same instant. that scalar is metres fallen rather than seconds elapsed — which is what lets `weather.fall` be turned to zero and back up without the column jumping — and it wraps against the column's own height so a page left open for an hour is not counting in a float that has lost its precision.
+
+- **the streak is laid along the projected fall, not the screen's vertical.** those are the same thing in still air and visibly not the same in wind. the fall leans on `wind.strength`, the knob the grass is already bending on.
+- **the column follows the camera's focus**, which is safe here in a way it is not for the mist: the mist's sheets carry a pattern that would drag across the ground as you pan, and rain has no pattern to drag, because one drop is any other drop.
+
+**cost: one draw call, one program, no allocation per frame.** the drop count is a tier gate — `minimal` 0, `mobile` 900, `desktop` 2600, `ultra` 4200 — and the ground's half is two arithmetic operations in a fragment shader that was already running. the mesh is made *invisible* rather than transparent in the clear spell, because a screenful of transparent geometry contributing nothing still costs every pixel it covers.
+
+## the aurora, and the dark it needs
+
+**it is a deck, not a curtain, and that is a fact about the camera before it is a fact about the aurora.** an orthographic view tipped fifty degrees down puts the far distance a couple of hundred world units *above* the top of the frame: there is no horizon in this scape to hang anything against, and a wall of light standing out at sea would be rendered correctly and entirely off screen.
+
+a deck the camera looks *down* on is a fiction worth naming as one — the light is a hundred kilometres up and the eye is eighty metres. it is also the fiction the sky deck already runs. the veils are stacked above the clouds so at least the order is right, and the clearance is enforced in code rather than left to two sliders agreeing.
+
+**the year is the second gate, and it is the one that had to be added.** `daylight.ts` runs one sun arc at one tilt for every week of the year, so a midsummer midnight is exactly as dark as a midwinter one. fine for everything else and wrong for this: you cannot see the aurora in june at these latitudes not because it has stopped but because the sky never gets past dusk. so `season.ts` gained the one curve in it that is not about heat:
+
+```ts
+darkAmount(phase) = smoothstep(-0.9, -0.15, cos(phase · τ))
+```
+
+every other seasonal curve runs late — `LAG` and `ICE_LAG` are those weeks written down. this one has no lag at all, and cannot: **night length is geometry, not heat**, and the sun comes back up on the day the orbit says.
+
+no weather term, deliberately. solar activity is not something this scape models, and a random flare would be the one non-deterministic thing in a world that is otherwise a seed and a coordinate.
+
+**the colour is in the field, not over it.** unlike the mist and cloud fields — white, taking their tint from the clock — the auroral field is baked with colour in it, because the colour *is* the structure: green where the curtain is dense, violet where it thins at its fringes and crown. that is a function of the distance from an arc's centre line, which is the same number the alpha is computed from and impossible to keep in step with if it were a gradient applied afterwards. two arcs are baked, wandering as sums of sines and therefore periodic across the tile. mirrored wrapping — what the mist and cloud fields use — was tried: reflecting a wandering arc turns every tile boundary into a hard chevron, and a sky full of zigzags is the one thing an aurora never looks like.
+
+the two arcs are combined with a maximum rather than a sum: two curtains overlapping do not make a brighter curtain, and adding them fills in the dark gap the second arc exists to show.
+
+**cost: one draw per veil, and none at all for most of the year.** the veils are two-sided and still one draw each — three renders a transparent double-sided material in two passes, right for a curved shell and waste for a flat sheet, so `forceSinglePass` is set. they are made *invisible* rather than transparent whenever the light is out. `auroraLayers` is 3 on `ultra`, 2 on `desktop`, **1 on `mobile`** and 0 on `minimal`: the phone gets an aurora, and the tier that only exists after a context loss gets a plain dark sky rather than a dimmer one.
+
+## the sky deck
+
+overhead cloud is the ground mist's technique moved up: world-pinned sheets of a baked alpha field, scrolling on the wind. two things had to differ.
+
+- **the tile has to be smaller than the frame.** a pattern sized to the sheet shows you a fraction of a single blob, bilinearly smoothed into a flat wash. a tile you can fit two or three of into frame is what makes clouds look like separate clouds — the gaps are the whole effect.
+- **the field is thresholded, not raised to a power.** the mist keeps a little of itself everywhere, which is right for something you are standing in. cloud read from underneath has to have holes, or it is a grey filter over the frame.
+
+the deck fades in as the view pulls back, and that gate is not a performance dodge: an orthographic camera zoomed in sits *below* the ceiling, so the only thing overhead cloud could do there is cover the picture.
+
+it is unfogged, deliberately. linear fog fades by distance and the deck is the furthest thing in frame, so leaving it in dissolves every cloud into the fog colour exactly when it comes into view. it takes its colour from the clock instead.
+
+## mist that stays where the ground is
+
+the sheets used to chase the camera's focus point, which drags the whole cloud pattern across the ground as you pan — and a mist that moves with the camera reads as the *island* moving, the one thing ground mist must never do. they are pinned to the world now, which costs two things and pays for both:
+
+- the sheet has to reach past the terrain from any pan, and the pattern's world size has nothing to do with that. tie the texture repeat to the sheet and widening it magnifies every wisp into a few big soft blobs, bilinearly smoothed until the gaps close, which is how ground mist becomes a white-out. the repeat is derived from a fixed *units per tile* instead.
+- a flat sheet that survives any pan also lies over every pixel of open water in frame, four deep. ground mist collects over land and shallows anyway, so the alpha is baked into the vertices and falls off radially.
+
+**the mist stands up as well as lying down.** stacked horizontal sheets only have depth when you look *across* them, so a mist built from them alone thins out exactly as the view tips down. alongside them are upright slices facing the viewer, spaced along the view axis, so there is always something between the eye and the ground whatever the elevation.
+
+those slices follow the focus point rather than the world origin — a stack pinned to the origin falls behind the camera the moment you pan to the far side of the map. that is only safe because the *pattern* does not come along: each slice feeds its own displacement along its local x axis back into the texture offset, so every wisp stays over the same patch of ground while the quad slides underneath it.
+
+**density follows the authored amount and nothing else.** it used to be scaled each frame by the view elevation, which meant orbiting or zooming quietly changed the weather. mist belongs to the world, not to where you happen to be standing.
+
+## sun shafts
+
+`createGodRaysPass` projects the light and disables itself only when the light is *behind* the camera. under an orthographic projection that test almost never fires: the atmosphere models the sun 150 units from the focus, which lands somewhere around ndc y = 3 — permanently off frame, still "in front". the radial march then runs from every fragment toward a point far outside the image and smears the whole sky into a white wash.
+
+so the shafts get their own virtual sun in [`post.ts`](src/scene/post.ts): placed a fraction of the frame away along the real sun direction, clamped just past the frame edge, faded to nothing as it leaves the view. the direction is honest — taken live from the atmosphere's sun — but the distance is a framing decision, because an orthographic camera has no vanishing point to inherit one from.
+
+the same class of bug is why the water's ripple map carries mipmaps: a 128px noise texture sampled at roughly one texel per pixel aliases into a field of bright specks, and the ray pass turns every speck into a streak.
+
+## the lake, and the angle that broke it
+
+binding tilt to zoom sweeps the camera's elevation through a range that crosses the sun's. that turned out to be a good stress test of the water, which failed it twice:
+
+- **a near-mirror plane has no good answer at that crossing.** at low roughness the whole flat surface reflects the sun into every fragment at once, and the lake becomes one white highlight the size of the sea. the surface is rough now, which spreads the lobe until no angle can concentrate it — and rough dielectrics then pick up the pale overcast sky instead, so `envMapIntensity` is cut to give the depth tint its colour back.
+- **a narrow lobe also makes the sea change colour when you orbit.** short of an outright white-out, a tight highlight still means the lake is pale grey facing the sun and dark teal facing away.
+- **the ripple normals came from a white-noise texture.** minified past one texel per pixel that lands a different random normal in every pixel, so wherever the mirror direction drifted into the spray, isolated pixels fired at full strength. which angles triggered it was pure luck, which is why it stayed invisible until something moved the elevation. shading now reads a *smooth* fractal field; the speckled texture only ever tints.
+
+what the roughness gave away, the glitter pays back: two noise fields at incommensurate scales, multiplied and raised to a high power, so the product spikes only where both crests coincide. that exponent is the whole control — threshold it gently instead and the *mean* of the product clears the cut, every fragment lights up, and the lake becomes a sheet of white paper.
+
+two related calibrations came out of the same pass:
+
+- **bloom threshold sits above the fog.** the fog colour scatters toward the sun until its linear luminance is around 0.85, and at the old 0.86 a frame full of lit haze crossed the threshold everywhere at once and bloomed itself into a white-out.
+- **direction tints the light, it does not re-expose the shot.** at the original strength the same island was a washed-out miniature facing one way and a dark, moody one facing the other. the scatter is a third of what it was.
+
+## framing the sea
+
+an orthographic camera's distance along its view axis changes nothing you can see — but it decides where the frustum's *bottom edge* sits in world space. let that edge drop under the waterline and the lower band of the frame is made of rays that start below the sea and point down; they can never intersect a horizontal plane above them, so the water simply stops partway up the screen.
+
+[`camera-controls.ts`](src/scene/camera-controls.ts) therefore lifts the camera with the zoom rather than sitting at a fixed radius. it costs nothing — the projection is unchanged.
+
+that distance carries a second, non-obvious load: the atmosphere reads it to place the fog, as `near = radius - viewSize * 0.9`. clearing the waterline needs *less* distance the steeper the view gets, so once tilt became a function of zoom the lift began to swing — and with it the fog band, which collapsed onto the camera and washed the frame grey at high elevations. the lift now has a floor proportional to `viewSize`.
+
+## ground that casts
+
+the terrain has always been a shadow caster, but the sun's shadow frustum was fitted with a margin sized for the tallest *prop* — about a spruce. the terrain is by far the tallest thing in the scene, so every ridge shadow was clipped where it left the visible ground and hills read as though lit from inside. the margin is derived from the terrain's own relief now.
+
+the ground it falls on carries **two octaves of grain, and a roughness break**. one scale gives ground a texture but not a history: real soil has metre-wide patches of wear and damp under the centimetre-wide grit, and without the broad octave the fine one tiles into a visible weave the moment you zoom out past its repeat. both fetches come from the same 256² texture at different frequencies, so the second costs a sampler read and no memory. the third piece is specular — uniform roughness is the giveaway that a surface is a render — so the fine grain also polishes and dulls it by a few percent.
+
+## the graphics overlay
+
+a panel on the right edge exposes the scene's optics, daylight, atmosphere, mist, water, ground and camera tilt, with a switch per effect and its parameters nested underneath. it collapses to a handle, starts collapsed on touch and narrow viewports, and resets to the authored values.
+
+the thing worth knowing is that **it holds no state**. every control reads and writes `SCAPE_CONFIG` directly, and the scene modules re-read that config every frame — uniforms are refreshed in each module's `update`, not captured at build. so there is exactly one copy of every number, the panel and the scene cannot drift apart, and nothing has to be pushed anywhere when a slider moves.
+
+**a control is a path, not a closure.** each knob is declared as a dotted string into the config — `look.bloom`, `daylight.time` — rather than as a `get`/`set` pair. a closure can only be *called*; a string can be collected, compared and written to disk, which is why one declaration list drives the panel, the local-storage snapshot, the reset and the `?set=` url without any of them enumerating the scene's settings a second time.
+
+there is no `enabled` flag anywhere in the config: an effect is off when its strength is zero. so a switch is a view of the number underneath it — it remembers what it turned off at, restores that on the way back, and follows its own slider if you drag that to zero yourself. what a slider cannot do is change the *shape* of the chain: which passes exist is a quality-tier decision made once when the composer is built, so a knob whose pass the tier never created renders greyed rather than lying.
+
+### the card, and the corner it was in
+
+the card in the top-left — title, gestures and the diagnostics log — **starts hidden** and is toggled by the chevron beside it or by `h`, remembered under its own key.
+
+the handle is pinned to the *figure* rather than to the card, for the same reason `.gfx-toggle` sits outside `.gfx`: a control that hides along with the thing it controls is a one-way door.
+
+the card is hidden rather than removed. the log inside it is the only crash report a phone gives and it goes on collecting whether or not anyone is watching, so it stays in the document — `inert` is what keeps it out of the tab order and the hit test. **`?debug` opens it whatever was last chosen**, because a debugging surface you have to already know a keyboard shortcut to reach is not one.
+
+the offset on the handle is a `left` and not a `transform`, and that is not a preference. a percentage inside `translateX` resolves against the *element's own* width — so `--card-width`, carrying a `calc(100% - 2rem)`, collapsed to a negative six pixels against a 26-pixel button and parked the handle on top of the card it had just opened.
+
+### the frame counter
+
+`.fps` sits in the bottom-left and reads `58 fps · 17.2 ms`, with `41 calls · 812k tris` added under `?debug`. it is deliberately in neither the card nor the panel: both are things you put away, and a frame counter you have to open is a frame counter that was not measuring the thing you were looking at when it got slow.
+
+it times nothing itself. [`vitals.ts`](src/scene/vitals.ts) has been measuring the frame all along, and this is a second view of that one measurement on its own quarter-second cadence.
+
+### the performance section
+
+three knobs applied live by [`runtime.ts`](src/scene/runtime.ts): pixel ratio, frame cap, and how often the shadow map is rebuilt.
+
+the last is the one worth explaining. three rebuilds the entire shadow depth pass — terrain, merged steading, every scattered instance — on **every frame it draws**, at up to 4096². nothing here moves fast enough to need that: the sun crosses the sky over minutes and the foliage sway is a slow shader animation. `runtime.ts` takes `shadowMap.autoUpdate` off the renderer and hands the map out on a cadence instead, and `atmosphere.ts` only fits the sun's frustum on the frames the map is actually rebuilt on.
+
+measured in headless chromium on an m5, desktop tier: cadence 1 draws **110 calls** a frame, cadence 4 draws **73**. the frame rate barely moves there, because that machine is fill-rate bound rather than draw-call bound — the same run has ratio 1.75 at 18fps, ratio 1.0 at 31 and ratio 0.5 at 44, which is also why the default ratio is 1.0. the cadence is for the devices where the depth pass *is* the bill.
+
+**this section is deliberately not persisted.** its values are seeded from whatever tier the device resolved to on *this* load, re-seeded when a context loss buys a cheaper one, and re-seeded again by `reset`. a pixel ratio kept from one session and replayed into the next is exactly how a device that has already lost a context gets handed back the budget that took it — underneath a tier [`tier-memory.ts`](src/scene/tier-memory.ts) had correctly held down.
+
+### settings that stick
+
+the overlay writes a debounced snapshot of every exposed path under one local-storage key and applies it before the scene is built. two details carry the weight:
+
+- **stored values are only accepted when their type still matches the config.** a snapshot from an older build cannot poke a string into a uniform and take the shader down on load — it is ignored, field by field.
+- **`reset` removes the key rather than overwriting it with the defaults.** re-authoring a value in `config.ts` should reach anyone who has pressed reset, and it cannot if reset leaves a snapshot of the old defaults in front of it.
+
+the authored values are captured when the store is constructed, *before* `load` runs — after that the config no longer holds them.
+
+`localStorage` access alone throws in a sandboxed frame and in safari's private mode. a graphics overlay is not worth taking the scene down for, so a missing store degrades to "settings do not persist".
+
+the panel's controls carry `autocomplete="off"`, which is not cosmetic: browsers restore a reloaded form's controls to whatever the user left them at, *after* the page's own initialisation — so a reload would put stale numbers back into the sliders, fire `input` for them, and save them over the real snapshot. right for a form; wrong for a view of external state.
+
+---
+
+## deployment
+
+`vite.config.ts` uses `base: './'`, so built assets resolve relative to whatever github pages route contains the app. `bun run build` writes `dist/`; publish it to the desired pages path. the [`deploy`](.github/workflows/deploy.yml) workflow does this from `main` automatically, and [`pr checks`](.github/workflows/pr-checks.yml) runs lint, typecheck, test and build on every pull request into it.
