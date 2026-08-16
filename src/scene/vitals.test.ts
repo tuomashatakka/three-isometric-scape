@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { OrthographicCamera } from 'three'
 import type { WebGLRenderer } from 'three'
 import type { FrameContext, SceneContext } from 'threejs-scene'
 import { createVitals } from './vitals.ts'
@@ -35,6 +36,14 @@ function frameAt (index: number): FrameContext {
   return { delta: 1 / 60, elapsed: index / 60, frame: index }
 }
 
+function stubCamera (): OrthographicCamera {
+  const camera = new OrthographicCamera()
+
+  camera.position.set(12.5, 48, -7.25)
+  camera.userData.viewSize = 42
+  return camera
+}
+
 describe('createVitals', () => {
   test('reports the first frame as a build cost rather than a frame time', () => {
     const notices: string[] = []
@@ -42,6 +51,7 @@ describe('createVitals', () => {
 
     const vitals = createVitals({
       renderer,
+      camera:  stubCamera(),
       verbose: false,
       report:  () => undefined,
       notice:  message => notices.push(message),
@@ -63,6 +73,7 @@ describe('createVitals', () => {
     const renderer = stubRenderer()
     const vitals   = createVitals({
       renderer,
+      camera:  stubCamera(),
       verbose: false,
       report:  () => undefined,
       notice:  () => undefined,
@@ -83,6 +94,7 @@ describe('createVitals', () => {
 
     const vitals = createVitals({
       renderer,
+      camera:  stubCamera(),
       verbose: false,
       report:  () => undefined,
       notice:  () => undefined,
@@ -108,12 +120,17 @@ describe('createVitals', () => {
     expect(first.ms).toBeGreaterThan(0)
     expect(first.calls).toBe(41)
     expect(first.triangles).toBe(812_000)
+    expect(first.cameraX).toBe(12.5)
+    expect(first.cameraY).toBe(48)
+    expect(first.cameraZ).toBe(-7.25)
+    expect(first.viewSize).toBe(42)
   })
 
   test('counts resizes, because a phone can fire dozens a second', () => {
     const renderer = stubRenderer()
     const vitals   = createVitals({
       renderer,
+      camera:  stubCamera(),
       verbose: false,
       report:  () => undefined,
       notice:  () => undefined,

@@ -75,9 +75,13 @@ the house rules. each is load-bearing for either performance or determinism, and
 
 **new knobs go in the config, and in the overlay** — if they are visual *and* read per frame. a build-time knob (`archipelago.*`, `layout.*`, `creek.*`, `footpath.*`, `dressing.*`, or route-shaping `boats.*`) stays out of the panel, because a slider that needs a rebuild to be seen lies about what a slider does. read config per frame in `update`; never capture it at build.
 
+**name the scale before changing it.** shared sheet and surface extents follow `archipelago.worldSize`; screen composition follows `camera.maxViewSize` or the live `viewSize`; a real-world detail such as a wisp, ripple or streak speed remains metres. when either the world or camera grows, audit all three classes in clouds, mist, aurora, rain and water. replacing every old `terrain.size` with the same larger number is not a scale pass.
+
 **there is no `enabled` flag.** an effect is off when its strength is zero. do not add a boolean that duplicates a number that already exists.
 
 **anything that moves needs a speed that can reach zero**, and that speed goes into `STILL` in [`scripts/scape-shot.ts`](scripts/scape-shot.ts). a hard-coded rate cannot be stopped, so it cannot be captured, so it poisons every visual diff taken after it lands.
+
+**moving state has one authority.** cameras, wakes and diagnostics consume stable pose records from the simulation; they do not resample the route or derive a second turn clock. a selectable moving thing also needs an explicit way back to manual control — escape plus the direct-manipulation gestures that would otherwise fight the follow target.
 
 **every tier still has to run.** gate new cost on `AtmosphereQuality`; defend `mobile`. a system that cannot be made cheap gets a tier gate and a graceful *absence*, not a broken-looking cheap version.
 
@@ -89,7 +93,7 @@ the house rules. each is load-bearing for either performance or determinism, and
 
 **dependencies are a last resort.** `three` and `threejs-scene` are the runtime, and the scene is built from primitives on purpose. adding a package needs a real justification in the pull request body; adding one to avoid writing forty lines of geometry does not qualify.
 
-**tests come with the change.** new pure builders and new pure maths get a determinism test in the neighbouring `*.test.ts` — attributes present, base at zero, bounds sane, byte-for-byte stable per seed. and where a change makes a *claim* — "everything connects to everything", "no gable pokes through its roof" — write the test that states the claim as a fact about the data, not a test that re-implements the code.
+**tests come with the change.** new pure builders and new pure maths get a determinism test in the neighbouring `*.test.ts` — attributes present, base at zero, bounds sane, byte-for-byte stable per seed. and where a change makes a *claim* — "everything connects to everything", "no gable pokes through its roof" — write the test that states the claim as a fact about the data, not a test that re-implements the code. schedules are tested through moving legs *and* stationary dwell; follow controllers are tested through select, refresh and every documented exit; scale helpers are tested at the minimum, middle and maximum view.
 
 **update the documentation.** the readme is the design record and its project map has to stay true: a new system gains a section, a new file gains a line. a new tool or script gains an entry in `agents.md`. a readme that lies is worse than no readme.
 
@@ -152,7 +156,7 @@ ready for review, never a draft. the body carries:
 
 - **what the scape gained**, in a sentence someone can picture
 - **how it was built** — the modules touched and why, and any decision a reviewer would otherwise have to reverse-engineer
-- **cost** — draw calls added, instance counts, texture memory, and what the mobile tier does with it
+- **cost** — draw calls added, instance counts, texture memory, and what the mobile tier does with it. only quote before/after fps or frame time when both were measured with the same command, tier and pose; otherwise state the structural budget and say the comparison was not measured
 - **verification** — the four commands, plus the `scape:map --stats` block and the `scape:diff` table, quoted. embed a still only for a pose the diff actually flagged
 - **follow-ups**, if the run deliberately left something for the next one
 
@@ -226,7 +230,8 @@ either way the prompt stays a pointer to this file. the brief lives in the repos
 - `scape:diff` moved the poses the change was aimed at, and left the rest alone
 - `lint`, `typecheck`, `test`, `build` all clean
 - new tuning exposed in the config and, where it belongs, the overlay
-- a test that states the run's claim as a fact about the data
+- a test that states the run's claim as a fact about the data, including waits and exit paths rather than only the moving happy path
+- every larger-world extent is classified as world-sized, frame-sized or metre-sized instead of scaled by reflex
 - the readme still describes the code that exists, and `agents.md` still describes the tools that exist
 - a diff a person could review over coffee, merged the same day
 

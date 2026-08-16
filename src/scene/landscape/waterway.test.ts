@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { SCAPE_CONFIG } from '../config.ts'
 import type { ScapeConfig } from '../config.ts'
 import { surveyArchipelago } from './archipelago.ts'
+import { scheduledFleetMinimumSeparation } from './boat-motion.ts'
 import { BOAT_HULL_RADIUS, sampleWaterway } from './waterway.ts'
 import type { RouteSample } from './waterway.ts'
 
@@ -98,5 +99,14 @@ describe('the waterways between the islands', () => {
 
     expect(closest).toBeGreaterThanOrEqual(config.boats.separation)
     expect(network.minimumSeparation).toBeGreaterThanOrEqual(config.boats.separation)
+  })
+
+  test('keeps the synchronized arrival and dwell schedule separated', () => {
+    const closest = scheduledFleetMinimumSeparation(
+      network.route,
+      network.boatOffsets.length,
+    )
+
+    expect(closest).toBeGreaterThanOrEqual(config.boats.separation)
   })
 })

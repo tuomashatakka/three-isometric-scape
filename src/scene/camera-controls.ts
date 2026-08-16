@@ -2,6 +2,8 @@ import { MathUtils, Raycaster, Vector2, Vector3 } from 'three'
 import type { OrthographicCamera } from 'three'
 import { aimIsoCamera, defineModule, resizeIsoCamera, smoothstep } from 'threejs-scene'
 import type { AppModule, FrameContext } from 'threejs-scene'
+import { BOAT_FOLLOW_VIEW_SIZE, createBoatFollowController } from './camera-follow.ts'
+import type { BoatFollowSource } from './camera-follow.ts'
 import type { ScapeConfig } from './config.ts'
 import type { Landscape } from './landscape/index.ts'
 
@@ -30,9 +32,10 @@ interface TouchFrame {
 }
 
 export interface CameraControlsOptions {
-  camera:    OrthographicCamera
-  canvas:    HTMLCanvasElement
-  landscape: Landscape
+  camera:     OrthographicCamera
+  canvas:     HTMLCanvasElement
+  landscape:  Landscape
+  boatFleet?: () => BoatFollowSource | null
 
   /** Read live, so the tuning overlay can reshape the zoom and tilt range. */
   limits: ScapeConfig['camera']
@@ -127,6 +130,7 @@ export function createCameraControls (
     camera,
     canvas,
     landscape,
+    boatFleet,
     limits,
     maxFocus,
     reducedMotion,
@@ -136,7 +140,6 @@ export function createCameraControls (
 
   const baseRotation = camera.userData.rotation as number
   const baseRadius   = camera.userData.radius as number
-  const waterLine    = landscape.layout.waterLevel
 
   const pose: CameraPose = {
     focus:    new Vector3(0, landscape.heightAt(0, 0), 0),
@@ -155,6 +158,7 @@ export function createCameraControls (
   const aimTarget: [number, number, number] = [ 0, 0, 0 ]
   const raycaster                           = new Raycaster()
   const pointerNdc                          = new Vector2()
+  const boatFollow                          = createBoatFollowController(baseRotation)
   let lastTouch: TouchFrame | null = null
   let multiTouch                   = false
   let revolving                    = false
@@ -179,7 +183,8 @@ export function createCameraControls (
   function liftedRadius (tilt: number): number {
     const radians = MathUtils.degToRad(tilt)
     const drop    = pose.viewSize * 0.5 * Math.cos(radians)
-    const need    = (drop + WATER_CLEARANCE - (pose.focus.y - waterLine)) / Math.max(Math.sin(radians), 1e-3)
+    const need    = (drop + WATER_CLEARANCE - (pose.focus.y - landscape.layout.waterLevel)) /
+      Math.max(Math.sin(radians), 1e-3)
 
     return Math.max(baseRadius, need, pose.viewSize * DISTANCE_FLOOR)
   }
@@ -215,7 +220,35 @@ export function createCameraControls (
     revolving = false
   }
 
+  function leaveBoat (): void {
+    if (!boatFollow.clear())
+      return
+
+    target.focus.y = landscape.heightAt(target.focus.x, target.focus.z)
+    retarget()
+  }
+
+  function syncBoatFollow (): boolean {
+    const wasActive = boatFollow.active
+
+    if (!boatFollow.update()) {
+      if (wasActive) {
+        target.focus.y = landscape.heightAt(target.focus.x, target.focus.z)
+        retarget()
+      }
+      return false
+    }
+
+    const chase = boatFollow.target
+
+    target.focus.set(chase.x, chase.y, chase.z)
+    target.heading = chase.heading
+    settling      = true
+    return true
+  }
+
   function panTo (dx: number, dy: number): void {
+    leaveBoat()
     stopRevolving()
 
     const perPixel = pose.viewSize / (canvas.clientHeight || 1)
@@ -237,6 +270,7 @@ export function createCameraControls (
   // Dragging right swings the world right, which means the *camera* goes the
   // other way. The scaffold had the sign of a turntable, not of a grab.
   function rotateTo (dx: number): void {
+    leaveBoat()
     stopRevolving()
     target.heading = wrapHeading(target.heading + dx * ROTATE_PER_PIXEL)
     retarget()
@@ -252,11 +286,32 @@ export function createCameraControls (
     pointerNdc.set(x, y)
     raycaster.setFromCamera(pointerNdc, camera)
 
-    const hit = raycaster.intersectObjects(landscape.surfaces, false)[0]
-    if (!hit)
+    const fleet   = boatFleet?.()
+    const boatHit = fleet
+      ? raycaster.intersectObject(fleet.mesh, false)[0]
+      : null
+    const surfaceHit = raycaster.intersectObjects(landscape.surfaces, false)[0]
+
+    if (
+      fleet &&
+      boatHit?.instanceId !== undefined &&
+      (!surfaceHit || boatHit.distance <= surfaceHit.distance)
+    ) {
+      if (boatFollow.select(fleet, boatHit.instanceId)) {
+        target.viewSize = clamp(BOAT_FOLLOW_VIEW_SIZE, limits.minViewSize, limits.maxViewSize)
+        stopRevolving()
+        syncBoatFollow()
+        onFocus(target.focus)
+      }
+      return
+    }
+
+    leaveBoat()
+
+    if (!surfaceHit)
       return
 
-    target.focus.copy(hit.point)
+    target.focus.copy(surfaceHit.point)
     target.focus.x = clamp(target.focus.x, -maxFocus, maxFocus)
     target.focus.z = clamp(target.focus.z, -maxFocus, maxFocus)
     target.focus.y = landscape.heightAt(target.focus.x, target.focus.z)
@@ -401,8 +456,10 @@ export function createCameraControls (
       zoomTo(KEYBOARD_ZOOM)
     else if (event.key === '-' || event.key === '_')
       zoomTo(1 / KEYBOARD_ZOOM)
-    else if (event.key === 'Escape')
+    else if (event.key === 'Escape') {
+      leaveBoat()
       stopRevolving()
+    }
     else
       return
 
@@ -420,6 +477,8 @@ export function createCameraControls (
    */
   function update (frame: FrameContext): void {
     const delta = Math.min(frame.delta, 0.1)
+
+    syncBoatFollow()
 
     if (revolving)
       target.heading = wrapHeading(target.heading + ORBIT_DEGREES_PER_SECOND * delta)
@@ -441,10 +500,11 @@ export function createCameraControls (
       pose.focus.copy(target.focus)
       pose.viewSize = target.viewSize
       pose.heading  = target.heading
-      settling      = revolving
+      settling      = revolving || boatFollow.active
     }
 
-    pose.focus.y = landscape.heightAt(pose.focus.x, pose.focus.z)
+    if (!boatFollow.active)
+      pose.focus.y = landscape.heightAt(pose.focus.x, pose.focus.z)
     apply()
   }
 

@@ -43,23 +43,18 @@ const DRIFT_SPEED  = 2.4
 const DECK_ALPHA   = 0.34
 
 /**
- * World units per tile of the cloud field.
+ * Tile width as a fraction of the widest authored frame.
  *
- * This has to stay *under* the height of the visible frame, and the reasoning is
- * the same one the ground mist learnt the hard way: the deck is far wider than
- * anything you can see at once, so if the pattern is sized to the sheet you are
- * looking at a fraction of a single blob, bilinearly smoothed into a flat wash.
- * A tile you can fit two or three of into frame is what makes clouds look like
- * separate clouds — the gaps are the whole effect, and there are no gaps in a
- * pattern whose features are larger than the picture.
+ * The deck follows the world's extent, but cloud density is a screen-space
+ * composition: widening the camera must widen a tile with it or the sky becomes
+ * a wallpaper of tiny repeats. 0.809 preserves the 106.8m tile against the 132m
+ * maximum view the single-island composition was tuned on.
  */
-/**
- * A fraction of the terrain's own extent, not a number of metres. The gaps
- * between clouds are the whole effect, and a tile that stays put while the
- * island grows repeats often enough to close them. 0.545 is the 72 units this
- * was tuned at, over the 132-unit terrain it was tuned on.
- */
-const TILE_FRACTION = 0.545
+const TILE_VIEW_FRACTION = 0.809
+
+export function cloudTileSize (maxViewSize: number): number {
+  return maxViewSize * TILE_VIEW_FRACTION
+}
 
 /** Where the field stops being sky and starts being sheet, as fractions of the sheet. */
 const REACH_IN  = 0.2
@@ -144,7 +139,7 @@ export function createCloudLayer ({
 
   function tile (index: number): Texture {
     const map = texture.clone()
-    map.repeat.setScalar(deckSize / (config.terrain.size * TILE_FRACTION) * (1 + index * 0.29))
+    map.repeat.setScalar(deckSize / cloudTileSize(config.camera.maxViewSize) * (1 + index * 0.29))
     map.offset.set(index * 0.37, index * 0.19)
     map.needsUpdate = true
     return map

@@ -1,4 +1,4 @@
-import type { WebGLRenderer } from 'three'
+import type { Camera, WebGLRenderer } from 'three'
 import { defineModule } from 'threejs-scene'
 import type { AppModule } from 'threejs-scene'
 
@@ -32,6 +32,14 @@ export interface VitalsSample {
    * different things faded into them.
    */
   drawn: number
+
+  /** Live camera position in world metres. */
+  cameraX: number
+  cameraY: number
+  cameraZ: number
+
+  /** Orthographic view height in world metres — the scape's zoom unit. */
+  viewSize: number
 }
 
 /** What the scape reports about itself while it is running. */
@@ -44,6 +52,7 @@ export interface Vitals {
 
 export interface VitalsOptions {
   renderer: WebGLRenderer
+  camera:   Camera
 
   /** Emit the periodic line as well as answering `snapshot`. */
   verbose: boolean
@@ -128,7 +137,7 @@ const GL_ERRORS: Record<number, string> = {
  * context, because the frame context reports the *nominal* delta once the loop
  * is paced — which is exactly the number that hides a device failing to keep up.
  */
-export function createVitals ({ renderer, verbose, report, notice, sample }: VitalsOptions): Vitals {
+export function createVitals ({ renderer, camera, verbose, report, notice, sample }: VitalsOptions): Vitals {
   let last     = performance.now()
   let frames   = 0
   let span     = 0
@@ -176,6 +185,8 @@ export function createVitals ({ renderer, verbose, report, notice, sample }: Vit
       `stalls ${stalls}`,
       `calls ${calls}`,
       `tris ${Math.round(triangles / 1000)}k`,
+      `xyz ${camera.position.x.toFixed(1)},${camera.position.y.toFixed(1)},${camera.position.z.toFixed(1)}`,
+      `zoom ${Number(camera.userData.viewSize ?? 0).toFixed(1)}m`,
       `geo ${renderer.info.memory.geometries}`,
       `tex ${renderer.info.memory.textures}`,
       `prog ${renderer.info.programs?.length ?? 0}`,
@@ -195,12 +206,16 @@ export function createVitals ({ renderer, verbose, report, notice, sample }: Vit
       return
 
     sample({
-      fps: sampleSpan > 0 ? sampleFrames / sampleSpan : 0,
-      ms:  sampleFrames > 0 ? sampleSpan * 1000 / sampleFrames : 0,
+      fps:      sampleSpan > 0 ? sampleFrames / sampleSpan : 0,
+      ms:       sampleFrames > 0 ? sampleSpan * 1000 / sampleFrames : 0,
       worst,
       calls,
       triangles,
       drawn,
+      cameraX:  camera.position.x,
+      cameraY:  camera.position.y,
+      cameraZ:  camera.position.z,
+      viewSize: Number(camera.userData.viewSize ?? 0),
     })
 
     sinceSample  = 0

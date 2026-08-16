@@ -73,6 +73,35 @@ const MIST_HEIGHT = 9
  */
 const TILE_UNITS = 79
 
+/**
+ * The world-pinned sheets must cover the focus range and a two-to-one maximum
+ * view before their radial fade reaches the frame. Their texture still repeats
+ * every authored tile, so this changes reach without magnifying the wisps.
+ */
+const SHEET_WORLD_MULTIPLIER = 4.4
+
+/** Upright slice spacing as a fraction of the widest authored frame. */
+const SLICE_VIEW_FRACTION = 0.445
+
+/** Preserve the mask's world-space sampling density as its quad grows. */
+const MASK_CELL_UNITS = 20
+
+export function mistSheetSize (worldSize: number): number {
+  return worldSize * SHEET_WORLD_MULTIPLIER
+}
+
+export function mistSliceSpacing (viewSize: number): number {
+  return viewSize * SLICE_VIEW_FRACTION
+}
+
+export function mistSliceReach (index: number, count: number, viewSize: number): number {
+  return (index - (count - 1) / 2) * mistSliceSpacing(viewSize)
+}
+
+function mistMaskSegments (size: number): number {
+  return Math.ceil(size / MASK_CELL_UNITS)
+}
+
 /** Radial fade band, as fractions of the terrain extent. */
 const REACH_IN  = 0.16
 const REACH_OUT = 0.44
@@ -116,7 +145,8 @@ const viewAxis = new Vector3()
  * by the time the eye is out at sea, and never an edge you can see.
  */
 function sheetGeometry (size: number, config: ScapeConfig): PlaneGeometry {
-  const geometry = new PlaneGeometry(size, size, 72, 72)
+  const segments = mistMaskSegments(size)
+  const geometry = new PlaneGeometry(size, size, segments, segments)
   const position = geometry.getAttribute('position')
   const colors   = new Float32Array(position.count * 4)
 
@@ -193,7 +223,8 @@ function sliceGeometry (width: number, height: number): PlaneGeometry {
  * open water it wants is all the water there is. See `seaSmokeAmount`.
  */
 function smokeGeometry (size: number, config: ScapeConfig): PlaneGeometry {
-  const geometry = new PlaneGeometry(size, size, 72, 72)
+  const segments = mistMaskSegments(size)
+  const geometry = new PlaneGeometry(size, size, segments, segments)
   const position = geometry.getAttribute('position')
   const colors   = new Float32Array(position.count * 4)
   const half     = size * 0.5
@@ -256,8 +287,7 @@ export function createMistLayer ({
   const count      = Math.max(1, quality.mistLayers)
   const sliceCount = Math.max(1, Math.round(count / 2))
   const smokeCount = Math.max(1, Math.round(count / 2))
-  const sheetSize  = config.archipelago.worldSize * 2.8
-  const spacing    = config.terrain.size * 0.3
+  const sheetSize  = mistSheetSize(config.archipelago.worldSize)
   const waterLine  = config.terrain.waterLevel
   const amount     = config.atmosphere.mistAmount
   const geometry   = sheetGeometry(sheetSize, config)
@@ -435,7 +465,8 @@ export function createMistLayer ({
     },
 
     update (_state, frame) {
-      const density = config.atmosphere.mistAmount
+      const density  = config.atmosphere.mistAmount
+      const viewSize = camera.userData.viewSize as number ?? config.camera.viewSize
 
       // Mist is unlit, so nothing else would carry the time of day onto it. Take
       // the horizon straight from the clock and it stays the same substance as
@@ -475,7 +506,7 @@ export function createMistLayer ({
         // Centred on the focus, not on the origin. A stack pinned to the world
         // origin falls behind the camera the moment you pan to the far side of
         // the map, and the upright mist simply stops existing there.
-        const reach = (index - (sliceCount - 1) / 2) * spacing
+        const reach = mistSliceReach(index, sliceCount, viewSize)
         const x     = (focus?.[0] ?? 0) - viewAxis.x * reach
         const z     = (focus?.[2] ?? 0) - viewAxis.z * reach
 

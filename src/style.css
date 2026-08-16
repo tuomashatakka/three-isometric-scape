@@ -194,6 +194,7 @@ h1 {
   /* Digits that keep their column. Proportional numerals make a counter twitch
      sideways on every sample, which reads as the page being busy. */
   font-variant-numeric: tabular-nums;
+  white-space: pre-line;
   pointer-events: none;
   background: rgb(21 24 20 / 86%);
   border: 1px solid rgb(226 242 164 / 16%);

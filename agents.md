@@ -50,7 +50,7 @@ home/home @ (0,0)  land 19.6% peak 9.09m  paths 16  jetty (-26,-17)
 ridge/ridge @ (-178,128)  land 15.1% peak 9.8m  paths 11  jetty (-151,138)
 meadow/meadow @ (178,128)  land 27% peak 5.68m  paths 12  jetty (151,126)
 waterways 3 legs 809.7m  connected OK  wet OK  clearance 0.67m
-boats 3  separation 103.41m  conflicts 0
+boats 3  separation 115.79m  conflicts 0
 ```
 
 ### `bun run prop:map` — one prop, as ascii
@@ -146,7 +146,7 @@ on the running page — useful on a device you cannot attach a debugger to:
 
 | param | does |
 | --- | --- |
-| `?debug` | live vitals in the frame counter, and opens the card whatever was last chosen |
+| `?debug` | adds calls and triangles to the always-visible fps, xyz and zoom readout, and opens the card whatever was last chosen |
 | `?tier=minimal\|mobile\|desktop\|ultra` | forces a tier past detection *and* past tier memory |
 | `?post=0\|1` | forces the optical chain either way |
 | `?set=look.bloom=0,daylight.time=0.5` | any dotted config path, comma separated |
@@ -194,11 +194,12 @@ register in [`props/index.ts`](src/scene/props/index.ts) and put the name in `HE
 | `path.ts` | polyline smoothing and queries — reuse these, do not re-derive them |
 | `network.ts` | the farm's street plan: waypoints, spanning tree, shortcuts |
 | `footpath.ts` | tracing a planned leg into a worn line, and the wear query |
-| `waterway.ts` | world ports, water-only route search, hull clearance and fleet offsets |
-| `boats.ts` | one dynamic `InstancedMesh` moving the collision-safe fleet |
+| `waterway.ts` | world ports, water-only route search and hull clearance |
+| `boat-motion.ts` | synchronized legs, early jetty waits, seven-second dwell and bounded turns |
+| `boats.ts` | one dynamic `InstancedMesh`, plus stable live pose and wake records |
 | `creek.ts` | the beck: descent trace, channel, tidal mouth |
 | `terrain.ts` | shared archipelago geometry, height/slope banded colour, path wear painted in |
-| `water.ts` | baked bathymetry, swell, foam, glitter, winter ice |
+| `water.ts` | baked bathymetry, swell, foam, glitter, winter ice and shader boat wakes |
 | `samplers.ts` | where the dressing throws its darts — island, disc, tread |
 | `dressing-zones.ts` | world-space keep-outs and pure scatter acceptance rules |
 | `dressing-helpers.ts` | hand-placed runs and helpers shared by each holding |
@@ -207,9 +208,19 @@ register in [`props/index.ts`](src/scene/props/index.ts) and put the name in `HE
 
 **a yaw is not a bearing.** `rotateY(θ)` carries a prop's front (local `+z`) to `(sin θ, cos θ)`; a compass bearing points at `(cos a, sin a)`. they are reflections and agree on exactly one diagonal, which is why getting it wrong survives for months. use `faceToward(from, to)` for props and `yawAlong(bearing)` for anything laid along a line.
 
+the runtime fleet does not use the survey's old fixed offsets as an animation clock. `boat-motion.ts` advances one shared leg schedule: short crossings wait for the final arrival, then all three boats share a seven-second dwell. its separation audit includes those stationary intervals. `boats.ts` owns the authoritative damped bearing and stable pose/wake records; camera and water consumers read them rather than resampling the route and quietly disagreeing.
+
+### interaction and live diagnostics
+
+`camera-controls.ts` raycasts the fleet before the terrain. selecting an instance hands its stable pose to `camera-follow.ts`, which resolves one allocation-free orthographic third-person target at a 22-metre view; escape, terrain or empty-space selection, and pan or rotation drags clear it. **do not put a second boat simulation in the camera.** manual direct manipulation must also remain an explicit exit from any future follow mode.
+
+`vitals.ts` is the only frame measurement. `ui/fps-meter.ts` shows fps, milliseconds, camera xyz and orthographic `viewSize` in metres on every sample; `?debug` adds calls and triangles. extend that sample if another always-visible diagnostic is needed rather than adding another timer or polling the camera elsewhere.
+
 ### an atmospheric system
 
 `src/scene/*.ts` — `atmosphere.ts`, `mist.ts`, `clouds.ts`, `aurora.ts`, `rain.ts`, `post.ts`, and the three clocks `daylight.ts` / `season.ts` / `weather.ts`. composed in [`create-isometric-scape.ts`](src/scene/create-isometric-scape.ts).
+
+shared atmosphere has four scale measures and they are not interchangeable: sheet/deck reach follows `archipelago.worldSize`, cloud and aurora composition follows `camera.maxViewSize`, rain and upright mist follow the live `viewSize`, and genuine metre features such as the 79-metre mist tile stay in metres. audit all four when the world or camera grows; swapping `terrain.size` for `worldSize` everywhere is how one fixed bug becomes four fresh ones, uwu.
 
 ### a knob
 
@@ -224,6 +235,7 @@ there is **no `enabled` flag anywhere**: an effect is off when its strength is z
 - **draw calls are the budget, vertices are not.** a prop with four hundred parts and one with forty cost the same draw. a *new material*, or a *new mesh that is neither merged nor instanced*, is what costs.
 - **everything generated is deterministic.** no `Math.random`, no `Date.now`, no iteration-order dependence. fork the seeded rng (`rng.fork(name)`) so adding a prop does not reshuffle every prop built after it.
 - **anything that moves needs a speed that can reach zero**, and that speed goes in `STILL` in [`scripts/scape-shot.ts`](scripts/scape-shot.ts). a hard-coded animation rate cannot be stopped, so it cannot be captured, so it silently poisons every visual diff taken after it lands.
+- **moving state has one owner.** expose stable allocation-free pose records to cameras, wakes and diagnostics; never let each consumer resample the same route with its own turn or dwell rules.
 - **every tier still has to run.** new cost is gated on `AtmosphereQuality` in [`quality.ts`](src/scene/quality.ts); `mobile` is the one to defend. if a system cannot be made cheap, give it a tier gate and a graceful *absence*, not a broken-looking cheap version.
 - **lifecycle discipline.** generation in `build`, animation in `update`, viewport work in `resize`, teardown in `dispose`. `createApp` owns the only render loop — never add a `requestAnimationFrame`. everything allocated on the gpu is released in `dispose`.
 - **tests come with the change.** new pure builders and new pure maths get a determinism test in the neighbouring `*.test.ts`. rendering code is not unit-tested here, so keep the logic that *can* be tested out of the parts that cannot.

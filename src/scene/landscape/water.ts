@@ -9,6 +9,7 @@ import {
   RGBAFormat,
   RepeatWrapping,
   Vector2,
+  Vector4,
 } from 'three'
 import type { IUniform, Texture, WebGLProgramParametersWithUniforms } from 'three'
 import { createNoiseTexture, createSeamlessNoiseTexture } from 'threejs-scene/modules/assets'
@@ -16,6 +17,7 @@ import type { ScapeConfig } from '../config.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import type { SeasonState } from '../season.ts'
 import type { WeatherState } from '../weather.ts'
+import type { BoatWakeEmitter } from './boats.ts'
 import type { HeightField } from './height.ts'
 
 
@@ -38,15 +40,21 @@ export interface Water {
   mesh: Mesh
 
   /**
-   * Advance swell, ripple and foam phase, and take the year's freeze and the
-   * weather's chop. Allocation-free.
+   * Advance swell, ripple, boat wakes and foam phase, and take the year's
+   * freeze and the weather's chop. Allocation-free.
    */
-  update(elapsed: number, season: SeasonState, weather: WeatherState): void
+  update(
+    elapsed: number,
+    season: SeasonState,
+    weather: WeatherState,
+    wakes?: readonly BoatWakeEmitter[],
+  ): void
   dispose(): void
 }
 
 const SHORE_RESOLUTION = 512
 const MAX_DEPTH        = 3.2
+const MAX_BOAT_WAKES   = 3
 
 /**
  * The swell, shared verbatim by both stages.
@@ -87,24 +95,22 @@ const ICE_GLSL = /* glsl */`
   uniform float uFreeze;
   uniform float uIceReach;
   uniform float uIceBreak;
+  uniform float uFloeScale;
 
   float scapeDepth (vec2 ground) {
     return texture2D(uShoreMap, ground * uShoreScale + 0.5).r;
   }
 
   // The floe field. Three sines rather than a noise fetch, because the vertex
-  // stage would otherwise need the same map the fragment stage reads and the
-  // cheap tier has a tap budget of two — and because a white-noise fetch
-  // thresholded into an edge gives salt and pepper where this gives lobes.
-  // The frequencies are in world units and the world got bigger, so they came
-  // down with it — floes sized for a 132-unit scape tiled visibly across a
-  // 196-unit one, and a sea of repeating lobes reads as wallpaper rather than as
-  // ice. Scaled by the same ratio, a floe is the same fraction of the water it
-  // has always been.
+  // stage would otherwise exceed the cheap tier's texture budget. uFloeScale
+  // grows the authored 196-metre pattern with the inhabited world; without it
+  // the old lobes repeat 2.65 times more often across the archipelago and read
+  // as wallpaper instead of fractured coastal ice.
   float scapeFloe (vec2 p) {
-    return 0.5 + 0.34 * sin(p.x * 0.0545 + p.y * 0.029) +
-      0.26 * sin(p.y * 0.0788 - p.x * 0.035) +
-      0.16 * sin((p.x - p.y) * 0.1394);
+    vec2 q = p * uFloeScale;
+    return 0.5 + 0.34 * sin(q.x * 0.0545 + q.y * 0.029) +
+      0.26 * sin(q.y * 0.0788 - q.x * 0.035) +
+      0.16 * sin((q.x - q.y) * 0.1394);
   }
 
   /**
@@ -141,6 +147,58 @@ const WATER_WORLD_VERTEX = /* glsl */`
   vWaterGround = (modelMatrix * vec4(transformed, 1.0)).xz;
 `
 
+/** Three allocation-free wake emitters, packed as source xz + forward × strength. */
+const BOAT_WAKE_GLSL = /* glsl */`
+  uniform vec4 uBoatWakes[3];
+  uniform float uBoatWakePhases[3];
+  uniform float uBoatWakeStrength;
+
+  float scapeBoatWake (vec2 ground) {
+    if (uBoatWakeStrength <= 0.001)
+      return 0.0;
+
+    float field = 0.0;
+
+    for (int index = 0; index < 3; index++) {
+      vec2 impulse     = uBoatWakes[index].zw;
+      float wakeAmount = clamp(length(impulse), 0.0, 1.0);
+
+      // Keep the expensive oscillation inside an active emitter's visible
+      // footprint. Most water fragments are nowhere near any stern, and every
+      // emitter is inactive for the whole synchronized dock window.
+      if (wakeAmount > 0.001) {
+        vec2 forward = impulse / wakeAmount;
+        vec2 offset  = ground - uBoatWakes[index].xy;
+        float behind = -dot(offset, forward);
+
+        if (behind > 0.1 && behind < 32.0) {
+          float side  = abs(dot(offset, vec2(-forward.y, forward.x)));
+          float reach = smoothstep(0.1, 1.8, behind) *
+            (1.0 - smoothstep(18.0, 32.0, behind));
+          float arms = 1.0 - smoothstep(
+            0.16,
+            1.15,
+            abs(side - (0.55 + behind * 0.34))
+          );
+          float stern = (1.0 - smoothstep(0.4, 3.2, side)) *
+            (1.0 - smoothstep(7.0, 18.0, behind)) * 0.45;
+          float shape = arms + stern;
+
+          if (shape > 0.001) {
+            float ripple = 0.5 + 0.5 * sin(
+              (behind + side) * 2.3 - uBoatWakePhases[index] * 0.38 - uWaveTime * 1.2
+            );
+
+            field += wakeAmount * reach * shape * mix(0.45, 1.0, ripple);
+          }
+        }
+      }
+    }
+
+    return clamp(field * uBoatWakeStrength, 0.0, 1.0);
+  }
+`
+
 const WATER_PARS_FRAGMENT = /* glsl */`
   uniform sampler2D uRippleMap;
   uniform sampler2D uWaveMap;
@@ -156,6 +214,7 @@ const WATER_PARS_FRAGMENT = /* glsl */`
   varying vec2 vWaterGround;
 ${WAVE_GLSL}
 ${ICE_GLSL}
+${BOAT_WAKE_GLSL}
 `
 
 /**
@@ -197,6 +256,7 @@ const WATER_COLOR_FRAGMENT = /* glsl */`
   float waterDepth = scapeDepth(vWaterGround);
   float iceCover   = scapeIce(vWaterGround, waterDepth);
   float openWater  = smoothstep(0.04, 0.3, waterDepth);
+  float boatWake   = scapeBoatWake(vWaterGround) * openWater * (1.0 - iceCover);
 
   // Foam is a band hugging the bank, not a wash over everything shallow: it
   // fades in off the shore and back out into open water. Ice takes it away —
@@ -206,7 +266,7 @@ const WATER_COLOR_FRAGMENT = /* glsl */`
   float foam = shoreline * (0.35 + 0.5 * texture2D(uRippleMap, foamUv).r) * (1.0 - iceCover);
 
   diffuseColor.rgb = mix(uShallow, uDeep, smoothstep(0.0, 0.5, waterDepth));
-  diffuseColor.rgb = mix(diffuseColor.rgb, uFoam, clamp(foam, 0.0, 0.55));
+  diffuseColor.rgb = mix(diffuseColor.rgb, uFoam, clamp(foam + boatWake * 0.72, 0.0, 0.7));
 
   // Texture the albedo, not just the normal. A normal-only ripple is invisible
   // wherever the specular lobe does not reach, so the sea reads as flat paint
@@ -247,11 +307,14 @@ const WATER_COLOR_FRAGMENT_LITE = /* glsl */`
   #include <map_fragment>
   float waterDepth = scapeDepth(vWaterGround);
   float iceCover   = scapeIce(vWaterGround, waterDepth);
+  float openWater  = smoothstep(0.04, 0.3, waterDepth);
+  float boatWake   = scapeBoatWake(vWaterGround) * openWater * (1.0 - iceCover);
 
   diffuseColor.rgb = mix(uShallow, uDeep, smoothstep(0.0, 0.5, waterDepth));
 
   float sheen = texture2D(uRippleMap, vWaterGround * uRippleScale + uRippleOffset).r;
   diffuseColor.rgb *= 0.93 + 0.15 * sheen;
+  diffuseColor.rgb = mix(diffuseColor.rgb, uFoam, boatWake * 0.62);
 
 ${WATER_ICE_FRAGMENT}
 
@@ -346,7 +409,7 @@ export function createWater (
   // third of the vertices in the one mesh that is guaranteed to fill the frame.
   const maskSpan = config.archipelago.worldSize * 1.02
   const surface  = Math.max(
-    config.archipelago.worldSize * 3,
+    config.archipelago.worldSize * 4,
     config.terrain.size * quality.waterSpan,
   )
   const segments = quality.waterSegments
@@ -376,28 +439,37 @@ export function createWater (
   waveMap.magFilter   = LinearFilter
   waveMap.needsUpdate = true
 
-  const rippleOffset: IUniform<Vector2>    = { value: new Vector2() }
-  const waveTime: IUniform<number>         = { value: 0 }
-  const iceColor: IUniform<Color>          = { value: new Color(config.palette.ice) }
+  const rippleOffset: IUniform<Vector2> = { value: new Vector2() }
+  const waveTime: IUniform<number>      = { value: 0 }
+  const iceColor: IUniform<Color>       = { value: new Color(config.palette.ice) }
+  const boatWakes                       = Array.from(
+    { length: MAX_BOAT_WAKES },
+    () => new Vector4(),
+  )
+  const boatWakePhases                     = new Float32Array(MAX_BOAT_WAKES)
   const uniforms: Record<string, IUniform> = {
-    uShoreMap:       { value: shoreMap },
-    uRippleMap:      { value: rippleMap },
-    uWaveMap:        { value: waveMap },
-    uRippleOffset:   rippleOffset,
-    uDeep:           { value: new Color(config.palette.deepWater) },
-    uShallow:        { value: new Color(config.palette.shallowWater) },
-    uFoam:           { value: new Color(config.palette.foam) },
-    uIce:            iceColor,
-    uShoreScale:     { value: 1 / maskSpan },
-    uFreeze:         { value: 0 },
-    uIceReach:       { value: config.water.iceReach },
-    uIceBreak:       { value: config.water.iceBreak },
-    uRippleScale:    { value: 1 / 34 },
-    uRippleStrength: { value: config.water.rippleStrength },
-    uSparkleScale:   { value: 1 / 14 },
-    uSparkle:        { value: config.water.sparkle },
-    uWaveTime:       waveTime,
-    uWaveHeight:     { value: config.water.waveHeight },
+    uShoreMap:         { value: shoreMap },
+    uRippleMap:        { value: rippleMap },
+    uWaveMap:          { value: waveMap },
+    uRippleOffset:     rippleOffset,
+    uDeep:             { value: new Color(config.palette.deepWater) },
+    uShallow:          { value: new Color(config.palette.shallowWater) },
+    uFoam:             { value: new Color(config.palette.foam) },
+    uIce:              iceColor,
+    uShoreScale:       { value: 1 / maskSpan },
+    uFreeze:           { value: 0 },
+    uIceReach:         { value: config.water.iceReach },
+    uIceBreak:         { value: config.water.iceBreak },
+    uFloeScale:        { value: config.terrain.size / config.archipelago.worldSize },
+    uRippleScale:      { value: 1 / 34 },
+    uRippleStrength:   { value: config.water.rippleStrength },
+    uBoatWakes:        { value: boatWakes },
+    uBoatWakePhases:   { value: boatWakePhases },
+    uBoatWakeStrength: { value: config.water.wakeStrength },
+    uSparkleScale:     { value: 1 / 14 },
+    uSparkle:          { value: config.water.sparkle },
+    uWaveTime:         waveTime,
+    uWaveHeight:       { value: config.water.waveHeight },
   }
 
   // Opaque at the material level, and let the shader's alpha ramp do the
@@ -454,13 +526,33 @@ export function createWater (
   mesh.updateMatrix()
   mesh.matrixAutoUpdate = false
 
+  function syncBoatWakes (wakes: readonly BoatWakeEmitter[] = []): void {
+    for (let index = 0; index < MAX_BOAT_WAKES; index += 1) {
+      const source   = wakes[index]
+      const strength = source?.strength ?? 0
+
+      if (source) {
+        boatWakes[index].set(
+          source.x,
+          source.z,
+          source.directionX * strength,
+          source.directionZ * strength,
+        )
+        boatWakePhases[index] = source.phase
+      }
+      else {
+        boatWakes[index].set(0, 0, 0, 0)
+        boatWakePhases[index] = 0
+      }
+    }
+  }
+
   return {
     mesh,
 
     // Read back from the config every frame rather than captured at build, so
-    // the tuning overlay can drive the lake without rebuilding the scene. Four
-    // uniform writes and a scalar compare is nothing next to the draw itself.
-    update (elapsed, season, weather) {
+    // the tuning overlay can drive the lake without rebuilding the scene.
+    update (elapsed, season, weather, wakes) {
       // Rain, without a uniform or a fetch of its own. A shower does two things
       // to a lake and the shader already has a knob for each: it puts the surface
       // into a chop that kills the glitter — a sun lobe needs a facet to hold
@@ -470,14 +562,16 @@ export function createWater (
       // per fragment and nothing per tier.
       const fall = weather.fall
 
+      syncBoatWakes(wakes)
       rippleOffset.value.set(elapsed * 0.014, elapsed * 0.0092)
-      waveTime.value                 = elapsed
-      uniforms.uSparkle.value        = config.water.sparkle * (1 - 0.85 * fall)
-      uniforms.uWaveHeight.value     = config.water.waveHeight
-      uniforms.uRippleStrength.value = config.water.rippleStrength * (1 + 0.7 * fall)
-      uniforms.uFreeze.value         = season.freeze
-      uniforms.uIceReach.value       = config.water.iceReach
-      uniforms.uIceBreak.value       = config.water.iceBreak
+      waveTime.value                   = elapsed
+      uniforms.uBoatWakeStrength.value = config.water.wakeStrength
+      uniforms.uSparkle.value          = config.water.sparkle * (1 - 0.85 * fall)
+      uniforms.uWaveHeight.value       = config.water.waveHeight
+      uniforms.uRippleStrength.value   = config.water.rippleStrength * (1 + 0.7 * fall)
+      uniforms.uFreeze.value           = season.freeze
+      uniforms.uIceReach.value         = config.water.iceReach
+      uniforms.uIceBreak.value         = config.water.iceBreak
 
       iceColor.value.copy(season.iceColor)
 

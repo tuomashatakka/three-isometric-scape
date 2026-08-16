@@ -33,6 +33,9 @@ export interface Landscape {
   layout:      ScapeLayout
   archipelago: ArchipelagoSurvey
 
+  /** Live fleet accessor; null until the landscape module has built. */
+  boatFleet(): BoatFleet | null
+
   /**
    * The live instant of the year, resolved once per frame by this module's
    * `update`. Published the way the atmosphere publishes its daylight, so a
@@ -117,6 +120,11 @@ export function createLandscape (
           config,
           network:  archipelago.waterways,
           material: materials.ground,
+          motion:   {
+            dwellSeconds:  config.boats.dwellSeconds,
+            turnRate:      config.boats.turnRate,
+            turnLookAhead: config.boats.turnLookAhead,
+          },
         })
         root.add(dressing.object, fleet.mesh)
       }
@@ -145,9 +153,9 @@ export function createLandscape (
       // instant of the season that has already been resolved.
       const front = weather.sample(sky.time, now)
 
-      materials?.update(frame.elapsed, now, front)
-      water?.update(frame.elapsed, now, front)
       fleet?.update(frame.delta)
+      materials?.update(frame.elapsed, now, front)
+      water?.update(frame.elapsed, now, front, fleet?.wakeEmitters)
     },
 
     dispose () {
@@ -178,11 +186,12 @@ export function createLandscape (
   return {
     module,
     surfaces,
-    heightAt: field.heightAt,
+    heightAt:  field.heightAt,
     layout,
     archipelago,
-    season:   season.state,
-    weather:  weather.state,
+    boatFleet: () => fleet,
+    season:    season.state,
+    weather:   weather.state,
   }
 }
 

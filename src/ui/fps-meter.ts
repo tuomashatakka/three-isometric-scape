@@ -40,22 +40,27 @@ export function createFpsMeter ({ verbose = false }: FpsMeterOptions = {}): FpsM
   // semantics are free. `aria-live` is off on purpose: four announcements a
   // second is not a readout, it is a filibuster.
   element.setAttribute('aria-live', 'off')
-  element.setAttribute('aria-label', 'frames per second')
+  element.setAttribute('aria-label', 'performance and camera position')
   element.textContent = '— fps'
 
   return {
     element,
 
     update (sample) {
-      const line = [
+      const performance = [
         `${sample.fps.toFixed(0)} fps`,
         `${sample.ms.toFixed(1)} ms`,
       ]
 
       if (verbose)
-        line.push(`${sample.calls} calls`, `${Math.round(sample.triangles / 1000)}k tris`)
+        performance.push(`${sample.calls} calls`, `${Math.round(sample.triangles / 1000)}k tris`)
 
-      element.textContent = line.join(' · ')
+      const camera = [
+        `xyz ${sample.cameraX.toFixed(1)} ${sample.cameraY.toFixed(1)} ${sample.cameraZ.toFixed(1)}`,
+        `zoom ${sample.viewSize.toFixed(1)}m`,
+      ]
+
+      element.textContent = `${performance.join(' · ')}\n${camera.join(' · ')}`
     },
 
     dispose () {
@@ -64,5 +69,5 @@ export function createFpsMeter ({ verbose = false }: FpsMeterOptions = {}): FpsM
   }
 }
 
-// perf: one string join and one `textContent` write four times a second. No
+// perf: two small string joins and one `textContent` write four times a second. No
 // timers, no listeners, and nothing at all on the frames between samples.

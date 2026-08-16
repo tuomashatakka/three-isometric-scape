@@ -1,10 +1,26 @@
 import { describe, expect, test } from 'bun:test'
-import { auroraBrightness } from './aurora.ts'
+import { auroraBrightness, auroraTileSize } from './aurora.ts'
 import { SCAPE_CONFIG } from './config.ts'
 import { createSeason, darkAmount } from './season.ts'
 
 
 const STRENGTH = SCAPE_CONFIG.atmosphere.aurora
+
+describe('auroraTileSize', () => {
+  test('keeps one broad curtain in the widest archipelago frame', () => {
+    const maximum = SCAPE_CONFIG.camera.maxViewSize
+    const tile    = auroraTileSize(maximum)
+
+    expect(tile / maximum).toBeCloseTo(1.575, 6)
+    expect(tile).toBeGreaterThan(maximum)
+  })
+
+  test('scales with the frame instead of the home island', () => {
+    const maximum = SCAPE_CONFIG.camera.maxViewSize
+
+    expect(auroraTileSize(maximum * 2)).toBeCloseTo(auroraTileSize(maximum) * 2)
+  })
+})
 
 describe('auroraBrightness', () => {
   test('lights a winter midnight and nothing else about that day', () => {

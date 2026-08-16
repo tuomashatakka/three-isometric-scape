@@ -145,13 +145,22 @@ export interface ScapeConfig {
   /**
    * The scheduled ferry fleet.
    *
-   * speed is live and may reach zero. The other values shape the route built
-   * with the survey and therefore deliberately stay out of the tuning overlay.
+   * Runtime motion stays live and may reach zero; clearance and navigation
+   * values shape the surveyed route and deliberately stay out of the overlay.
    */
   boats: {
 
     /** Metres travelled per second. 0 freezes the fleet. */
     speed: number
+
+    /** Seconds all boats remain tied up after every boat has reached its next island. */
+    dwellSeconds: number
+
+    /** Maximum hull turn rate in radians per second. */
+    turnRate: number
+
+    /** Metres sampled either side of a hull to resolve its smooth route tangent. */
+    turnLookAhead: number
 
     /** Minimum ground depth below the surface along a route, in metres. */
     clearance: number
@@ -285,6 +294,9 @@ export interface ScapeConfig {
 
     /** Ripple normal perturbation. */
     rippleStrength: number
+
+    /** Analytic foam/ripple strength behind moving boats. 0 removes their wakes. */
+    wakeStrength: number
 
     /**
      * Specular spread. Low values concentrate the sun into a lobe narrow
@@ -753,11 +765,14 @@ export const SCAPE_CONFIG = {
     ],
   },
   boats: {
-    speed:      4.2,
-    clearance:  0.42,
-    separation: 7,
-    routeCell:  5.2,
-    dockReach:  6.4,
+    speed:         4.2,
+    dwellSeconds:  7,
+    turnRate:      1.4,
+    turnLookAhead: 5,
+    clearance:     0.42,
+    separation:    7,
+    routeCell:     5.2,
+    dockReach:     6.4,
   },
   // The farmstead is not scaled with the island, and that is the point of a
   // bigger island: one holding on a landmass that is mostly wild, rather than a
@@ -826,6 +841,7 @@ export const SCAPE_CONFIG = {
     sparkle:        0.5,
     waveHeight:     0.075,
     rippleStrength: 0.2,
+    wakeStrength:   0.78,
     roughness:      0.62,
     iceReach:       0.62,
     iceBreak:       0.5,

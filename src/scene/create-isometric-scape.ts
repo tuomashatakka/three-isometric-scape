@@ -277,6 +277,7 @@ export function createIsometricScape (
     camera,
     canvas,
     landscape,
+    boatFleet:       landscape.boatFleet,
     limits:          config.camera,
     maxFocus:        config.archipelago.worldSize * 0.48,
     reducedMotion:   options.reducedMotion,
@@ -316,6 +317,7 @@ export function createIsometricScape (
   // so the post chain — or the bare renderer — still owns the draw.
   const vitals = createVitals({
     renderer: app.ctx.renderer,
+    camera,
     verbose:  diagnostics.verbose,
     report:   line => diagnostics.vitals(line),
     notice:   message => diagnostics.say(message),

@@ -52,24 +52,18 @@ const DRIFT_SPEED  = 2.1
 const VEIL_ALPHA   = 0.32
 
 /**
- * World units per tile of the auroral field.
+ * Tile width as a fraction of the widest authored frame.
  *
- * The mist's lesson, one more time and at the largest scale in the scape: the
- * deck is five hundred units across and the frame is ninety, so a ribbon sized
- * to the deck is a flat wash of colour over the whole picture. A tile a little
- * wider than the widest frame is what puts one arc across the sky and leaves
- * dark sky either side of it — and the dark either side is the entire read.
+ * The veil extent follows the world, but its arc count belongs to the picture.
+ * Scaling this from the camera keeps one broad ribbon and dark sky beside it
+ * when the archipelago grows. 1.575 preserves the 207.8m tile against the 132m
+ * maximum view the enlarged single island was tuned on.
  */
-/**
- * A fraction of the terrain's own extent, not a number of metres.
- *
- * The tile is sized against the *frame*, and the frame is sized against the
- * island — so an island that grows without this growing with it arrives under a
- * sky tiled half again as often, and the arcs the tile was authored to hold
- * become a repeating field of blobs. 1.06 is the 140 units this was tuned at,
- * over the 132-unit terrain it was tuned on.
- */
-const TILE_FRACTION = 1.06
+const TILE_VIEW_FRACTION = 1.575
+
+export function auroraTileSize (maxViewSize: number): number {
+  return maxViewSize * TILE_VIEW_FRACTION
+}
 
 /** Where the deck stops being sky and starts being quad, as fractions of the sheet. */
 const REACH_IN  = 0.22
@@ -243,7 +237,7 @@ export function createAuroraLayer ({
 
   function tile (index: number): Texture {
     const map = texture.clone()
-    map.repeat.setScalar(deckSize / (config.terrain.size * TILE_FRACTION) * (1 + index * 0.21))
+    map.repeat.setScalar(deckSize / auroraTileSize(config.camera.maxViewSize) * (1 + index * 0.21))
     map.offset.set(index * 0.41, index * 0.27)
     map.needsUpdate = true
     return map

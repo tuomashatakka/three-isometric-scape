@@ -1,6 +1,7 @@
 import { SCAPE_CONFIG } from '../src/scene/config.ts'
 import { surveyArchipelago } from '../src/scene/landscape/archipelago.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from '../src/scene/landscape/archipelago.ts'
+import { scheduledFleetMinimumSeparation } from '../src/scene/landscape/boat-motion.ts'
 import { distanceToTrack } from '../src/scene/landscape/layout.ts'
 import { createPathQuery, pathLength } from '../src/scene/landscape/path.ts'
 import { STEADING_BUILDINGS } from '../src/scene/landscape/steading.ts'
@@ -277,6 +278,10 @@ export function surveyStats (
 
   const { id: _id, profile: _profile, origin: _origin, ...legacy } = home
   const { waterways }                                              = survey
+  const scheduleSeparation                                         = scheduledFleetMinimumSeparation(
+    waterways.route,
+    waterways.boatOffsets.length,
+  )
 
   return {
     ...legacy,
@@ -299,8 +304,8 @@ export function surveyStats (
     },
     boats: {
       count:      waterways.boatOffsets.length,
-      separation: round(waterways.minimumSeparation, 2),
-      conflicts:  waterways.minimumSeparation + 1e-6 < config.boats.separation ? 1 : 0,
+      separation: round(scheduleSeparation, 2),
+      conflicts:  scheduleSeparation + 1e-6 < config.boats.separation ? 1 : 0,
     },
   }
 }

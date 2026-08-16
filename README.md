@@ -26,6 +26,7 @@ bun run preview
 - three deterministic inhabited islands, each surveyed in its own local frame with a distinct home, ridge, or meadow terrain profile
 - a farmstead, fields, pasture, beck, footpaths, harbour, and jetty on every island; the home island also keeps its fifteen offshore skerries, landscape only, never built on
 - one water-only route joining all three jetties, with a boat dispatched from each and kept apart on a one-way circuit
+- synchronized ferries that wait at the shorter crossings, hold for seven seconds after the last arrival, turn smoothly onto the next leg, and leave v-shaped ripples behind them while moving
 - a working boat harbour: a boathouse on piles with a slipway, a net rack, and stakes in the shallows
 - footpaths worn between the places the farm actually goes — traced as desire lines over the ground as built, painted into the terrain it crosses, and kept clear of grass and stone without costing a draw call
 - a beck traced downhill from a spring on the high ground, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself — no extra draw call, no extra material
@@ -42,11 +43,12 @@ bun run preview
 - a scape that survives a lost webgl context: it rebuilds itself one tier cheaper rather than asking you to reload, and remembers the verdict so the next load starts there instead of earning it again
 - a compact mobile post chain that keeps the colour grade and tilt-shift while leaving bloom, grain, and hardware shadows to desktop
 - an on-page diagnostics log — tier signals, gpu, frame stalls, gl errors, whatever three said on its way down — because a phone has no devtools. it survives a reload, so a crash does not destroy its own record
+- an always-visible frame readout with live camera xyz and orthographic zoom in world metres
 - url overrides for testing on the device you cannot attach a debugger to: `?debug` adds live vitals, `?tier=minimal|mobile|desktop|ultra` forces a tier past detection and past memory, `?post=0|1` forces the optical chain either way
 - one merged terrain draw, one water draw, one merged settlement draw, one instanced fleet draw, and one instanced draw per scattered prop type
 - an orthographic dimetric camera built with `threejs-scene`
-- click or tap focus with an eased landing and automatic revolution
-- pointer rotation, modified/right-button panning, wheel zoom, two-finger pan and pinch
+- click or tap terrain focus with an eased landing and automatic revolution, or select a boat for an eased third-person chase
+- pointer rotation, modified/right-button panning, wheel zoom, two-finger pan and pinch; manual pan or rotation leaves boat follow
 - complete keyboard equivalents and a visible canvas focus state
 - responsive semantic html with coarse-pointer and reduced-motion behavior
 - relative vite asset paths, suitable for a github pages subroute
@@ -61,7 +63,7 @@ the intended first edit is [`src/scene/config.ts`](src/scene/config.ts). `scape_
 - the deterministic world seed
 - shared world extent and waterline, plus each inhabited island's origin, terrain profile, relief, coast, and settlement proportions
 - the home island's offshore skerries, as fractions of its terrain half-extent
-- boat speed, route clearance, hull separation, navigation-grid scale, and jetty reach
+- boat speed, route clearance, hull separation, navigation-grid scale, jetty reach, and water wake strength
 - the beck's channel width, how deep it cuts, how far the mouth is dredged, and how much it flares
 - the footpaths: tread width, verge, how hard a route works to keep off a climb, and how bare the treads get
 - tree and rock instance budgets
@@ -92,18 +94,19 @@ keeping generation in `build`, animation in `update`, resize work in `resize`, a
 
 | input | action |
 | --- | --- |
-| click or tap | ease to the selected surface point, then revolve around it |
-| primary drag or one-finger drag | pan |
-| shift-drag, ctrl-drag, middle-drag, or right-drag | rotate |
-| two-finger gesture | pan and pinch-zoom together |
+| click or tap a boat | ease into a third-person chase, looking ahead along its live heading |
+| click or tap terrain | ease to the selected surface point, then revolve around it |
+| primary drag or one-finger drag | leave boat follow and pan |
+| shift-drag, ctrl-drag, middle-drag, or right-drag | leave boat follow and rotate |
+| two-finger gesture | leave boat follow, then pan and pinch-zoom together |
 | wheel | zoom |
 | arrow keys | pan |
 | shift + left / right | rotate |
 | shift + up / down, + / − | zoom |
-| escape | stop automatic revolution |
+| escape | leave boat follow or stop automatic revolution |
 | h | hide or show the card in the top-left corner |
 
-pan is the primary gesture because on a map, dragging means *move the map* to everyone who has ever used one; orbiting is the specialist verb and takes the modifier.
+pan is the primary gesture because on a map, dragging means *move the map* to everyone who has ever used one; orbiting is the specialist verb and takes the modifier. while following a boat, the wheel can still change the 22-metre chase view; escape or any pan/rotate gesture hands the camera back to the map.
 
 **tilt is not an input.** it is a function of the zoom — pushed in you get a low, near-horizontal, cinematic angle, pulled out you get the map. dragging elevation is how a view ends up under the waterline or staring straight down by accident, and the right elevation is fully determined by how close you are anyway. binding one to the other removes a control and improves every frame it used to produce.
 
@@ -282,6 +285,7 @@ src/
     ├── atmosphere.ts               gradient sky, linear fog, sun and fill rig
     ├── aurora.ts                   auroral veils over the dark half of the year
     ├── camera-controls.ts          pointer, touch, keyboard, focus, orbit
+    ├── camera-follow.ts            allocation-free third-person boat chase target
     ├── clouds.ts                   sky deck, faded in as the view pulls back
     ├── config.ts                   the starter's public tuning surface
     ├── create-isometric-scape.ts   app/module composition root
@@ -298,7 +302,8 @@ src/
     ├── landscape/
     │   ├── index.ts                the scene module, and what raycasts
     │   ├── archipelago.ts          three local surveys projected into one world
-    │   ├── boats.ts                the moving fleet, in one dynamic instance buffer
+    │   ├── boat-motion.ts          synchronized legs, jetty waits, dwell and turning maths
+    │   ├── boats.ts                live fleet poses and wakes, in one dynamic instance buffer
     │   ├── layout.ts               yard, cart track, field plots, ridges, pasture
     │   ├── steading.ts             where the farm's buildings and well stand
     │   ├── landing.ts              the shoreline the jetty and the harbour are on
@@ -310,7 +315,7 @@ src/
     │   ├── creek.ts                the beck: descent trace, channel, tidal mouth
     │   ├── height.ts                authored ground, islets, beck, fbm underneath
     │   ├── terrain.ts              shared geometry, height/slope banded colour
-    │   ├── water.ts                baked bathymetry, swell, foam, glitter, winter ice
+    │   ├── water.ts                bathymetry, swell, foam, glitter, winter ice and boat wakes
     │   ├── samplers.ts             where the dressing throws its darts
     │   ├── dressing-zones.ts       world-space keep-outs and scatter rules
     │   ├── dressing-helpers.ts     hand-placed runs shared by each holding
@@ -405,9 +410,9 @@ the offset on the handle is a `left` and not a `transform`, and that is not a pr
 
 ### the frame counter
 
-`.fps` sits in the bottom-left and reads `58 fps · 17.2 ms`, with `41 calls · 812k tris` added under `?debug`. it is deliberately in neither the card nor the panel: both of those are things you put away, and a frame counter you have to open is a frame counter that was not measuring the thing you were looking at when it got slow.
+`.fps` sits in the bottom-left and reads `58 fps · 17.2 ms` on its first line and `xyz 12.4 81.0 -36.2 · zoom 500.0m` beneath it. the coordinates are the live camera position and zoom is the orthographic frame height, all in world metres; under `?debug`, `41 calls · 812k tris` joins the performance line. it is deliberately in neither the card nor the panel: both of those are things you put away, and a frame counter you have to open is a frame counter that was not measuring the thing you were looking at when it got slow.
 
-it times nothing itself. [`vitals.ts`](src/scene/vitals.ts) has been measuring the frame all along — for the log, and for the snapshot written at the moment a context is lost — and this is a second view of that one measurement, taken on its own quarter-second cadence so the log's four-second window is unchanged.
+it times nothing itself and it does not query the camera separately. [`vitals.ts`](src/scene/vitals.ts) has been measuring the frame all along — for the log, and for the snapshot written at the moment a context is lost — and now samples camera xyz and `viewSize` beside those same figures. the meter is a second view of that one measurement, taken on its own quarter-second cadence so the log's four-second window is unchanged.
 
 ### the performance section
 
@@ -529,7 +534,7 @@ the lake answers the rain **without a uniform or a fetch of its own**. a shower 
 
 ### the column
 
-`rain.ts` draws the fall, and the one decision the module hangs off is that **the column is sized against the frame, not against the map**. a column sized to the island would put the same drops over a hundred and ninety metres at every zoom, so pulling back would thin the rain to nothing and zooming in would pack it into a wall — the same mistake the mist tiles and the auroral tiles both had to be taken off. scaled to `viewSize` instead, the drop count *is* a screen density: 2600 drops look like 2600 drops from anywhere on the zoom range, and the mobile tier's 900 cover the same picture more thinly rather than covering less of it.
+`rain.ts` draws the fall, and the one decision the module hangs off is that **the column is sized against the frame, not against the map**. a column sized to the island would put the same drops over a fixed patch at every zoom, so pulling back would thin the rain to nothing and zooming in would pack it into a wall — the same mistake the mist tiles and the auroral tiles both had to be taken off. its span, rise, streak length and girth all follow the live `viewSize`, so moving from one 196-metre island to a 520-metre world and a 560-metre maximum view preserves the shower's screen density: 2600 drops look like 2600 drops anywhere on the zoom range, and the mobile tier's 900 cover the same picture more thinly rather than covering less of it.
 
 the whole shower is **one draw call from one static buffer**, and nothing is uploaded per frame. each drop is two triangles with its cell in the column carried alongside the quad corner; falling is `mod` on a single scalar that grows, so a drop reaching the floor reappears at the ceiling in the same instant. that scalar is metres fallen rather than seconds elapsed — which is what lets `weather.fall` be turned to zero and back up without the column jumping to where it would have been had it never stopped — and it is wrapped against the column's own height so a page left open for an hour is not counting in a float that has lost its precision.
 
@@ -550,7 +555,7 @@ the scape has had a night since the clock run and nothing has ever happened in i
 
 a deck the camera looks *down* on is a fiction, and worth naming as one — the light is a hundred kilometres up and the eye is eighty metres. it is also the fiction [the sky deck](#the-sky-deck) already runs: this scape's camera flies above its own weather, and a layer it cannot see is a layer it does not have. the veils are stacked above the clouds so that at least the order is right, and the clearance is enforced in code rather than left to the two sliders agreeing.
 
-everything else follows [the sky deck](#the-sky-deck), including its zoom gate and for its reason: at the near zoom the camera sits *under* the ceiling, and the only thing a luminous sheet could do there is cover the picture.
+everything else follows [the sky deck](#the-sky-deck), including its zoom gate and for its reason: at the near zoom the camera sits *under* the ceiling, and the only thing a luminous sheet could do there is cover the picture. its quad reaches with the 520-metre archipelago, while the repeated curtain is 1.575 times the maximum frame height; world coverage can grow without multiplying the number of arcs in the picture.
 
 **the year is the second gate, and it is the one that had to be added.** `daylight.ts` runs one sun arc at one tilt for every week of the year — a deliberate simplification, since a scape with a real seasonal arc has a midwinter with no daylight in it at all — so a midsummer midnight there is exactly as dark as a midwinter one. that is fine for everything else in the scene and wrong for this: the reason you cannot see the aurora in june at these latitudes is not that it has stopped, it is that the sky never gets past dusk. so `season.ts` gained the one curve in it that is not about heat:
 
@@ -574,7 +579,7 @@ the two arcs are combined with a maximum rather than a sum: two curtains overlap
 
 it is additive, and unlit. the aurora is emission — it never darkens what is behind it — and it is the one thing in the frame the sun does not light, which is why it is also the only sheet in the scape that does not take its colour from the clock.
 
-`atmosphere.aurora` is in the overlay under the sky, live and persisted, with the ceiling and the drift beneath it. it is also the switch. the ceiling is held above `cloudHeight` by the module whatever it is set to, so the weather passes beneath the light rather than through it, and the slider stops at 70 because the camera at full zoom-out is only eighty metres up — past that the deck climbs over the eye and the sky goes dark again.
+`atmosphere.aurora` is in the overlay under the sky, live and persisted, with the ceiling and the drift beneath it. it is also the switch. the ceiling is held above `cloudHeight` by the module whatever it is set to, so the weather passes beneath the light rather than through it. height remains an authored distance in metres; only the deck's reach and its frame-relative tile respond to the larger world.
 
 **cost: one draw per veil, and none at all for most of the year.** `?debug` reports **109 calls** on the desktop tier at the authored opening frame — exactly what it reported before the aurora existed — and **112** at a midwinter midnight pulled all the way out, against **110** with the brightness scrubbed to zero. on the mobile tier the same a/b is **51** against **50**. the veils are two-sided and still one draw each: three renders a transparent double-sided material in two passes, which is right for a curved shell and waste for a flat sheet, so `forceSinglePass` is set and the measurement above is what found it. the veils are made *invisible* rather than transparent whenever the light is out, because a map-wide additive quad contributing nothing still costs every pixel it covers — and it is out for every daylight hour of every day, and every hour of the white-night weeks. the material has the same shape as the cloud deck's, so three's cache hands it the program already linked and the scape gains none. `auroraLayers` is 3 on `ultra`, 2 on `desktop`, **1 on `mobile`** and 0 on `minimal`: the phone tier gets an aurora, and the tier that only exists after a context loss gets a plain dark sky rather than a dimmer aurora.
 
@@ -582,7 +587,7 @@ it is additive, and unlit. the aurora is emission — it never darkens what is b
 
 overhead cloud is the ground mist's technique moved up: world-pinned sheets of a baked alpha field, scrolling on the wind. two things had to differ.
 
-- **the tile has to be smaller than the frame.** the deck is far wider than anything visible at once, so a pattern sized to the sheet shows you a fraction of a single blob, bilinearly smoothed into a flat wash — the exact failure the ground mist already had once. a tile you can fit two or three of into frame is what makes clouds look like separate clouds. the gaps are the whole effect, and a pattern whose features are larger than the picture has none.
+- **the tile answers to the frame, while the deck answers to the world.** the quad reaches 4.4 archipelago widths so it survives the full pan, but a texture tile stays at 0.809 of the maximum frame height. sizing both from the 520-metre world would magnify every cloud into a wash; sizing both from the old home island would repeat them into wallpaper. the gaps are the whole effect.
 - **the field is thresholded, not raised to a power.** the mist keeps a little of itself everywhere, which is right for something you are standing in. cloud read from underneath has to have holes, or it is just a grey filter over the frame.
 
 the deck fades in as the view pulls back, and that gate is not a performance dodge: an orthographic camera zoomed in sits *below* the ceiling, so the only thing overhead cloud could do there is cover the picture. pull out and the camera climbs past it, and the deck becomes what it is meant to be — weather between you and the islands.
@@ -607,6 +612,8 @@ binding tilt to zoom sweeps the camera's elevation through a range that crosses 
 
 what the roughness gave away, the glitter pays back: two noise fields at incommensurate scales, multiplied and raised to a high power, so the product spikes only where both crests coincide. that exponent is the whole control — threshold it gently instead and the *mean* of the product clears the cut, every fragment lights up, and the lake becomes a sheet of white paper.
 
+the larger world splits water scale three ways. the bathymetry mask follows the 520-metre inhabited field, the visible plane reaches four world widths so its edge stays beyond a full pan and zoom, and the old 196-metre ice pattern is scaled across the archipelago instead of repeating 2.65 times more often. ripple and glitter texture units remain authored metres; making the map wider is not a reason to make every wave wider.
+
 two related calibrations came out of the same pass:
 
 - **bloom threshold sits above the fog.** bloom is for highlights, and the fog colour scatters toward the sun until its linear luminance is around 0.85. at the old 0.86 a frame full of lit haze crossed the threshold everywhere at once and bloomed itself into a white-out.
@@ -616,10 +623,10 @@ two related calibrations came out of the same pass:
 
 the sheets used to chase the camera's focus point, which drags the whole cloud pattern across the ground as you pan — and a mist that moves with the camera reads as the *island* moving, the one thing ground mist must never do. they are pinned to the world now, which costs two things and pays for both:
 
-- the sheet has to be wide enough to reach past the terrain from any pan, and the pattern's world size has nothing to do with that. tie the texture repeat to the sheet and widening it magnifies every wisp — a few big soft blobs, bilinearly smoothed until the gaps close, which is how ground mist becomes a white-out. the repeat is derived from a fixed *units per tile* instead.
+- the sheet reaches 4.4 archipelago widths so its faded edge stays beyond a two-to-one maximum view at full pan, and its land mask keeps roughly twenty metres between samples as that quad grows. the pattern's world size has nothing to do with either: every wisp tile remains 79 metres. tie the repeat to the sheet and widening it magnifies every wisp — a few big soft blobs, bilinearly smoothed until the gaps close, which is how ground mist becomes a white-out.
 - a flat sheet that survives any pan also lies over every pixel of open water in frame, four deep. ground mist collects over land and shallows in the first place, so the alpha is baked into the vertices and falls off radially: dense on the island, gone by the time the eye is out at sea.
 
-**the mist stands up as well as lying down.** stacked horizontal sheets only have depth when you look *across* them, so a mist built from them alone thins out exactly as the view tips down, until it is a set of planes seen edge-on. alongside them is the standard trick for volumetric fog: upright slices that face the viewer, spaced along the view axis, so there is always something between the eye and the ground whatever the elevation. their alpha is dense at the waterline and gone by the top, and falls off both sides so the slab never shows a vertical edge.
+**the mist stands up as well as lying down.** stacked horizontal sheets only have depth when you look *across* them, so a mist built from them alone thins out exactly as the view tips down, until it is a set of planes seen edge-on. alongside them is the standard trick for volumetric fog: upright slices that face the viewer, spaced along the view axis at 0.445 of the *live* frame height, so the stack keeps the same depth at the 8-metre near view and the 560-metre map view alike. their alpha is dense at the waterline and gone by the top, and falls off both sides so the slab never shows a vertical edge.
 
 those slices follow the focus point rather than the world origin — a stack pinned to the origin falls behind the camera the moment you pan to the far side of the map, and the upright mist simply stops existing there. following the focus is only safe because the *pattern* does not come along: each slice feeds its own displacement along its local x axis back into the texture offset, so every wisp stays over the same patch of ground while the quad slides underneath it.
 
@@ -673,7 +680,11 @@ the profiles are deliberately not palette swaps. they have independent seeds, ex
 
 `waterway.ts` turns the three jetty landings into world-space ports, walks outward until the whole hull has navigable depth, and joins them with a deterministic `a*` search over the shared seabed. every candidate segment is probed along its length and around a 1.85-metre circular hull envelope. the simplified route is accepted only when that envelope stays below the waterline by `boats.clearance`; at seed 7319 the circuit is 809.7 metres and its tightest measured clearance is 0.67 metres.
 
-the legs form one directed ring, and one boat starts at each port distance on that same ring. all boats move in one direction at one speed, so there is no opposing lane and their offsets never change. the build samples a full circuit before accepting it and refuses a fleet whose closest pair breaches `boats.separation`; the default three remain 103.41 metres apart at their closest. `boats.ts` writes the three moving matrices into one dynamic `InstancedMesh`, and `boats.speed = 0` freezes it without an upload so stills remain still.
+the legs form one directed ring, and one boat starts at each jetty. every dispatch sends all three onto their next leg at the same speed; a boat on a shorter crossing waits at its destination until the longest leg has arrived, then all three dwell for seven seconds before the next dispatch. there is still no opposing lane, and the scheduled audit includes both those early waits and the all-docked dwell before it accepts the configured separation. the default schedule's measured minimum is 115.79 metres against the configured seven. `boat-motion.ts` owns that pure clock; `boats.ts` projects it into three matrices in one dynamic `InstancedMesh`. `boats.speed = 0` freezes poses, wakes and gpu uploads so stills remain still.
+
+a hull aims five metres ahead and behind its route sample, then turns toward that chord at no more than 1.4 radians per second. it no longer snaps at a simplified path corner, and the same damped bearing is the authority for the matrix, wake and chase camera. each moving boat emits a stable source 1.45 metres behind its stern; the existing water shader expands that into two v-shaped arms and a stern ripple in foam and albedo, suppresses it while docked or frozen, and lets `water.wakeStrength = 0` remove it without another flag, displaced geometry or draw.
+
+clicking or tapping an instanced hull selects its live pose and eases the existing orthographic camera into a 22-metre third-person view, with its look target six metres ahead of the boat and facing along its travel. `camera-follow.ts` stores only the selected instance and four scalar target values; the fleet remains the single source of motion. escape, a terrain or empty-space selection, or any pan/rotate drag leaves follow, while the wheel can adjust the chase zoom without breaking selection.
 
 the rowboat was rebuilt for the job rather than scaling the old solid block. it is a hollow 3.4-metre clinker hull with tapered stations, overlapping strakes, a keel and floorboards below three benches, narrow stems and a matched pair of oars. the route's circular envelope covers that complete geometry at every heading, which is why the wet-route proof protects the boat rather than just its centre point.
 
