@@ -324,7 +324,3 @@ export function describeQualitySignals (signals: QualitySignals): string {
     `${globalThis.innerWidth}×${globalThis.innerHeight}css`,
   ].join(' · ')
 }
-
-export function detectAtmosphereQuality (): AtmosphereQuality {
-  return selectAtmosphereQuality(readQualitySignals())
-}

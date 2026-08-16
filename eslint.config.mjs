@@ -3,10 +3,10 @@ import config from '@tuomashatakka/eslint-config'
 
 export default [
   {
-    // Device-bisect snapshots keep their Vite bundles under `public/*/assets`.
-    // They are committed output, not source; lint the probe and snapshot shells,
-    // but do not parse the same minified bundle once per experiment.
-    ignores: [ 'dist/**', 'public/*/assets/**' ],
+    // `.scape/` holds captured stills, diffs and the worktree `scape:diff`
+    // builds a reference in — generated output, and one of those checkouts is
+    // an entire second copy of this repository.
+    ignores: [ 'dist/**', '.scape/**' ],
   },
   ...config,
 ]

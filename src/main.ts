@@ -17,9 +17,24 @@ import { createFpsMeter } from './ui/fps-meter.ts'
 import { createGraphicsPanel } from './ui/graphics-panel.ts'
 import { readCardHidden, writeCardHidden } from './ui/overlay-state.ts'
 import { createScapeCard } from './ui/scape-card.ts'
-import { createScapeControls } from './ui/scape-controls.ts'
+import { createScapeControls, writePath } from './ui/scape-controls.ts'
 import { createSettingsStore } from './ui/settings-store.ts'
 
+
+/**
+ * What the scape is doing, on the root element.
+ *
+ * Deliberately *not* `data-scape` — that attribute already marks the canvas,
+ * and a document-order `querySelector` for it would find `<html>` first the
+ * moment this was written. The screenshot tool waits on `ready` here rather
+ * than on a timeout, because a timeout long enough for the slowest tier is a
+ * timeout wasted on every other one.
+ */
+type ScapeState = 'booting' | 'ready' | 'lost' | 'failed'
+
+function announce (state: ScapeState): void {
+  document.documentElement.dataset.scapeState = state
+}
 
 const firstCanvas = document.querySelector<HTMLCanvasElement>('[data-scape]')
 const statusSlot  = document.querySelector<HTMLOutputElement>('#scape-status')
@@ -212,6 +227,47 @@ seedRuntime(initialQuality)
 const settings = createSettingsStore(SCAPE_CONFIG, createScapeControls(initialQuality))
 
 settings.load()
+announce('booting')
+
+/**
+ * Every knob in the config, addressable from the url.
+ *
+ * `?set=camera.rotation=30,daylight.time=0.85`. The paths are the same dotted
+ * strings the graphics overlay and the settings snapshot already use, written
+ * with the same `writePath` — so there is exactly one vocabulary for "which
+ * number", and a knob added to the config is reachable from here on the day it
+ * lands without anyone wiring a parameter for it.
+ *
+ * Applied *after* `settings.load`, so a url beats whatever the last session
+ * left in local storage. A capture that silently inherited someone else's
+ * dragged sliders would be a capture of the wrong scape.
+ */
+function applyUrlOverrides (): void {
+  const raw = params.get('set')
+
+  if (!raw)
+    return
+
+  for (const entry of raw.split(',')) {
+    const split = entry.indexOf('=')
+
+    if (split === -1) {
+      diagnostics.say(`?set wants path=value, ignoring "${entry}"`)
+      continue
+    }
+
+    const path  = entry.slice(0, split).trim()
+    const text  = entry.slice(split + 1).trim()
+    const value = text === 'true' || text === 'false'
+      ? text === 'true'
+      : Number.isFinite(Number(text)) && text !== '' ? Number(text) : text
+
+    writePath(SCAPE_CONFIG, path, value)
+    diagnostics.say(`${path} set to ${String(value)} by the url`)
+  }
+}
+
+applyUrlOverrides()
 
 // Built once and outside `mount`: the card is markup that shipped with the page
 // and it survives the canvas being replaced under it after a context loss.
@@ -246,7 +302,24 @@ function mount (): void {
     diagnostics,
     skip,
     auditOnly: auditing,
-    onVitals:  sample => meter.update(sample),
+
+    // The readout on the canvas is for a person watching; the same numbers go
+    // onto the root element for whatever is driving the page from outside it.
+    // A scape that has issued a draw call has drawn, which is the only
+    // definition of ready that does not depend on how fast the device is.
+    onVitals (sample) {
+      const root = document.documentElement.dataset
+
+      meter.update(sample)
+
+      root.scapeFps   = sample.fps.toFixed(1)
+      root.scapeCalls = String(sample.calls)
+      root.scapeTris  = String(sample.triangles)
+      root.scapeDrawn = String(sample.drawn)
+
+      if (sample.calls > 0 && root.scapeState === 'booting')
+        announce('ready')
+    },
 
     // The camera talks constantly, and none of it survives a crash worth
     // reading. It stays out of the log and off the one surface the log owns.
@@ -337,6 +410,7 @@ function loseContext (): void {
   const next = reduceAtmosphereQuality(quality)
 
   losses += 1
+  announce('lost')
   unmount()
 
   // The browser is keeping score too, and its penalty is worse than the crash.
@@ -346,11 +420,13 @@ function loseContext (): void {
   // have run perfectly. Rebuilding is a budget, so it is spent like one.
   if (losses >= MAX_LOSSES) {
     diagnostics.fail(`${losses} contexts lost · stopping before the browser blocks this page · reload to try again`)
+    announce('failed')
     return
   }
 
   if (!next) {
     diagnostics.fail('no tier left to fall back to · reload to rebuild the scape')
+    announce('failed')
     return
   }
 
@@ -372,12 +448,14 @@ function loseContext (): void {
     renewCanvas()
 
     try {
+      announce('booting')
       mount()
     }
     catch (error) {
       // A rebuild that cannot even get a context is the end of the line, and
       // throwing out of a timer would only lose the message the reader needs.
       diagnostics.fail(`rebuild failed · ${error instanceof Error ? error.message : String(error)}`)
+      announce('failed')
     }
   }, RECOVERY_DELAY)
 }
@@ -390,6 +468,7 @@ catch (error) {
   const message = error instanceof Error ? error.message : String(error)
 
   diagnostics.fail(`could not build the scape · ${message}`)
+  announce('failed')
 
   // three throws a flat "Error creating WebGL context" whatever the reason, and
   // the reason is the only part worth reading — it arrives separately, through

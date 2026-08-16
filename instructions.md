@@ -33,6 +33,7 @@ before touching anything:
 - read the [readme](README.md) end to end. it is not a summary, it is the design record — most of the non-obvious decisions in this scene are explained there, and several of them are explanations of bugs that will come straight back if the reasoning is discarded.
 - read [`src/scene/config.ts`](src/scene/config.ts). it is the public tuning surface and the fastest map of what the scene currently has.
 - read [`src/scene/quality.ts`](src/scene/quality.ts). every new cost has to have an answer for the mobile tier.
+- run `bun run scape:map` once, before changing anything. it is about sixteen milliseconds and it is the fastest picture of what the scape currently *is* — where the farm stands, where the beck runs, which islets surface. it is also the "before" the run will be judged against in stage 5.
 - list open pull requests. if one is open from a previous run, drive *that* to green and merged before opening another. two enhancement branches racing on the same scene is how the merge conflicts start.
 - check the recently merged runs. do not repeat the last one's theme.
 
@@ -66,6 +67,8 @@ the house rules. these are not style preferences; each one is load-bearing for e
 
 **there is no `enabled` flag.** an effect is off when its strength is zero. do not add booleans that duplicate a number that already exists.
 
+**anything that moves needs a speed that can reach zero.** the capture tools stop the scape by writing `0` to every speed in the config — `daylight.speed`, `season.speed`, `wind.strength`, `look.grain`, `atmosphere.cloudSpeed` and the rest. a new system whose animation is driven by a hard-coded rate rather than by a config knob cannot be stopped, which means it cannot be captured, which means it silently poisons every visual diff taken after it lands. if a run adds motion, it adds the knob that stops it, and it adds that knob to `STILL` in [`scripts/scape-shot.ts`](scripts/scape-shot.ts).
+
 **every tier still has to run.** new cost is gated on `AtmosphereQuality`, and the mobile preset is the one that has to be defended. if a system cannot be made cheap, give it a tier gate and a graceful absence — not a lower-quality version that looks broken.
 
 **lifecycle discipline.** generation in `build`, animation in `update`, viewport work in `resize`, teardown in `dispose`. `createApp` owns the only render loop — never add a `requestAnimationFrame`. anything allocated on the gpu (geometry, material, texture, render target, pass) is released in `dispose`, including the things a new system allocates on behalf of an old one.
@@ -97,7 +100,28 @@ bun test
 bun run build
 ```
 
-then look at it. run `bun run dev`, open the scape, and confirm the change is actually visible and actually an improvement — check it at both zoom extremes and across the day/night cycle, because most of this scene's historical bugs were angle- or time-dependent and invisible from the default pose. if the run cannot verify visually in its environment, say so plainly in the pull request rather than claiming it looks good.
+**then look at it.** the run is unattended, so "open the scape and see" is not available — these are what it looks with instead, and they are not optional. see [debugging the scape](README.md#debugging-the-scape) for what each one does.
+
+```sh
+bun run scape:map --stats                            # is the world still a world?
+bun run scape:diff --ref origin/main --poses tour    # what did the change do to the picture?
+```
+
+read them in that order, because they answer different questions and the first is nearly free.
+
+**`scape:map --stats`** is the structural check, and it catches the failures a still cannot. a beck that stopped tracing, an island that drowned under its own falloff, a pasture that no longer fits, footpaths that collapsed to zero, an isle that sank — every one of those is a single field in that block, and every one of them is invisible in a screenshot at the default pose. if a number moved that the run did not mean to move, that is the finding, and it comes before anything else.
+
+**`scape:diff --ref origin/main --poses tour`** is the visual check. `tour` is the six frames this stage has always asked for — both zoom extremes, noon, night and winter — because most of this scene's historical bugs were angle- or time-dependent and invisible from the default pose. it prints a table of numbers and writes an image only for a pose that actually moved, so the run reads a few lines and opens at most one picture.
+
+what the table means:
+
+- **the poses the change was supposed to touch moved, and the others did not.** that is the good outcome. a change to the winter palette that also moved `noon` by eight per cent is a change that did something it did not intend, and finding that here is the whole point.
+- **nothing moved at all** on a run that claims to have added something visible means the thing is not visible. that is a real failure, not a clean result.
+- **`STRUCTURE MOVED`** on the `structural:` line without a deliberate reason is a regression in the world model. stop and read `scape:map` in full before going any further.
+
+`scape:shot --poses tour` on its own is the fallback when there is no useful ref to compare against — a first run on a new system, say. it is a weaker check: it proves the scape builds and draws at six poses without errors or a lost context, and proves nothing about whether the change is an improvement.
+
+if the tools themselves cannot run — no chromium on the machine, a build that will not serve — say so plainly in the pull request, quote what failed, and fall back to `scape:map`, which needs nothing but bun. do not claim it looks good without having looked.
 
 ### 6. commit and push
 
@@ -118,7 +142,7 @@ ready for review, never a draft. the body carries:
 - **what the scape gained**, in a sentence someone can picture
 - **how it was built** — the modules touched and why, and any decision that a reviewer would otherwise have to reverse-engineer
 - **cost** — draw calls added, instance counts, texture memory, and what the mobile tier does with it
-- **verification** — the four commands, plus what was checked visually and at which zoom and time of day
+- **verification** — the four commands, plus the `scape:map --stats` block and the `scape:diff` table, quoted. embed a still only for a pose the diff actually flagged
 - **follow-ups**, if the run deliberately left something for the next one
 
 ### 8. merge
@@ -182,6 +206,7 @@ either way the prompt stays a pointer to this file. the brief lives in the repos
 
 - one theme, landed completely
 - the scene is visibly richer, and still smooth on the mobile tier
+- `scape:diff` moved the poses the change was aimed at, and left the rest alone
 - `lint`, `typecheck`, `test`, `build` all clean
 - new tuning exposed in the config and the overlay
 - the readme still describes the code that exists
@@ -194,5 +219,6 @@ either way the prompt stays a pointer to this file. the brief lives in the repos
 - `Math.random` anywhere in generation
 - a knob that only exists as a magic number inside a module
 - lint warnings suppressed instead of fixed
+- a headline about something visible that `scape:diff` reports as `same` at every pose
 - an effect that only exists on the ultra tier because nobody sized it for mobile
 - a merged branch with red checks

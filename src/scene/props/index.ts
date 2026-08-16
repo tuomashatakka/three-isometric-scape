@@ -114,13 +114,4 @@ export function buildProp (name: PropName, rng: SeededRng, palette: NordicPalett
   return PROPS[name](rng.fork(name), palette)
 }
 
-export { NORDIC_PALETTE, resolvePalette } from './palette.ts'
-export type { NordicColor, NordicPalette } from './palette.ts'
-export { buildFenceRun } from './fence.ts'
-export type { FencePoint, FenceRunOptions } from './fence.ts'
-export { buildStoneWallRun } from './wall.ts'
-export type { StoneWallRunOptions } from './wall.ts'
-export { createScapeMaterials } from './material.ts'
-export type { ScapeMaterials } from './material.ts'
-export { Ploppable } from './ploppable.ts'
-export type { GroundAt, PlopOptions } from './ploppable.ts'
+export { resolvePalette } from './palette.ts'

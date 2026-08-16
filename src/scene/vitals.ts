@@ -21,6 +21,17 @@ export interface VitalsSample {
   worst:     number
   calls:     number
   triangles: number
+
+  /**
+   * Frames drawn since the scape started, and never reset.
+   *
+   * Everything else here describes a window; this describes the run. It is what
+   * a capture waits on — a scape converges over a *number of frames*, not over
+   * a number of seconds, and settling by wall clock on a machine whose speed
+   * varies by a factor of twenty is how two captures of one scene end up with
+   * different things faded into them.
+   */
+  drawn: number
 }
 
 /** What the scape reports about itself while it is running. */
@@ -130,6 +141,7 @@ export function createVitals ({ renderer, verbose, report, notice, sample }: Vit
   // the driver is questioned.
   let sinceSample  = 0
   let sampleFrames = 0
+  let drawn        = 0
   let sampleSpan   = 0
   let total        = 0
 
@@ -188,6 +200,7 @@ export function createVitals ({ renderer, verbose, report, notice, sample }: Vit
       worst,
       calls,
       triangles,
+      drawn,
     })
 
     sinceSample  = 0
@@ -238,6 +251,7 @@ export function createVitals ({ renderer, verbose, report, notice, sample }: Vit
         }
         else {
           frames       += 1
+          drawn        += 1
           span         += delta / 1000
           sampleFrames += 1
           sampleSpan   += delta / 1000

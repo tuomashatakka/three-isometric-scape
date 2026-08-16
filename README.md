@@ -122,6 +122,89 @@ publish the generated `dist/` directory to the desired pages path. for a project
 
 the scape is grown by a scheduled, unattended llm run. [`instructions.md`](instructions.md) is its standing brief: pick one theme, build it under the draw-call, determinism and lifecycle rules the rest of this readme explains, prove it with `lint`, `typecheck`, `test` and `build`, then open a pull request and merge it once [`pr-checks.yml`](.github/workflows/pr-checks.yml) is green. every pull request into `main` runs those same four checks, whoever opened it.
 
+## debugging the scape
+
+the enhancement run is unattended, and stage 5 of its brief asks it to *look at* what it built. it cannot. these
+three commands are what it looks with instead, and they are ordered by what they cost to read.
+
+**`bun run scape:map`** draws the whole composition as ascii — ground, beck, footpaths, cart track, the steading,
+the landings — and then says in numbers what a picture cannot. it needs no browser, no gpu and no dependency,
+because [`landscape/survey.ts`](src/scene/landscape/survey.ts) is pure: the ground, the farm, the landings and the
+routes worn between them all resolve without a vertex being built. the whole survey takes about seven
+milliseconds, and sampling a ninety-six by forty-eight grid on top of it about nine more.
+
+```sh
+bun run scape:map                 # grid and stats
+bun run scape:map --stats         # the numbers alone, about a hundred words
+bun run scape:map --seed 999      # a different island
+bun run scape:map --window 40,-20,60   # crop to the harbour
+bun run scape:map --json          # for scripting
+```
+
+the stats block is the part that earns its keep. a beck that failed to trace, an island that drowned, a pasture
+that never found room and a set of footpaths that collapsed to nothing are all *invisible* in a still at the
+default pose, and all of them are one field here.
+
+**`bun run scape:shot`** photographs it. the pose, the clock, the year and the tier all come off the command line
+and go in through `?set=`, which addresses knobs by the same dotted paths the graphics overlay and the settings
+snapshot already use — so a knob added to [`config.ts`](src/scene/config.ts) is reachable from a url on the day it
+lands, with nothing wired for it.
+
+```sh
+bun run scape:shot --poses tour   # the six frames stage 5 asks for, one browser launch
+bun run scape:shot --rot 30 --zoom 12 --time 0.02
+bun run scape:shot --tier ultra --set look.bloom=0
+```
+
+`tour` is `default`, `near`, `far`, `noon`, `night` and `winter` — both zoom extremes and across the day, which is
+exactly what the brief asks for and where most of this scape's historical bugs lived. every capture prints a line
+before anything opens the image:
+
+```text
+near         ok          5.3s  fps  15.7  draws   50  tris 0.20M  f  43  err 0  -> .scape/shots/near.png
+```
+
+most runs need only those lines. console errors, a lost context and a scape that never reached its first draw all
+show up there, and a run that reads them has already learned the thing an image would have told it.
+
+three defaults are load-bearing and worth knowing about:
+
+- **the tier is pinned, not detected.** `readQualitySignals` answers from cores, pointer and viewport, so an
+  unpinned capture picks a different tier on a laptop than on a build box — and two stills at two tiers are not a
+  comparison, they are two different scapes.
+- **it renders on swiftshader, not the gpu.** software rasterisation is slower and exactly reproducible. a real
+  adapter draws the same frame differently from one machine to the next, which turns every diff into an argument
+  about how much noise counts as noise. `--gpu` trades that back when nobody is going to diff the result.
+- **the shutter waits on a frame count, not a clock.** this one was measured rather than assumed: settling for a
+  fixed nine hundred milliseconds produced fifty draw calls on one run and a hundred and eight on the next,
+  because the cloud deck and the mist fade in over frames and the machine draws a different number of them each
+  time. `--frames 40` is the same everywhere.
+
+**`bun run scape:diff`** says whether the change moved anything, and reports numbers before it reports pictures.
+
+```sh
+bun run scape:diff --ref origin/main --poses tour
+```
+
+it builds the reference in a detached git worktree, serves both builds statically, captures the same poses through
+both, and prints a table. a diff image is written **only** for a pose that moved past `--threshold`, so an
+unchanged run costs a few lines and a changed one points straight at the frame worth opening. the `structural:`
+line runs `scape:map --json` on both sides, which catches a world-model regression that no single pose would show.
+
+the reference worktree is cached under `.scape/ref`, because building one is the slowest thing either tool does
+and comparing against `origin/main` twice in an afternoon should pay for it once. `bun run scape:diff --clean`
+gives them back.
+
+a git ref rather than a stored baseline is deliberate: an unattended run starts from a fresh clone with no
+`.scape/` in it, so a baseline-file design fails on the exact workload it exists for. `--accept` and a bare
+`scape:diff` give the baseline flow anyway, for iterating inside one session.
+
+the noise floor was measured, not guessed. two independent captures of the same commit differ in about fourteen
+per cent of their pixels by one or two levels — float ordering in the post chain — and in **nought point nought
+nought per cent** at the default tolerance. a zero means zero.
+
+`.scape/` holds all of it and is gitignored.
+
 ## project map
 
 ```text
@@ -157,6 +240,7 @@ src/
     │   ├── steading.ts             where the farm's buildings and well stand
     │   ├── landing.ts              the shoreline the jetty and the harbour are on
     │   ├── path.ts                 route smoothing and polyline queries
+    │   ├── survey.ts               the pure composition, before anything is drawn
     │   ├── footpath.ts             desire lines worn between the places above
     │   ├── creek.ts                the beck: descent trace, channel, tidal mouth
     │   ├── height.ts                authored ground, islets, beck, fbm underneath
@@ -179,6 +263,13 @@ src/
         ├── shore.ts                boathouse and slipway, net rack, mooring stakes
         ├── objects.ts              rowboat, bales, firewood, barrel, mailbox, driftwood
         └── stone.ts                erratics, field stones, cobbles, cairns
+
+scripts/
+├── args.ts                         the shared command line, and dotted-path overrides
+├── browser.ts                      finding a chromium, and serving what it looks at
+├── scape-map.ts                    the whole composition as ascii, without a browser
+├── scape-shot.ts                   headless stills, posed and pinned
+└── scape-diff.ts                   what a change did to the picture, in numbers
 ```
 
 the renderer uses a device-tier pixel-ratio cap, the scene uses one `createapp` render loop, and the post module is the only frame renderer. the `ultra` tier adds ambient occlusion, screen-space reflections on the lake, anamorphic streaks and a traa resolve; it is only selected for a wide viewport on a many-core machine with a mouse. pointer state is cancelled cleanly; teardown releases geometries, materials, sky, mist, cloud-shadow and bathymetry textures, composer targets, fullscreen passes, and every baked lut. those defaults matter more than squeezing another ornamental system into a starter, tragically enough~ n__n

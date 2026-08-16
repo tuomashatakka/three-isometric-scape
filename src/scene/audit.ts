@@ -468,50 +468,6 @@ export function reportPrograms (renderer: WebGLRenderer, report: AuditReport, au
   return faults.length > 0 || auditOnly
 }
 
-/**
- * The programs that were not there to be audited the first time.
- *
- * `renderer.compile` builds what the scene needs to be *set up*, which is not
- * what it needs to be *drawn*: the shadow-receiving variant of every material
- * and every post pass is compiled on the first frame that uses one. On this
- * scape that is two thirds of the total — ten programs at mount against
- * thirty-five a few seconds in — and the ones it leaves out are the heavier
- * half, because a shadow coordinate is a whole vec4 per light.
- *
- * `debug.onShaderError` is what protects those: it fires on a program's first
- * use, which three reaches before the draw. This pass is the census catching up
- * afterwards, so the log describes the scape that actually ran rather than the
- * third of it that existed at mount.
- */
-export function reportLatePrograms (renderer: WebGLRenderer, report: AuditReport, seen: Set<string>): boolean {
-  const gl       = renderer.getContext() as WebGL2RenderingContext
-  const rowLimit = varyingRowLimit(gl)
-  const faults   = auditPrograms(renderer)
-  const late     = (renderer.info.programs ?? []).filter(entry => !seen.has(entry.cacheKey))
-
-  for (const entry of late)
-    seen.add(entry.cacheKey)
-
-  if (!late.length)
-    return faults.length > 0
-
-  report.say(`${late.length} more programs built while drawing · ${seen.size} in all`)
-
-  for (const entry of late) {
-    const program = entry.program as WebGLProgram | null
-
-    if (program)
-      report.say(describeCensus(censusProgram(gl, program, entry.name || '(unnamed)'), rowLimit))
-  }
-
-  return faults.length > 0
-}
-
-/** Which programs the first audit already accounted for. */
-export function seenPrograms (renderer: WebGLRenderer): Set<string> {
-  return new Set((renderer.info.programs ?? []).map(entry => entry.cacheKey))
-}
-
 // perf: two `getProgramParameter` calls and a source parse per program, once,
 // after the scene is built and before it draws. Six programs on the mobile
 // tier. Nothing here runs on the frame path.
