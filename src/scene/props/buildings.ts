@@ -3,7 +3,7 @@ import type { SeededRng } from 'threejs-scene'
 import { mergeParts, part } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
 import { box, cyl, deg } from './primitives.ts'
-import { claddingPlanks, gableSteps, gabledRoof } from './timber.ts'
+import { claddingPlanks, dormer, gableEnd, gabledRoof, monoRoof, window } from './timber.ts'
 
 
 /**
@@ -17,45 +17,29 @@ import { claddingPlanks, gableSteps, gabledRoof } from './timber.ts'
  * The cladding, gable and roof helpers they are assembled from live in
  * [`timber.ts`](timber.ts), because the meadow barn up on the pasture is the
  * same construction in weathered grey.
+ *
+ * ## Two heights every building here is written against
+ *
+ * `plinthY` — the top of the foundation, and the floor everything on the wall
+ * stands on. A door drawn from `y = 0` is not a taller door; it is a door with
+ * its bottom quarter inside the socle, because the socle is proud of the wall.
+ *
+ * The roof plane — see {@link roofUnderside}. The eave is where the roof meets
+ * the *wall*, and the overhang is measured out from there.
  */
-
-/** A window: a dark pane set inside a painted surround. */
-function window (
-  parts: BufferGeometry[],
-  rng:   SeededRng,
-  frame: string,
-  glass: string,
-  at:    readonly [number, number, number],
-  width: number,
-  height: number,
-  facing: 1 | -1,
-): void {
-  const [ x, y, z ] = at
-
-  parts.push(part(box(width + 0.22, height + 0.22, 0.1), {
-    at:     [ x, y, z ],
-    color:  frame,
-    jitter: 0.04,
-    rng,
-  }))
-  parts.push(part(box(width, height, 0.08), {
-    at:     [ x, y, z + facing * 0.05 ],
-    color:  glass,
-    jitter: 0.12,
-    rng,
-  }))
-}
 
 /** The barn (lato) — falu-red board walls, sliding door, hay in the opening. */
 export function buildBarn (rng: SeededRng, palette: NordicPalette): BufferGeometry {
   const parts: BufferGeometry[] = []
   const length                  = 8
   const halfDepth               = 2.7
+  const plinthY                 = 0.5
   const wallY                   = 3.6
   const peakY                   = 5.6
+  const roof                    = { eaveY: wallY, peakY, halfDepth }
 
-  parts.push(part(box(length + 0.5, 0.5, halfDepth * 2 + 0.5), {
-    at: [ 0, 0.25, 0 ], color: palette.granite, jitter: 0.11, rng,
+  parts.push(part(box(length + 0.5, plinthY, halfDepth * 2 + 0.5), {
+    at: [ 0, plinthY / 2, 0 ], color: palette.granite, jitter: 0.11, rng,
   }))
 
   claddingPlanks(parts, rng, palette.faluRed, 10, length, wallY, 0.18, -halfDepth)
@@ -65,32 +49,46 @@ export function buildBarn (rng: SeededRng, palette: NordicPalette): BufferGeomet
     parts.push(part(box(0.2, wallY, halfDepth * 2), {
       at: [ side * length / 2, wallY / 2, 0 ], color: palette.faluDark, jitter: 0.08, rng,
     }))
-    gableSteps(parts, rng, palette.faluDark, side * length / 2, wallY, peakY, halfDepth * 2, 0.2)
+    gableEnd(parts, rng, palette.faluDark, { ...roof, thick: 0.2, at: side * length / 2 })
   }
 
-  gabledRoof(parts, rng, palette.shingle, palette.shingleWorn, length + 0.7, wallY, peakY, halfDepth + 0.35)
+  gabledRoof(parts, rng, palette.shingle, palette.shingleWorn, {
+    ...roof, length: length + 0.7, overhang: 0.35,
+  })
 
+  // Corner boards stop at the wall head. Running them past it, as they used to,
+  // puts white posts through the eaves from every angle but the default one.
   for (const sx of [ -1, 1 ])
     for (const sz of [ -1, 1 ])
-      parts.push(part(box(0.32, wallY + 0.2, 0.32), {
-        at: [ sx * length / 2, (wallY + 0.2) / 2, sz * halfDepth ], color: palette.trimWhite, jitter: 0.03, rng,
+      parts.push(part(box(0.32, wallY, 0.32), {
+        at: [ sx * length / 2, wallY / 2, sz * halfDepth ], color: palette.trimWhite, jitter: 0.03, rng,
       }))
 
-  parts.push(part(box(2.5, 2.9, 0.14), {
-    at: [ 1.3, 1.45, halfDepth + 0.08 ], color: palette.tarWood, jitter: 0.1, rng,
+  // Everything on the front wall is raised onto the plinth, and set back to the
+  // cladding plane so it reads as fitted into the wall rather than stuck on it.
+  const doorY = 2.9
+
+  parts.push(part(box(2.5, doorY, 0.14), {
+    at: [ 1.3, plinthY + doorY / 2, halfDepth + 0.07 ], color: palette.tarWood, jitter: 0.1, rng,
   }))
   parts.push(part(box(2.4, 1.3, 0.6), {
-    at: [ 1.3, 0.65, halfDepth - 0.2 ], color: palette.hay, jitter: 0.16, rng,
+    at: [ 1.3, plinthY + 0.65, halfDepth - 0.2 ], color: palette.hay, jitter: 0.16, rng,
   }))
-  parts.push(part(box(2.6, 3, 0.16), {
-    at: [ -1.5, 1.5, halfDepth + 0.14 ], color: palette.faluDark, jitter: 0.07, rng,
+  parts.push(part(box(2.6, doorY, 0.16), {
+    at: [ -1.5, plinthY + doorY / 2, halfDepth + 0.08 ], color: palette.faluDark, jitter: 0.07, rng,
   }))
   parts.push(part(box(6.6, 0.18, 0.2), {
-    at: [ 0, 3.1, halfDepth + 0.16 ], color: palette.iron, jitter: 0.05, rng,
+    at: [ 0, plinthY + doorY + 0.11, halfDepth + 0.1 ], color: palette.iron, jitter: 0.05, rng,
   }))
-  parts.push(part(box(2.8, 0.32, 1.8), {
-    at:     [ 1.3, 0.28, halfDepth + 1.1 ],
-    rotate: [ deg(5), 0, 0 ],
+
+  // The threshold ramp: from the plinth top down to the ground, clear of the
+  // socle it steps off. A ramp that starts inside the foundation is a wedge.
+  const rampRun  = 1.8
+  const rampFall = plinthY - 0.05
+
+  parts.push(part(box(2.8, 0.3, rampRun / Math.cos(Math.atan2(rampFall, rampRun))), {
+    at:     [ 1.3, (plinthY + 0.05) / 2 + 0.15, halfDepth + 0.25 + rampRun / 2 ],
+    rotate: [ Math.atan2(rampFall, rampRun), 0, 0 ],
     color:  palette.plank,
     jitter: 0.1,
     rng,
@@ -107,11 +105,13 @@ export function buildFarmhouse (rng: SeededRng, palette: NordicPalette): BufferG
   const parts: BufferGeometry[] = []
   const length                  = 9
   const halfDepth               = 3
+  const plinthY                 = 0.6
   const wallY                   = 3.9
   const peakY                   = 6.3
+  const roof                    = { eaveY: wallY, peakY, halfDepth }
 
-  parts.push(part(box(length + 0.6, 0.6, halfDepth * 2 + 0.6), {
-    at: [ 0, 0.3, 0 ], color: palette.granite, jitter: 0.12, rng,
+  parts.push(part(box(length + 0.6, plinthY, halfDepth * 2 + 0.6), {
+    at: [ 0, plinthY / 2, 0 ], color: palette.granite, jitter: 0.12, rng,
   }))
 
   claddingPlanks(parts, rng, palette.faluRed, 11, length, wallY, 0.2, -halfDepth)
@@ -121,43 +121,64 @@ export function buildFarmhouse (rng: SeededRng, palette: NordicPalette): BufferG
     parts.push(part(box(0.22, wallY, halfDepth * 2), {
       at: [ side * length / 2, wallY / 2, 0 ], color: palette.faluDark, jitter: 0.08, rng,
     }))
-    gableSteps(parts, rng, palette.faluDark, side * length / 2, wallY, peakY, halfDepth * 2, 0.22)
+    gableEnd(parts, rng, palette.faluDark, { ...roof, thick: 0.22, at: side * length / 2 })
   }
 
-  gabledRoof(parts, rng, palette.shingle, palette.shingleWorn, length + 0.9, wallY, peakY, halfDepth + 0.45)
+  gabledRoof(parts, rng, palette.shingle, palette.shingleWorn, {
+    ...roof, length: length + 0.9, overhang: 0.45,
+  })
 
   for (const sx of [ -1, 1 ])
     for (const sz of [ -1, 1 ])
-      parts.push(part(box(0.34, wallY + 0.2, 0.34), {
-        at: [ sx * length / 2, (wallY + 0.2) / 2, sz * halfDepth ], color: palette.trimWhite, jitter: 0.03, rng,
+      parts.push(part(box(0.34, wallY, 0.34), {
+        at: [ sx * length / 2, wallY / 2, sz * halfDepth ], color: palette.trimWhite, jitter: 0.03, rng,
       }))
 
-  for (const x of [ -3.1, -1, 1, 3.1 ])
+  // Front windows stand clear of the porch canopy on either side. The inner
+  // pair used to sit at x = ±1, which the 2.6 m canopy cut straight through.
+  for (const x of [ -3.6, -2.1, 2.1, 3.6 ])
     window(parts, rng, palette.trimWhite, palette.glass, [ x, 2.4, halfDepth + 0.06 ], 0.8, 1.1, 1)
 
   for (const x of [ -2.4, 2.4 ])
     window(parts, rng, palette.trimWhite, palette.glass, [ x, 2.4, -halfDepth - 0.06 ], 0.8, 1.1, -1)
 
-  window(parts, rng, palette.trimWhite, palette.glass, [ 0, 5, halfDepth - 0.35 ], 0.7, 0.8, 1)
+  // The attic window, as an actual dormer. Flat on the pitch it read as a
+  // picture of a window rather than an opening — there was no depth anywhere.
+  dormer(parts, rng, palette.faluDark, palette.shingleWorn, palette.shingle, palette.trimWhite, palette.glass, {
+    roof,
+    at:     1.5,
+    width:  1.5,
+    depth:  1.2,
+    height: 0.75,
+    rise:   0.5,
+  })
 
-  parts.push(part(box(1.1, 2.4, 0.16), {
-    at: [ 0, 1.2, halfDepth + 0.1 ], color: palette.tarWood, jitter: 0.07, rng,
+  const doorY   = 2
+  const canopyY = 2.9
+
+  parts.push(part(box(1.1, doorY, 0.16), {
+    at: [ 0, plinthY + doorY / 2, halfDepth + 0.08 ], color: palette.tarWood, jitter: 0.07, rng,
   }))
   parts.push(part(box(2.6, 0.22, 1.5), {
-    at: [ 0, 2.7, halfDepth + 0.7 ], color: palette.shingleWorn, jitter: 0.07, rng,
+    at: [ 0, canopyY, halfDepth + 0.7 ], color: palette.shingleWorn, jitter: 0.07, rng,
   }))
 
   for (const sx of [ -1, 1 ])
-    parts.push(part(box(0.18, 2.7, 0.18), {
-      at: [ sx * 1.1, 1.35, halfDepth + 1.3 ], color: palette.trimWhite, jitter: 0.04, rng,
+    parts.push(part(box(0.18, canopyY - 0.05, 0.18), {
+      at: [ sx * 1.1, (canopyY - 0.05) / 2, halfDepth + 1.3 ], color: palette.trimWhite, jitter: 0.04, rng,
     }))
 
-  parts.push(part(box(1.8, 0.24, 0.9), {
-    at: [ 0, 0.12, halfDepth + 0.85 ], color: palette.granite, jitter: 0.1, rng,
-  }))
-  parts.push(part(box(1.5, 0.24, 0.6), {
-    at: [ 0, 0.36, halfDepth + 0.55 ], color: palette.granite, jitter: 0.1, rng,
-  }))
+  // Three risers, because the plinth is 0.6 m and two 0.24 m steps left a lip
+  // you would trip over — visible as a granite shelf under the door.
+  const risers = 3
+
+  for (let step = 0; step < risers; step += 1)
+    parts.push(part(box(1.9 - step * 0.2, plinthY / risers, 0.45), {
+      at:     [ 0, plinthY / risers * (step + 0.5), halfDepth + 0.45 + (risers - 1 - step) * 0.27 ],
+      color:  palette.granite,
+      jitter: 0.1,
+      rng,
+    }))
 
   parts.push(part(box(0.9, 2.2, 0.9), {
     at: [ -2.6, peakY - 0.4, 0 ], color: palette.ironRust, jitter: 0.13, rng,
@@ -176,15 +197,17 @@ export function buildSauna (rng: SeededRng, palette: NordicPalette): BufferGeome
   const halfDepth               = 1.7
   const courses                 = 6
   const courseH                 = 0.42
-  const wallY                   = courses * courseH
-  const peakY                   = wallY + 1.3
+  const plinthY                 = 0.42
+  const eaveY                   = plinthY + courses * courseH
+  const peakY                   = eaveY + 1.3
+  const roof                    = { eaveY, peakY, halfDepth }
 
-  parts.push(part(box(length + 0.5, 0.42, halfDepth * 2 + 0.5), {
-    at: [ 0, 0.21, 0 ], color: palette.granite, jitter: 0.13, rng,
+  parts.push(part(box(length + 0.5, plinthY, halfDepth * 2 + 0.5), {
+    at: [ 0, plinthY / 2, 0 ], color: palette.granite, jitter: 0.13, rng,
   }))
 
   for (let course = 0; course < courses; course += 1) {
-    const y     = 0.42 + courseH * (course + 0.5)
+    const y     = plinthY + courseH * (course + 0.5)
     const color = course % 2 === 0 ? palette.woodDark : palette.tarWood
 
     for (const side of [ -1, 1 ]) {
@@ -205,10 +228,16 @@ export function buildSauna (rng: SeededRng, palette: NordicPalette): BufferGeome
     }
   }
 
-  gabledRoof(parts, rng, palette.shingleWorn, palette.shingle, length + 0.7, wallY + 0.42, peakY, halfDepth + 0.4)
+  // Log ends left the gable open, so the roof void was lit from both ends.
+  for (const side of [ -1, 1 ])
+    gableEnd(parts, rng, palette.woodDark, { ...roof, thick: 0.2, at: side * (length / 2 - 0.1) })
+
+  gabledRoof(parts, rng, palette.shingleWorn, palette.shingle, {
+    ...roof, length: length + 0.7, overhang: 0.4,
+  })
 
   parts.push(part(box(0.9, 1.6, 0.14), {
-    at: [ 0, 1.22, halfDepth + 0.08 ], color: palette.woodLight, jitter: 0.08, rng,
+    at: [ 0, plinthY + 0.8, halfDepth + 0.08 ], color: palette.woodLight, jitter: 0.08, rng,
   }))
   window(parts, rng, palette.tarWood, palette.glass, [ 1.3, 1.9, halfDepth + 0.06 ], 0.45, 0.4, 1)
 
@@ -225,8 +254,10 @@ export function buildAitta (rng: SeededRng, palette: NordicPalette): BufferGeome
   const length                  = 3.2
   const halfDepth               = 1.4
   const floorY                  = 0.75
+  const deckY                   = floorY + 0.24
   const wallY                   = floorY + 2.4
   const peakY                   = wallY + 1.5
+  const roof                    = { eaveY: wallY, peakY, halfDepth }
 
   for (const sx of [ -1, 1 ])
     for (const sz of [ -1, 1 ])
@@ -241,21 +272,25 @@ export function buildAitta (rng: SeededRng, palette: NordicPalette): BufferGeome
     at: [ 0, floorY + 0.12, 0 ], color: palette.plank, jitter: 0.09, rng,
   }))
 
+  // The walls run deck to wall head. They used to stop 0.12 m short, which read
+  // as a slot of daylight all the way round under the eaves.
   for (const sz of [ -1, 1 ])
-    parts.push(part(box(length, wallY - floorY - 0.24, 0.18), {
-      at: [ 0, (wallY + floorY) / 2, sz * halfDepth ], color: palette.woodDark, jitter: 0.1, rng,
+    parts.push(part(box(length, wallY - deckY, 0.18), {
+      at: [ 0, (wallY + deckY) / 2, sz * halfDepth ], color: palette.woodDark, jitter: 0.1, rng,
     }))
   for (const sx of [ -1, 1 ]) {
-    parts.push(part(box(0.18, wallY - floorY - 0.24, halfDepth * 2), {
-      at: [ sx * length / 2, (wallY + floorY) / 2, 0 ], color: palette.tarWood, jitter: 0.1, rng,
+    parts.push(part(box(0.18, wallY - deckY, halfDepth * 2), {
+      at: [ sx * length / 2, (wallY + deckY) / 2, 0 ], color: palette.tarWood, jitter: 0.1, rng,
     }))
-    gableSteps(parts, rng, palette.tarWood, sx * length / 2, wallY, peakY, halfDepth * 2, 0.18)
+    gableEnd(parts, rng, palette.tarWood, { ...roof, thick: 0.18, at: sx * length / 2 })
   }
 
-  gabledRoof(parts, rng, palette.shingleWorn, palette.shingle, length + 0.9, wallY, peakY, halfDepth + 0.55)
+  gabledRoof(parts, rng, palette.shingleWorn, palette.shingle, {
+    ...roof, length: length + 0.9, overhang: 0.55,
+  })
 
   parts.push(part(box(0.85, 1.5, 0.12), {
-    at: [ 0, floorY + 0.9, halfDepth + 0.07 ], color: palette.woodLight, jitter: 0.08, rng,
+    at: [ 0, deckY + 0.75, halfDepth + 0.07 ], color: palette.woodLight, jitter: 0.08, rng,
   }))
 
   for (const sx of [ -1, 1 ])
@@ -298,13 +333,9 @@ export function buildWoodshed (rng: SeededRng, palette: NordicPalette): BufferGe
       at: [ sx * length / 2, frontY / 2, 0 ], color: palette.woodDark, jitter: 0.09, rng,
     }))
 
-  parts.push(part(box(length + 0.6, 0.2, halfDepth * 2.4), {
-    at:     [ 0, (frontY + backY) / 2 + 0.25, 0 ],
-    rotate: [ deg(12), 0, 0 ],
-    color:  palette.shingle,
-    jitter: 0.07,
-    rng,
-  }))
+  // The roof now lands on the posts. Placed by its centre-line it floated a
+  // clear 0.15 m above every one of them.
+  monoRoof(parts, rng, palette.shingle, { length: length + 0.6, frontY, backY, halfDepth })
 
   for (let row = 0; row < 3; row += 1)
     for (let log = 0; log < 5; log += 1)

@@ -12,7 +12,9 @@
     "typecheck": "tsc --noEmit",
     "scape:map": "bun scripts/scape-map.ts",
     "scape:shot": "bun scripts/scape-shot.ts",
-    "scape:diff": "bun scripts/scape-diff.ts"
+    "scape:diff": "bun scripts/scape-diff.ts",
+    "prop:map": "bun scripts/prop-map.ts",
+    "prop:watch": "bun --watch scripts/prop-map.ts"
   },
   "dependencies": {
     "@tuomashatakka/canvas-loop-framecapper": "^1.0.0",

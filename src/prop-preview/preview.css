@@ -1,0 +1,293 @@
+/*
+ * The prop preview chrome.
+ *
+ * Deliberately unlike the scape's card: this is an instrument, so it is dense,
+ * monospaced, and stays out of the four viewports it exists to annotate.
+ */
+
+:root {
+  --ink: #d8dcd2;
+  --ink-dim: #8a9284;
+  --edge: #2b3229;
+  --panel: #171b15;
+  --accent: #c8a24a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background: #0e110c;
+  color: var(--ink);
+  font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow: hidden;
+}
+
+.preview-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  align-items: center;
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--edge);
+  background: var(--panel);
+}
+
+.preview-bar h1 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
+.preview-bar label {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+
+.preview-bar select,
+.preview-bar input[type='number'] {
+  padding: 0.2rem 0.35rem;
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+  background: #10130e;
+  color: var(--ink);
+  font: inherit;
+}
+
+.preview-bar input[type='number'] {
+  width: 6ch;
+}
+
+.preview-bar input[type='checkbox'] {
+  accent-color: var(--accent);
+}
+
+.toggle-set {
+  display: flex;
+  gap: 0.9rem;
+}
+
+#prop-readout {
+  margin-left: auto;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.preview-stage {
+  position: relative;
+  min-height: 0;
+}
+
+.preview-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+
+.preview-canvas:active {
+  cursor: grabbing;
+}
+
+/* The split lines. Drawn in CSS because the renderer clears per viewport and
+   would have to paint them four times to get the same two lines. */
+.pane-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.pane-labels::before,
+.pane-labels::after {
+  position: absolute;
+  background: var(--edge);
+  content: '';
+}
+
+.pane-labels::before {
+  inset: 0 auto 0 50%;
+  width: 1px;
+}
+
+.pane-labels::after {
+  inset: 50% 0 auto 0;
+  height: 1px;
+}
+
+.pane-labels:has(.pane-solo)::before,
+.pane-labels:has(.pane-solo)::after {
+  display: none;
+}
+
+.pane-label {
+  position: absolute;
+  padding: 0.15rem 0.4rem;
+  border-radius: 2px;
+  background: #0e110ccc;
+  color: var(--ink-dim);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pane-top { top: 0.4rem; left: 0.5rem; }
+.pane-front { top: 0.4rem; left: calc(50% + 0.5rem); }
+.pane-left { top: calc(50% + 0.4rem); left: 0.5rem; }
+.pane-iso { top: calc(50% + 0.4rem); left: calc(50% + 0.5rem); color: var(--accent); }
+.pane-solo { top: 0.4rem; left: 0.5rem; color: var(--accent); }
+
+.preview-help {
+  position: absolute;
+  right: 0.6rem;
+  bottom: 0.5rem;
+  color: #6d7568;
+  font-size: 11px;
+  text-align: right;
+  pointer-events: none;
+}
+
+@media (width <= 720px) {
+  #prop-readout {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .preview-help {
+    display: none;
+  }
+}
+
+/* ---- mode switching -------------------------------------------------------
+   Two modes on one page: the contact sheet, and one prop in four viewports.
+   Driven off `data-mode` on <body> rather than by adding and removing nodes,
+   so the canvas keeps its WebGL context across a trip to the index and back.
+
+   Everything these rules hide is styled by CLASS, never by id. An id selector
+   scores 1-0-0 and beats any number of attributes and classes, so a single
+   `#preview-canvas { display: block }` quietly outranks the rule below — the
+   canvas stays laid out at full height and pushes the contact sheet a screen
+   down, which looks exactly like a page that rendered nothing. */
+
+body[data-mode='index'] .single-only,
+body[data-mode='single'] .index-only {
+  display: none;
+}
+
+.preview-bar input[type='search'] {
+  width: 14ch;
+  padding: 0.2rem 0.35rem;
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+  background: #10130e;
+  color: var(--ink);
+  font: inherit;
+}
+
+.bar-link {
+  color: var(--ink-dim);
+  text-decoration: none;
+}
+
+.bar-link:hover,
+.bar-link:focus-visible {
+  color: var(--accent);
+}
+
+/* ---- the contact sheet ---------------------------------------------------- */
+
+body[data-mode='index'] .preview-stage {
+  overflow-y: auto;
+}
+
+#prop-index {
+  padding: 1rem 1rem 3rem;
+}
+
+.prop-group {
+  margin: 1.4rem 0 0.7rem;
+  color: var(--ink-dim);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.prop-group:first-child {
+  margin-top: 0;
+}
+
+.prop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 0.7rem;
+}
+
+.prop-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 0.4rem;
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.prop-card:hover,
+.prop-card:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+/* The thumbnail is rendered at 512×384 and shown at whatever the column is,
+   which keeps it sharp on a retina display without shipping two sizes. */
+.prop-card-shot {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 2px;
+  background: #12150f;
+}
+
+.prop-card-name {
+  margin-top: 0.35rem;
+  font-weight: 600;
+}
+
+.prop-card:hover .prop-card-name {
+  color: var(--accent);
+}
+
+.prop-card-meta {
+  color: var(--ink-dim);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.prop-card-flag {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+  padding: 0.05rem 0.3rem;
+  border-radius: 2px;
+  background: #0e110ce0;
+  color: var(--accent);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}

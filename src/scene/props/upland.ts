@@ -3,7 +3,7 @@ import type { SeededRng } from 'threejs-scene'
 import { mergeParts, part } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
 import { box, cone, cyl, deg, spread } from './primitives.ts'
-import { claddingPlanks, gableSteps, gabledRoof } from './timber.ts'
+import { claddingPlanks, gableEnd, gabledRoof } from './timber.ts'
 
 
 /**
@@ -58,10 +58,12 @@ export function buildMeadowBarn (rng: SeededRng, palette: NordicPalette): Buffer
     parts.push(part(box(0.18, wallY, halfDepth * 2), {
       at: [ sx * length / 2, floorY + wallY / 2, 0 ], color: palette.tarWood, jitter: 0.09, rng,
     }))
-    gableSteps(parts, rng, palette.driftwoodDark, sx * length / 2, eaveY, peakY, halfDepth * 2, 0.18)
+    gableEnd(parts, rng, palette.driftwoodDark, { eaveY, peakY, halfDepth, thick: 0.18, at: sx * length / 2 })
   }
 
-  gabledRoof(parts, rng, palette.shingleWorn, palette.shingle, length + 0.8, eaveY, peakY, halfDepth + 0.45)
+  gabledRoof(parts, rng, palette.shingleWorn, palette.shingle, {
+    eaveY, peakY, halfDepth, length: length + 0.8, overhang: 0.45,
+  })
 
   // The doorway, and the hay coming out of it. A barn full to the boards is
   // the only way a hay store reads as being in use rather than derelict.

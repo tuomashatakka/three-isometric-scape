@@ -3,6 +3,7 @@ import type { SeededRng } from 'threejs-scene'
 import { mergeParts, part } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
 import { ball, box, cyl, deg, spread } from './primitives.ts'
+import { gableEnd, gabledRoof } from './timber.ts'
 
 
 /**
@@ -143,33 +144,20 @@ export function buildBoathouse (rng: SeededRng, palette: NordicPalette): BufferG
     at: [ 0, eaveY - 0.1, length / 2 - 0.12 ], color: palette.woodDark, jitter: 0.08, rng,
   }))
 
-  // Gable ends, as three narrowing courses rather than a triangle.
+  // Ridge along z, so both slabs pitch across x — and both ends are filled by
+  // the same triangle the farmstead uses, tucked under the same plane. The
+  // three narrowing courses this replaces poked through their own shingles by
+  // 0.16 m, exactly as the farmhouse's four did.
+  const roof = { eaveY, peakY, halfDepth: width / 2 - 0.09 }
+
   for (const sz of [ -1, 1 ])
-    for (let step = 0; step < 3; step += 1) {
-      const rise = (peakY - eaveY) / 3
-      parts.push(part(box(width * (1 - (step + 0.5) / 3 * 0.82), rise, 0.16), {
-        at:     [ 0, eaveY + rise * (step + 0.5), sz * (length / 2 - 0.08) ],
-        color:  step === 2 ? palette.woodLight : palette.tarWood,
-        jitter: 0.08,
-        rng,
-      }))
-    }
+    gableEnd(parts, rng, palette.tarWood, {
+      ...roof, thick: 0.16, at: sz * (length / 2 - 0.08), ridge: 'z',
+    })
 
-  // Ridge along z, so both slabs pitch across x.
-  const halfSpan = width / 2 + 0.28
-  const slope    = Math.atan2(peakY - eaveY, halfSpan)
-
-  for (const sx of [ -1, 1 ])
-    parts.push(part(box(Math.hypot(peakY - eaveY, halfSpan) * 1.06, 0.14, length + 0.5), {
-      at:     [ sx * halfSpan / 2, (eaveY + peakY) / 2, 0 ],
-      rotate: [ 0, 0, -sx * slope ],
-      color:  sx > 0 ? palette.shingle : palette.shingleWorn,
-      jitter: 0.08,
-      rng,
-    }))
-  parts.push(part(box(0.36, 0.15, length + 0.6), {
-    at: [ 0, peakY, 0 ], color: palette.shingle, jitter: 0.07, rng,
-  }))
+  gabledRoof(parts, rng, palette.shingle, palette.shingleWorn, {
+    ...roof, length: length + 0.5, overhang: 0.37, thickness: 0.14, ridge: 'z',
+  })
 
   slipway(parts, rng, palette, length / 2 + 0.1, deckY, deckY + 0.2)
 
