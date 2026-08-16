@@ -29,6 +29,16 @@ export interface AtmosphereQuality {
   auroraLayers: number
 
   /**
+   * Drops in the falling column. 0 is a tier it never rains on.
+   *
+   * A count and not a density: the column is sized against the *frame* rather
+   * than against the map — see `rain.ts` — so the same count is the same rain on
+   * screen at every zoom, and a phone can be given a thinner shower without
+   * being given a smaller one.
+   */
+  rainDrops: number
+
+  /**
    * Terrain plane subdivisions per side.
    *
    * A count, not a density — so it is sized against `terrain.size`, and a run
@@ -124,6 +134,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     msaaSamples:     0,
     tiltShiftPairs:  0,
     auroraLayers:    0,
+    rainDrops:       0,
     terrainSegments: 60,
     scatterScale:    0.16,
     ao:              false,
@@ -149,6 +160,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     msaaSamples:     0,
     tiltShiftPairs:  1,
     auroraLayers:    1,
+    rainDrops:       900,
     terrainSegments: 84,
     scatterScale:    0.32,
     ao:              false,
@@ -185,6 +197,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     msaaSamples:     4,
     tiltShiftPairs:  2,
     auroraLayers:    2,
+    rainDrops:       2_600,
     terrainSegments: 208,
     scatterScale:    1,
     ao:              false,
@@ -210,6 +223,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     msaaSamples:     8,
     tiltShiftPairs:  2,
     auroraLayers:    3,
+    rainDrops:       4_200,
     terrainSegments: 288,
     scatterScale:    1.5,
     ao:              true,

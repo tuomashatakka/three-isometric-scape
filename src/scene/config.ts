@@ -382,6 +382,45 @@ export interface ScapeConfig {
      */
     seaSmoke: number
   }
+
+  /**
+   * The weather.
+   *
+   * The third clock, and the same shape as the two above it: a phase, a speed,
+   * and everything else derived from the phase. What it deliberately does not
+   * carry is a snowfall strength — `weather.ts` takes what falls from the year
+   * and only decides how hard it comes down, so there is one winter in the scape
+   * rather than two that have to be kept in step.
+   */
+  weather: {
+
+    /** Phase of the front, 0..1. 0 is the middle of the clear spell. */
+    time: number
+
+    /** Fronts per minute. 0 freezes the sky wherever `time` left it. */
+    speed: number
+
+    /**
+     * How hard it comes down at the height of a squall, 0..1.
+     *
+     * 0 is a coast it never rains on, and it is the switch — there is no drop to
+     * draw and no ground to wet when this is zero.
+     */
+    rain: number
+
+    /** How dark and how glossy the wet leaves the ground it fell on, 0..1. */
+    wet: number
+
+    /**
+     * Metres a drop falls in a second.
+     *
+     * The knob that stops the fall, and the reason it is a knob at all: a rate
+     * hard-coded into the module could not be zeroed, and a scape whose rain
+     * cannot be stopped cannot be photographed twice the same way. Snow comes
+     * down at a fraction of it — see `uSleet` in `rain.ts`.
+     */
+    fall: number
+  }
   look: {
     grade:     GradeName
     intensity: number
@@ -439,6 +478,16 @@ export interface ScapeConfig {
      * water seen through it, and it only goes white where it has been broken.
      */
     ice: number
+
+    /**
+     * A falling drop.
+     *
+     * Not the water's colour and not the fog's. A streak of rain seen against
+     * dark ground is the sky it is falling out of, so this is a pale, slightly
+     * blue grey — and the same streak is mixed toward `snow` as the year freezes
+     * it, which is why there is no second colour for the snowfall.
+     */
+    rain: number
 
     /** The dense heart of an auroral curtain, where it is thick enough to be green. */
     aurora: number
@@ -679,6 +728,19 @@ export const SCAPE_CONFIG = {
     ice:      0.9,
     seaSmoke: 0.9,
   },
+  // Opens on the leading edge of the squall rather than in the clear spell, and
+  // that is a deliberate break with how the other two clocks are set. Daylight
+  // and the year both open where they contribute nothing, so the first frame is
+  // the frame the scape was graded on; weather opens at about a third of its
+  // strength, because a system that is off in the opening frame is a system
+  // nobody looking at the scape ever finds out it has.
+  weather: {
+    time:  0.19,
+    speed: 0.14,
+    rain:  0.9,
+    wet:   0.62,
+    fall:  17,
+  },
   look: {
     grade:      'nordic',
     intensity:  0.78,
@@ -712,6 +774,7 @@ export const SCAPE_CONFIG = {
     snow:         0xe6ecf0,
     autumn:       0xb4762f,
     ice:          0xa8bcc0,
+    rain:         0xc6d2d8,
     aurora:       0x6df2a8,
     auroraCrown:  0x7a5bd6,
   },

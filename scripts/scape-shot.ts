@@ -55,6 +55,12 @@ const STILL = [
   'atmosphere.cloudSpeed=0',
   'atmosphere.auroraSpeed=0',
   'water.waveHeight=0',
+
+  // Both of the weather's rates. `speed` holds the front where `weather.time`
+  // put it; `fall` stops the drops themselves, which are the only thing in the
+  // scape that moves fast enough to be somewhere else between two frames.
+  'weather.speed=0',
+  'weather.fall=0',
 ]
 
 export interface ShotOptions {

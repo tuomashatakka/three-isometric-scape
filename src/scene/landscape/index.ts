@@ -10,6 +10,8 @@ import type { ScapeMaterials } from '../props/material.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import { createSeason } from '../season.ts'
 import type { SeasonState } from '../season.ts'
+import { createWeather } from '../weather.ts'
+import type { WeatherState } from '../weather.ts'
 import { createDressing } from './dressing.ts'
 import type { Dressing } from './dressing.ts'
 import type { ScapeLayout } from './layout.ts'
@@ -34,6 +36,13 @@ export interface Landscape {
    * time — two samples in one frame are two different weeks.
    */
   season: SeasonState
+
+  /**
+   * The live instant of the weather, resolved by the same `update` and from the
+   * same frame's year. Published for the fall — `rain.ts` draws what this says
+   * is coming down, and cannot be a shower ahead of the ground it lands on.
+   */
+  weather: WeatherState
 }
 
 export function createLandscape (
@@ -54,6 +63,12 @@ export function createLandscape (
   // It owns no geometry: nothing it does needs a rebuild, which is the whole
   // reason a season can run on a clock at all.
   const season = createSeason(config)
+
+  // The third clock, mounted beside the second because it is derived from it:
+  // what a squall drops is the year's answer, not the weather's. Like the season
+  // it owns no geometry — the fall is `rain.ts`, and what the ground does about
+  // it is two uniforms.
+  const weather = createWeather(config)
 
   let root: Group | null               = null
   let materials: ScapeMaterials | null = null
@@ -99,8 +114,10 @@ export function createLandscape (
       // scrubbing the overlay's season slider and letting the clock run are the
       // same operation on the same field.
       const year = config.season
+      const sky  = config.weather
 
       year.time = (year.time + frame.delta * year.speed / 60) % 1
+      sky.time  = (sky.time + frame.delta * sky.speed / 60) % 1
 
       // Sampled once and handed to both readers. The ground takes the tint and
       // the snow; the lake takes the freeze — and they have to be looking at
@@ -108,8 +125,13 @@ export function createLandscape (
       // beside it is not shutting on.
       const now = season.sample(year.time)
 
-      materials?.update(frame.elapsed, now)
-      water?.update(frame.elapsed, now)
+      // After the year and from the year: the share of a squall that falls as
+      // snow is this week's snow, so the weather has to be resolved against an
+      // instant of the season that has already been resolved.
+      const front = weather.sample(sky.time, now)
+
+      materials?.update(frame.elapsed, now, front)
+      water?.update(frame.elapsed, now, front)
     },
 
     dispose () {
@@ -135,7 +157,14 @@ export function createLandscape (
     },
   })
 
-  return { module, surfaces, heightAt: field.heightAt, layout, season: season.state }
+  return {
+    module,
+    surfaces,
+    heightAt: field.heightAt,
+    layout,
+    season:   season.state,
+    weather:  weather.state,
+  }
 }
 
 // perf: one terrain draw, one water draw, one merged steading draw, and one

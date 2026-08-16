@@ -2,6 +2,26 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the front, and the ground it leaves wet
+
+the scape has had two clocks since the season run and no weather at all. this one adds the third: a front that crosses, rains, clears, and leaves the ground it fell on dark and glossy for a while afterwards.
+
+- **added** `weather.ts` — a phase, a speed, and everything else derived from the phase, which is deliberately the same machine `daylight.ts` and `season.ts` already are. a front is two bands rather than one bell curve: the squall at full strength, a short clear spell, then a lighter trailing band, with better than half the cycle dry
+- **cut each band against the cosine of the phase** rather than assembling it out of a gaussian, so it is exactly periodic. this clock runs for as long as the page is open, and a curve with a seam in it would find that seam
+- **coupled the fall to the year instead of duplicating it.** what comes out of a cold sky is snow, and `season.snow` already says how cold this week is — so the weather owns *how hard* and the year owns *what*, and there is no snowfall strength anywhere in the config. the frozen share shortens the streak, slows it, and takes its colour toward `season.snowColor` live, so retuning lying snow retunes the snowfall with it
+- **made wetness look backwards**, which is the part worth arguing about. rain stops in a minute and the ground takes an hour, so a surface response tied to the fall dries the instant the last drop lands and reads as somebody switching an effect off. `wetAmount` is a decaying maximum over the quarter-cycle behind the phase — never below the rain currently falling, and zero once the long clear spell has done its work
+- **refused an integrator to get it**, on determinism rather than taste. an accumulator carries the frame rate and the page's load time into its answer, so two captures of the same phase would not agree. a function of the phase alone means scrubbing the overlay and letting the clock run put the ground in exactly the same state
+- **added** `rain.ts`: the whole shower as **one draw call from one static buffer**, with nothing uploaded per frame. each drop is two triangles carrying its own cell in the column; falling is `mod` on a single scalar, so a drop reaching the floor reappears at the ceiling in the same instant
+- **sized the column against the frame, not against the map**, which is the decision the module hangs off. sized to the island it would put the same drops over 196 metres at every zoom — thinning to nothing pulled out and packing into a wall zoomed in, the same mistake the mist and aurora tiles both had to be taken off. scaled to `viewSize`, the drop count *is* a screen density
+- **kept metres fallen rather than seconds elapsed**, so `weather.fall` can be turned to zero and back up without the column jumping to where it would have been had it never stopped
+- **quantised the fall speeds to five groups**, and that is a wrap bug rather than a style choice. the offset has to be wrapped or spend an hour growing into a float that can no longer resolve a metre, and wrapping is only invisible if every drop lands back where it started — which needs `wrap × rate` to be a whole number of column heights for *every* rate in the buffer. a continuous spread cannot do it; five steps of a fifth, wrapped at five column heights, does it for all of them
+- **laid the streak along the projected fall rather than along the screen's vertical.** the same thing in still air and visibly not the same in wind — and the lean comes off `wind.strength`, the knob the grass is already bending on
+- **gave a wet surface both of its halves.** albedo down, because a water film traps light dry grains would have scattered back out; specular up, because that film is smoother than anything under it. only the first is a scape with the lights turned down, only the second is a scape made of plastic. two arithmetic operations on values the fragment already holds, weighted by the same `lie` term the snow uses and applied before it, so a week doing both gets white over wet
+- **answered the rain on the lake without a uniform or a fetch**: the fall drives `water.sparkle` down and `water.rippleStrength` up, which are two knobs the overlay was already driving. a shower kills the glitter because a sun lobe needs a facet to hold still long enough to catch it
+- **added** `weather.speed` and `weather.fall` to `STILL` in `scape-shot.ts`. a system whose animation cannot be stopped cannot be photographed twice the same way, and would silently poison every visual diff taken after it landed
+- **added** a `weather` section to the overlay — time in the front, fronts per minute, how hard it falls, fall speed, wet ground — with the time knob outside its switch for the same reason the other two clocks' are
+- **added** `?skip=rain`, and pulled the four optional layers in the composition root through one `unless(skip, family, build)` helper rather than four ternaries, which is also what kept the root under the complexity ceiling
+- **tests** fifteen new ones over the two pure curves and the sampler: the bands open and close, they clear between each other, the dry half is the longer half, the whole thing wraps, wet ground is never drier than the rain on it, it survives the clear spell and dries out across the long one, and a frozen year takes four fifths of the wet away
 ## the farm gets a street plan
 
 the paths were a star. every leg left the well and ended somewhere, which is what you get from asking *how does a person reach each place* — and it is wrong in the one way a reader notices: getting from the barn to the woodshed meant walking to the middle of the yard and out again, past a door you were already standing at. this run makes it a network, cobbles it, and finds out on the way that no door in the scape was facing where it claimed to be.
@@ -258,7 +278,6 @@ linked up to 15 vec4 varyings
 ## no composer on a phone
 
 > superseded by the entry above. the diagnosis in this entry was wrong: the post chain was never the cause, and the change it describes was reverted the same day. what it did contribute was the material naming, which is the only reason the failing material could be identified at all.
-
 
 the log from the previous run came back off an android handset and named the thing. the context died twice with the post chain built — once at 0.7s while its programs were still linking, once after 6.3s of clean 30fps — and then ran for as long as anyone watched on the one tier that has never built it. everything the earlier rounds were optimising held still: **one** resize the whole run, no frame over 250 ms, fourteen textures, no `OUT_OF_MEMORY`. it was never a budget.
 
