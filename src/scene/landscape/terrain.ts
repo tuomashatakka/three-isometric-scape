@@ -4,6 +4,7 @@ import { hash2, smoothstep } from 'threejs-scene'
 import { mergeGeometryList } from 'threejs-scene/modules/assets'
 import type { ScapeConfig } from '../config.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
+import { createCartRuts } from './cart-ruts.ts'
 import type { Footpaths } from './footpath.ts'
 import type { HeightField } from './height.ts'
 import { distanceToTrack, pastureInfluence, plotInfluence } from './layout.ts'
@@ -82,10 +83,17 @@ export function createTerrainPainter (
   const pasture   = new Color(palette.pasture)
   const streambed = new Color(palette.streambed)
   const trodden   = new Color(palette.trodden)
+  const rutColor  = new Color(palette.track).multiplyScalar(0.62)
 
   const corridor = layout.track.width * 1.5
 
+  const cartRuts = createCartRuts({
+    track:        layout.track.points,
+    yardDistance: (x, z) => Math.hypot(x - layout.yard.x, z - layout.yard.z),
+  })
+
   return {
+    // eslint-disable-next-line complexity
     paint (height, slope, x, z, target) {
       const relative = height - waterLevel
 
@@ -117,6 +125,12 @@ export function createTerrainPainter (
       const onTrack = 1 - smoothstep(layout.track.width * 0.42, corridor, distanceToTrack(layout, x, z))
       if (onTrack > 0)
         target.lerp(track, onTrack * 0.88)
+
+      // Cart ruts: darker wear in the wheel tracks, strongest near the yard,
+      // fading with distance. Applied over the track color to show wear detail.
+      const ruts = cartRuts.wearAt(x, z)
+      if (ruts > 0 && onTrack > 0)
+        target.lerp(rutColor, ruts * 0.56)
 
       // Over the track, under the beck.
       //
