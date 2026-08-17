@@ -158,7 +158,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     grain:           false,
     mistLayers:      2,
     msaaSamples:     0,
-    tiltShiftPairs:  1,
+    tiltShiftPairs:  0,
     auroraLayers:    1,
     rainDrops:       900,
     terrainSegments: 84,
@@ -169,10 +169,15 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     traa:            false,
     anamorphic:      false,
 
-    // Keep the compact optical chain: colour grading and one tilt-shift pair are
-    // part of the scene's authored look. The usb-debugger a/b traced the Pixel
-    // 10 failure to shadow-map depth rendering, not to this composer.
-    post:          true,
+    // The optical chain dies on PowerVR tile-based deferred renderers. The
+    // device profiler traced the loss not to shadow maps but to post-program
+    // linking at startup (run A) and context churn during render (run B). Both
+    // configurations fail on the same device where minimal survives — the
+    // difference is post: true vs false. Colour grading, tilt-shift and depth
+    // of field are visual cost we accept here; the scape is readable without
+    // them, and a device that cannot hold the tier is not a device that
+    // should try to.
+    post:          false,
     environment:   false,
     frameRate:     30,
     detailTaps:    1,

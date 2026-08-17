@@ -32,7 +32,7 @@ describe('selectAtmosphereQuality', () => {
     expect(quality.bloom).toBe(false)
     expect(quality.grain).toBe(false)
     expect(quality.shadows).toBe(false)
-    expect(quality.tiltShiftPairs).toBe(1)
+    expect(quality.tiltShiftPairs).toBe(0)
   })
 
   test('sends a very dense display to the capped mobile tier', () => {
@@ -137,8 +137,8 @@ describe('reduceAtmosphereQuality', () => {
     expect(minimal.pixelRatioMax).toBeLessThan(mobile.pixelRatioMax)
   })
 
-  test('keeps the compact post chain on mobile and drops it at the floor', () => {
-    expect(atmosphereQuality('mobile').post).toBe(true)
+  test('keeps the optical chain off mobile and minimal', () => {
+    expect(atmosphereQuality('mobile').post).toBe(false)
     expect(atmosphereQuality('minimal').post).toBe(false)
   })
 })
