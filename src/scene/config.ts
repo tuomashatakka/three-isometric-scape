@@ -277,6 +277,40 @@ export interface ScapeConfig {
      */
     wear: number
   }
+
+  /**
+   * The wheel lines worn down the middle of the cart track.
+   *
+   * Build-time, like `footpath`: the ruts are a ribbon of geometry traced along
+   * the track once and merged into the terrain draw, so nothing here can move
+   * without the scape being generated again — and so none of it belongs on the
+   * overlay.
+   */
+  cartRuts: {
+
+    /** Metres between the wheel lines — a cart's axle track. */
+    gauge: number
+
+    /** Metres from a rut's centre to where its wear has gone. */
+    width: number
+
+    /**
+     * Metres from the farmyard over which the wear fades out.
+     *
+     * The traffic all comes from one end. Past this the track is a track that
+     * somebody laid rather than one that anybody uses.
+     */
+    reach: number
+
+    /**
+     * How worn the ruts get, 0..1.
+     *
+     * 0 is a track nothing has driven down: the ribbon is not built at all, so
+     * the ruts cost nothing rather than costing a merge and drawing nothing.
+     * There is no separate switch, because this is the switch.
+     */
+    wear: number
+  }
   dressing: DressingBudget
   wind: {
     strength: number
@@ -327,6 +361,19 @@ export interface ScapeConfig {
     minViewSize: number
     maxViewSize: number
     rotation:    number
+
+    /**
+     * Where the camera opens on, in world metres.
+     *
+     * The middle of the world, and the middle of the world is open sea — which
+     * is the right place to arrive but the wrong place to have to stay. Nothing
+     * on the ground can be captured from a pose that cannot be aimed, so a
+     * still of a rut, a doorstep or a fence line needs this and a small view
+     * size. Read once, when the controls are built; dragging moves the live
+     * focus and does not write back here.
+     */
+    focusX: number
+    focusZ: number
 
     /** Elevation in degrees at full zoom-in — low reads flat and cinematic. */
     tiltNear: number
@@ -801,6 +848,16 @@ export const SCAPE_CONFIG = {
     wander: 1.1,
     wear:   0.82,
   },
+  // A gauge of 1.45 m against a 3.2 m track leaves the ruts a little inboard of
+  // the wheel-worn edges, with a crown between them — which is what a farm road
+  // that drains looks like. Widening the ruts much past a third of a metre
+  // closes that crown and the track reads as one dark strip instead.
+  cartRuts: {
+    gauge: 1.45,
+    width: 0.34,
+    reach: 40,
+    wear:  0.85,
+  },
   // Roughly doubled against the run before this one, because the island is
   // roughly twice the ground. A budget is a *count*, not a density, so leaving
   // these alone would have grown the island and thinned everything standing on
@@ -851,6 +908,8 @@ export const SCAPE_CONFIG = {
     minViewSize: 8,
     maxViewSize: 560,
     rotation:    45,
+    focusX:      0,
+    focusZ:      0,
     tiltNear:    21,
     tiltFar:     52,
   },

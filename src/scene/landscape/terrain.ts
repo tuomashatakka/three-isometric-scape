@@ -4,6 +4,7 @@ import { hash2, smoothstep } from 'threejs-scene'
 import { mergeGeometryList } from 'threejs-scene/modules/assets'
 import type { ScapeConfig } from '../config.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
+import { cartRutGeometry } from './cart-ruts.ts'
 import type { Footpaths } from './footpath.ts'
 import type { HeightField } from './height.ts'
 import { distanceToTrack, pastureInfluence, plotInfluence } from './layout.ts'
@@ -155,6 +156,48 @@ export function createTerrainPainter (
   }
 }
 
+/**
+ * The ground *as drawn* — the chord between the terrain's vertices, not the
+ * continuous field they were sampled from.
+ *
+ * The two are not the same surface, and anything laid flat on the terrain has
+ * to be laid on this one. The patch is a `PlaneGeometry` of `segments` quads
+ * split along the diagonal that runs from a quad's far-near corner to its
+ * near-far one, so the height inside a quad is a plane through three of its
+ * corners, and it can stand tens of centimetres off `heightAt` where the ground
+ * is curved — enough to swallow anything lifted by less than that.
+ */
+export function drawnSurfaceOf (
+  field:    HeightField,
+  size:     number,
+  segments: number,
+): (x: number, z: number) => number {
+  const step = size / segments
+  const half = size / 2
+  const cell = (value: number): number =>
+    Math.min(segments - 1, Math.max(0, Math.floor((value + half) / step)))
+
+  return (x, z) => {
+    const column = cell(x)
+    const row    = cell(z)
+    const left   = -half + column * step
+    const near   = -half + row * step
+    const across = (x - left) / step
+    const along  = (z - near) / step
+
+    const corner = field.heightAt(left, near)
+    const far    = field.heightAt(left, near + step)
+    const right  = field.heightAt(left + step, near)
+
+    if (across + along <= 1)
+      return corner + (right - corner) * across + (far - corner) * along
+
+    const opposite = field.heightAt(left + step, near + step)
+
+    return opposite + (far - opposite) * (1 - across) + (right - opposite) * (1 - along)
+  }
+}
+
 function terrainGeometry (
   config:   ScapeConfig,
   layout:   ScapeLayout,
@@ -182,6 +225,34 @@ function terrainGeometry (
   geometry.setAttribute('color', new BufferAttribute(colors, 3))
   geometry.computeVertexNormals()
   return geometry
+}
+
+/**
+ * The rut ribbon for one island, in that island's local space.
+ *
+ * It shares the terrain's painter rather than a second opinion about the ground
+ * colour, which is what lets its outer edge sit invisibly on the surface it
+ * lies on.
+ */
+function cartRutPatch (
+  config:   ScapeConfig,
+  layout:   ScapeLayout,
+  field:    HeightField,
+  paths:    Footpaths,
+  segments: number,
+): BufferGeometry | null {
+  const painter = createTerrainPainter(config, layout, paths)
+  const surface = drawnSurfaceOf(field, config.terrain.size, segments)
+
+  return cartRutGeometry({
+    ...config.cartRuts,
+    track:     layout.track.points,
+    yard:      layout.yard,
+    rut:       new Color(config.palette.track).multiplyScalar(0.4),
+    surfaceAt: surface,
+    groundAt:  (x, z, target) =>
+      painter.paint(field.heightAt(x, z), field.slopeAt(x, z), x, z, target),
+  })
 }
 
 function terrainMesh (geometry: BufferGeometry, material: Material): Mesh {
@@ -253,6 +324,22 @@ export function createArchipelagoTerrain (
 
     geometry.translate(landmass.origin.x, 0, landmass.origin.z)
     pieces.push(geometry)
+
+    // The ruts are the one piece of the island whose density is its own rather
+    // than the terrain grid's, which is the whole reason they exist as geometry.
+    // They still merge into the same draw.
+    const ruts = cartRutPatch(
+      landmass.config,
+      landmass.survey.layout,
+      landmass.survey.field,
+      landmass.survey.paths,
+      segments,
+    )
+
+    if (ruts) {
+      ruts.translate(landmass.origin.x, 0, landmass.origin.z)
+      pieces.push(ruts)
+    }
   }
 
   const merged = mergeGeometryList(pieces, false)

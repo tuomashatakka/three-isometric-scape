@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { clientPointToNdc, headingDelta, tiltForViewSize, wrapHeading, zoomViewSize } from './camera-controls.ts'
+import { clampFocus, clientPointToNdc, headingDelta, tiltForViewSize, wrapHeading, zoomViewSize } from './camera-controls.ts'
 
 
 describe('camera control math', () => {
@@ -32,5 +32,13 @@ describe('camera control math', () => {
     expect(tiltForViewSize(8, 8, 92, 21, 52)).toBe(21)
     expect(tiltForViewSize(92, 8, 92, 21, 52)).toBe(52)
     expect(tiltForViewSize(50, 8, 92, 21, 52)).toBeCloseTo(36.5, 5)
+  })
+
+  test('opens on the ground point it is asked for, and only inside the world', () => {
+    expect(clampFocus(-31, 4, 250)).toEqual({ x: -31, z: 4 })
+
+    // Past the edge the camera would open on a view no drag could get back to,
+    // because a drag is held inside this same box.
+    expect(clampFocus(-900, 900, 250)).toEqual({ x: -250, z: 250 })
   })
 })
