@@ -199,13 +199,25 @@ export function createAtmospherePost ({
     if (quality.ao && config.look.ao > 0)
       built.push(createAo(ctx))
 
+    // `selects` and no `groundReflector`, which is not a simplification.
+    //
+    // Three's `SSRPass` calls `groundReflector.doRender()` on whatever it is
+    // handed, and only a `ReflectorForSSRPass` has one — a plain `Mesh` throws
+    // on the first frame and takes the whole chain with it. This scape had that
+    // bug for as long as it has had reflections; it never showed because `ssr`
+    // was only ever true on `ultra`, and every capture pins a cheaper tier.
+    //
+    // A reflector is also the wrong instrument here. It re-renders the scene
+    // into a mirror plane, and the lake is not a mirror plane: it is a custom
+    // shader surface with its own swell, foam, glitter, wakes and winter ice, so
+    // a reflector would draw over exactly the thing worth looking at. Selecting
+    // it instead ray-marches the depth buffer that is already being written.
     if (quality.ssr && lake)
       built.push(createSsr(ctx, {
-        groundReflector: lake,
-        selects:         [ lake ],
-        opacity:         0.34,
-        maxDistance:     40,
-        thickness:       0.4,
+        selects:     [ lake ],
+        opacity:     0.34,
+        maxDistance: 40,
+        thickness:   0.4,
       }))
 
     if (quality.anamorphic && config.look.anamorphic > 0)

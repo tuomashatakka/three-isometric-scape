@@ -1,10 +1,12 @@
-import { Color, RepeatWrapping, Vector2 } from 'three'
-import type { IUniform, MeshStandardMaterial, Texture, WebGLProgramParametersWithUniforms } from 'three'
-import { createSeamlessNoiseTexture, kitMaterial, markShared } from 'threejs-scene/modules/assets'
+import { Color, Vector2 } from 'three'
+import type { IUniform, MeshStandardMaterial, WebGLProgramParametersWithUniforms } from 'three'
+import { kitMaterial, markShared } from 'threejs-scene/modules/assets'
 import { NOTHING_SKIPPED } from '../audit.ts'
 import type { ScapeSkips } from '../audit.ts'
 import type { ScapeConfig } from '../config.ts'
 import type { SeasonState } from '../season.ts'
+import { createTextureCatalogue } from '../textures/catalogue.ts'
+import type { TextureCatalogue } from '../textures/catalogue.ts'
 import type { WeatherState } from '../weather.ts'
 
 /** The two materials every solid thing in the scape draws with. */
@@ -20,9 +22,6 @@ export interface ScapeMaterials {
   update(elapsed: number, season: SeasonState, weather: WeatherState): void
   dispose(): void
 }
-
-const CLOUD_SIZE  = 256
-const DETAIL_SIZE = 256
 
 /**
  * World-space cloud shadow, injected into a stock `MeshStandardMaterial`.
@@ -160,9 +159,59 @@ const WIND_VERTEX = /* glsl */`
  */
 const DETAIL_PARS_FRAGMENT = /* glsl */`
   uniform sampler2D uDetailMap;
+  uniform sampler2D uWearMap;
+  uniform sampler2D uBarkMap;
   uniform float uDetailScale;
   uniform float uDetailStrength;
   uniform float uDetailMacro;
+  uniform float uPropGrain;
+`
+
+/**
+ * The half of the scape the ground grain never reached.
+ *
+ * Every term above weighs itself by `scapeFlat` — how horizontal the face is —
+ * because a world-space projection smears streaks down anything vertical. That
+ * is correct, and it left every wall, gable, hull, jetty timber and granite face
+ * in the scape with no surface at all: flat-shaded colour, and nothing at the
+ * scale of a plank or a grain of stone. The two materials carry the whole place,
+ * so "props have no texture" was really "the injection has a `1 - flat` case
+ * nobody had written".
+ *
+ * This is that case. The projection is turned on its side to match: the
+ * horizontal coordinate wraps several times around a stem or along a wall while
+ * the vertical one crawls, which is what makes the read run *along* a board
+ * rather than across it. One fetch, weighted to nothing on ground the terms
+ * above already own, so the two never argue over the same fragment.
+ *
+ * World height comes from `vViewPosition` the same way the snow line's does —
+ * the view matrix is rigid, so a point's height is the camera's less that
+ * position projected onto the matrix's second column. No extra varying.
+ */
+const PROP_GRAIN_FRAGMENT = /* glsl */`
+  float scapeSteep = (1.0 - scapeFlat) * uPropGrain;
+
+  if (scapeSteep > 0.001) {
+    float scapeUpright = cameraPosition.y - dot(vViewPosition, viewMatrix[1].xyz);
+    vec2 scapeBarkUv   = vec2(
+      (vScapeGround.x + vScapeGround.y) * uDetailScale * 0.7,
+      scapeUpright * uDetailScale * 0.16
+    );
+    // Stretched hard, and then stretched again. Four octaves of value noise pile
+    // up around their own mean, so the raw fetch varies by a few per cent and a
+    // wall treated with it is a wall you cannot tell from a flat one — measured,
+    // not guessed: the first version of this moved 0.00% of the frame. The map
+    // is two octaves for the same reason, and the remap is what turns the rest
+    // of the range into boards.
+    float scapeBark = clamp((texture2D(uBarkMap, scapeBarkUv).r - 0.5) * 2.4 + 0.5, 0.0, 1.0);
+
+    diffuseColor.rgb *= 1.0 + scapeSteep * (scapeBark - 0.5) * 1.5;
+
+    // Weathering runs downward. The underside of a course of boards and the foot
+    // of a wall stay damp longest, so the darker half of the grain also dulls.
+    diffuseColor.rgb *= 1.0 - scapeSteep * 0.22 * pow(1.0 - scapeBark, 3.0);
+    roughnessFactor   = clamp(roughnessFactor + scapeSteep * (0.5 - scapeBark) * 0.4, 0.05, 1.0);
+  }
 `
 
 /**
@@ -189,6 +238,7 @@ const DETAIL_FRAGMENT_LITE = /* glsl */`
   diffuseColor.rgb *= 1.0 - scapeAmt * 0.22 * pow(1.0 - grain, 2.0);
 
   roughnessFactor = clamp(roughnessFactor + scapeAmt * (0.5 - grain) * 0.24, 0.05, 1.0);
+${PROP_GRAIN_FRAGMENT}
 `
 
 const DETAIL_FRAGMENT = /* glsl */`
@@ -196,25 +246,35 @@ const DETAIL_FRAGMENT = /* glsl */`
   float scapeFlat = smoothstep(0.3, 0.9, vScapeUp);
   float scapeAmt  = uDetailStrength * scapeFlat;
   vec2 scapeUv    = vScapeGround * uDetailScale;
-  vec2 macroUv    = scapeUv * 0.16;
-  float grain     = texture2D(uDetailMap, scapeUv).r;
-  float grainX    = texture2D(uDetailMap, scapeUv + vec2(0.015, 0.0)).r;
-  float grainZ    = texture2D(uDetailMap, scapeUv + vec2(0.0, 0.015)).r;
-  float macro     = texture2D(uDetailMap, macroUv).r;
-  float macroX    = texture2D(uDetailMap, macroUv + vec2(0.02, 0.0)).r;
-  float macroZ    = texture2D(uDetailMap, macroUv + vec2(0.0, 0.02)).r;
+
+  // The broad octave is its own map, not this one read slowly. A single field
+  // sampled at two frequencies is self-similar by construction, so the patches
+  // landed exactly where the grit was already darkest and the two reinforced
+  // into a lumpy weave rather than reading as two different histories.
+  vec2 wearUv  = scapeUv * 0.14;
+  float grain  = texture2D(uDetailMap, scapeUv).r;
+  float grainX = texture2D(uDetailMap, scapeUv + vec2(0.015, 0.0)).r;
+  float grainZ = texture2D(uDetailMap, scapeUv + vec2(0.0, 0.015)).r;
+  float wear   = texture2D(uWearMap, wearUv).r;
+  float wearX  = texture2D(uWearMap, wearUv + vec2(0.02, 0.0)).r;
+  float wearZ  = texture2D(uWearMap, wearUv + vec2(0.0, 0.02)).r;
 
   diffuseColor.rgb *= 1.0 + scapeAmt * (grain - 0.5) * 1.6;
-  diffuseColor.rgb *= 1.0 + scapeAmt * uDetailMacro * (macro - 0.5) * 1.15;
+  diffuseColor.rgb *= 1.0 + scapeAmt * uDetailMacro * (wear - 0.5) * 1.15;
 
   // Dirt collects in the low ground and it never comes back out.
   diffuseColor.rgb *= 1.0 - scapeAmt * 0.22 * pow(1.0 - grain, 2.0);
 
   roughnessFactor = clamp(roughnessFactor + scapeAmt * (0.5 - grain) * 0.24, 0.05, 1.0);
 
+  // A damp patch is smoother than the grit in it, and that is most of what tells
+  // wet ground from dry at this distance — the albedo barely moves.
+  roughnessFactor = clamp(roughnessFactor - scapeAmt * uDetailMacro * (wear - 0.5) * 0.3, 0.05, 1.0);
+
   vec3 scapeBump = vec3(grainX - grain, 0.0, grainZ - grain) * 3.0 +
-    vec3(macroX - macro, 0.0, macroZ - macro) * uDetailMacro * 2.2;
+    vec3(wearX - wear, 0.0, wearZ - wear) * uDetailMacro * 2.2;
   normal = normalize(normal + mat3(viewMatrix) * scapeBump * scapeAmt);
+${PROP_GRAIN_FRAGMENT}
 `
 
 const SEASON_PARS_FRAGMENT = /* glsl */`
@@ -311,29 +371,21 @@ const GROUND_LIE = 'smoothstep(0.22, 0.72, vScapeUp)'
 /** A tuft or a bough holds snow whichever way its facets happen to point. */
 const FOLIAGE_LIE = '0.55'
 
-function buildCloudMap (seed: number): Texture {
-  const texture = createSeamlessNoiseTexture({ size: CLOUD_SIZE, seed, frequency: 3, octaves: 4 })
-  texture.wrapS = RepeatWrapping
-  texture.wrapT = RepeatWrapping
-  return texture
-}
-
-function buildDetailMap (seed: number): Texture {
-  const texture = createSeamlessNoiseTexture({ size: DETAIL_SIZE, seed, frequency: 12, octaves: 5 })
-  texture.wrapS = RepeatWrapping
-  texture.wrapT = RepeatWrapping
-  return texture
-}
-
 export function createScapeMaterials (
   config: ScapeConfig,
   skip: ScapeSkips = NOTHING_SKIPPED,
   detailTaps = 6,
+  textures: TextureCatalogue = createTextureCatalogue(config.seed),
 ): ScapeMaterials {
   const detailFragment = detailTaps >= 6 ? DETAIL_FRAGMENT : DETAIL_FRAGMENT_LITE
 
-  const cloudMap  = buildCloudMap(config.seed)
-  const detailMap = buildDetailMap(config.seed ^ 0x77c1)
+  // Asked for by name rather than built here. Every map in the scape is in
+  // `textures/catalogue.ts`, which is also what makes the lake's ripple and this
+  // ground's grain provably two different noises rather than two names for one.
+  const cloudMap  = textures.get('sky.cloudShadow')
+  const detailMap = textures.get('ground.grain')
+  const wearMap   = textures.get('ground.wear')
+  const barkMap   = textures.get('prop.bark')
 
   const cloudOffset: IUniform<Vector2>   = { value: new Vector2() }
   const shared: Record<string, IUniform> = {
@@ -349,9 +401,12 @@ export function createScapeMaterials (
   }
   const detail: Record<string, IUniform> = {
     uDetailMap:      { value: detailMap },
+    uWearMap:        { value: wearMap },
+    uBarkMap:        { value: barkMap },
     uDetailScale:    { value: 1 / Math.max(0.5, config.terrain.detailScale) },
     uDetailStrength: { value: config.terrain.detailGrain },
     uDetailMacro:    { value: config.terrain.detailMacro },
+    uPropGrain:      { value: config.terrain.propGrain },
   }
 
   // Both materials share these instances, so the year is written once a frame
@@ -483,6 +538,7 @@ export function createScapeMaterials (
       detail.uDetailStrength.value = config.terrain.detailGrain
       detail.uDetailScale.value    = 1 / Math.max(0.5, config.terrain.detailScale)
       detail.uDetailMacro.value    = config.terrain.detailMacro
+      detail.uPropGrain.value      = config.terrain.propGrain
 
       seasonTint.value.copy(year.tint)
       seasonSnow.value.copy(year.snowColor)
@@ -493,8 +549,9 @@ export function createScapeMaterials (
     },
 
     dispose () {
-      cloudMap.dispose()
-      detailMap.dispose()
+      // The catalogue's textures belong to the catalogue. Whoever built it frees
+      // it — freeing a shared map from one of its consumers is how the *other*
+      // consumer ends up sampling a disposed texture after a rebuild.
       ground.dispose()
       foliage.dispose()
     },

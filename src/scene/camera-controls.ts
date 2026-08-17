@@ -4,6 +4,7 @@ import { aimIsoCamera, defineModule, resizeIsoCamera, smoothstep } from 'threejs
 import type { AppModule, FrameContext } from 'threejs-scene'
 import { BOAT_FOLLOW_VIEW_SIZE, createBoatFollowController } from './camera-follow.ts'
 import type { BoatFollowSource } from './camera-follow.ts'
+import type { CameraPath } from './camera-path.ts'
 import type { ScapeConfig } from './config.ts'
 import type { Landscape } from './landscape/index.ts'
 
@@ -44,6 +45,37 @@ export interface CameraControlsOptions {
   reducedMotion: boolean
   onFocus(point: Vector3): void
   onManualControl(): void
+
+  /**
+   * A waypoint tour driving the camera, when one is running.
+   *
+   * Drives the same `target` a drag writes, for the same reason the boat follow
+   * does: there is one integrator in this module and adding a second tween
+   * beside it is how two things end up disagreeing about where the camera is.
+   * Any manual input stops the tour — a tour you cannot interrupt by grabbing
+   * the scape is a cutscene.
+   */
+  path?: CameraPath
+
+  /**
+   * Where the camera settled, whenever it settles.
+   *
+   * Debounced by the settle itself rather than by a timer: this fires when the
+   * chase has landed, so it is at most one call per gesture and never one per
+   * frame. Persisting it is what lets a reload open where the reader left off.
+   */
+  onPoseSettled?(pose: CameraOpening): void
+
+  /** Where to open, when a previous session left an answer. Overrides the config. */
+  opening?: CameraOpening | null
+}
+
+/** A camera pose as four plain numbers — storable, and the same shape a waypoint is. */
+export interface CameraOpening {
+  x:        number
+  z:        number
+  viewSize: number
+  heading:  number
 }
 
 const ROTATE_PER_PIXEL         = 0.32
@@ -148,10 +180,19 @@ function openingPose (
   maxFocus:  number,
   landscape: Landscape,
   viewSize:  number,
+  stored:    CameraOpening | null | undefined,
 ): CameraPose {
-  const { x, z } = clampFocus(limits.focusX, limits.focusZ, maxFocus)
+  const { x, z } = clampFocus(
+    stored?.x ?? limits.focusX,
+    stored?.z ?? limits.focusZ,
+    maxFocus,
+  )
 
-  return { focus: new Vector3(x, landscape.heightAt(x, z), z), viewSize, heading: 0 }
+  return {
+    focus:    new Vector3(x, landscape.heightAt(x, z), z),
+    viewSize: clamp(stored?.viewSize ?? viewSize, limits.minViewSize, limits.maxViewSize),
+    heading:  wrapHeading(stored?.heading ?? 0),
+  }
 }
 
 export function createCameraControls (
@@ -167,25 +208,39 @@ export function createCameraControls (
     reducedMotion,
     onFocus,
     onManualControl,
+    path,
+    onPoseSettled,
   } = options
 
   const baseRotation = camera.userData.rotation as number
   const baseRadius   = camera.userData.radius as number
 
-  const pose               = openingPose(limits, maxFocus, landscape, camera.userData.viewSize as number)
+  const pose = openingPose(
+    limits,
+    maxFocus,
+    landscape,
+    camera.userData.viewSize as number,
+    options.opening,
+  )
   const target: CameraPose = {
     focus:    pose.focus.clone(),
     viewSize: pose.viewSize,
     heading:  pose.heading,
   }
 
-  const pointers                            = new Map<number, PointerState>()
-  const right                               = new Vector3()
-  const forward                             = new Vector3()
-  const aimTarget: [number, number, number] = [ 0, 0, 0 ]
-  const raycaster                           = new Raycaster()
-  const pointerNdc                          = new Vector2()
-  const boatFollow                          = createBoatFollowController(baseRotation)
+  // One scratch set for the whole module. Every frame reads from these and none
+  // of them ever escapes, which is what keeps the update path allocation-free.
+  const scratch = {
+    right:      new Vector3(),
+    forward:    new Vector3(),
+    aim:        [ 0, 0, 0 ] as [number, number, number],
+    raycaster:  new Raycaster(),
+    pointerNdc: new Vector2(),
+  }
+
+  const { right, forward, raycaster, pointerNdc, aim: aimTarget } = scratch
+  const pointers                                                  = new Map<number, PointerState>()
+  const boatFollow                                                = createBoatFollowController(baseRotation)
   let lastTouch: TouchFrame | null = null
   let multiTouch                   = false
   let revolving                    = false
@@ -247,6 +302,47 @@ export function createCameraControls (
     revolving = false
   }
 
+  /**
+   * Anything the reader does with their hands ends the tour.
+   *
+   * Grabbing the scape mid-flight has to hand it back, and it has to hand it
+   * back *where it is* rather than snapping to wherever the tour was heading —
+   * so the target is pulled to the live pose before the gesture writes to it.
+   */
+  function leavePath (): void {
+    if (!path?.playing)
+      return
+
+    path.stop()
+    target.focus.copy(pose.focus)
+    target.viewSize = pose.viewSize
+    target.heading  = pose.heading
+  }
+
+  /** Where the camera has come to rest, in the four numbers worth remembering. */
+  function opening (): CameraOpening {
+    return {
+      x:        pose.focus.x,
+      z:        pose.focus.z,
+      viewSize: pose.viewSize,
+      heading:  pose.heading,
+    }
+  }
+
+  /** The tour, if one is running. Writes the same target every other input does. */
+  function syncPath (delta: number): boolean {
+    const at = path?.advance(delta)
+
+    if (!at)
+      return false
+
+    target.focus.set(at.x, landscape.heightAt(at.x, at.z), at.z)
+    target.viewSize = clamp(at.viewSize, limits.minViewSize, limits.maxViewSize)
+    target.heading  = at.heading
+    settling        = true
+    return true
+  }
+
   function leaveBoat (): void {
     if (!boatFollow.clear())
       return
@@ -275,6 +371,7 @@ export function createCameraControls (
   }
 
   function panTo (dx: number, dy: number): void {
+    leavePath()
     leaveBoat()
     stopRevolving()
 
@@ -297,6 +394,7 @@ export function createCameraControls (
   // Dragging right swings the world right, which means the *camera* goes the
   // other way. The scaffold had the sign of a turntable, not of a grab.
   function rotateTo (dx: number): void {
+    leavePath()
     leaveBoat()
     stopRevolving()
     target.heading = wrapHeading(target.heading + dx * ROTATE_PER_PIXEL)
@@ -304,11 +402,14 @@ export function createCameraControls (
   }
 
   function zoomTo (scale: number): void {
+    leavePath()
     target.viewSize = zoomViewSize(target.viewSize, scale, limits.minViewSize, limits.maxViewSize)
     retarget()
   }
 
   function focusAt (clientX: number, clientY: number): void {
+    leavePath()
+
     const [ x, y ] = clientPointToNdc(clientX, clientY, canvas.getBoundingClientRect())
     pointerNdc.set(x, y)
     raycaster.setFromCamera(pointerNdc, camera)
@@ -484,6 +585,9 @@ export function createCameraControls (
     else if (event.key === '-' || event.key === '_')
       zoomTo(1 / KEYBOARD_ZOOM)
     else if (event.key === 'Escape') {
+      // The documented way out of everything that is driving the camera for
+      // you: the boat chase, the idle orbit and now the waypoint tour.
+      leavePath()
       leaveBoat()
       stopRevolving()
     }
@@ -505,6 +609,10 @@ export function createCameraControls (
   function update (frame: FrameContext): void {
     const delta = Math.min(frame.delta, 0.1)
 
+    // Before the boat, because selecting a boat is a manual act and a tour is
+    // not: a running tour that also had a boat selected would otherwise have two
+    // writers of the same target on the same frame.
+    syncPath(delta)
     syncBoatFollow()
 
     if (revolving)
@@ -527,7 +635,13 @@ export function createCameraControls (
       pose.focus.copy(target.focus)
       pose.viewSize = target.viewSize
       pose.heading  = target.heading
-      settling      = revolving || boatFollow.active
+      settling      = revolving || boatFollow.active || Boolean(path?.playing)
+
+      // Only where the camera came to rest, which is the only pose worth
+      // reopening on. Mid-gesture and mid-tour frames are not places the reader
+      // ever chose to be.
+      if (!settling)
+        onPoseSettled?.(opening())
     }
 
     if (!boatFollow.active)

@@ -7,6 +7,7 @@ import type { ScapeSkips } from '../audit.ts'
 import type { ScapeConfig } from '../config.ts'
 import { createScapeMaterials } from '../props/material.ts'
 import type { ScapeMaterials } from '../props/material.ts'
+import { createTextureCatalogue } from '../textures/catalogue.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import { createSeason } from '../season.ts'
 import type { SeasonState } from '../season.ts'
@@ -77,6 +78,11 @@ export function createLandscape (
   // it is two uniforms.
   const weather = createWeather(config)
 
+  // One catalogue for the whole landscape: the ground grain, the cloud shadow
+  // and the lake's two maps are one set of uploads shared by two materials and a
+  // custom surface, and they are freed together in `dispose`.
+  const textures = createTextureCatalogue(config.seed)
+
   let root: Group | null               = null
   let materials: ScapeMaterials | null = null
   let dressing: Dressing | null        = null
@@ -90,7 +96,7 @@ export function createLandscape (
       root = new Group()
       root.name = 'nordic-scape'
 
-      materials = createScapeMaterials(config, skip, quality.detailTaps)
+      materials = createScapeMaterials(config, skip, quality.detailTaps, textures)
 
       const terrain = createArchipelagoTerrain(
         config,
@@ -109,7 +115,7 @@ export function createLandscape (
       // at a time, which is how the audit's accusation gets confirmed on the
       // device rather than argued about here.
       if (!skip.has('water')) {
-        water = createWater(config, field, quality)
+        water = createWater(config, field, quality, textures)
         surfaces.push(water.mesh)
         root.add(water.mesh)
       }
@@ -173,6 +179,7 @@ export function createLandscape (
       }
 
       materials?.dispose()
+      textures.dispose()
 
       surfaces.length = 0
       root      = null

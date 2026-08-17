@@ -1,3 +1,10 @@
+/* Opts every keyword size in this document into being animatable — which in
+   practice means one thing: `block-size: auto` on an open `<details>`. Set on
+   the root because that is the only place it is allowed to be, and inherited. */
+:root {
+  interpolate-size: allow-keywords;
+}
+
 :root {
   color: #e9e9dd;
   font-family: Sofia Pro, Poppins, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -299,18 +306,100 @@ h1 {
   overscroll-behavior: contain;
 }
 
+/* A run of sections under one heading. The drawer had ten flat legends in it and
+   finding the snow line meant reading every one on the way past. */
+.gfx-block {
+  padding: 0.55rem 0 0;
+}
+
+.gfx-block + .gfx-block {
+  margin-top: 0.55rem;
+  border-top: 1px solid rgb(226 242 164 / 10%);
+}
+
+.gfx-group-title {
+  margin: 0.35rem 0 0.1rem;
+  color: rgb(217 241 143 / 62%);
+  font-weight: 700;
+  font-size: 0.58rem;
+  letter-spacing: 0.16rem;
+  text-transform: uppercase;
+}
+
+/* `<details>` rather than a fieldset and a click handler: it collapses, takes
+   the keyboard, announces its state to a screen reader and animates, and none of
+   that is this stylesheet's or the panel module's to implement. */
 .gfx-section {
   margin: 0;
-  padding: 0.7rem 0 0;
   border: 0;
 }
 
-.gfx-legend {
-  padding: 0;
-  color: rgb(233 233 221 / 46%);
-  font-size: 0.6rem;
-  letter-spacing: 0.14rem;
+.gfx-summary {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.42rem 0;
+  color: rgb(233 233 221 / 62%);
+  font-size: 0.62rem;
+  letter-spacing: 0.13rem;
   text-transform: uppercase;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.gfx-summary::-webkit-details-marker {
+  display: none;
+}
+
+/* The marker is drawn rather than borrowed, so it can be rotated. A disclosure
+   triangle that snaps is the one part of a native `<details>` that reads as
+   unfinished next to a panel where everything else eases. */
+.gfx-summary::before {
+  width: 0.5rem;
+  color: rgb(217 241 143 / 70%);
+  content: "\25b8";
+  transition: rotate 200ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.gfx-section[open] > .gfx-summary::before {
+  rotate: 90deg;
+}
+
+.gfx-summary:hover,
+.gfx-section[open] > .gfx-summary {
+  color: rgb(233 233 221 / 92%);
+}
+
+.gfx-summary:focus-visible {
+  outline: 1px solid #d9f18f;
+  outline-offset: 2px;
+}
+
+.gfx-fields {
+  padding: 0 0 0.5rem 0.9rem;
+}
+
+/* The whole open/close animation, in five declarations and no script.
+
+   `interpolate-size` is what lets `block-size` animate to and from `auto` at
+   all — without it there is no pair of numbers to interpolate between and the
+   section simply appears. `allow-discrete` carries `content-visibility` across
+   the same window so the contents are not hidden the instant the close starts.
+
+   Both are progressive: a browser without them opens and closes the section
+   instantly, which is exactly what a `<details>` has always done. Nothing here
+   is load-bearing for the panel working. */
+.gfx-section::details-content {
+  overflow: hidden;
+  block-size: 0;
+  transition:
+    block-size 220ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    content-visibility 220ms allow-discrete;
+}
+
+.gfx-section[open]::details-content {
+  block-size: auto;
 }
 
 .gfx-row {
@@ -389,6 +478,95 @@ h1 {
 .gfx-nested > * {
   overflow: hidden;
   min-height: 0;
+}
+
+/* ---- the waypoint tour --------------------------------------------------- */
+
+.gfx-note {
+  margin: 0.1rem 0 0.4rem;
+  color: rgb(233 233 221 / 42%);
+  font-size: 0.66rem;
+  line-height: 1.45;
+}
+
+.gfx-waypoints {
+  margin: 0 0 0.45rem;
+  padding: 0;
+  list-style: none;
+  counter-reset: stop;
+}
+
+.gfx-waypoint {
+  display: grid;
+  grid-template-columns: 1.1rem 1fr 1.1rem;
+  gap: 0.35rem;
+  align-items: center;
+  padding: 0.16rem 0;
+  border-bottom: 1px solid rgb(226 242 164 / 8%);
+}
+
+.gfx-waypoint-name {
+  color: #d9f18f;
+  font-size: 0.64rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.gfx-waypoint-where {
+  overflow: hidden;
+  color: rgb(233 233 221 / 62%);
+  font-size: 0.64rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.gfx-waypoint-drop {
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0;
+  color: rgb(233 233 221 / 55%);
+  font: inherit;
+  font-size: 0.8rem;
+  line-height: 1;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid rgb(226 242 164 / 16%);
+}
+
+.gfx-waypoint-drop:hover,
+.gfx-waypoint-drop:focus-visible {
+  color: #19182e;
+  background: #d9f18f;
+}
+
+.gfx-actions {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.15rem 0 0.35rem;
+}
+
+.gfx-action {
+  flex: 1;
+  padding: 0.32rem 0.2rem;
+  color: rgb(233 233 221 / 82%);
+  font: inherit;
+  font-size: 0.62rem;
+  letter-spacing: 0.06rem;
+  text-transform: uppercase;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid rgb(226 242 164 / 22%);
+}
+
+.gfx-action:hover:not(:disabled),
+.gfx-action:focus-visible:not(:disabled) {
+  color: #19182e;
+  background: #d9f18f;
+}
+
+.gfx-action:disabled {
+  opacity: 0.34;
+  cursor: default;
 }
 
 [data-unavailable="true"] {
@@ -488,7 +666,15 @@ noscript {
   .scape-card,
   .card-toggle,
   .gfx,
-  .gfx-nested {
+  .gfx-nested,
+  .gfx-summary::before,
+  .gfx-section::details-content {
     transition: none;
+    rotate: none;
+  }
+
+  /* The rotation still has to happen, it just must not be animated to. */
+  .gfx-section[open] > .gfx-summary::before {
+    rotate: 90deg;
   }
 }

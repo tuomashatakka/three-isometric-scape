@@ -6,12 +6,17 @@ import {
   atmosphereQuality,
   describeQualitySignals,
   isAtmosphereQualityTier,
+  isQualityEffects,
   readQualitySignals,
   reduceAtmosphereQuality,
   selectAtmosphereQuality,
+  withEffects,
 } from './scene/quality.ts'
 import { readSkips } from './scene/audit.ts'
+import { createCameraPath } from './scene/camera-path.ts'
 import { createTierMemory } from './scene/tier-memory.ts'
+import { createCameraPathPanel } from './ui/camera-path-panel.ts'
+import { createCameraStore } from './ui/camera-state.ts'
 import { createDiagnostics } from './ui/diagnostics.ts'
 import { createFpsMeter } from './ui/fps-meter.ts'
 import { createGraphicsPanel } from './ui/graphics-panel.ts'
@@ -39,9 +44,10 @@ function announce (state: ScapeState): void {
 const firstCanvas = document.querySelector<HTMLCanvasElement>('[data-scape]')
 const statusSlot  = document.querySelector<HTMLOutputElement>('#scape-status')
 const cardSlot    = document.querySelector<HTMLElement>('#scape-card')
+const drawerSlot  = document.querySelector<HTMLElement>('#gfx')
 
-if (!firstCanvas || !statusSlot)
-  throw new Error('three-iso requires the scape canvas and status output')
+if (!firstCanvas || !statusSlot || !drawerSlot)
+  throw new Error('three-iso requires the scape canvas, status output and graphics drawer')
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const compactLayout = window.matchMedia('(max-width: 40rem)').matches
@@ -195,6 +201,21 @@ function withSurfaceOverrides (quality: AtmosphereQuality): AtmosphereQuality {
  * Which tier to open on: what the signals ask for, held down by what the device
  * has already proven, unless the url overrules both.
  */
+/**
+ * The effects mode, forced from the url.
+ *
+ * `?effects=all` is the capture-time equivalent of the drawer's switch, and the
+ * only way to photograph a phone tier with the whole optical chain on it.
+ */
+function startingEffects (): void {
+  const forced = params.get('effects')
+
+  if (forced && isQualityEffects(forced)) {
+    SCAPE_CONFIG.runtime.effects = forced
+    diagnostics.say(`effects forced to ${forced} by the url`)
+  }
+}
+
 function startingQuality (): AtmosphereQuality {
   const forced = params.get('tier')
 
@@ -227,7 +248,43 @@ seedRuntime(initialQuality)
 const settings = createSettingsStore(SCAPE_CONFIG, createScapeControls(initialQuality))
 
 settings.load()
+startingEffects()
 announce('booting')
+
+/**
+ * Where the reader last was, and the tour they last built.
+ *
+ * Loaded before the scape so the first frame is already framed on it, rather
+ * than opening on the middle of the sea and jumping.
+ *
+ * `?camera=fresh` opts out, and every capture sends it. Storage is per origin,
+ * not per page load, so six poses shot through one browser context would
+ * otherwise each inherit the camera the pose before it settled at — which is
+ * not a tour of six poses, it is one pose photographed six times. The same rule
+ * the url overrides already follow for the sliders: a capture that silently
+ * inherited somebody else's camera is a capture of the wrong scape.
+ */
+const cameraStore   = createCameraStore()
+const cameraSession = params.get('camera') === 'fresh'
+  ? { opening: null, waypoints: [], legSeconds: 6, loop: true }
+  : cameraStore.load()
+const cameraPath    = createCameraPath({
+  legSeconds: cameraSession.legSeconds,
+  loop:       cameraSession.loop,
+})
+
+cameraPath.replace(cameraSession.waypoints)
+
+let opening = cameraSession.opening
+
+function saveCameraSession (): void {
+  cameraStore.save({
+    opening,
+    waypoints:  [ ...cameraPath.waypoints ],
+    legSeconds: cameraPath.options.legSeconds,
+    loop:       cameraPath.options.loop,
+  })
+}
 
 /**
  * Every knob in the config, addressable from the url.
@@ -290,15 +347,41 @@ let mounted: Mounted | null = null
 let recovering              = 0
 let proving                 = 0
 let losses                  = 0
+let rebuilding              = 0
+
+/**
+ * The tier, plus whatever the reader asked to be built on top of it.
+ *
+ * `quality` stays the tier as detected — that is what the memory, the fallback
+ * ladder and the runtime seeding all reason about, and folding the reader's
+ * choice into it would make a device that survived `mobile` with everything
+ * turned on look like a device that survived `desktop`. This is the resolved
+ * budget the scape is actually built from.
+ */
+function activeQuality (): AtmosphereQuality {
+  return withEffects(quality, SCAPE_CONFIG.runtime.effects)
+}
 
 function mount (): void {
   // Built before the scape, because the scape is handed the callback that feeds
   // it. Verbose adds what the frame was spent on to what it cost.
   const meter = createFpsMeter({ verbose: params.has('debug') })
 
+  const active = activeQuality()
+
   const scape = createIsometricScape(canvas, SCAPE_CONFIG, {
-    quality,
+    quality: active,
     reducedMotion,
+    path:    cameraPath,
+    opening,
+
+    // Written back to the module-level `opening` as well as to storage, so a
+    // rebuild — a context loss, or the effects switch — reopens on where the
+    // reader was rather than throwing them back out to sea.
+    onPoseSettled (pose) {
+      opening = pose
+      saveCameraSession()
+    },
     diagnostics,
     skip,
     auditOnly: auditing,
@@ -337,10 +420,20 @@ function mount (): void {
   // The overlay writes straight into `SCAPE_CONFIG`, which every scene module
   // already reads per frame — so it is a view of the scene's settings rather
   // than a copy that has to be pushed anywhere.
+  const tour = createCameraPathPanel({
+    path:     cameraPath,
+    poseNow:  () => opening ?? { x: 0, z: 0, viewSize: SCAPE_CONFIG.camera.viewSize, heading: 0 },
+    onChange: saveCameraSession,
+  })
+
+  // Built against the tier the scape was *actually* built with, so a knob whose
+  // effect is now present stops rendering as unavailable the moment it is.
   const panel = createGraphicsPanel({
+    root:      drawerSlot!,
     config:    SCAPE_CONFIG,
-    sections:  createScapeControls(quality),
-    tier:      quality.tier,
+    sections:  createScapeControls(active),
+    extras:    [{ group: 'camera', title: 'waypoint tour', content: tour.content, dispose: tour.dispose }],
+    tier:      active === quality ? `${quality.tier} tier` : `${quality.tier} tier · all effects`,
     collapsed: compactLayout || coarsePointer,
     onChange:  () => settings.save(),
 
@@ -350,10 +443,13 @@ function mount (): void {
     onReset: () => {
       seedRuntime(quality)
       settings.reset()
+      rebuild()
     },
+
+    onRebuild: () => rebuild(),
   })
 
-  canvas.parentElement?.append(panel.element, meter.element)
+  canvas.parentElement?.append(meter.element)
 
   // A tier that holds this long without dropping the context is a tier the
   // device can simply be handed next time, rather than being walked down to
@@ -379,6 +475,34 @@ function unmount (): void {
   window.clearTimeout(proving)
   mounted?.dispose()
   mounted = null
+}
+
+/**
+ * Build it again, on the same canvas and the same tier.
+ *
+ * For the handful of decisions that are taken once rather than read per frame —
+ * whether there is a post chain, whether shadow maps compile, how many drops the
+ * rain's one static buffer holds. Deferred by a tick so the control that asked
+ * for it has finished its own event first, and coalesced, because a reader
+ * flicking the effects switch back and forth should cost one rebuild.
+ *
+ * The canvas is *not* renewed: its context is alive and well, and asking for a
+ * second one is exactly what the loss recovery is careful not to do lightly.
+ */
+function rebuild (): void {
+  window.clearTimeout(rebuilding)
+  rebuilding = window.setTimeout(() => {
+    unmount()
+
+    try {
+      announce('booting')
+      mount()
+    }
+    catch (error) {
+      diagnostics.fail(`rebuild failed · ${error instanceof Error ? error.message : String(error)}`)
+      announce('failed')
+    }
+  }, 0)
 }
 
 /**
@@ -438,9 +562,16 @@ function loseContext (): void {
   diagnostics.say(`falling back to the ${next.tier} tier in ${RECOVERY_DELAY}ms`)
   quality = next
 
-  // Including whatever the reader had dragged the performance knobs to. A
-  // device that has just given up its context does not get to keep the budget
-  // it gave it up on.
+  // Including whatever the reader had dragged the performance knobs to, and
+  // their answer to the effects switch. A device that has just given up its
+  // context does not get to keep the budget it gave it up on — and unlocking
+  // every effect is the most expensive answer there is to give.
+  if (SCAPE_CONFIG.runtime.effects !== 'tier') {
+    SCAPE_CONFIG.runtime.effects = 'tier'
+    settings.save()
+    diagnostics.say('effects put back to the tier default · the device has just refused the unlocked budget')
+  }
+
   seedRuntime(next)
 
   window.clearTimeout(recovering)
@@ -494,6 +625,7 @@ window.addEventListener('pagehide', event => {
     return
 
   window.clearTimeout(recovering)
+  window.clearTimeout(rebuilding)
   settings.dispose()
   card?.dispose()
   unmount()

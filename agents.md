@@ -114,7 +114,9 @@ three defaults are load-bearing:
 bun run scape:shot --set camera.focusX=-31 --set camera.focusZ=-1 --zoom 26   # the cart track, close
 ```
 
-reach for this whenever the change is a *ground-level* one — a rut, a doorstep, a fence line, a cobble. at world zoom a sub-metre feature is smaller than a pixel and `scape:diff` will correctly report `same` at all six tour poses whether the feature is right, wrong or missing.
+`--set runtime.effects=all` (or `?effects=all` in the browser) builds every effect the scape has on whatever tier is pinned — the only way to photograph the mobile tier with the optical chain, shadows and the aurora on it. expect it to be *slow* under swiftshader: the same pose went from 42 draws to 447 and from seconds to a minute, because the shadow depth pass alone multiplies the draw count. give it `--frames 8` and a small `--size` or the shutter's 30-second budget runs out before the frame count does.
+
+reach for the focus knobs whenever the change is a *ground-level* one — a rut, a doorstep, a fence line, a cobble. at world zoom a sub-metre feature is smaller than a pixel and `scape:diff` will correctly report `same` at all six tour poses whether the feature is right, wrong or missing.
 
 ### `bun run scape:diff` — what the change did
 

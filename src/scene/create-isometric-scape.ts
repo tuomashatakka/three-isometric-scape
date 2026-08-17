@@ -8,6 +8,8 @@ import type { ScapeConfig } from './config.ts'
 import { createAtmosphereLayer } from './atmosphere.ts'
 import { createAuroraLayer } from './aurora.ts'
 import { createCameraControls } from './camera-controls.ts'
+import type { CameraOpening } from './camera-controls.ts'
+import type { CameraPath } from './camera-path.ts'
 import { createCloudLayer } from './clouds.ts'
 import { createLandscape } from './landscape/index.ts'
 import { createMistLayer } from './mist.ts'
@@ -52,6 +54,15 @@ export interface IsometricScapeOptions {
   auditOnly?: boolean
   onFocus(point: Vector3): void
   onManualControl(): void
+
+  /** A waypoint tour, when the reader has built one. Drives the same camera target a drag does. */
+  path?: CameraPath
+
+  /** Where to open, when a previous session left an answer. Overrules `camera.focusX`/`focusZ`. */
+  opening?: CameraOpening | null
+
+  /** Where the camera came to rest, each time it does. */
+  onPoseSettled?(pose: CameraOpening): void
 
   /** Fresh frame numbers, four times a second, for an on-screen readout. */
   onVitals?(sample: VitalsSample): void
@@ -283,6 +294,9 @@ export function createIsometricScape (
     reducedMotion:   options.reducedMotion,
     onFocus:         options.onFocus,
     onManualControl: options.onManualControl,
+    path:            options.path,
+    opening:         options.opening,
+    onPoseSettled:   options.onPoseSettled,
   })
 
   const modules = [

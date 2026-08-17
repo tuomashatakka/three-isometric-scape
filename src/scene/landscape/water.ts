@@ -2,20 +2,18 @@ import {
   Color,
   DataTexture,
   LinearFilter,
-  LinearMipmapLinearFilter,
   Mesh,
   MeshStandardMaterial,
   PlaneGeometry,
   RGBAFormat,
-  RepeatWrapping,
   Vector2,
   Vector4,
 } from 'three'
 import type { IUniform, Texture, WebGLProgramParametersWithUniforms } from 'three'
-import { createNoiseTexture, createSeamlessNoiseTexture } from 'threejs-scene/modules/assets'
 import type { ScapeConfig } from '../config.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import type { SeasonState } from '../season.ts'
+import type { TextureCatalogue } from '../textures/catalogue.ts'
 import type { WeatherState } from '../weather.ts'
 import type { BoatWakeEmitter } from './boats.ts'
 import type { HeightField } from './height.ts'
@@ -389,9 +387,10 @@ function bakeShoreMask (config: ScapeConfig, field: HeightField, span: number): 
 }
 
 export function createWater (
-  config:  ScapeConfig,
-  field:   HeightField,
-  quality: AtmosphereQuality,
+  config:   ScapeConfig,
+  field:    HeightField,
+  quality:  AtmosphereQuality,
+  textures: TextureCatalogue,
 ): Water {
   // Seven dependent texture reads is what the full lake costs, and a tile-based
   // gpu pays for those in stalls rather than in bandwidth. Below the full tap
@@ -418,26 +417,11 @@ export function createWater (
 
   const shoreMap: Texture = bakeShoreMask(config, field, maskSpan)
 
-  // Mipmaps are not optional here. A 128px noise map sampled at roughly one
-  // texel per pixel aliases into a field of bright specks — and the god-ray
-  // pass then smears every speck into a streak along the sun vector, which is
-  // where the vertical bright lines came from.
-  const rippleMap           = createNoiseTexture({ size: 128, seed: config.seed ^ 0x2f1a, monochrome: true, lift: 0.1 })
-  rippleMap.wrapS           = RepeatWrapping
-  rippleMap.wrapT           = RepeatWrapping
-  rippleMap.generateMipmaps = true
-  rippleMap.minFilter       = LinearMipmapLinearFilter
-  rippleMap.magFilter       = LinearFilter
-  rippleMap.needsUpdate     = true
-
-  // Fractal value noise, so neighbouring texels agree on which way the surface
-  // is leaning. This one drives the shading; the speckled one only ever tints.
-  const waveMap       = createSeamlessNoiseTexture({ size: 256, seed: config.seed ^ 0x51b7, frequency: 5, octaves: 4 })
-  waveMap.wrapS       = RepeatWrapping
-  waveMap.wrapT       = RepeatWrapping
-  waveMap.minFilter   = LinearMipmapLinearFilter
-  waveMap.magFilter   = LinearFilter
-  waveMap.needsUpdate = true
+  // Both from the shared catalogue, mipmapping and wrap modes included. The
+  // speckled one only ever tints; the fractal one drives the shading, because
+  // neighbouring texels have to agree which way the surface is leaning.
+  const rippleMap = textures.get('water.ripple')
+  const waveMap   = textures.get('water.wave')
 
   const rippleOffset: IUniform<Vector2> = { value: new Vector2() }
   const waveTime: IUniform<number>      = { value: 0 }
@@ -582,9 +566,10 @@ export function createWater (
     dispose () {
       geometry.dispose()
       material.dispose()
+      // Only the mask, which this module baked. The ripple and wave maps are
+      // the catalogue's and are freed with it — a shared texture disposed by one
+      // consumer is how the other ends up sampling a dead handle.
       shoreMap.dispose()
-      rippleMap.dispose()
-      waveMap.dispose()
     },
   }
 }
