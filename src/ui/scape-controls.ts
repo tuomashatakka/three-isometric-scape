@@ -32,6 +32,18 @@ export interface SelectControl {
   path:    string
   label:   string
   options: readonly string[]
+
+  /**
+   * Whether changing this needs the scape built again.
+   *
+   * Almost nothing does — the whole point of the dotted-path design is that the
+   * modules re-read the config every frame. What does are the decisions taken
+   * *once*, when the renderer and its programs are made: whether there is a post
+   * chain at all, whether shadow maps compile, how many drops are in the rain's
+   * one static buffer. A knob that silently did nothing until the next reload
+   * would lie about what a knob does, so this one says so and rebuilds.
+   */
+  rebuild?: boolean
 }
 
 /**
@@ -58,6 +70,19 @@ export interface ControlSection {
   controls: ScapeControl[]
 
   /**
+   * The heading this section files under.
+   *
+   * Ten flat fieldsets in a nineteen-rem drawer is a list, not an interface —
+   * finding the snow line meant reading every legend on the way past it. Runs of
+   * sections that share a group get one heading and a rule above them, and each
+   * section collapses on its own underneath it.
+   */
+  group?: string
+
+  /** Whether the section starts open. Most do not; the drawer is small. */
+  open?: boolean
+
+  /**
    * Whether the snapshot should remember this section. Defaults to yes.
    *
    * Everything else on the panel describes the place, and a place is worth
@@ -74,6 +99,17 @@ export interface ControlSection {
 const GRADES: readonly GradeName[] = [
   'nordic', 'natural', 'cinematic', 'warm', 'cool', 'noir', 'dream',
 ]
+
+/**
+ * What the device is allowed to build.
+ *
+ * `tier` is the budget the device was detected into, which leaves whole systems
+ * out on the cheap ones rather than drawing poor versions of them. `all` builds
+ * every effect the scape has, on whatever tier is running — the reader's call to
+ * make on their own hardware, and the switch that puts the optical chain back on
+ * a phone that the mobile preset takes it off.
+ */
+const EFFECT_MODES: readonly string[] = [ 'tier', 'all' ]
 
 function walk (root: object, path: string): [ Record<string, unknown>, string ] | null {
   const keys = path.split('.')
@@ -158,7 +194,9 @@ function toggled (
 export function createScapeControls (quality: AtmosphereQuality): ControlSection[] {
   return [
     {
+      group:    'look',
       title:    'optics',
+      open:     true,
       controls: [
         { kind: 'select', path: 'look.grade', label: 'colour grade', options: GRADES },
         range('look.intensity', 'grade strength', 0, 1, 0.01),
@@ -170,6 +208,7 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       ],
     },
     {
+      group:    'time',
       title:    'daylight',
       controls: [
         // Outside the switch on purpose: freezing the clock is exactly when you
@@ -182,6 +221,7 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       ],
     },
     {
+      group:    'time',
       title:    'season',
       controls: [
         // Outside the switch for the same reason the time of day is: freezing
@@ -207,6 +247,7 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       ],
     },
     {
+      group:    'time',
       title:    'weather',
       controls: [
         // Outside the switch, like the other two clocks' phases: freezing the
@@ -225,6 +266,7 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       ],
     },
     {
+      group:    'air',
       title:    'atmosphere',
       controls: [
         range('atmosphere.fogDensity', 'fog density', 0, 0.9, 0.01),
@@ -253,6 +295,7 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       ],
     },
     {
+      group:    'air',
       title:    'mist',
       controls: [
         toggled(
@@ -264,6 +307,7 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       ],
     },
     {
+      group:    'ground & water',
       title:    'water',
       controls: [
         toggled('sun glitter', range('water.sparkle', 'strength', 0, 1.5, 0.01), 0.5),
@@ -275,17 +319,23 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       ],
     },
     {
+      group:    'ground & water',
       title:    'ground',
       controls: [
         range('terrain.detailGrain', 'soil grain', 0, 1, 0.01),
         range('terrain.detailMacro', 'soil patches', 0, 1.5, 0.01),
         range('terrain.detailScale', 'grain scale', 1, 24, 0.5),
+        // The other half of the same injection: everything upright, which the
+        // soil terms cannot reach because they weigh themselves by how
+        // horizontal a face is.
+        range('terrain.propGrain', 'timber & stone grain', 0, 1, 0.01),
         range('wind.strength', 'wind strength', 0, 3, 0.01),
         range('wind.speed', 'wind speed', 0, 4, 0.01),
       ],
     },
     {
-      title:    'camera',
+      group:    'camera',
+      title:    'framing',
       controls: [
         range('camera.tiltNear', 'tilt zoomed in', 8, 60, 1),
         range('camera.tiltFar', 'tilt zoomed out', 8, 70, 1),
@@ -295,6 +345,7 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
     // The only section that changes what the frame costs rather than what it
     // shows, and the only one the snapshot deliberately forgets. See `persist`.
     {
+      group:    'device',
       title:    'performance',
       persist:  false,
       controls: [
@@ -305,6 +356,23 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         // expensive thing this slider can ask for.
         range('runtime.frameCap', 'frame cap · 0 free', 0, 120, 5),
         range('runtime.shadowCadence', 'shadow every n frames', 1, 4, 1, quality.shadows),
+      ],
+    },
+
+    // Its own section, and persisted where `performance` is not. Those three
+    // knobs are seeded from whichever tier the device resolved to *this* load,
+    // so replaying them is how a device that has already lost a context gets
+    // handed back the budget that took it. This is not that: it is a deliberate
+    // answer to a question the reader was asked, and forgetting it every reload
+    // would make the switch useless. A context loss still clears it — see
+    // `loseContext` in `main.ts` — because that is the device disagreeing.
+    {
+      group:    'device',
+      title:    'effects',
+      controls: [
+        {
+          kind: 'select', path: 'runtime.effects', label: 'build', options: EFFECT_MODES, rebuild: true,
+        },
       ],
     },
   ]

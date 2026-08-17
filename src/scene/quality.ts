@@ -245,6 +245,79 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
   },
 }
 
+/**
+ * Which effects a tier is allowed to build.
+ *
+ * `tier` is the preset as authored: the cheap tiers leave whole systems out
+ * rather than draw poor versions of them. `all` overrules that.
+ */
+export type QualityEffects = 'tier' | 'all'
+
+export function isQualityEffects (value: string): value is QualityEffects {
+  return value === 'tier' || value === 'all'
+}
+
+/**
+ * The floor each counted effect is lifted to when everything is unlocked.
+ *
+ * A count that a tier zeroed is a system that does not exist on it, and the
+ * point of unlocking is that it should. These are the smallest counts at which
+ * each one still reads as itself — one veil is an aurora, a few hundred drops
+ * are a shower — rather than the desktop numbers, because a phone asked for
+ * every effect should get every effect at a phone's scale and not a
+ * workstation's. A tier that already spends more than the floor keeps its own.
+ */
+const UNLOCKED_FLOOR = {
+  mistLayers:     2,
+  tiltShiftPairs: 1,
+  auroraLayers:   1,
+  rainDrops:      700,
+  detailTaps:     6,
+} as const
+
+/**
+ * Every effect the scape has, on whatever tier is running.
+ *
+ * The counts stay at the tier's own scale wherever the tier already spends more
+ * than the floor, so this turns systems *on* rather than turning a phone into a
+ * workstation: resolution, segment counts, scatter budgets and the frame cap are
+ * untouched, because those are what the tier is actually for.
+ *
+ * `shadows` is included, and it is the one that has historically taken a device
+ * down — the depth pass compiles a whole second material set. `post` is the
+ * other. Both are here on purpose: the point of the switch is that the reader
+ * gets to make that trade on their own hardware, and the context-loss recovery
+ * in `main.ts` still takes it back off them if the device answers by crashing.
+ */
+export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
+  return {
+    ...quality,
+    shadows:        true,
+    bloom:          true,
+    grain:          true,
+    ao:             true,
+    ssr:            true,
+    godRays:        true,
+    traa:           true,
+    anamorphic:     true,
+    post:           true,
+    environment:    true,
+    mistLayers:     Math.max(quality.mistLayers, UNLOCKED_FLOOR.mistLayers),
+    tiltShiftPairs: Math.max(quality.tiltShiftPairs, UNLOCKED_FLOOR.tiltShiftPairs),
+    auroraLayers:   Math.max(quality.auroraLayers, UNLOCKED_FLOOR.auroraLayers),
+    rainDrops:      Math.max(quality.rainDrops, UNLOCKED_FLOOR.rainDrops),
+    detailTaps:     Math.max(quality.detailTaps, UNLOCKED_FLOOR.detailTaps),
+  }
+}
+
+/** The tier as asked for: its own budget, or every effect it can draw. */
+export function withEffects (
+  quality: AtmosphereQuality,
+  effects: QualityEffects,
+): AtmosphereQuality {
+  return effects === 'all' ? unlockEffects(quality) : quality
+}
+
 /** Tiers from cheapest to most expensive. `minimal` is the floor. */
 export const LADDER: readonly AtmosphereQualityTier[] = [ 'minimal', 'mobile', 'desktop', 'ultra' ]
 

@@ -151,12 +151,14 @@ src/
 │   ├── quad-view.ts                four scissored ortho viewports, one renderer
 │   └── preview.css                 the instrument's own chrome
 ├── ui/
+│   ├── camera-path-panel.ts        the waypoint tour, built by flying and pressing add
+│   ├── camera-state.ts             where the reader last was, and the tour they built
 │   ├── diagnostics.ts              the log, printed where a phone can read it
 │   ├── fps-meter.ts                the frame counter in the bottom-left corner
-│   ├── graphics-panel.ts           the overlay, built from real form elements
-│   ├── overlay-state.ts            whether the card was last left hidden
+│   ├── graphics-panel.ts           the drawer's contents, filled into the page's markup
+│   ├── overlay-state.ts            the card, and which drawer sections were left open
 │   ├── scape-card.ts               the card in the top-left, and its handle
-│   ├── scape-controls.ts           which config paths it exposes, in sections
+│   ├── scape-controls.ts           which config paths it exposes, in grouped sections
 │   └── settings-store.ts           local-storage snapshot of those same paths
 └── scene/
     ├── atmosphere.ts               gradient sky, linear fog, sun and fill rig
@@ -174,7 +176,8 @@ src/
     ├── mist.ts                     ground-mist sheets, and the sea smoke off the coast
     ├── noise.ts                    deterministic height sampler
     ├── post.ts                     ao, ssr, sun shafts, tilt-shift, lut, bloom, grain, traa
-    ├── quality.ts                  minimal/mobile/desktop/ultra gpu budgets
+    ├── quality.ts                  minimal/mobile/desktop/ultra gpu budgets, and the unlock
+    ├── camera-path.ts              the waypoint tour, and the spline it flies
     ├── runtime.ts                  live pixel ratio, frame cap, shadow cadence
     ├── tier-memory.ts              what the device last proved it could not do
     ├── vitals.ts                   the one frame measurement everything else reads
@@ -200,6 +203,8 @@ src/
     │   ├── dressing-helpers.ts     the placement questions that are pure geometry
     │   ├── dressing.ts             placement, hero merge, instanced scatter
     │   └── index.ts                the scene module, and what raycasts
+    ├── textures/
+    │   └── catalogue.ts            every texture in the scape, in one list
     └── props/
         ├── index.ts                the roster, hero vs scattered
         ├── palette.ts              the nordic colour vocabulary
@@ -340,6 +345,48 @@ a ribbon traced along the track carries its own vertices at its own spacing — 
 **cost is zero draw calls.** the ribbon merges into the terrain mesh with the seabed and the three islands, in the island's local space and translated by the same origin. about a thousand vertices per island with a track, against the terrain's tens of thousands.
 
 `cartRuts.*` is build-time and stays out of the overlay, like `footpath.*`. and a rut is 0.68 m wide, so it is under a pixel at world zoom: capturing one needs `camera.focusX`/`camera.focusZ` and a small view size — see [`agents.md`](agents.md).
+
+## every effect, on every tier
+
+a tier is a bundle of decisions taken from what the device says about itself, and the cheap ones leave whole systems out rather than drawing poor versions of them — no post chain on mobile, no shadow maps, no aurora on `minimal`. that is the right default and it is the wrong ceiling: it is the reader's hardware, and a preset written from a media query is not better informed about it than they are.
+
+`runtime.effects` is the switch. `tier` is the preset as authored; `all` runs it through [`unlockEffects`](src/scene/quality.ts), which turns on every boolean and lifts every zeroed count to the smallest number at which that system still reads as itself — one veil is an aurora, a few hundred drops are a shower.
+
+**it turns systems on; it does not spend the tier's budget.** pixel ratio, terrain and water segments, the scatter budget, the shadow map size and the frame cap are untouched, and there is a test that says so. a phone asked for every effect gets every effect *at a phone's scale*, because those numbers are what the tier is actually for — handing them up as well would turn a switch into a way to cook a handset.
+
+**it rebuilds the scape, and says so.** almost nothing in this config needs that; the modules re-read it every frame. what does are the decisions taken once, when the renderer and its programs are made — whether there is an `EffectComposer` at all, whether shadow maps compile, how many drops are in the rain's one static buffer. so this is the one control in the panel marked `rebuild`, and it unmounts and remounts on the same canvas rather than pretending to work until the next reload. the canvas is deliberately *not* renewed: its context is alive, and asking for another one is what the loss recovery is careful not to do lightly.
+
+**a context loss takes it back.** the mobile preset drops the optical chain because a PowerVR handset loses its context to it, and this switch is what puts that back. if the device answers by dropping the context, `loseContext` puts `runtime.effects` to `tier` along with everything else it walks down — the reader's answer is respected right up until the hardware disagrees with it.
+
+`?effects=all` is the same switch from a url, which is the only way to photograph a phone tier with the whole chain on it.
+
+## every texture, in one list
+
+[`textures/catalogue.ts`](src/scene/textures/catalogue.ts) is the roster. it exists because maps were being built wherever they happened to be needed — a seamless noise in `material.ts`, two more in `water.ts`, a baked field in each of `mist`, `clouds` and `aurora` — with the size, frequency and wrap mode written out again each time, and no way to answer *what does this scape sample, and how much of it is there* short of grepping for `Texture`.
+
+**tiling maps are built here and shared**, so a second consumer costs a lookup rather than another upload, and the whole set is disposed as a unit by whoever built the catalogue. **maps baked from the survey stay where their data is** — a bathymetry mask belongs next to the height field it samples — but they are registered here with the module that owns them, so the list is the whole answer either way.
+
+the rule is that a texture anywhere in `src/scene` has an entry. `catalogue.test.ts` is what makes that keepable rather than aspirational: it walks the scene source for texture constructors and fails on a module the roster has never heard of.
+
+## the ground, and everything upright on it
+
+the terrain's grain has always been one texture read six ways, weighted by `scapeFlat` — how horizontal the face is — because a world-space projection smears streaks down anything vertical. two things were wrong with that.
+
+**the broad octave was the fine one read slowly.** a single field sampled at two frequencies is self-similar by construction, so the metre-wide patches landed exactly where the centimetre-wide grit was already darkest and the two reinforced into a lumpy weave instead of reading as two different histories. `ground.wear` is now its own noise — few octaves, because wear is smooth — and it also *dulls* the roughness where it is damp, which is most of what tells wet ground from dry at this distance. the albedo barely moves.
+
+**and the `1 - flat` case had never been written.** every wall, gable, hull, jetty timber and granite face in the scape had no surface at all: flat-shaded colour, and nothing at the scale of a plank or a grain of stone. two materials carry the whole place, so "the props have no texture" was really "the injection only ever handled the ground". `prop.bark` is the other half, with the projection turned on its side to match — the horizontal coordinate wraps several times around a stem or along a wall while the vertical one crawls, which is what makes the read run *along* a board rather than across it. one fetch, weighted to nothing on ground the soil terms already own, so the two never argue over the same fragment. `terrain.propGrain` at 0 is the scape as it looked before it existed.
+
+## the camera, between sessions
+
+**where the reader was.** [`camera-state.ts`](src/ui/camera-state.ts) keeps the last settled pose — a ground point, a view size and a heading — under its own storage key, beside the card's and apart from the graphics snapshot. that snapshot is derived from the control list and typed against the config it writes into; a camera pose is none of those things. it is not a knob, nobody authored a default for it, and inventing config fields for it would put two copies of the camera's position in a module built specifically to avoid that.
+
+it is written when the chase *lands*, not per frame — the settle is its own debounce, so it is at most one write per gesture. and it is parsed rather than cast: a stored pose is applied straight to the camera before the first frame, so one `NaN` from a hand-edited key is a scape that opens looking at nowhere and never recovers, and the failure would read as a broken build rather than as bad data.
+
+**and where they want it to go.** [`camera-path.ts`](src/scene/camera-path.ts) is a waypoint tour. a stop is captured by flying the scape somewhere and pressing add, not typed: nobody knows what heading they want in degrees, and the frame they are already looking at is the answer.
+
+the tween is a uniform catmull-rom — the same spline the routes are smoothed with, and for the same reason: it passes *through* its control points, so a stop the reader placed is a place the camera visits rather than one it leans toward. headings are unrolled onto one continuous number line first, by accumulating the *shortest* step between consecutive stops, because interpolating compass degrees directly is how a tour from 350° to 10° swings the long way through every heading it was not asked for. a looping path keeps the unrolling going across the seam, so a tour that genuinely circles twice still circles twice. a path that does not loop eases in over its first leg and out over its last; a loop does not, because the one place the reader cannot see a join is the seam, and easing there is how it becomes visible.
+
+**it drives the same target a drag does.** there is one integrator in `camera-controls.ts` and the tour writes `target` exactly as the boat follow and every gesture do — a second tween beside it is how two things end up disagreeing about where the camera is. any manual input stops the tour, and stops it *where it is* rather than snapping to where it was heading, because a tour you cannot interrupt by grabbing the scape is a cutscene. escape is the documented way out of all three: the tour, the boat chase and the idle orbit.
 
 ## the shape of the island
 
@@ -580,7 +627,11 @@ the ground it falls on carries **two octaves of grain, and a roughness break**. 
 
 ## the graphics overlay
 
-a panel on the right edge exposes the scene's optics, daylight, atmosphere, mist, water, ground and camera tilt, with a switch per effect and its parameters nested underneath. it collapses to a handle, starts collapsed on touch and narrow viewports, and resets to the authored values.
+a drawer on the right edge exposes the scene's optics, the three clocks, the air, the ground and water, the camera and the device budget — with a switch per effect and its parameters nested underneath. it collapses to a handle, starts collapsed on touch and narrow viewports, and resets to the authored values.
+
+**its furniture is markup, not script.** the `<aside>`, the header, the collapse handle, the form and the footer ship in [`index.html`](index.html); [`graphics-panel.ts`](src/ui/graphics-panel.ts) fills the form and wires the two buttons. that is what lets the drawer survive the canvas being replaced under it after a context loss — and after the effects switch rebuilds the scape — and it gives the panel a shape before its module has parsed. only the controls are built at runtime, because only those depend on which tier resolved.
+
+**sections are `<details>`, and their animation is five css declarations.** ten flat legends in a nineteen-rem drawer is a list rather than an interface: finding the snow line meant reading every legend on the way past it. runs of sections now share a heading — *look*, *time*, *air*, *ground & water*, *camera*, *device* — and each one collapses on its own underneath it, remembering by name whether the reader left it open. a `<details>` already collapses, takes the keyboard and announces its state; `interpolate-size: allow-keywords` plus a `block-size` transition on `::details-content` is the whole animation, and both degrade to an instant open on a browser without them. there is no javascript in the collapse at all.
 
 the thing worth knowing is that **it holds no state**. every control reads and writes `SCAPE_CONFIG` directly, and the scene modules re-read that config every frame — uniforms are refreshed in each module's `update`, not captured at build. so there is exactly one copy of every number, the panel and the scene cannot drift apart, and nothing has to be pushed anywhere when a slider moves.
 

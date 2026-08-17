@@ -37,6 +37,36 @@
             building scape…
           </output>
         </figcaption>
+
+        <!-- The drawer's chrome is markup, not script. It is the same furniture
+             on every load, it has to survive the canvas being replaced under it
+             after a context loss, and a panel whose frame ships with the page
+             has a shape before the module that fills it has even parsed. Only
+             the controls themselves are built at runtime, because only those
+             depend on which tier resolved. -->
+        <aside id="gfx" class="gfx" data-collapsed="true">
+          <button
+            id="gfx-toggle"
+            class="gfx-toggle"
+            type="button"
+            aria-controls="gfx-body"
+            aria-expanded="false"
+            aria-label="show graphics settings"
+          >‹</button>
+
+          <header class="gfx-head">
+            <p class="gfx-title">graphics</p>
+            <button id="gfx-reset" class="gfx-reset" type="button">reset</button>
+          </header>
+
+          <!-- `autocomplete="off"` opts out of form-state restoration: these
+               controls are a *view* of the config, and a browser putting them
+               back the way they were left — after the initial sync — would show
+               numbers the scene does not have. -->
+          <form id="gfx-body" class="gfx-body" autocomplete="off"></form>
+
+          <p id="gfx-foot" class="gfx-foot">webgl</p>
+        </aside>
       </figure>
 
       <noscript>javascript is required to build the isometric scape.</noscript>

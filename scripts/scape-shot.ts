@@ -124,6 +124,12 @@ export function shotUrl (options: ShotOptions): string {
   params.set('tier', options.tier)
   params.set('ratio', String(options.ratio))
 
+  // Storage is per origin rather than per page load, so a tour of six poses
+  // through one browser context would have each pose open on wherever the pose
+  // before it came to rest. Pinned for the same reason the tier is.
+  if (options.still)
+    params.set('camera', 'fresh')
+
   if (options.skip)
     params.set('skip', options.skip)
 

@@ -48,4 +48,48 @@ export function writeCardHidden (
   }
 }
 
-// perf: two `localStorage` calls per load, both off the frame path.
+/**
+ * Which drawer sections the reader left open.
+ *
+ * Keyed by section title rather than by index, so reordering the panel — or
+ * adding a section in the middle of it — does not reopen a different one than
+ * the reader chose. A title nobody has answered for returns `null`, which is how
+ * a new section gets to keep its own default.
+ */
+const SECTIONS = 'three-iso.sections.v1'
+
+function readSectionMap (storage: Storage | null): Record<string, boolean> {
+  try {
+    const parsed: unknown = JSON.parse(storage?.getItem(SECTIONS) ?? '{}')
+    return typeof parsed === 'object' && parsed !== null ? parsed as Record<string, boolean> : {}
+  }
+  catch {
+    return {}
+  }
+}
+
+export function readSectionOpen (
+  title:   string,
+  storage: Storage | null = openStorage(SECTIONS),
+): boolean | null {
+  const value = readSectionMap(storage)[title]
+  return typeof value === 'boolean' ? value : null
+}
+
+export function writeSectionOpen (
+  title:   string,
+  open:    boolean,
+  storage: Storage | null = openStorage(SECTIONS),
+): void {
+  try {
+    const map = readSectionMap(storage)
+
+    map[title] = open
+    storage?.setItem(SECTIONS, JSON.stringify(map))
+  }
+  catch {
+    // As above — a full quota only costs the next load its layout.
+  }
+}
+
+// perf: a handful of `localStorage` calls per load, all off the frame path.

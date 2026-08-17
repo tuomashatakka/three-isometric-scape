@@ -1,5 +1,13 @@
 import { describe, expect, test } from 'bun:test'
-import { atmosphereQuality, reduceAtmosphereQuality, selectAtmosphereQuality } from './quality.ts'
+import {
+  LADDER,
+  atmosphereQuality,
+  isQualityEffects,
+  reduceAtmosphereQuality,
+  selectAtmosphereQuality,
+  unlockEffects,
+  withEffects,
+} from './quality.ts'
 import type { QualitySignals } from './quality.ts'
 
 
@@ -140,5 +148,84 @@ describe('reduceAtmosphereQuality', () => {
   test('keeps the optical chain off mobile and minimal', () => {
     expect(atmosphereQuality('mobile').post).toBe(false)
     expect(atmosphereQuality('minimal').post).toBe(false)
+  })
+})
+
+
+describe('unlocking every effect', () => {
+  test('turns on everything the tier left out, at every tier', () => {
+    for (const tier of LADDER) {
+      const all = unlockEffects(atmosphereQuality(tier))
+
+      expect(all.post).toBe(true)
+      expect(all.shadows).toBe(true)
+      expect(all.bloom).toBe(true)
+      expect(all.grain).toBe(true)
+      expect(all.godRays).toBe(true)
+      expect(all.environment).toBe(true)
+      expect(all.ao).toBe(true)
+      expect(all.ssr).toBe(true)
+      expect(all.traa).toBe(true)
+      expect(all.anamorphic).toBe(true)
+    }
+  })
+
+  test('gives every counted system enough of itself to be itself', () => {
+    for (const tier of LADDER) {
+      const all = unlockEffects(atmosphereQuality(tier))
+
+      expect(all.auroraLayers).toBeGreaterThan(0)
+      expect(all.rainDrops).toBeGreaterThan(0)
+      expect(all.mistLayers).toBeGreaterThan(0)
+      expect(all.tiltShiftPairs).toBeGreaterThan(0)
+      expect(all.detailTaps).toBeGreaterThanOrEqual(6)
+    }
+  })
+
+  /**
+   * The line this switch does not cross.
+   *
+   * Unlocking is about which systems exist, not about how big the frame is. A
+   * phone asked for every effect should get every effect at a phone's scale —
+   * pixel ratio, geometry, scatter budget and frame cap are what the tier is
+   * actually for, and handing those up would turn a switch into a way to cook a
+   * handset.
+   */
+  test('never spends the tier’s own budget for it', () => {
+    for (const tier of LADDER) {
+      const tiered = atmosphereQuality(tier)
+      const all    = unlockEffects(tiered)
+
+      expect(all.pixelRatioMax).toBe(tiered.pixelRatioMax)
+      expect(all.terrainSegments).toBe(tiered.terrainSegments)
+      expect(all.waterSegments).toBe(tiered.waterSegments)
+      expect(all.scatterScale).toBe(tiered.scatterScale)
+      expect(all.frameRate).toBe(tiered.frameRate)
+      expect(all.shadowMapSize).toBe(tiered.shadowMapSize)
+      expect(all.tier).toBe(tiered.tier)
+    }
+  })
+
+  test('never takes an effect away from a tier that already had it', () => {
+    const ultra = atmosphereQuality('ultra')
+    const all   = unlockEffects(ultra)
+
+    expect(all.auroraLayers).toBe(ultra.auroraLayers)
+    expect(all.rainDrops).toBe(ultra.rainDrops)
+    expect(all.mistLayers).toBe(ultra.mistLayers)
+  })
+
+  test('the tier mode is the tier, untouched', () => {
+    const mobile = atmosphereQuality('mobile')
+
+    expect(withEffects(mobile, 'tier')).toBe(mobile)
+    expect(withEffects(mobile, 'all')).toEqual(unlockEffects(mobile))
+  })
+
+  test('only the two modes are modes, for url and storage input', () => {
+    expect(isQualityEffects('tier')).toBe(true)
+    expect(isQualityEffects('all')).toBe(true)
+    expect(isQualityEffects('ALL')).toBe(false)
+    expect(isQualityEffects('')).toBe(false)
   })
 })
