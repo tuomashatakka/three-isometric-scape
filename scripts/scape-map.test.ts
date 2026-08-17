@@ -55,6 +55,10 @@ describe('the map', () => {
     expect(a.split('\n').every(row => [ ...row ].length === 48)).toBe(true)
   })
 
+  // A second seed means a second full survey — every island resited, every
+  // route retraced — and that is several seconds of work on its own before a
+  // glyph is drawn. The default per-test budget is written for assertions
+  // against a survey that already exists, so this one states its own.
   test('a different seed is a different archipelago', () => {
     const other = clone()
 
@@ -62,7 +66,7 @@ describe('the map', () => {
 
     expect(renderGrid(other, surveyArchipelago(other), WINDOW, 48, 24, ALL_LAYERS))
       .not.toBe(renderGrid(config, archipelago, WINDOW, 48, 24, ALL_LAYERS))
-  })
+  }, 30_000)
 
   test('dropping every overlay leaves only ground', () => {
     const bare = renderGrid(config, archipelago, WINDOW, 48, 24, {

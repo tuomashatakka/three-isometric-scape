@@ -11,6 +11,17 @@ const config  = structuredClone(SCAPE_CONFIG) as ScapeConfig
 const world   = surveyArchipelago(config)
 const network = world.waterways
 
+/**
+ * Spacing of the ground probes, in metres.
+ *
+ * `heightAt` is the authored ground with every shelf, plot and carve on it, so
+ * a probe is not free and the clearance sweep is the most expensive assertion
+ * in the suite. A quarter of a metre is an order of magnitude finer than the
+ * shoals the survey is capable of leaving in a channel, and coarse enough that
+ * the sweep stays inside the runner's patience.
+ */
+const PROBE = 0.25
+
 describe('the waterways between the islands', () => {
   test('form one directed ring with every port reachable', () => {
     const ids = new Set(world.ports.map(port => port.id))
@@ -51,24 +62,40 @@ describe('the waterways between the islands', () => {
   })
 
   test('keeps the complete hull footprint in navigable water', () => {
-    const route       = network.route
-    const steps       = Math.ceil(route.length / 0.05)
-    const hullOffsets = Array.from({ length: 360 }, (_unused, probe) => {
-      const angle = probe / 360 * Math.PI * 2
+    const route = network.route
 
-      return {
-        x: Math.cos(angle) * BOAT_HULL_RADIUS,
-        z: Math.sin(angle) * BOAT_HULL_RADIUS,
+    // The hull sweeps a tube of `BOAT_HULL_RADIUS` around the centreline, and
+    // the claim is about all of it — including the middle. A ring of probes on
+    // the hull's rim never looks inside the disc, so a shoal narrower than the
+    // beam would pass the test by sitting under the boat.
+    //
+    // So: a polar lattice over the whole disc, stepped at `PROBE` in every
+    // direction — along the route, out from the centre, and around each ring.
+    // Nothing in the swept tube is further than half a step from a probe.
+    const steps       = Math.ceil(route.length / PROBE)
+    const rings       = Math.ceil(BOAT_HULL_RADIUS / PROBE)
+    const hullOffsets = [{ x: 0, z: 0 }]
+
+    for (let ring = 1; ring <= rings; ring += 1) {
+      const radius = ring / rings * BOAT_HULL_RADIUS
+      const around = Math.ceil(2 * Math.PI * radius / PROBE)
+
+      for (let probe = 0; probe < around; probe += 1) {
+        const angle = probe / around * Math.PI * 2
+
+        hullOffsets.push({
+          x: Math.cos(angle) * radius,
+          z: Math.sin(angle) * radius,
+        })
       }
-    })
+    }
+
     let highest = -Infinity
 
     for (let step = 0; step < steps; step += 1) {
       const boat = sampleWaterway(route, step / steps * route.length, {
         x: 0, z: 0, angle: 0,
       })
-
-      highest = Math.max(highest, world.field.heightAt(boat.x, boat.z))
 
       for (const offset of hullOffsets)
         highest = Math.max(highest, world.field.heightAt(boat.x + offset.x, boat.z + offset.z))

@@ -108,6 +108,14 @@ three defaults are load-bearing:
 
 `--set a.b=1` reaches any dotted config path — the same paths the overlay and the settings snapshot use — so a knob added to [`config.ts`](src/scene/config.ts) is reachable from a url the day it lands.
 
+**aiming the camera.** every pose in `tour` looks at the middle of the world, and the middle of the world is open sea — so nothing on the ground can be captured by zoom alone. the farmyard is 17 m west of it and the cart track runs out to 44 m. `camera.focusX` and `camera.focusZ` move where the camera opens:
+
+```sh
+bun run scape:shot --set camera.focusX=-31 --set camera.focusZ=-1 --zoom 26   # the cart track, close
+```
+
+reach for this whenever the change is a *ground-level* one — a rut, a doorstep, a fence line, a cobble. at world zoom a sub-metre feature is smaller than a pixel and `scape:diff` will correctly report `same` at all six tour poses whether the feature is right, wrong or missing.
+
 ### `bun run scape:diff` — what the change did
 
 ```sh

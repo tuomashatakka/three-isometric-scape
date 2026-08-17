@@ -125,7 +125,9 @@ url overrides for a device you cannot attach a debugger to: `?debug` adds live v
 
 the intended first edit is [`src/scene/config.ts`](src/scene/config.ts). `SCAPE_CONFIG` owns the seed, terrain extent and waterline, the islets, the beck, the footpaths, the dressing budgets, camera framing and zoom limits, all three clocks, the whole light and atmosphere rig, the optical chain, and the complete palette.
 
-a knob that is **visual and read per frame** also belongs in [`ui/scape-controls.ts`](src/ui/scape-controls.ts) as a dotted path, which makes it persist, reset and become url-addressable for free. a knob that needs a **rebuild** to be seen — `layout.*`, `creek.*`, `footpath.*`, `dressing.*` — stays out of the overlay, because a slider that lies about what it does is worse than no slider.
+a knob that is **visual and read per frame** also belongs in [`ui/scape-controls.ts`](src/ui/scape-controls.ts) as a dotted path, which makes it persist, reset and become url-addressable for free. a knob that needs a **rebuild** to be seen — `layout.*`, `creek.*`, `footpath.*`, `cartRuts.*`, `dressing.*` — stays out of the overlay, because a slider that lies about what it does is worse than no slider.
+
+`camera.focusX` and `camera.focusZ` are where the camera *opens*, read once when the controls are built and live state from then on. they default to the middle of the world, which is open sea — set them to put the opening view on the farm, and set them from a url to capture anything on the ground at all.
 
 compose new systems in [`create-isometric-scape.ts`](src/scene/create-isometric-scape.ts):
 
@@ -186,11 +188,12 @@ src/
     │   ├── path.ts                 route smoothing and polyline queries
     │   ├── network.ts              the farm's street plan: places, tree, shortcuts
     │   ├── footpath.ts             a planned leg traced into a worn line
+    │   ├── cart-ruts.ts            the wheel lines worn down the cart track
     │   ├── creek.ts                the beck: descent trace, channel, tidal mouth
     │   ├── waterway.ts             the navigable water between the ports
     │   ├── boats.ts                the fleet, and the wake it leaves
     │   ├── boat-motion.ts          one shared departure clock, one leg each
-    │   ├── terrain.ts              geometry, banded colour, path wear painted in
+    │   ├── terrain.ts              geometry, banded colour, path wear painted in, ruts merged on
     │   ├── water.ts                bathymetry, swell, foam, glitter, winter ice
     │   ├── samplers.ts             where the dressing throws its darts
     │   ├── dressing-zones.ts       what the composition already claims the ground for
@@ -317,6 +320,26 @@ this matters more than it sounds, because **a coarse tier cannot resolve a tread
 **cost is one draw call** — the second `InstancedMesh` of cobbles. the legs are planned and traced once at build, under a millisecond for the whole network, and baked into terrain vertex colours that were already being written. the per-vertex query is a bounding-box reject followed by a segment walk. every tier gets the paths, `minimal` included.
 
 `footpath.*` and `dressing.pathStone` are build-time knobs and are absent from the overlay for the same reason `creek.*` and `layout.*` are.
+
+## the ruts down the cart track
+
+two worn lines an axle apart, down the middle of the road between the yard and the landing, fading out as the traffic thins. [`cart-ruts.ts`](src/scene/landscape/cart-ruts.ts).
+
+**it is geometry because paint could not draw it, and that is the whole design.** the section above already says why: a terrain quad is 0.68 m across on the home island at the finest tier and 2.3 m on mobile, and the vertex colours can only carry a feature several quads wide. a footpath is 1.5 m and survives as a soft band. a *rut* is two thirds of a metre. painted into that grid it does not come out thin, it comes out **absent** — the first attempt at this feature painted ruts into the terrain and `scape:diff` reported `same` at all six poses, because the ground has no vertices to spare where the wheels run. widening a rut until the grid can hold it stops it being a rut and turns the road into one dark strip.
+
+a ribbon traced along the track carries its own vertices at its own spacing — a cross-section every half metre, five vertices across each rut — so the ruts are as fine as the wheels that made them and cost exactly the same on every tier. `minimal` gets the ruts `ultra` gets.
+
+**the seam is closed with colour, not with blending.** the ribbon's two outer vertices are painted with the *ground's own* colour at that point, sampled from the same [`createTerrainPainter`](src/scene/landscape/terrain.ts) the terrain patch beside it used, and only the middle darkens toward wheel-packed earth. so there is no transparency to sort, no fade to tune and no second opinion about what colour the road is: the edge already matches what it lies on, whatever the season and the altitude band have done to it. the ribbon floats 6 cm, which clears the chord the terrain triangles cut under it without reading as floating from an isometric camera.
+
+**both ruts wander together, because they are one axle.** the sideways drift and the thinning along the line come from a smoothed 1D value noise on the shared coordinate hash — interpolated between whole cells, because `hash2` is a hash and not a field, and a rut jittered by a raw hash is gravel. deterministic, and independent of every other generator: adding a prop does not move the ruts.
+
+**wear belongs to the yard.** it is full where the traffic is and gone `cartRuts.reach` metres out, which is what stops the road reading as uniformly driven along its whole length. `cartRuts.wear` at 0 is a track nothing has ever driven down — the ribbon is not built at all, so it costs a merge and a draw of nothing rather than drawing nothing at cost. there is no separate switch.
+
+**it lies on the terrain as *drawn*, not on the ground as authored.** these are two different surfaces and the gap between them is not small: the mesh is a chord between vertices up to 2.3 m apart, and where the ground curves it stands tens of centimetres off `heightAt`. laid on the height field with a few centimetres of clearance, most of the ribbon ends up *under* the triangles it is meant to be lying on, and the ruts come out as a dashed line — which is exactly what the first capture of this feature showed. `drawnSurfaceOf` in [`terrain.ts`](src/scene/landscape/terrain.ts) reconstructs the plane of the triangle a point falls in, including which way the quad's diagonal runs, so the ribbon sits on the mesh and its 5 cm lift is a depth-buffer margin rather than a clearance.
+
+**cost is zero draw calls.** the ribbon merges into the terrain mesh with the seabed and the three islands, in the island's local space and translated by the same origin. about a thousand vertices per island with a track, against the terrain's tens of thousands.
+
+`cartRuts.*` is build-time and stays out of the overlay, like `footpath.*`. and a rut is 0.68 m wide, so it is under a pixel at world zoom: capturing one needs `camera.focusX`/`camera.focusZ` and a small view size — see [`agents.md`](agents.md).
 
 ## the shape of the island
 

@@ -2,6 +2,20 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## ruts down the cart track
+
+the road between the yard and the landing now shows what has been driven down it: two worn lines an axle apart, full where the traffic is and gone once the yard is out of reach.
+
+- **added** `cart-ruts.ts` — the wheel lines as a ribbon of geometry traced along the track, five vertices across each rut and a cross-section every half metre
+- **built it as geometry because paint cannot draw it**, which is the finding this run turned up rather than a preference. the first attempt painted ruts into the terrain's vertex colours and `scape:diff` reported `same` at all six poses: a terrain quad is 0.68 m across on the home island at the finest tier and 2.3 m on mobile, and a two-thirds-of-a-metre rut has no vertices to live on. widening it until the grid can hold it stops it being a rut. the readme already said this about footpath treads — it is the same rule, one step further down in scale
+- **closed the seam with colour rather than with blending.** the ribbon's outer vertices are painted with the ground's own colour at that point, from the same `createTerrainPainter` the terrain patch beside them used, so there is nothing to sort, nothing to fade, and no second opinion about what colour the road is under this week's season and altitude band
+- **laid it on the terrain as drawn rather than on the ground as authored**, which is the second finding. the mesh is a chord between vertices up to 2.3 m apart and stands tens of centimetres off `heightAt` wherever the ground curves, so a ribbon lifted a few centimetres off the *field* spends most of its length under the triangles it is lying on — the first capture showed the ruts as a dashed line for exactly this reason. `drawnSurfaceOf` rebuilds the plane of the triangle a point falls in, diagonal and all, so the lift is a depth margin and not a clearance
+- **made both ruts wander together**, off a smoothed 1D value noise on the shared coordinate hash — interpolated between whole cells, because a rut jittered by a raw hash is gravel. deterministic and forked from nothing, so adding a prop does not move them
+- **exposed** `cartRuts.gauge`, `.width`, `.reach` and `.wear`. build-time, so out of the overlay, like `footpath.*`. `wear` at 0 is a track nothing has driven down and the ribbon is not built at all — no second switch
+- **gave the camera an opening focus**, `camera.focusX` and `camera.focusZ`, because the third finding was that the scape could not be photographed. every pose in `tour` looks at the middle of the world and the middle of the world is open sea; the farmyard is 17 m west of it and the track runs out to 44 m, so no combination of rotation and zoom could frame a rut. read once when the controls are built, clamped to the same box a drag is held in, and live state from then on
+- **fixed two tests that were timing out on `main`**, which is what was holding the previous run's pull request red. the hull-clearance sweep now probes a polar lattice over the whole hull disc instead of 360 points on its rim at 5 cm steps — an eighth of the ground probes, and a *stronger* claim, because the rim never looked inside the disc where a shoal narrower than the beam could sit. the second-seed map test states its own budget, since a second full archipelago survey is seconds of work before a glyph is drawn. the suite is 27 s where it was 44 s
+- **cost** zero draw calls: the ribbon merges into the terrain mesh with the seabed and the three islands. roughly a thousand vertices per island against the terrain's tens of thousands, and identical on every tier — `minimal` gets the ruts `ultra` gets
+
 ## three islands, and the boats between them
 
 the home island no longer has to pretend its skerries are an archipelago. this run adds two inhabited neighbours with different ground, gives all three the same working life, and makes the water between their jetties into a road boats can actually survive.

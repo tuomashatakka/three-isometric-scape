@@ -78,6 +78,19 @@ export function wrapHeading (heading: number): number {
   return (heading % 360 + 360) % 360
 }
 
+/**
+ * A ground point the camera is allowed to look at.
+ *
+ * The same box a drag is held inside, applied to the opening focus too — a
+ * configured focus out past the world's edge would otherwise open on a view a
+ * drag can never return to.
+ */
+type ClampFocusReturnType = { x: number, z: number }
+
+export function clampFocus (x: number, z: number, reach: number): ClampFocusReturnType {
+  return { x: clamp(x, -reach, reach), z: clamp(z, -reach, reach) }
+}
+
 /** Signed shortest way round from `from` to `to`, in degrees. */
 export function headingDelta (from: number, to: number): number {
   return (to - from + 540) % 360 - 180
@@ -123,6 +136,24 @@ export function clientPointToNdc (
   ]
 }
 
+/**
+ * Where the camera opens.
+ *
+ * Read from the config once. The focus is live state from there on — a drag
+ * writes the target rather than the config — so this decides where the scape
+ * arrives, not where it has to stay.
+ */
+function openingPose (
+  limits:    ScapeConfig['camera'],
+  maxFocus:  number,
+  landscape: Landscape,
+  viewSize:  number,
+): CameraPose {
+  const { x, z } = clampFocus(limits.focusX, limits.focusZ, maxFocus)
+
+  return { focus: new Vector3(x, landscape.heightAt(x, z), z), viewSize, heading: 0 }
+}
+
 export function createCameraControls (
   options: CameraControlsOptions,
 ): AppModule<Record<string, never>> {
@@ -141,11 +172,7 @@ export function createCameraControls (
   const baseRotation = camera.userData.rotation as number
   const baseRadius   = camera.userData.radius as number
 
-  const pose: CameraPose = {
-    focus:    new Vector3(0, landscape.heightAt(0, 0), 0),
-    viewSize: camera.userData.viewSize as number,
-    heading:  0,
-  }
+  const pose               = openingPose(limits, maxFocus, landscape, camera.userData.viewSize as number)
   const target: CameraPose = {
     focus:    pose.focus.clone(),
     viewSize: pose.viewSize,
