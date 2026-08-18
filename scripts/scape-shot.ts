@@ -30,7 +30,11 @@ export const TOURS: Record<string, Pose[]> = {
     { name: 'near', zoom: 10 },
     { name: 'far', zoom: 540 },
     { name: 'noon', time: 0.5 },
-    { name: 'night', time: 0.02 },
+    // A night pose now has to name a week as well as an hour. The sun runs a
+    // seasonal arc, and at this latitude the default midsummer year has no
+    // night in it at all — an unqualified 'night' captured a white one. Late
+    // autumn puts the sun twenty-six degrees under at the same hour.
+    { name: 'night', time: 0.02, season: 0.78 },
     { name: 'winter', season: 0.02 },
   ],
 

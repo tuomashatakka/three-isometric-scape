@@ -2,6 +2,19 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the sun that knows what week it is
+
+the scape's sun ran one arc at one authored noon height for every week of the year. it is solved from a latitude now, so this coast gets the year its snow and its sea ice already had: a midwinter with no daylight in it and a midsummer with no night.
+
+- **replaced `daylight.tilt` with `daylight.latitude` and `daylight.axialTilt`**, and the shaped sine with the hour-angle solution every almanac uses. the sun's height, the length of the day and how far round the sky the light sweeps stop being three authored numbers and become three answers to one question — at **68°N** that is a noon 1.4° *under* the horizon at midwinter and a midnight 1.4° *above* it at midsummer, both of them the same expression running out of range rather than two cases bolted on
+- **made the azimuth an offset rather than the bearing.** `daylight.azimuth` still says where the noon sun is placed, which is the art direction; `sunSwing` carries the light away from it by however far the geometry says it has gone, which in december is a crawl along the southern horizon and in june is the whole circle. the fixed 1.6-half-turns-a-day constant it replaces was a fudge that could only ever be right for one week of the year
+- **`axialTilt` is the switch**, at 23.44° by default. 0 is a world whose axis stands straight, whose every day is an equinox, and whose sun runs the arc it ran in june. no separate flag, for the same reason nothing else here has one
+- **took the stand-in curve back out.** `season.darkAmount` existed because the sun had no year in it — a hand-drawn night length multiplied into the aurora's gate. `daylight.darkAmount` is astronomical twilight instead: full dark eighteen degrees under the horizon, nothing from the moment the sun touches it. feed it a real arc and the season falls out for free, so the aurora is down to **one gate from two** and `SeasonState.dark` is gone
+- **widened the twilight the day is cut off at**, from a civil to a nautical one. under a fixed arc the sun only ever sat just under the horizon for the few minutes either side of a sunrise and how much light those got was invisible; at 68°N it spends the whole of december's daylight there, and the first midwinter capture came back a blackout — 3.7° under at ten in the morning, and `dayAmount` called it midnight. every pose in `tour` but that one sits outside the band and did not move
+- **gave the `night` capture pose a week.** it pinned `time 0.02` on whatever the config opened at, the config opens at midsummer, and midsummer at this latitude has no night in it — the pose had been capturing a white one. late autumn puts the sun 26° under at the same hour
+- **budgeted the two determinism tests that were timing out on `main`.** both survey a second full archipelago to prove the first one is reproducible, which is seconds of work against a five-second default; they state their own 30 s budget now, the way the second-seed map test already did. red before this run, and not because of it
+- **cost** nothing: no geometry, no draw call, no texture, no allocation per frame. two transcendentals and an `acos` once a frame in a function that already ran three of them, on every tier alike. the aurora is one multiply cheaper than it was
+
 ## every effect on every tier, and a drawer you can find things in
 
 six changes to what the scape can be asked for, and to the surface that asks.

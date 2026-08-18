@@ -94,7 +94,7 @@ bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain
 ```
 
-`tour` is `default`, `near`, `far`, `noon`, `night`, `winter`. every capture prints a line before anything opens the image, and most runs need only that line:
+`tour` is `default`, `near`, `far`, `noon`, `night`, `winter`. `night` pins a week as well as an hour, because the sun runs a seasonal arc and the config opens at a midsummer that has no night in it. every capture prints a line before anything opens the image, and most runs need only that line:
 
 ```text
 near   ok   6.2s  fps  11.4  draws   77  tris 0.47M  f  43  err 0  -> .scape/shots/near.png
@@ -229,6 +229,8 @@ the runtime fleet does not use the survey's old fixed offsets as an animation cl
 ### an atmospheric system
 
 `src/scene/*.ts` — `atmosphere.ts`, `mist.ts`, `clouds.ts`, `aurora.ts`, `rain.ts`, `post.ts`, and the three clocks `daylight.ts` / `season.ts` / `weather.ts`. composed in [`create-isometric-scape.ts`](src/scene/create-isometric-scape.ts).
+
+the clocks are coupled, and in one direction each: the weather takes the year and decides how hard this week's precipitation falls, and the day takes the year and solves the sun's arc for it — `daylight.sample(time, year)`. so **the day's sky is a function of the week**, and `daylight.latitude` at 68°N means midwinter has no daylight in it and midsummer no night. anything reading the darkness of the sky reads `daylight.dark` (astronomical twilight, geometry) rather than a curve of the year.
 
 shared atmosphere has four scale measures and they are not interchangeable: sheet/deck reach follows `archipelago.worldSize`, cloud and aurora composition follows `camera.maxViewSize`, rain and upright mist follow the live `viewSize`, and genuine metre features such as the 79-metre mist tile stay in metres. audit all four when the world or camera grows; swapping `terrain.size` for `worldSize` everywhere is how one fixed bug becomes four fresh ones, uwu.
 

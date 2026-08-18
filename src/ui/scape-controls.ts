@@ -215,8 +215,12 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         // want to scrub it, so the time knob must survive the cycle being off.
         { ...range('daylight.time', 'time of day', 0, 1, 0.002), live: true },
         toggled('day cycle', range('daylight.speed', 'cycles per minute', 0, 2, 0.01), 0.4),
-        range('daylight.tilt', 'noon height', 8, 80, 1),
-        range('daylight.azimuth', 'sun bearing', -180, 180, 1),
+        // Both live, and both rebuild nothing: the arc is solved per frame, so
+        // dragging the coast north until the winter loses its daylight is a
+        // slider that tells the truth about what it does.
+        range('daylight.latitude', 'latitude °n', 0, 80, 0.5),
+        range('daylight.axialTilt', 'axial tilt', 0, 40, 0.1),
+        range('daylight.azimuth', 'noon bearing', -180, 180, 1),
         range('daylight.nightLift', 'night lift', 0, 1, 0.01),
       ],
     },

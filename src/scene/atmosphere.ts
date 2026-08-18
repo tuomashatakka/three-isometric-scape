@@ -254,7 +254,7 @@ export function createAtmosphereLayer ({
   // `sky` is the live state object, and `direction` is its vector — both are
   // mutated in place by `sample`, never reassigned, so everything downstream can
   // hold the reference instead of being pushed a new one every frame.
-  const sky         = daylight.sample(config.daylight.time)
+  const sky         = daylight.sample(config.daylight.time, config.season.time)
   const direction   = sky.direction
   const sunPosition = new Vector3()
   const horizon     = new Color()
@@ -393,7 +393,10 @@ export function createAtmosphereLayer ({
     // letting the cycle run are the same operation on the same number.
     const clock = config.daylight
     clock.time  = (clock.time + delta * clock.speed / 60) % 1
-    daylight.sample(clock.time)
+    // The year is the other clock's number in the same config, so the arc the
+    // sun is on this week is read rather than tracked — one authority for the
+    // year, whichever module happens to be advancing it.
+    daylight.sample(clock.time, config.season.time)
 
     const target         = readCameraFocus(camera)
     const viewSize       = camera.userData.viewSize as number ?? config.camera.viewSize

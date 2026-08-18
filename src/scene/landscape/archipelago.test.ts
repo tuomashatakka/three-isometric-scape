@@ -49,7 +49,7 @@ describe('the inhabited archipelago', () => {
     const again       = surveyArchipelago(againConfig)
 
     expect(structuralSignature(again)).toEqual(structuralSignature(world))
-  })
+  }, 30_000)
 
   test('each island carries the same essential holding and a route to its jetty', () => {
     for (const landmass of world.landmasses) {

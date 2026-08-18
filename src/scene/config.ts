@@ -458,11 +458,30 @@ export interface ScapeConfig {
     /** Full cycles per minute. 0 freezes the sky wherever `time` left it. */
     speed: number
 
-    /** Compass bearing of the noon sun, in degrees. */
+    /** Compass bearing the noon sun is placed at, in degrees. */
     azimuth: number
 
-    /** Noon elevation above the horizon, in degrees. */
-    tilt: number
+    /**
+     * How far north the coast is, in degrees.
+     *
+     * Not a look knob dressed as a place: the whole arc is solved from it, so
+     * this is what decides how high the noon sun gets, how long the day is and
+     * how far round the sky the light sweeps — each of them a different answer
+     * every week of the year. Past the arctic circle at 66.56 the extremes stop
+     * being figures of speech and the scape gains a polar night and a midnight
+     * sun; below it the year still swings, it just never runs out of range.
+     */
+    latitude: number
+
+    /**
+     * How far the axis leans, in degrees.
+     *
+     * The seasonal coupling itself, and the switch for it: 0 is a world whose
+     * axis stands straight, whose every day is an equinox, and whose sun runs
+     * the same arc in December it ran in June. There is no separate flag,
+     * because this is the flag.
+     */
+    axialTilt: number
 
     /** Golden-hour tint, pulled toward as the sun nears the horizon. */
     dusk: number
@@ -967,11 +986,18 @@ export const SCAPE_CONFIG = {
   },
   // `time` and `azimuth` are set to land the opening frame on the light the
   // scape was graded under, so the cycle starts where the stills were taken.
+  // 68°N is a degree and a half inside the arctic circle, which is the whole
+  // point of the number: it is the southernmost coast that still gets a true
+  // polar night and a true midnight sun, so both ends of the year are real
+  // rather than nearly. At midsummer it puts the noon sun at 45.4°, close
+  // enough to the fixed 52° arc this replaced that the frame the scape was
+  // graded on is still the frame it opens with.
   daylight: {
     time:      0.42,
     speed:     0.4,
     azimuth:   -106,
-    tilt:      52,
+    latitude:  68,
+    axialTilt: 23.44,
     dusk:      0xff9c56,
     night:     0x2b3d5e,
     nightLift: 0.4,

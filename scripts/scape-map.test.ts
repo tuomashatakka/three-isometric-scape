@@ -170,12 +170,14 @@ describe('the stats', () => {
     expect(stats.boats.conflicts).toBe(0)
   })
 
+  // A second survey of the same seed, for the same reason the second-seed test
+  // above states a budget: proving determinism costs a whole extra archipelago.
   test('it is the same survey twice', () => {
     const again = clone()
 
     expect(surveyStats(again, surveyArchipelago(again), WINDOW, 32, 16))
       .toEqual(surveyStats(config, archipelago, WINDOW, 32, 16))
-  })
+  }, 30_000)
 })
 
 

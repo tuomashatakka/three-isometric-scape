@@ -19,7 +19,6 @@ import type { ScapeConfig } from './config.ts'
 import type { DaylightState } from './daylight.ts'
 import { sampleHeight } from './noise.ts'
 import type { AtmosphereQuality } from './quality.ts'
-import type { SeasonState } from './season.ts'
 
 
 export interface AuroraOptions {
@@ -29,9 +28,6 @@ export interface AuroraOptions {
 
   /** Live sky state. The aurora only exists in the part of it the sun has left. */
   daylight: DaylightState
-
-  /** Live year state — how dark this week's night is allowed to get. */
-  season: SeasonState
 }
 
 interface Veil {
@@ -85,27 +81,24 @@ const TRAIL  = 0.27
 /** Tile-space frequency of the ray striations along an arc. */
 const RAY_SCALE = 52
 
-/** Where the day has taken the sky back. `daylight.day` is 0 through the night. */
-const NIGHT_IN  = 0.02
-const NIGHT_OUT = 0.32
-
 const rgb = { r: 0, g: 0, b: 0 }
 
 /**
- * How bright the curtain is, for a time of day and a week of the year.
+ * How bright the curtain is, for a sky of a given darkness.
  *
- * Two gates and no third one. The sun is the hard gate — an aurora is there all
- * day and is simply outshone, so anything above the last of the dusk takes it
- * off the sky entirely. The year is the soft one: the scape's sun runs the same
- * arc every week, so without this a midsummer midnight would be as black, and as
- * lit, as a midwinter one. See `darkAmount`.
+ * One gate, where there used to be two. An aurora is there all day and is
+ * simply outshone, so the only question is how much sky the sun has left — and
+ * since `daylight.dark` is solved from where the sun actually stands on this
+ * week of the year, the time of day and the week of the year are already the
+ * same number. A second seasonal term on top of it would be the same fact
+ * counted twice.
  *
  * There is deliberately no weather term. Solar activity is not a thing this
  * scape models, and a random flare would be the one non-deterministic thing in
  * a world that is otherwise a seed and a coordinate.
  */
-export function auroraBrightness (day: number, dark: number, strength: number): number {
-  return Math.max(0, strength) * dark * (1 - smoothstep(NIGHT_IN, NIGHT_OUT, day))
+export function auroraBrightness (dark: number, strength: number): number {
+  return Math.max(0, strength) * Math.min(1, Math.max(0, dark))
 }
 
 /**
@@ -216,7 +209,6 @@ export function createAuroraLayer ({
   config,
   quality,
   daylight,
-  season,
 }: AuroraOptions): AppModule<Record<string, never>> | null {
   if (quality.auroraLayers < 1)
     return null
@@ -316,7 +308,7 @@ export function createAuroraLayer ({
       // rather than transparent below it, because a map-wide additive quad
       // contributing nothing still costs every pixel it covers — and for most of
       // the year, and most of every day, it contributes nothing.
-      const light = auroraBrightness(daylight.day, season.dark, aurora) * zoom
+      const light = auroraBrightness(daylight.dark, aurora) * zoom
       const base  = config.terrain.waterLevel + Math.max(auroraHeight, cloudHeight + CLEARANCE)
 
       for (const [ index, veil ] of veils.entries()) {
