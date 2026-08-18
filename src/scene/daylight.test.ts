@@ -227,10 +227,13 @@ describe('createDaylight', () => {
     expect(polarNight.dark).toBe(1)
 
     // The sun never clears the horizon on midwinter's day, so the brightest
-    // hour of it is a twilight rather than a noon — dim, and not dark.
+    // hour of it is a twilight rather than a noon: never a full day, and never
+    // the blackout a civil-twilight cutoff turned it into either.
     expect(sunHeight(0.5, MIDWINTER, latitude, axialTilt)).toBeLessThan(0)
-    expect(polarNoon.day).toBeGreaterThan(0)
-    expect(polarNoon.day).toBeLessThan(summerNoon.day * 0.2)
+    expect(polarNoon.day).toBeGreaterThan(0.2)
+    expect(polarNoon.day).toBeLessThan(summerNoon.day * 0.5)
+    expect(polarNoon.day).toBeGreaterThan(polarNight.day)
+    expect(polarNight.day).toBe(0)
   })
 
   test('takes the year back out when the axis is straightened', () => {

@@ -162,9 +162,19 @@ export function darkAmount (height: number): number {
   return 1 - smoothstep(ASTRONOMICAL, 0, height)
 }
 
-/** How much of the day's light is up, from a sun height. */
+/**
+ * How much of the day's light is up, from a sun height.
+ *
+ * The lower edge is a **nautical** twilight rather than the civil one it used
+ * to be, and that is a change the seasonal arc forced. Under a fixed arc the
+ * only times the sun sat just under the horizon were the few minutes either
+ * side of a sunrise, and how much light those minutes got was nearly
+ * invisible. At 68°N the sun spends the whole of December's daylight there:
+ * midwinter noon is 1.4° under, and a curve that called that night gave the
+ * scape two months of blackout in place of two months of blue afternoon.
+ */
 export function dayAmount (height: number): number {
-  return smoothstep(-0.1, 0.2, height)
+  return smoothstep(-0.2, 0.2, height)
 }
 
 /** Golden-hour weight — peaks with the sun just off the horizon, either end. */

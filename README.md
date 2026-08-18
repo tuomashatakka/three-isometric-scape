@@ -492,6 +492,8 @@ what the latitude costs the frame is the noon sun: 45.4° at midsummer against t
 
 **the azimuth is now an offset rather than the bearing.** `daylight.azimuth` says where the *noon* sun is placed — the art direction, unchanged — and `sunSwing` carries the light away from it by however far round the sky the geometry says it has gone. in december that is a short crawl along the southern horizon; in june it is the entire circle.
 
+**the twilight edge had to widen with it.** `dayAmount` cut the day off at a *civil* twilight — 6° under the horizon — which was invisible under a fixed arc, because the only times the sun ever sat there were the few minutes either side of a sunrise. at 68°N it spends the whole of december's daylight there, and the first capture of the new midwinter came back a blackout: 3.7° under at ten in the morning, and the curve called it midnight. the lower edge is a **nautical** twilight now, and the midwinter frame is the blue afternoon it should have been. nothing else moved with it — every pose in `tour` but that one sits outside the band entirely.
+
 **this changed one of the capture poses.** `tour`'s `night` used to be an hour: `time 0.02`, on whatever week the config opened at. the config opens at midsummer, and midsummer at 68°N has no night in it, so the pose was capturing a white one. it names a week now — late autumn, which puts the sun twenty-six degrees under at the same hour — because a still called `night` that is not one is a broken instrument rather than a surprising result.
 
 ## the year
