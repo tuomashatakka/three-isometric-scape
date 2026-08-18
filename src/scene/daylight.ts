@@ -23,20 +23,34 @@ export interface DaylightState {
 
   /** 1 in full daylight, 0 in full night. Drives everything else here. */
   day: number
+
+  /**
+   * How dark the sky above the scape is, 0..1. 1 once the sun is far enough
+   * under for the stars, 0 from the moment it touches the horizon.
+   *
+   * Not `1 - day`: the two measure different depths of the same twilight, and
+   * this is the deeper one. A midsummer midnight at this latitude has no day in
+   * it and no dark either.
+   */
+  dark: number
 }
 
 export interface Daylight {
   state: DaylightState
 
-  /** Resolve the sky for a phase of the cycle, 0..1. Allocation-free. */
-  sample(time: number): DaylightState
+  /**
+   * Resolve the sky for a phase of the day and a phase of the year, both 0..1.
+   * Allocation-free.
+   *
+   * The year is an argument rather than a field because the sun's arc is a
+   * function of both, and because `season.ts` already owns the year — the same
+   * coupling `weather.ts` has, for the same reason.
+   */
+  sample(time: number, year: number): DaylightState
 }
 
 const TAU     = Math.PI * 2
 const DEGREES = Math.PI / 180
-
-/** Azimuth travel across a full day, as a fraction of a half turn. */
-const SWING = 1.6
 
 /**
  * How low the *lighting* direction is allowed to sink.
@@ -50,9 +64,102 @@ const SWING = 1.6
  */
 const FLOOR_Y = 0.16
 
-/** Sine of the sun's elevation at a phase of the cycle. Negative below the horizon. */
-export function sunHeight (time: number, tilt: number): number {
-  return Math.sin(Math.sin((time - 0.25) * TAU) * tilt * DEGREES)
+/**
+ * Sine of the sun's declination at a phase of the year, in radians of arc.
+ *
+ * The whole of the seasonal coupling, in one line: 0 is midwinter and the sun
+ * stands a full axial tilt south of the equator, 0.5 is midsummer and it stands
+ * the same distance north. An `axialTilt` of 0 is a world whose axis does not
+ * lean — every day of its year is an equinox — and that is the switch, rather
+ * than a flag saying whether the season is coupled.
+ */
+export function declination (year: number, axialTilt: number): number {
+  const wrapped = year - Math.floor(year)
+
+  return -Math.cos(wrapped * TAU) * axialTilt * DEGREES
+}
+
+/**
+ * Sine of the sun's elevation, for a phase of the day and a phase of the year.
+ * Negative below the horizon.
+ *
+ * The standard hour-angle solution rather than a shaped sine: it is no more
+ * code, and it is the only form that makes the day *length* fall out of the
+ * latitude instead of having to be authored beside it.
+ */
+export function sunHeight (time: number, year: number, latitude: number, axialTilt: number): number {
+  const phase = time - Math.floor(time)
+  const dec   = declination(year, axialTilt)
+  const lat   = latitude * DEGREES
+  const hour  = (phase - 0.5) * TAU
+
+  return Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec) * Math.cos(hour)
+}
+
+/**
+ * Fraction of the day the sun spends above the horizon, 0..1.
+ *
+ * The claim the whole run is here to make, as one number: at a high enough
+ * latitude this reaches exactly 0 in the weeks around midwinter and exactly 1
+ * in the weeks around midsummer, and the two cases are the same expression
+ * running out of range rather than two special cases bolted on.
+ */
+export function dayLength (year: number, latitude: number, axialTilt: number): number {
+  const dec    = declination(year, axialTilt)
+  const cosine = -Math.tan(latitude * DEGREES) * Math.tan(dec)
+
+  if (cosine <= -1)
+    return 1
+
+  if (cosine >= 1)
+    return 0
+
+  return Math.acos(cosine) / Math.PI
+}
+
+/**
+ * How far round from its noon bearing the sun has travelled, in radians.
+ *
+ * Signed the way the day runs, so the light keeps sweeping in one direction,
+ * and derived rather than authored — which is what replaces the fixed fraction
+ * of a half turn the arc used to swing through whatever week it was. A winter
+ * sun crawls along a short southern arc; a midsummer one at this latitude goes
+ * the whole way round and stands due north at midnight.
+ */
+export function sunSwing (time: number, year: number, latitude: number, axialTilt: number): number {
+  const phase  = time - Math.floor(time)
+  const hour   = (phase - 0.5) * TAU
+  const height = sunHeight(phase, year, latitude, axialTilt)
+  const lat    = latitude * DEGREES
+  const flat   = Math.sqrt(Math.max(0, 1 - height * height))
+  const spread = flat * Math.cos(lat)
+
+  // The sun overhead, or standing at the pole itself: there is no bearing to
+  // resolve, and the arc has no direction to be swept in either.
+  if (spread < 1e-6)
+    return 0
+
+  const cosine  = (Math.sin(declination(year, axialTilt)) - height * Math.sin(lat)) / spread
+  const bearing = Math.acos(Math.min(1, Math.max(-1, cosine)))
+
+  return hour <= 0 ? bearing - Math.PI : Math.PI - bearing
+}
+
+/** Sine of eighteen degrees under the horizon — the end of astronomical twilight. */
+const ASTRONOMICAL = Math.sin(-18 * DEGREES)
+
+/**
+ * How dark the sky is at a sun height, 0..1.
+ *
+ * Astronomical twilight written down: full dark once the sun is eighteen
+ * degrees under, and nothing at all the moment it touches the horizon. It is
+ * the shape of the northern year's nights without a curve of the year in it —
+ * a midsummer midnight here never takes the sun far enough down to get past
+ * dusk, and that falls out of the geometry rather than being drawn on top of
+ * it. See `aurora.ts`, which is what needs the number.
+ */
+export function darkAmount (height: number): number {
+  return 1 - smoothstep(ASTRONOMICAL, 0, height)
 }
 
 /** How much of the day's light is up, from a sun height. */
@@ -74,6 +181,12 @@ export function goldenAmount (height: number): number {
  * keyframed palette per hour: it means retuning the scape's look is still a
  * matter of editing the colours that were already there, and no time of day can
  * drift out of the family the rest of the scene was graded for.
+ *
+ * The arc itself is not authored at all. It is solved from a latitude and an
+ * axial tilt, so the length of the day, the height of the noon sun and how far
+ * round the sky the light sweeps are all one week of the year's answer to the
+ * same geometry — which is what gives this coast a midwinter with no daylight
+ * in it and a midsummer with no night.
  */
 export function createDaylight (config: ScapeConfig): Daylight {
   const { atmosphere, palette, daylight } = config
@@ -98,17 +211,19 @@ export function createDaylight (config: ScapeConfig): Daylight {
     hemiStrength: atmosphere.hemiStrength,
     environment:  0.34,
     day:          1,
+    dark:         0,
   }
 
   return {
     state,
 
-    sample (time) {
-      const phase     = time - Math.floor(time)
-      const elevation = Math.sin((phase - 0.25) * TAU) * daylight.tilt * DEGREES
-      const height    = Math.sin(elevation)
-      const bearing   = daylight.azimuth * DEGREES + (phase - 0.5) * Math.PI * SWING
-      const flat      = Math.cos(elevation)
+    sample (time, year) {
+      const { latitude, axialTilt } = daylight
+      const phase                   = time - Math.floor(time)
+      const height                  = sunHeight(phase, year, latitude, axialTilt)
+      const bearing                 = daylight.azimuth * DEGREES +
+        sunSwing(phase, year, latitude, axialTilt)
+      const flat                    = Math.sqrt(Math.max(0, 1 - height * height))
 
       state.direction
         .set(Math.sin(bearing) * flat, Math.max(height, FLOOR_Y), Math.cos(bearing) * flat)
@@ -133,6 +248,7 @@ export function createDaylight (config: ScapeConfig): Daylight {
       state.hemiStrength = atmosphere.hemiStrength * (0.3 + 0.7 * day) + lift
       state.environment  = 0.34 * (0.18 + 0.82 * day) + lift * 0.25
       state.day          = day
+      state.dark         = darkAmount(height)
 
       return state
     },

@@ -244,16 +244,16 @@ export function createIsometricScape (
   const clouds = unless(skip, 'clouds', () =>
     createCloudLayer({ camera, config, quality, daylight: atmosphere.daylight }))
 
-  // Both clocks again, and for once neither of them is optional: the aurora is
-  // the night's, and how dark that night gets is the year's. Returns null on any
-  // tier with no veils to give, so the cheapest device simply has a plain sky
-  // rather than a dimmer one.
+  // One clock, because there is only one question: how much sky the sun has
+  // left. The arc it is on already knows what week of the year it is, so the
+  // aurora does not need the year a second time. Returns null on any tier with
+  // no veils to give, so the cheapest device simply has a plain sky rather than
+  // a dimmer one.
   const aurora = unless(skip, 'aurora', () => createAuroraLayer({
     camera,
     config,
     quality,
     daylight: atmosphere.daylight,
-    season:   landscape.season,
   }))
 
   // The second and third clocks — the weather for how hard it is falling, the

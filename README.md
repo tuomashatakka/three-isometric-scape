@@ -85,7 +85,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a walled upland hay meadow with a barn, a gate and drying poles
 - a beck traced downhill from a spring, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself
 - **three clocks** — a day, a year, and a weather front — each a phase and a speed, each deriving everything else from that phase
-- sun arc, dusk and night palettes, seasonal growth, leaf turn, lying snow, sea ice, sea smoke, and rain that leaves the ground wet
+- a solar arc solved from a latitude — a polar night at midwinter, a midnight sun at midsummer — with dusk and night palettes derived from it, plus seasonal growth, leaf turn, lying snow, sea ice, sea smoke, and rain that leaves the ground wet
 - an aurora over the dark half of the year, gated on the night and on how much night the week has
 - view-reactive fog, a gradient sky, deterministic drifting ground mist, and a sky cloud deck
 - a configurable 3d-lut grade with vignette, miniature tilt-shift, bloom and film grain
@@ -168,8 +168,8 @@ src/
     ├── clouds.ts                   sky deck, faded in as the view pulls back
     ├── config.ts                   the public tuning surface
     ├── create-isometric-scape.ts   app/module composition root
-    ├── daylight.ts                 clock one: sun arc and derived sky palette
-    ├── season.ts                   clock two: growth, turn, snow, ice, smoke, night
+    ├── daylight.ts                 clock one: the solar arc, its year, and the derived sky palette
+    ├── season.ts                   clock two: growth, turn, snow, ice, sea smoke
     ├── weather.ts                  clock three: the front, what falls, how long it stays wet
     ├── rain.ts                     the fall, as one screen-sized column of streaks
     ├── lut.ts                      cached cinematic colour-grade recipes
@@ -462,6 +462,38 @@ a boathouse stands in the next cove along from the landing, a net rack dries gea
 
 the one place the arc is not honest is where it has to be. **the key light never goes below the horizon**, however far under it the sun actually is. a directional light following the real arc down there lights the terrain from underneath: shadows invert, every north face blows out, the shadow-frustum fit degenerates. so the arc governs the light's *colour and strength*, which is what night actually looks like, while the direction is held just above ground — and the result reads as moonlight instead of as a rendering bug.
 
+### the arc knows what week it is
+
+the arc used to be one shaped sine at one authored noon height, swinging through a fixed fraction of a half turn whatever week of the year it was. that is a sun with no year in it: a december noon stood exactly where a june noon stood, and the only thing that knew otherwise was a curve in `season.ts` drawn by hand to keep the aurora off a midsummer sky.
+
+it is solved now, from **a latitude and an axial tilt**, through the hour-angle form every almanac uses:
+
+```ts
+declination(year)  = -cos(year · τ) · axialTilt
+sin(elevation)     = sin(lat) · sin(dec) + cos(lat) · cos(dec) · cos(hour)
+dayLength(year)    = acos(-tan(lat) · tan(dec)) / π
+```
+
+three lines, and none of them is a shape anybody chose. **the day length, the noon height and how far round the sky the light sweeps stop being three knobs and become three answers to one question**, which is the whole reason to do it this way: the alternative is authoring a noon height per season, a day length per season and an azimuth swing per season, and then keeping all three in step by hand for the rest of the scape's life.
+
+`daylight.latitude` is **68°N**, a degree and a half inside the arctic circle. that number is a choice about what the year is allowed to do, not a label:
+
+| week | noon | day length | midnight |
+| --- | --- | --- | --- |
+| midwinter | 1.4° **under** the horizon | 0 h | 45° under |
+| equinox | 22° up | 12 h | 22° under |
+| midsummer | 45.4° up | 24 h | 1.4° up |
+
+so the midwinter frame is a **polar night** — a blue twilight around noon, dark by mid-afternoon, and nothing that resembles a day — and the midsummer one is a **midnight sun** that swings due north at midnight and never sets. both are the same expression running out of range rather than two cases bolted on, and `dayLength` returning exactly 0 and exactly 1 is the test that says so.
+
+**`axialTilt` is the switch**, at 23.44° by default. set it to 0 and the axis stands straight: every day of that world's year is an equinox and the sun runs the arc it ran in june. there is no separate flag, for the same reason no other effect here has one.
+
+what the latitude costs the frame is the noon sun: 45.4° at midsummer against the 52° the scape was graded under. close enough that the opening frame is still recognisably the opening frame, and the whole reason 68 was picked over the 71 that would have made the polar night longer.
+
+**the azimuth is now an offset rather than the bearing.** `daylight.azimuth` says where the *noon* sun is placed — the art direction, unchanged — and `sunSwing` carries the light away from it by however far round the sky the geometry says it has gone. in december that is a short crawl along the southern horizon; in june it is the entire circle.
+
+**this changed one of the capture poses.** `tour`'s `night` used to be an hour: `time 0.02`, on whatever week the config opened at. the config opens at midsummer, and midsummer at 68°N has no night in it, so the pose was capturing a white one. it names a week now — late autumn, which puts the sun twenty-six degrees under at the same hour — because a still called `night` that is not one is a broken instrument rather than a surprising result.
+
 ## the year
 
 `season.ts` is the clock's second hand and deliberately the same machine: a phase, a speed, and colours *derived* rather than keyframed. the authored palette stays the **midsummer anchor**; winter is that anchor pulled toward one dead straw and then toward one snow white, autumn the same straw with a gold leaned into it.
@@ -548,13 +580,15 @@ the whole shower is **one draw call from one static buffer**, and nothing is upl
 
 a deck the camera looks *down* on is a fiction worth naming as one — the light is a hundred kilometres up and the eye is eighty metres. it is also the fiction the sky deck already runs. the veils are stacked above the clouds so at least the order is right, and the clearance is enforced in code rather than left to two sliders agreeing.
 
-**the year is the second gate, and it is the one that had to be added.** `daylight.ts` runs one sun arc at one tilt for every week of the year, so a midsummer midnight is exactly as dark as a midwinter one. fine for everything else and wrong for this: you cannot see the aurora in june at these latitudes not because it has stopped but because the sky never gets past dusk. so `season.ts` gained the one curve in it that is not about heat:
+**there is one gate, and it used to be two.** you cannot see the aurora in june at these latitudes — not because it has stopped, but because the sky never gets past dusk — and back when the sun ran the same arc every week, the only way to say that was a curve of the year drawn by hand in `season.ts` and multiplied into the day's own gate.
+
+the sun has a year in it now, so both gates were asking the same question and one of them can go. `daylight.dark` is **astronomical twilight written down**: full dark once the sun is eighteen degrees under the horizon, nothing at all from the moment it touches it.
 
 ```ts
-darkAmount(phase) = smoothstep(-0.9, -0.15, cos(phase · τ))
+darkAmount(height) = 1 - smoothstep(sin(-18°), 0, height)
 ```
 
-every other seasonal curve runs late — `LAG` and `ICE_LAG` are those weeks written down. this one has no lag at all, and cannot: **night length is geometry, not heat**, and the sun comes back up on the day the orbit says.
+feed it a real arc and the season falls out for free. a midwinter midnight here has the sun 45° under and the curtain is at full strength; a midsummer midnight has it 1.4° *above*, and there is no sky to light. **night length is geometry**, and this is the geometry rather than a drawing of it.
 
 no weather term, deliberately. solar activity is not something this scape models, and a random flare would be the one non-deterministic thing in a world that is otherwise a seed and a coordinate.
 

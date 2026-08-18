@@ -34,15 +34,6 @@ export interface SeasonState {
 
   /** Sea smoke — how hard the open water is steaming into colder air, 0..1. */
   smoke: number
-
-  /**
-   * How dark the year lets the night get, 0..1. 1 through the winter, 0 under a
-   * white-night sky.
-   *
-   * Not a strength anything scales — it is the length of the night, and the
-   * scape's sun has no season in it. See {@link darkAmount}.
-   */
-  dark: number
 }
 
 export interface Season {
@@ -143,28 +134,6 @@ export function seaSmokeAmount (phase: number): number {
 }
 
 /**
- * How dark the night gets at a phase of the year, 0..1.
- *
- * The one curve in this file with no lag in it, and the only one that is not
- * about heat: night length is geometry. The ground warms weeks after midsummer
- * and the sea cools weeks after the ground, but the sun comes back up when the
- * orbit says it does, and it does that on the same day every year.
- *
- * It is also the coupling the day/night clock does not have. `daylight.ts` runs
- * one arc at one tilt for every week of the year — a deliberate simplification,
- * since a scape with a seasonal sun arc has a midwinter with no day in it — so
- * a summer midnight there is exactly as dark as a winter one. This is what says
- * otherwise: full dark from equinox to equinox through the winter, and gone
- * across the two months either side of midsummer, when a northern night never
- * gets further than dusk.
- */
-export function darkAmount (phase: number): number {
-  const wrapped = phase - Math.floor(phase)
-
-  return smoothstep(-0.9, -0.15, Math.cos(wrapped * TAU))
-}
-
-/**
  * The seasonal axis.
  *
  * Built the way `daylight.ts` is built, and for the same reason: the authored
@@ -174,6 +143,14 @@ export function darkAmount (phase: number): number {
  * Nothing here keyframes a month, so retuning the scape is still a matter of
  * editing the colours that were already in `palette`, and no week of the year
  * can drift out of the family the rest of the scene was graded for.
+ *
+ * Every curve here is about heat, which is why every one of them runs late —
+ * `LAG` and `ICE_LAG` are those weeks written down. Night length is the one
+ * seasonal quantity that is not about heat, and it used to live here anyway, as
+ * a curve of the year standing in for a sun arc that had no year in it. It does
+ * not any more: `daylight.ts` solves the arc from a latitude and an axial tilt,
+ * so how dark a midsummer midnight gets is an answer about where the sun
+ * actually is. See `darkAmount` there.
  *
  * What the year does *not* touch is the shape of the world. Snow here is a
  * surface response, not accumulation — the height field, the layout and every
@@ -199,7 +176,6 @@ export function createSeason (config: ScapeConfig): Season {
     freeze:     0,
     iceColor:   new Color(palette.ice),
     smoke:      0,
-    dark:       0,
   }
 
   return {
@@ -223,7 +199,6 @@ export function createSeason (config: ScapeConfig): Season {
       state.snowLine   = terrain.waterLevel + season.snowLine
       state.freeze     = freezeAmount(wrapped) * season.ice
       state.smoke      = seaSmokeAmount(wrapped) * season.seaSmoke
-      state.dark       = darkAmount(wrapped)
 
       state.tint.copy(sere).lerp(autumn, turn)
       state.snowColor.set(palette.snow)

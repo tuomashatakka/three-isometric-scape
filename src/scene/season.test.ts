@@ -2,7 +2,6 @@ import { describe, expect, test } from 'bun:test'
 import { SCAPE_CONFIG } from './config.ts'
 import {
   createSeason,
-  darkAmount,
   freezeAmount,
   growthAmount,
   seaSmokeAmount,
@@ -123,37 +122,6 @@ describe('seaSmokeAmount', () => {
 
   test('wraps phases outside 0..1 onto the same week', () => {
     expect(seaSmokeAmount(-1.13)).toBeCloseTo(seaSmokeAmount(0.87), 6)
-  })
-})
-
-describe('darkAmount', () => {
-  test('gives the winter a night and the midsummer none', () => {
-    expect(darkAmount(0)).toBe(1)
-    expect(darkAmount(0.5)).toBe(0)
-  })
-
-  test('holds full dark from equinox to equinox, the winter way round', () => {
-    expect(darkAmount(0.25)).toBe(1)
-    expect(darkAmount(0.75)).toBe(1)
-  })
-
-  test('is symmetric about midsummer, because night length has no lag in it', () => {
-    // The one curve in the year that is geometry rather than heat. Every other
-    // one runs late; this one cannot.
-    for (const offset of [ 0.04, 0.11, 0.19, 0.3 ])
-      expect(darkAmount(0.5 - offset)).toBeCloseTo(darkAmount(0.5 + offset), 12)
-  })
-
-  test('spends the white nights climbing back, not switching on', () => {
-    expect(darkAmount(0.42)).toBeGreaterThan(darkAmount(0.46))
-    expect(darkAmount(0.36)).toBeGreaterThan(darkAmount(0.42))
-    expect(darkAmount(0.42)).toBeGreaterThan(0)
-    expect(darkAmount(0.42)).toBeLessThan(1)
-  })
-
-  test('wraps phases outside 0..1 onto the same night', () => {
-    expect(darkAmount(2.4)).toBeCloseTo(darkAmount(0.4), 12)
-    expect(darkAmount(-0.6)).toBeCloseTo(darkAmount(0.4), 12)
   })
 })
 
