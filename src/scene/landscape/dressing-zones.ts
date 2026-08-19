@@ -2,6 +2,7 @@ import type { SeededRng } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
 import type { HeightField } from './height.ts'
+import { BEACON_FOOTING } from './beacon.ts'
 import { distanceToTrack, pastureInfluence, plotInfluence, ridgeInfluence } from './layout.ts'
 
 
@@ -14,6 +15,9 @@ export interface DressingZones {
   onPath(x: number, z: number): boolean
   onPlot(x: number, z: number): number
   onPasture(x: number, z: number): number
+
+  /** Inside the light's footing — its plinth, and the storm boulders round it. */
+  onBeacon(x: number, z: number): boolean
   clear(x: number, z: number): boolean
 }
 
@@ -72,12 +76,28 @@ export function createZoneTests (archipelago: ArchipelagoSurvey): DressingZones 
     )
   }
 
+  // The light's own ground. The placement solver already keeps trees and stones
+  // off it, but ground cover never asks the solver anything — so without this the
+  // grass and the heather grow up through the plinth's own masonry.
+  const onBeacon = (x: number, z: number): boolean => {
+    const landmass = archipelago.field.landmassAt(x, z)
+    const beacon   = landmass?.survey.beacon
+
+    if (!beacon)
+      return false
+
+    return Math.hypot(
+      x - landmass.origin.x - beacon.x,
+      z - landmass.origin.z - beacon.z,
+    ) < BEACON_FOOTING
+  }
+
   // The tread is spoken-for ground, not merely a stripe of terrain paint.
   const clear = (x: number, z: number): boolean =>
     onYard(x, z) === 0 && !onTrack(x, z) && !onPath(x, z) &&
-    onPlot(x, z) === 0 && onPasture(x, z) === 0
+    onPlot(x, z) === 0 && onPasture(x, z) === 0 && !onBeacon(x, z)
 
-  return { onYard, onTrack, onPath, onPlot, onPasture, clear }
+  return { onYard, onTrack, onPath, onPlot, onPasture, onBeacon, clear }
 }
 
 /** Pure acceptance rules shared by every archipelago-wide scatter batch. */
@@ -88,9 +108,9 @@ export function createScatterRules (
   rng:         SeededRng,
   zones:       DressingZones,
 ) {
-  const { onYard, onTrack, onPath, onPlot, onPasture, clear } = zones
-  const heightAt                                              = field.heightAt
-  const water                                                 = config.terrain.waterLevel
+  const { onYard, onTrack, onPath, onPlot, onPasture, onBeacon, clear } = zones
+  const heightAt                                                        = field.heightAt
+  const water                                                           = config.terrain.waterLevel
 
   return {
     conifer: (biasScale: number, minLift: number, maxSlope: number) =>
@@ -116,7 +136,7 @@ export function createScatterRules (
     // Stones stay out of the pasture: the ones that were in it are the wall.
     stoneRule: (minLift: number) => (x: number, z: number): boolean =>
       onYard(x, z) === 0 && !onTrack(x, z) && !onPath(x, z) && onPasture(x, z) === 0 &&
-      heightAt(x, z) > water + minLift,
+      !onBeacon(x, z) && heightAt(x, z) > water + minLift,
 
     openGround: (minLift: number, maxSlope: number) => (x: number, z: number): boolean =>
       clear(x, z) && heightAt(x, z) > water + minLift && field.slopeAt(x, z) < maxSlope,

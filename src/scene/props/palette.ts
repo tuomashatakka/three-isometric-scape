@@ -41,7 +41,10 @@ export const NORDIC_PALETTE = {
   iron:          '#43474a',
   ironRust:      '#7d4a33',
   canvas:        '#9a8c6b',
-  flagBlue:      '#2f5d8f',
+
+  /** A burning wick behind glass — the lamp in the lantern room, and its beams. */
+  lampWarm: '#ffdca8',
+  flagBlue: '#2f5d8f',
 } as const
 
 /** Name of a {@link NORDIC_PALETTE} entry. */

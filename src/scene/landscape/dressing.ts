@@ -12,10 +12,12 @@ import type { PropName } from '../props/index.ts'
 import type { ScapeMaterials } from '../props/material.ts'
 import { Ploppable, baseFootprint } from '../props/ploppable.ts'
 import type { Footprint } from '../props/ploppable.ts'
+import { BEACON_SINK } from '../props/beacon.ts'
 import { MILL_SINK } from '../props/mill.ts'
 import { buildStoneWallRun } from '../props/wall.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from './archipelago.ts'
+import { BEACON_FOOTING } from './beacon.ts'
 import type { Spot } from './landing.ts'
 import { findCrossing, isFoliage, plotOutline, trackPointNear } from './dressing-helpers.ts'
 import { createScatterRules, createZoneTests } from './dressing-zones.ts'
@@ -174,7 +176,7 @@ export function createDressing (
 
   // ---- feature tests -------------------------------------------------------
 
-  const { onYard, onTrack, onPath, onPlot, onPasture, clear } = createZoneTests(archipelago)
+  const { onYard, onTrack, onPath, onPlot, onPasture, onBeacon, clear } = createZoneTests(archipelago)
 
   // ---- hero props ----------------------------------------------------------
 
@@ -402,6 +404,20 @@ export function createDressing (
 
       placeHero('windmill', millX, millZ, yawAlong(layout.mill.bearing), MILL_SINK)
       solver.reserve(millX, millZ, config.mill.sailSpan * 0.5 + 1)
+    }
+
+    // The light, out on whichever rock the survey found furthest from the
+    // island. Merged like the mill and for the same reason — a tower on a
+    // levelled plinth of its own would sit on a shelf cut into a skerry that is
+    // barely wider than the plinth. The reserve keeps the storm boulders clear
+    // of the driftwood and the pines the scatter would otherwise seed on top of
+    // them; nothing is routed to it, because a seamark is reached by boat.
+    if (survey.beacon) {
+      const beaconX = survey.beacon.x + ox
+      const beaconZ = survey.beacon.z + oz
+
+      placeHero('lighthouse', beaconX, beaconZ, yawAlong(survey.beacon.bearing), BEACON_SINK)
+      solver.reserve(beaconX, beaconZ, BEACON_FOOTING + 1.2)
     }
 
     // A bridge only earns its place where the track has something to cross.
@@ -635,6 +651,7 @@ export function createDressing (
     onPath,
     onPlot,
     onPasture,
+    onBeacon,
     clear,
   })
 

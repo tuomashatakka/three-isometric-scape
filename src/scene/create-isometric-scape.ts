@@ -7,6 +7,7 @@ import type { ScapeFamily, ScapeSkips } from './audit.ts'
 import type { ScapeConfig } from './config.ts'
 import { createAtmosphereLayer } from './atmosphere.ts'
 import { createAuroraLayer } from './aurora.ts'
+import { createBeaconLight } from './beacon.ts'
 import { createCameraControls } from './camera-controls.ts'
 import type { CameraOpening } from './camera-controls.ts'
 import type { CameraPath } from './camera-path.ts'
@@ -268,6 +269,17 @@ export function createIsometricScape (
     season:  landscape.season,
   }))
 
+  // The coastal light, mounted after the atmosphere because what decides whether
+  // a lamp is burning is how far the sun is down — and after the landscape,
+  // because where the lamp *is* comes out of the survey. Returns null when no
+  // island in the archipelago had a rock far enough out to build a tower on.
+  const beacon = unless(skip, 'beacon', () => createBeaconLight({
+    config,
+    quality,
+    hubs:     landscape.lanternHubs,
+    daylight: atmosphere.daylight,
+  }))
+
   // The whole optical chain is one module, and on the cheapest tier it is simply
   // absent — with nothing claiming the `render` hook the app falls back to
   // drawing the scene straight to the canvas, which is two HDR ping-pong targets
@@ -310,6 +322,7 @@ export function createIsometricScape (
     clouds,
     aurora,
     rain,
+    beacon,
     post,
   ].filter((module): module is AppModule<Record<string, never>> => module !== null)
 

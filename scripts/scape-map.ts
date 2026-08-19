@@ -97,6 +97,7 @@ interface CompositionStats {
   creek:      { head: [ number, number, number ], mouth: [ number, number, number ], length: number } | null
   pasture:    { x: number, z: number, radius: number } | null
   mill:       { x: number, z: number, prominence: number } | null
+  beacon:     { x: number, z: number, freeboard: number, reach: number, isle: number } | null
   plots:      number
   ridges:     number
   isles:      { total: number, surfacing: number }
@@ -222,6 +223,13 @@ function compositionStats (landmass: LandmassSurvey, w: number, h: number): Comp
       x:          round(worldX(layout.mill.x)),
       z:          round(worldZ(layout.mill.z)),
       prominence: round(layout.mill.prominence, 2),
+    },
+    beacon: survey.beacon && {
+      x:         round(worldX(survey.beacon.x)),
+      z:         round(worldZ(survey.beacon.z)),
+      freeboard: round(survey.beacon.freeboard, 2),
+      reach:     round(survey.beacon.reach),
+      isle:      survey.beacon.isle,
     },
     plots:  layout.plots.length,
     ridges: layout.ridges.length,
@@ -415,9 +423,9 @@ export function renderGrid (
 
   if (layers.buildings)
     for (const landmass of archipelago.landmasses) {
-      const { layout, places, landing, harbour } = landmass.survey
-      const worldX                               = (x: number): number => x + landmass.origin.x
-      const worldZ                               = (z: number): number => z + landmass.origin.z
+      const { layout, places, landing, harbour, beacon } = landmass.survey
+      const worldX                                       = (x: number): number => x + landmass.origin.x
+      const worldZ                                       = (z: number): number => z + landmass.origin.z
 
       for (const ridge of layout.ridges)
         stamp(worldX(ridge.x), worldZ(ridge.z), '^')
@@ -432,6 +440,9 @@ export function renderGrid (
 
       if (layout.mill)
         stamp(worldX(layout.mill.x), worldZ(layout.mill.z), 'W')
+
+      if (beacon)
+        stamp(worldX(beacon.x), worldZ(beacon.z), 'L')
 
       if (landing)
         stamp(worldX(landing.x), worldZ(landing.z), 'J')
@@ -476,6 +487,10 @@ export function formatStats (stats: MapStats): string {
     stats.mill
       ? `mill (${stats.mill.x},${stats.mill.z}) prominence ${stats.mill.prominence}m`
       : 'mill NONE  <- no shoulder stood proud enough',
+    stats.beacon
+      ? `beacon (${stats.beacon.x},${stats.beacon.z}) isle ${stats.beacon.isle} ` +
+        `freeboard ${stats.beacon.freeboard}m  reach ${stats.beacon.reach}m`
+      : 'beacon NONE  <- no rock was broad enough to build on',
     `steading  ${steading}`,
     `landing ${stats.landing ? `(${stats.landing})` : 'NONE'}  ` +
       `harbour ${stats.harbour ? `(${stats.harbour})` : 'NONE'}`,

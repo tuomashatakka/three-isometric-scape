@@ -341,6 +341,22 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       ],
     },
     {
+      group:    'ground & water',
+      title:    'the light',
+      // Under the water rather than under the sky: what the beam is for is the
+      // sea it sweeps, and the lamp answers to the sun without a knob of its own.
+      // The blades are the tier's — see `quality.beaconBlades` — so what is left
+      // here is how brightly it burns and how fast it turns.
+      controls: [
+        toggled(
+          'coastal light',
+          range('beacon.lamp', 'lamp', 0, 2, 0.01, quality.beaconBlades > 0),
+          0.85,
+          [ range('beacon.turn', 'turns per minute', 0, 12, 0.1) ],
+        ),
+      ],
+    },
+    {
       group:    'camera',
       title:    'framing',
       controls: [

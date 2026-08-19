@@ -52,7 +52,7 @@ the audit has to match in **linear** colour. three bakes the colour attribute ou
 
 `/props.html` is the same question with a gpu behind it, in two modes decided by the query string.
 
-**bare, it is a contact sheet of the whole roster** — every prop drawn at the play angle, grouped the way the scape spends them, captioned with triangle count and metres, filterable. a name is a bad handle for a mesh: `aitta`, `hayRack` and `netRack` are three words that tell you nothing about which one you are looking for. cards whose base is off the ground plane carry the offset in the corner — a few mean it, so it is a flag to look at rather than a failure. all forty thumbnails come from **one** webgl context which is then handed straight back, because forty live contexts is well past what a browser will give you and the sheet is static once drawn.
+**bare, it is a contact sheet of the whole roster** — every prop drawn at the play angle, grouped the way the scape spends them, captioned with triangle count and metres, filterable. a name is a bad handle for a mesh: `aitta`, `hayRack` and `netRack` are three words that tell you nothing about which one you are looking for. cards whose base is off the ground plane carry the offset in the corner — a few mean it, so it is a flag to look at rather than a failure. every thumbnail on it comes from **one** webgl context which is then handed straight back, because a live context per card is well past what a browser will give you and the sheet is static once drawn.
 
 **`?prop=` names one and gets four orthographic viewports** — top, front, left and the play angle — with a two-density grid in each one's own plane, a wireframe toggle and a bounding box. one renderer and four scissor rectangles rather than four canvases, so what you compare across panes is guaranteed to be the same upload. the three axis panes never rotate: an elevation you can nudge off-axis is no longer a measurement, and you would not notice it had happened.
 
@@ -83,6 +83,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a cobbled network of paths between every place the farm goes — planned as a graph, worn as desire lines, paved with stones sampled along the treads themselves
 - a working boat harbour: a boathouse on piles with a slipway, a net rack, and stakes in the shallows
 - a walled upland hay meadow with a barn, a gate and drying poles
+- a lighthouse on the outermost rock of the ring, throwing beams that sweep the water from dusk until dawn
 - a beck traced downhill from a spring, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself
 - **three clocks** — a day, a year, and a weather front — each a phase and a speed, each deriving everything else from that phase
 - a solar arc solved from a latitude — a polar night at midwinter, a midnight sun at midsummer — with dusk and night palettes derived from it, plus seasonal growth, leaf turn, lying snow, sea ice, sea smoke, and rain that leaves the ground wet
@@ -147,7 +148,7 @@ src/
 ├── style.css                       full-viewport responsive shell
 ├── prop-preview/                   /props.html — contact sheet and quad view
 │   ├── main.ts                     two-mode routing off the query string
-│   ├── contact-sheet.ts            forty thumbnails from one throwaway context
+│   ├── contact-sheet.ts            the whole roster from one throwaway context
 │   ├── quad-view.ts                four scissored ortho viewports, one renderer
 │   └── preview.css                 the instrument's own chrome
 ├── ui/
@@ -165,6 +166,7 @@ src/
     ├── aurora.ts                   auroral veils over the dark half of the year
     ├── camera-controls.ts          pointer, touch, keyboard, focus, orbit
     ├── camera-follow.ts            riding a moving fleet instance instead of the map
+    ├── beacon.ts                   the coastal light: the lamp, and the beams it sweeps
     ├── clouds.ts                   sky deck, faded in as the view pulls back
     ├── config.ts                   the public tuning surface
     ├── create-isometric-scape.ts   app/module composition root
@@ -193,6 +195,7 @@ src/
     │   ├── footpath.ts             a planned leg traced into a worn line
     │   ├── cart-ruts.ts            the wheel lines worn down the cart track
     │   ├── creek.ts                the beck: descent trace, channel, tidal mouth
+    │   ├── beacon.ts               the outer rock a light would stand on
     │   ├── mill.ts                 the exposed shoulder a windmill would stand on
     │   ├── mill-sails.ts           every mill's wheel, turning in one instanced draw
     │   ├── waterway.ts             the navigable water between the ports
@@ -220,6 +223,7 @@ src/
         ├── vegetation.ts           spruce, pine, birch, grass, reeds, crops
         ├── upland.ts               meadow barn, hay drying poles
         ├── mill.ts                 the post mill, its trestle and its sail wheel
+        ├── beacon.ts               the lighthouse tower, and the optic that turns in it
         ├── shore.ts                boathouse and slipway, net rack, mooring stakes
         ├── objects.ts              rowboat, bales, firewood, barrel, mailbox, driftwood
         └── stone.ts                erratics, field stones, cobbles, cairns
@@ -470,6 +474,32 @@ out on the exposed rise the farm never built on there is a post mill: a boarded 
 **the wheel is the one part of a building here that cannot be merged.** everything else in the settlement is baked into one geometry at build; sails turn, so they are their own `InstancedMesh` with one instance per mill and one draw for the archipelago. its bounding sphere is *given* rather than derived, because three computes an instanced bound from the geometry at the identity and these hubs are three hundred metres apart — without it two of the three mills are culled from most poses. the rate is `mill.spin` scaled by `wind.strength`, so the knob that already says how hard it is blowing turns the wheel too, and a still day stops it with nothing else set. a stopped wheel writes no matrix and uploads no buffer.
 
 **the hub is one number in two places, so it is one constant.** the windshaft is modelled into the mill and the wheel is placed by a different module entirely; `MILL_HUB_HEIGHT`, `MILL_HUB_REACH` and `MILL_SINK` are exported from the prop and read by both, and the test that says no sail tip reaches the ground is stated against those constants rather than against a screenshot.
+
+## the light on the outer rock
+
+on the furthest skerry the ring has, there is a lighthouse: a battered stone tower with a painted band round its middle, a corbelled gallery with an iron rail, a glazed lantern room, and a cap with a vent finial on it. after dark the lamp comes up and the optic turns, sweeping two beams over the water on the desktop tier and three on ultra. the geometry is [`props/beacon.ts`](src/scene/props/beacon.ts), where it stands is [`landscape/beacon.ts`](src/scene/landscape/beacon.ts), and the light itself is [`scene/beacon.ts`](src/scene/beacon.ts).
+
+**a seamark is sited by the one question no other search here asks: what is the last thing a boat passes.** the yard wants shelter, the pasture wants unused height, the mill wants wind. this wants *reach* — distance from the island's own centre — and everything else it needs is a threshold rather than a preference: `beacon.minRock` metres of islet radius to hold masonry, `beacon.freeboard` metres of rock between the plinth and the water. at the default seed that puts it on isle 5, the substantial north-eastern outlier, 74.7 m out with 6.69 m of freeboard.
+
+**the outermost rock is not automatically the one that gets it.** two skerries stand further out than the chosen islet and neither could hold a tower: one is under the radius, and one is broad enough on paper but has water inside the footing once its own coast warp is applied. so the footing is *probed* — eight bearings at `BEACON_FOOTING`, all of which have to come back dry — rather than inferred from the islet's authored radius. the test in `landscape/beacon.test.ts` states that as a fact about the ground: every rock further out fails on radius, on freeboard, or on a wet footing.
+
+**the crown is searched for, not assumed at the centre.** an islet carries the same detail fbm the mainland does, so its high point is a metre or two off the middle of its disc. six probes at 30% of the radius find it, which is what keeps the gallery clear of the rock behind it.
+
+**the tower is eleven and a half metres, and that is a composition decision rather than a modelling error.** a real coastal light is thirty; at this scale, where a farmhouse is five metres and the whole island is 196, thirty metres reads as a chimney stack dropped into a model village. eleven and a half makes it the tallest thing in the archipelago without making it the only thing in it. the shaft is five courses rather than one tapered cylinder, because a lighthouse wall is *battered* — the taper steepens toward the foot — and one cone from foot to gallery is a silo.
+
+**the tower is merged, the light cannot be.** the masonry goes into the same merged settlement draw as the mill and the boathouse. the optic turns, so it is its own `InstancedMesh` with one instance per lantern and one draw for the archipelago, and its bounding sphere is *given* for the reason the sails' is.
+
+**a beam is two crossed fans, not a cone**, and that is the finding this run turned up. the first version was a five-sided cone at a flat tint, and it photographed as a plank of cream-coloured timber: a cone's surface is all silhouette and no axis, so nothing about it gets brighter toward the middle, and additive blending saturated the whole shape into a solid slab. two ruled fans crossed at right angles have a middle — they are brightest where they intersect, which is the axis — and the colour is graded per *vertex* down the length and out to both edges, so the beam dies into the night at `beacon.beamReach` instead of ending in an edge. both grades are deliberately gentle: a steep one across the width leaves a bright wire with nothing either side of it, which is a laser rather than a lantern. the material writes no depth and takes no fog, because fog would mix a beam toward the fog colour and then *add* it, which puts a grey cone in a hazy sky.
+
+**brightness is most of whether it reads as light at all.** the same geometry at `beacon.lamp` 0.62 is a solid shape and at 0.34 is a glow, because additive fill over near-black water saturates long before it looks bright. that is why the default is low and the slider goes to 2.
+
+**the lamp answers to `1 - day`, not to `dark`.** `dark` is the deeper threshold, the one the stars come out at — and a light is lit long before that, from the moment the sun is off the water. it also means a midsummer midnight at this latitude, which has no day in it and no dark either, has the lamp burning. squared, so it comes up through dusk rather than switching on.
+
+**it is mounted after the atmosphere, because that is where the day is resolved.** the landscape publishes `lanternHubs` — where every lamp is, in world space, lifted by `LANTERN_HEIGHT` and sunk by `BEACON_SINK`, both read from the prop rather than defaulted — and the light layer consumes them. a module mounted before the atmosphere reads the hour it was on the previous frame.
+
+**the plinth is a zone as well as a claim.** the placement solver keeps trees, saplings, erratics and cairns off the light's footing, but ground cover never asks the solver anything — measured, the first version had grass and heather growing up through the masonry, one tuft 0.4 m from the tower's centre. `onBeacon` joins the yard, the track, the paths, the plots and the pasture in the `clear` test, which is the one place that question is asked.
+
+**while the sun is up the system is not drawn at all**, rather than drawn at zero opacity: a transparent mesh still costs a sorted draw, and the beams are most of a hundred metres of fill. `quality.beaconBlades` is the tier's answer and 0 is a graceful absence — the lantern still glows, it simply throws nothing, which is a fixed harbour lamp rather than a broken sweeping one. `beacon.turn` is turns per minute and 0 stops the sweep where it stands, which is what puts it in `STILL` and lets a capture be taken twice the same way.
 
 ## the boat harbour
 

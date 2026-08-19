@@ -67,6 +67,11 @@ const STILL = [
   // reading the wind is the day every still taken after it moves.
   'mill.spin=0',
 
+  // The optic. A rotation the config could not stop is a beam somewhere else in
+  // every frame of a tour, and the lamp is at its brightest in exactly the two
+  // poses — night and winter — a diff is most sensitive at.
+  'beacon.turn=0',
+
   // Both of the weather's rates. `speed` holds the front where `weather.time`
   // put it; `fall` stops the drops themselves, which are the only thing in the
   // scape that moves fast enough to be somewhere else between two frames.
