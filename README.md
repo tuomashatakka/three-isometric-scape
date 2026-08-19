@@ -201,7 +201,7 @@ src/
     │   ├── waterway.ts             the navigable water between the ports
     │   ├── boats.ts                the fleet, and the wake it leaves
     │   ├── boat-motion.ts          one shared departure clock, one leg each
-    │   ├── terrain.ts              geometry, banded colour, path wear painted in, ruts merged on
+    │   ├── terrain.ts              geometry, banded colour, path wear and cart soil painted in, ruts merged on
     │   ├── water.ts                bathymetry, swell, foam, glitter, winter ice
     │   ├── samplers.ts             where the dressing throws its darts
     │   ├── dressing-zones.ts       what the composition already claims the ground for
@@ -346,6 +346,10 @@ a ribbon traced along the track carries its own vertices at its own spacing — 
 **both ruts wander together, because they are one axle.** the sideways drift and the thinning along the line come from a smoothed 1D value noise on the shared coordinate hash — interpolated between whole cells, because `hash2` is a hash and not a field, and a rut jittered by a raw hash is gravel. deterministic, and independent of every other generator: adding a prop does not move the ruts.
 
 **wear belongs to the yard.** it is full where the traffic is and gone `cartRuts.reach` metres out, which is what stops the road reading as uniformly driven along its whole length. `cartRuts.wear` at 0 is a track nothing has ever driven down — the ribbon is not built at all, so it costs a merge and a draw of nothing rather than drawing nothing at cost. there is no separate switch.
+
+**the paint pass came back, at the size paint can hold.** the ribbon carries the two lines because nothing else can — but a rut is not all a cart leaves. the *corridor* it runs down gets damp and packed as well, and a corridor is metres across rather than centimetres, which is exactly the scale the vertex grid does hold. so [`terrain.ts`](src/scene/landscape/terrain.ts) darkens the road toward the ribbon's own rut colour, **squared** against the track's own falloff so the dirt sits on the crown and the verges keep the track colour — flat across the corridor it darkens the edges as hard as the middle, and a road evenly browner edge to edge reads as a *narrower* road rather than a worn one.
+
+the two fade on one shared `trafficAt`, so the lines can never outlive the dirt they sit in or the other way round. and because the ribbon samples this painter for its own outer edge, that edge picks the soiling up unasked and the seam stays invisible: both lerp toward the same colour, so the middle of a rut simply lands nearer it instead of overshooting past it. `cartRuts.reach` is 40 m against a road that never gets more than about 26 m from the gate, so as tuned the fade is still running when the road runs out — pull it under that and the far end starts coming back to its own colour.
 
 **it lies on the terrain as *drawn*, not on the ground as authored.** these are two different surfaces and the gap between them is not small: the mesh is a chord between vertices up to 2.3 m apart, and where the ground curves it stands tens of centimetres off `heightAt`. laid on the height field with a few centimetres of clearance, most of the ribbon ends up *under* the triangles it is meant to be lying on, and the ruts come out as a dashed line — which is exactly what the first capture of this feature showed. `drawnSurfaceOf` in [`terrain.ts`](src/scene/landscape/terrain.ts) reconstructs the plane of the triangle a point falls in, including which way the quad's diagonal runs, so the ribbon sits on the mesh and its 5 cm lift is a depth-buffer margin rather than a clearance.
 

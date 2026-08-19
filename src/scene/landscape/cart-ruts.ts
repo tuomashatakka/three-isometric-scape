@@ -95,6 +95,23 @@ const PATCH_FLOOR = 0.72
 const HELD = 0.4
 
 /**
+ * How much the traffic still tells at a point, 0..1.
+ *
+ * Full for the first `HELD` of the reach and gone by the end of it. Starting
+ * the fade at the yard gate instead leaves the road half-worn a dozen metres
+ * out, where the traffic has not thinned at all — everything on it is still
+ * going the same one place.
+ *
+ * Takes the distance rather than the point because the terrain painter has
+ * already measured it — and it is the other caller: the corridor's soiling
+ * fades on this same curve, and two falloffs would show as the ruts outliving
+ * the dirt they sit in, or the other way round.
+ */
+export function trafficAt (fromYard: number, reach: number): number {
+  return 1 - smoothstep(reach * HELD, reach, fromYard)
+}
+
+/**
  * Smooth 1D value noise off the shared coordinate hash.
  *
  * `hash2` is a hash, not a field — consecutive metres of track are unrelated
@@ -196,15 +213,7 @@ function writeRut (
     const patch  = PATCH_FLOOR + (1 - PATCH_FLOOR) * wanderAt(section.along, PATCH_SPAN, side * 3.7)
     const centre = side * gauge * 0.5 + drift
 
-    // Full for the first third and gone by `reach`. Starting the fade at the
-    // yard gate instead leaves the road half-worn a dozen metres out, where the
-    // traffic has not thinned at all — everything on it is still going the same
-    // one place.
-    const traffic = 1 - smoothstep(
-      reach * HELD,
-      reach,
-      Math.hypot(section.x - yard.x, section.z - yard.z),
-    )
+    const traffic = trafficAt(Math.hypot(section.x - yard.x, section.z - yard.z), reach)
 
     for (let step = 0; step < ACROSS.length; step += 1) {
       const offset = centre + ACROSS[step] * width
