@@ -1,10 +1,16 @@
 import { describe, expect, test } from 'bun:test'
 import { BufferAttribute, Color, PlaneGeometry } from 'three'
 import type { BufferGeometry } from 'three'
+import { smoothstep } from 'threejs-scene'
 import { mergeGeometryList } from 'threejs-scene/modules/assets'
-import { cartRutGeometry } from './cart-ruts.ts'
+import { SCAPE_CONFIG } from '../config.ts'
+import { cartRutGeometry, trafficAt } from './cart-ruts.ts'
 import type { CartRutsOptions } from './cart-ruts.ts'
+import type { Footpaths } from './footpath.ts'
+import { createScapeLayout, distanceToTrack } from './layout.ts'
 import type { Vec2 } from './path.ts'
+import { createTerrainPainter } from './terrain.ts'
+import type { TerrainPainter } from './terrain.ts'
 
 
 /** The ribbon's cross-section, kept in step with `ACROSS` in the module. */
@@ -159,5 +165,165 @@ describe('the ruts worn down the track', () => {
 
     expect(merged.getAttribute('position').count)
       .toBe(ground.getAttribute('position').count + ruts.getAttribute('position').count)
+  })
+})
+
+
+describe('the traffic the wear is measured in', () => {
+  test('holds full over the stretch the traffic has not thinned on', () => {
+    expect(trafficAt(0, 40)).toBeCloseTo(1, 6)
+    expect(trafficAt(40 * 0.4, 40)).toBeCloseTo(1, 6)
+  })
+
+  test('is gone by the reach, and stays gone past it', () => {
+    expect(trafficAt(40, 40)).toBeCloseTo(0, 6)
+    expect(trafficAt(400, 40)).toBeCloseTo(0, 6)
+  })
+
+  test('only ever thins with distance', () => {
+    const walk = Array.from({ length: 60 }, (_unused, step) => trafficAt(step, 40))
+
+    for (let step = 1; step < walk.length; step += 1)
+      expect(walk[step]).toBeLessThanOrEqual(walk[step - 1])
+  })
+})
+
+describe('the dirt the ruts run in', () => {
+  const layout           = createScapeLayout(SCAPE_CONFIG)
+  const paths: Footpaths = { paths: [], wearAt: () => 0 }
+
+  // The same scape twice, once with the traffic taken off it. Everything the
+  // painter does apart from the soiling is identical between the two, so the
+  // difference between them *is* the soiling and nothing else.
+  const clean = createTerrainPainter(
+    { ...SCAPE_CONFIG, cartRuts: { ...SCAPE_CONFIG.cartRuts, wear: 0 }},
+    layout,
+    paths,
+  )
+  const worn = createTerrainPainter(SCAPE_CONFIG, layout, paths)
+
+  const lit = (color: Color): number => (color.r + color.g + color.b) / 3
+
+  /**
+   * The share of the ground's light the soiling takes at a point.
+   *
+   * A ratio rather than a difference, because `paint` ends on a macro noise
+   * multiply that varies metre to metre. It divides straight back out of a
+   * ratio, and would otherwise swamp a sweep across a two-metre corridor.
+   */
+  function shareUnder (painter: TerrainPainter, x: number, z: number): number {
+    const base  = clean.paint(6, 0, x, z, new Color())
+    const dirty = painter.paint(6, 0, x, z, new Color())
+
+    return 1 - lit(dirty) / lit(base)
+  }
+
+  const soilShare = (x: number, z: number): number => shareUnder(worn, x, z)
+
+  /** The track segment whose middle is nearest the yard, and the way across it. */
+  function stretch (pick: 'near' | 'far') {
+    const points = layout.track.points
+    let best     = null as null | { x: number, z: number, nx: number, nz: number, from: number }
+
+    for (let index = 0; index < points.length - 1; index += 1) {
+      const a      = points[index]
+      const b      = points[index + 1]
+      const length = Math.hypot(b.x - a.x, b.z - a.z)
+
+      if (length === 0)
+        continue
+
+      const x    = (a.x + b.x) / 2
+      const z    = (a.z + b.z) / 2
+      const from = Math.hypot(x - layout.yard.x, z - layout.yard.z)
+
+      // Clear of the farmyard disc, which is bare for its own reasons.
+      if (from < layout.yard.radius * 1.2)
+        continue
+
+      const closer = pick === 'near' ? from < (best?.from ?? Infinity) : from > (best?.from ?? -1)
+
+      if (closer)
+        best = { x, z, nx: -(b.z - a.z) / length, nz: (b.x - a.x) / length, from }
+    }
+
+    if (!best)
+      throw new Error('no track stretch clear of the yard')
+
+    return best
+  }
+
+  const near = stretch('near')
+  const far  = stretch('far')
+
+  test('dirties the road where the traffic is', () => {
+    expect(soilShare(near.x, near.z)).toBeGreaterThan(0.02)
+  })
+
+  test('leaves the ground either side of the road alone', () => {
+    const off = layout.track.width * 4
+
+    expect(soilShare(near.x + near.nx * off, near.z + near.nz * off)).toBeCloseTo(0, 6)
+  })
+
+  test('is the yard’s, so pulling the reach in takes it off the far end', () => {
+    // Held against one point rather than compared between two, because the
+    // share depends on the ground under it as much as on the traffic over it —
+    // the far end of the track is lighter ground, and a lighter ground shows
+    // the same dirt harder. Same place, shorter reach, is the only comparison
+    // that isolates the falloff.
+    const pulled = createTerrainPainter(
+      { ...SCAPE_CONFIG, cartRuts: { ...SCAPE_CONFIG.cartRuts, reach: far.from * 0.5 }},
+      layout,
+      paths,
+    )
+
+    expect(soilShare(far.x, far.z)).toBeGreaterThan(0.02)
+    expect(shareUnder(pulled, far.x, far.z)).toBeCloseTo(0, 6)
+  })
+
+  test('reaches further than the track it dirties, as the scape is tuned', () => {
+    // Worth pinning: no stretch of the road gets more than about 26 m from the
+    // gate against a 40 m reach, so the fade is still running when the road
+    // runs out and nothing on it is ever fully clean. Drop `reach` under this
+    // and the far end of the track starts coming back to its own colour.
+    expect(far.from).toBeLessThan(SCAPE_CONFIG.cartRuts.reach)
+  })
+
+  test('sits on the crown of the road and falls off faster than the road does', () => {
+    // Squared against `onTrack`, so half way out to the verge keeps a quarter of
+    // the dirt rather than half of it. A linear falloff passes the first of
+    // these and not the second, which is the whole reason for the squaring.
+    const peak  = soilShare(near.x, near.z)
+    const sweep = Array.from({ length: 24 }, (_unused, step) => {
+      const off = (step + 1) * (layout.track.width * 1.5) / 24
+
+      return soilShare(near.x + near.nx * off, near.z + near.nz * off)
+    })
+
+    for (const share of sweep)
+      expect(share).toBeLessThan(peak)
+
+    // Half way out by *corridor weight* rather than by metres — the road's own
+    // falloff is a smoothstep, so half the width is nowhere near half the road.
+    const off     = layout.track.width * 0.96
+    const probeX  = near.x + near.nx * off
+    const probeZ  = near.z + near.nz * off
+    const onTrack = 1 - smoothstep(
+      layout.track.width * 0.42,
+      layout.track.width * 1.5,
+      distanceToTrack(layout, probeX, probeZ),
+    )
+
+    expect(onTrack).toBeGreaterThan(0.35)
+    expect(onTrack).toBeLessThan(0.65)
+
+    // A quarter of the dirt where the road keeps half its own colour. A linear
+    // falloff lands on `onTrack` here instead, at twice this — which is the
+    // whole reason for the squaring, and the only thing this test is for.
+    const share = soilShare(probeX, probeZ) / peak
+
+    expect(share).toBeGreaterThan(onTrack * onTrack * 0.85)
+    expect(share).toBeLessThan(onTrack * onTrack * 1.15)
   })
 })

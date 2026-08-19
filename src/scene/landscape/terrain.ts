@@ -4,7 +4,7 @@ import { hash2, smoothstep } from 'threejs-scene'
 import { mergeGeometryList } from 'threejs-scene/modules/assets'
 import type { ScapeConfig } from '../config.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
-import { cartRutGeometry } from './cart-ruts.ts'
+import { cartRutGeometry, trafficAt } from './cart-ruts.ts'
 import type { Footpaths } from './footpath.ts'
 import type { HeightField } from './height.ts'
 import { distanceToTrack, pastureInfluence, plotInfluence } from './layout.ts'
@@ -84,7 +84,15 @@ export function createTerrainPainter (
   const streambed = new Color(palette.streambed)
   const trodden   = new Color(palette.trodden)
 
+  // The same colour the ribbon darkens toward, and it has to be: the two lerp
+  // at the same target from either side of the seam, so the corridor's soiling
+  // and the rut cores are one gradient rather than two tones meeting.
+  const rutSoil   = new Color(palette.track).multiplyScalar(0.4)
+
   const corridor = layout.track.width * 1.5
+
+  /** Share of the rut wear the broad soiling carries. The lines keep the rest. */
+  const soil = config.cartRuts.wear * 0.34
 
   return {
     paint (height, slope, x, z, target) {
@@ -118,6 +126,33 @@ export function createTerrainPainter (
       const onTrack = 1 - smoothstep(layout.track.width * 0.42, corridor, distanceToTrack(layout, x, z))
       if (onTrack > 0)
         target.lerp(track, onTrack * 0.88)
+
+      // The dirt the ruts run in, as opposed to the ruts themselves.
+      //
+      // The ribbon carries the two wheel lines because at 0.34 m of width it is
+      // the only thing that can — the terrain's vertices sit 0.68 m apart at
+      // best and 2.3 m apart on mobile, so a rut painted into this grid is a
+      // dotted line or nothing at all. A *corridor* is metres across, though,
+      // and that the grid holds comfortably. So the paint takes the half of the
+      // wear the ribbon cannot: the broad damp soiling of a road that gets
+      // driven on, heaviest at the gate and gone where the traffic is.
+      //
+      // It runs under the ribbon rather than beside it. The ribbon samples this
+      // painter for its own outer edge, so the edge picks the soiling up and
+      // the seam stays invisible; and because both lerp toward `rutSoil`, the
+      // middle of a rut simply lands nearer that colour instead of overshooting
+      // past it.
+      // Squared, so the dirt sits on the crown of the road and the verges keep
+      // the track's own colour. Flat across the corridor the soiling darkens
+      // the edges as hard as the middle, and a road evenly browner edge to edge
+      // reads as a narrower road rather than as a worn one — the wear has to
+      // fall where the wheels are, which is where the ribbon is too.
+      //
+      // Unguarded: off the track `onTrack` is zero and past the reach the
+      // traffic is, so the lerp is already the no-op the branch would have been.
+      const crown = onTrack * onTrack
+
+      target.lerp(rutSoil, crown * soil * trafficAt(fromYard, config.cartRuts.reach))
 
       // Over the track, under the beck.
       //

@@ -2,6 +2,16 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the dirt the ruts run in
+
+the ruts had two worn lines and clean ground either side of them. the road they run down is dirty now too — damp, packed, heaviest at the gate and thinning with the traffic, on the same curve the lines themselves fade on.
+
+- **added a paint pass beside the ribbon, at the scale paint can actually hold.** the ribbon exists because a 0.34 m rut cannot be painted into a grid whose vertices are 0.68 m apart at best and 2.3 m apart on mobile. a *corridor* is metres across, though, so the half of the wear the ribbon cannot carry — the broad soiling of a road that gets driven on — goes back into the terrain colour where it costs nothing at all. no geometry, no draw, no tier that misses it
+- **squared it against `onTrack`**, so the dirt sits on the crown of the road and the verges keep the track's own colour. flat across the corridor it darkens the edges as hard as the middle, and a road evenly browner edge to edge reads as a narrower road rather than a worn one. the wear has to fall where the wheels are, which is where the ribbon is too
+- **pulled `trafficAt` out of `writeRut` and exported it**, because the falloff now has two callers and two copies of it would show as the lines outliving the dirt they sit in. one curve, one `HELD`, one answer. it takes the distance rather than the point, since the painter has already measured it for the farmyard
+- **the seam handles itself.** the ribbon samples the terrain painter for its outer edge, so the edge picks the soiling up without being told, and both sides lerp toward the same `palette.track × 0.4` — the middle of a rut lands nearer that colour instead of overshooting past it. nothing to sort, nothing to fade, no second constant to keep in step
+- **turned up that `cartRuts.reach` outruns the road it fades.** 40 m of reach against a track that never gets more than about 26 m from the yard gate, so nothing on it is ever fully clean. left as tuned and pinned in a test, because it is a look rather than a bug — but it is now a number somebody chose rather than one nobody had measured
+
 ## a windmill on the shoulder
 
 the exposed rise the farm never built on now has a post mill standing on it: a boarded buck on one oak post, four stone piers and two crosstrees under it, a stair down the back that reaches the ground, and four common sails turning off the sea wind.
