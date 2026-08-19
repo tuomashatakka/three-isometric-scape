@@ -5,9 +5,11 @@ import type { AppModule } from 'threejs-scene'
 import { NOTHING_SKIPPED } from '../audit.ts'
 import type { ScapeSkips } from '../audit.ts'
 import type { ScapeConfig } from '../config.ts'
+import { BEACON_SINK, LANTERN_HEIGHT } from '../props/beacon.ts'
 import { createScapeMaterials } from '../props/material.ts'
 import { MILL_HUB_HEIGHT, MILL_HUB_REACH, MILL_SINK } from '../props/mill.ts'
 import type { ScapeMaterials } from '../props/material.ts'
+import type { LanternHub } from '../beacon.ts'
 import { createTextureCatalogue } from '../textures/catalogue.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import { createSeason } from '../season.ts'
@@ -40,6 +42,15 @@ export interface Landscape {
 
   /** Live fleet accessor; null until the landscape module has built. */
   boatFleet(): BoatFleet | null
+
+  /**
+   * Every lamp in the archipelago, in world space.
+   *
+   * Published rather than drawn here, because the light is lit by the day and the
+   * day belongs to the atmosphere — see `scene/beacon.ts`. A fact about where the
+   * towers *are*, resolved from the survey the same way the mills' hubs are.
+   */
+  lanternHubs: readonly LanternHub[]
 
   /**
    * The live instant of the year, resolved once per frame by this module's
@@ -119,6 +130,27 @@ export function createLandscape (
       y:   field.heightAt(x, z) - MILL_SINK + MILL_HUB_HEIGHT,
       z:   z + Math.sin(mill.bearing) * MILL_HUB_REACH,
       yaw: yawAlong(mill.bearing),
+    }]
+  })
+
+  /**
+   * Every lantern, lifted to the lamp inside it.
+   *
+   * The sink is read from the prop module rather than defaulted, for the reason
+   * `millHubs` gives: the tower is raised by `dressing.ts` and the lamp is placed
+   * here, and two answers to how deep the plinth sits is a glow hanging beside
+   * its own glazing.
+   */
+  const lanternHubs: LanternHub[] = archipelago.landmasses.flatMap(landmass => {
+    const { beacon } = landmass.survey
+
+    if (!beacon)
+      return []
+
+    return [{
+      x: beacon.x + landmass.origin.x,
+      y: beacon.level - BEACON_SINK + LANTERN_HEIGHT,
+      z: beacon.z + landmass.origin.z,
     }]
   })
 
@@ -237,6 +269,7 @@ export function createLandscape (
     layout,
     archipelago,
     boatFleet: () => fleet,
+    lanternHubs,
     season:    season.state,
     weather:   weather.state,
   }

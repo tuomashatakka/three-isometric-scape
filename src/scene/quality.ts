@@ -39,6 +39,18 @@ export interface AtmosphereQuality {
   rainDrops: number
 
   /**
+   * Panels in the coastal light's optic — how many beams sweep at once. 0 is a
+   * tier that gets a lit lantern and no beams.
+   *
+   * A count rather than a switch for the same reason the aurora's veils are one:
+   * one beam is a light, three is a light with a character. The cost is fill
+   * rather than geometry — each panel is one five-sided cone of additive
+   * overdraw, only drawn while the sun is down — so this is what a phone gives
+   * up first and a workstation spends freely.
+   */
+  beaconBlades: number
+
+  /**
    * Terrain plane subdivisions per side.
    *
    * A count, not a density — so it is sized against `terrain.size`, and a run
@@ -135,6 +147,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     tiltShiftPairs:  0,
     auroraLayers:    0,
     rainDrops:       0,
+    beaconBlades:    0,
     terrainSegments: 60,
     scatterScale:    0.16,
     ao:              false,
@@ -161,6 +174,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     tiltShiftPairs:  0,
     auroraLayers:    1,
     rainDrops:       900,
+    beaconBlades:    1,
     terrainSegments: 84,
     scatterScale:    0.32,
     ao:              false,
@@ -203,6 +217,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     tiltShiftPairs:  2,
     auroraLayers:    2,
     rainDrops:       2_600,
+    beaconBlades:    2,
     terrainSegments: 208,
     scatterScale:    1,
     ao:              false,
@@ -229,6 +244,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     tiltShiftPairs:  2,
     auroraLayers:    3,
     rainDrops:       4_200,
+    beaconBlades:    3,
     terrainSegments: 288,
     scatterScale:    1.5,
     ao:              true,
@@ -272,6 +288,7 @@ const UNLOCKED_FLOOR = {
   tiltShiftPairs: 1,
   auroraLayers:   1,
   rainDrops:      700,
+  beaconBlades:   1,
   detailTaps:     6,
 } as const
 
@@ -306,6 +323,7 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
     tiltShiftPairs: Math.max(quality.tiltShiftPairs, UNLOCKED_FLOOR.tiltShiftPairs),
     auroraLayers:   Math.max(quality.auroraLayers, UNLOCKED_FLOOR.auroraLayers),
     rainDrops:      Math.max(quality.rainDrops, UNLOCKED_FLOOR.rainDrops),
+    beaconBlades:   Math.max(quality.beaconBlades, UNLOCKED_FLOOR.beaconBlades),
     detailTaps:     Math.max(quality.detailTaps, UNLOCKED_FLOOR.detailTaps),
   }
 }

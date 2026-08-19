@@ -75,25 +75,50 @@ function fallOnly (profile: number[]): number[] {
   })
 }
 
+/** One islet, resolved out of the config's fractions and into metres. */
+export interface IsleSite {
+  x:      number
+  z:      number
+  radius: number
+
+  /** Height of the plateau above the water, as metres of absolute height. */
+  crown: number
+
+  /** The islet's own coast warp seed. */
+  seed: number
+}
+
+/**
+ * Islets, resolved from fractions into metres once.
+ *
+ * Each carries a seed of its own so the ring is a set of different islands
+ * rather than one island stamped out at fifteen bearings — with a shared seed
+ * the warp is a function of world position, which at this scale is nearly
+ * constant across a single islet and would only nudge the whole disc sideways.
+ *
+ * Exported because the ground is no longer the only reader: `beacon.ts` picks
+ * the rock the light stands on out of this list, and a second conversion of the
+ * same fractions is a tower built on an islet that is not where it thinks it is.
+ */
+export function resolveIsles (config: ScapeConfig): IsleSite[] {
+  const half = config.terrain.size * 0.5
+
+  return config.terrain.isles.map((isle, index) => ({
+    x:      isle.x * half,
+    z:      isle.z * half,
+    radius: isle.radius * half,
+    crown:  config.terrain.waterLevel + isle.height,
+    seed:   config.seed ^ 0x9e37 + index * 0x4f1b,
+  }))
+}
+
 export function createHeightField (config: ScapeConfig, layout: ScapeLayout): HeightField {
   const { waterLevel, shoreBand } = config.terrain
   const { yard, track }           = layout
   const corridor                  = track.width * 1.7
-  const half                      = config.terrain.size * 0.5
   const lift                      = liftRadiusOf(config)
 
-  // Islets, resolved from fractions into metres once. Each carries a seed of its
-  // own so the ring is a set of different islands rather than one island stamped
-  // out at eleven bearings — with a shared seed the warp is a function of world
-  // position, which at this scale is nearly constant across a single islet and
-  // would only nudge the whole disc sideways.
-  const isles = config.terrain.isles.map((isle, index) => ({
-    x:      isle.x * half,
-    z:      isle.z * half,
-    radius: isle.radius * half,
-    crown:  waterLevel + isle.height,
-    seed:   config.seed ^ 0x9e37 + index * 0x4f1b,
-  }))
+  const isles = resolveIsles(config)
 
   /** Base fBm, sunk into an island, shelved at the waterline, then levelled. */
   function graded (x: number, z: number): number {

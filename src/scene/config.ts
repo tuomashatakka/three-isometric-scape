@@ -120,7 +120,10 @@ export interface ScapeConfig {
     /** How far below the waterline the seabed sits, in metres. */
     seabedDrop: number
 
-    /** Offshore islets — landscape only, never built on. */
+    /**
+     * Offshore islets. Nobody farms them, and one of them carries the light —
+     * whichever the search in `landscape/beacon.ts` finds furthest out.
+     */
     isles: readonly Isle[]
 
     /** World units per tile of the ground grain. */
@@ -359,6 +362,53 @@ export interface ScapeConfig {
 
     /** Diameter of the sail wheel, in metres. Sized against the hub height. */
     sailSpan: number
+  }
+
+  /**
+   * The seamark on the outer rock, and the light it turns.
+   *
+   * Split the way `mill` is: the first two decide which islet the tower is built
+   * on and are read once at build time, and the last two are live. `beamReach`
+   * and `beamSpread` are metre-sized — the throw of a real coastal light, not a
+   * fraction of the world or of the frame — so they stay put when either grows.
+   */
+  beacon: {
+
+    /**
+     * Metres of islet radius before a rock is big enough to build a tower on.
+     *
+     * The switch, and the only one worth having: the ring runs from skerries a
+     * few metres across up to a substantial outlier, and this is what decides
+     * how far out the masonry is allowed to go. Raising it past the largest
+     * islet takes the lighthouse back out of the scape.
+     */
+    minRock: number
+
+    /** Metres of rock the plinth must have between it and the water. */
+    freeboard: number
+
+    /**
+     * Turns of the optic per minute. 0 stops the sweep where it stands.
+     *
+     * A real coastal light turns two to six times a minute, which is slow enough
+     * that the sweep reads as a sweep rather than a strobe. Zero is the still a
+     * capture needs, and the reason this is a rate and not a period.
+     */
+    turn: number
+
+    /**
+     * Lamp brightness. 0 is a light that was never lit.
+     *
+     * Scaled by how far the sun is down, so the lamp comes up through dusk and
+     * out again at dawn without this being touched — see `scene/beacon.ts`.
+     */
+    lamp: number
+
+    /** How far a beam reaches out over the water, in metres. */
+    beamReach: number
+
+    /** Radius of a beam where it dies, in metres. */
+    beamSpread: number
   }
   dressing: DressingBudget
   wind: {
@@ -952,6 +1002,18 @@ export const SCAPE_CONFIG = {
     spin:       1.15,
     prominence: 1.6,
     sailSpan:   8.4,
+  },
+  // 6 metres of radius takes in the two largest islets and leaves every skerry
+  // out, which is what puts the tower on the north-eastern outlier — the
+  // furthest rock in the ring with ground to spare. 1.2 metres of freeboard is
+  // one storm surge, and the smallest rise the plinth reads as standing on.
+  beacon: {
+    minRock:    6,
+    freeboard:  1.2,
+    turn:       4,
+    lamp:       0.85,
+    beamReach:  88,
+    beamSpread: 5.2,
   },
   // Roughly doubled against the run before this one, because the island is
   // roughly twice the ground. A budget is a *count*, not a density, so leaving

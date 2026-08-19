@@ -1,5 +1,7 @@
 import { createSeededRng } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
+import { findBeaconSite } from './beacon.ts'
+import type { BeaconSite } from './beacon.ts'
 import { createFootpaths } from './footpath.ts'
 import type { Footpaths, Obstacle } from './footpath.ts'
 import { createHeightField } from './height.ts'
@@ -34,6 +36,9 @@ export interface ScapeSurvey {
   /** The second cove, along the shore from the landing. */
   harbour: Spot | null
 
+  /** The outer rock the light stands on, or `null` on an island with no rocks. */
+  beacon: BeaconSite | null
+
   /** The street plan: every place walked to, and every leg planned between them. */
   network: FarmNetwork
   paths:   Footpaths
@@ -60,6 +65,12 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
   const places             = steadingPlaces(layout.yard)
   const landing            = findLanding(layout, field, config)
   const harbour            = landing && findHarbourBank(layout, field, config, landing)
+
+  // Offshore, and answering to nothing else in the survey: the light is sited on
+  // the ring of rocks rather than on the island, so it neither moves anything
+  // ashore nor is moved by it. Nothing is routed to it — a seamark is reached by
+  // boat — which is why it stays out of `avoid` and out of the network below.
+  const beacon = findBeaconSite(config, field)
 
   const avoid: Obstacle[] = [
     ...STEADING_BUILDINGS.map(name => places[name]),
@@ -88,5 +99,5 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
       distanceToTrack(layout, x, z) < layout.track.width * 1.3,
   })
 
-  return { layout, field, places, landing, harbour, network, paths }
+  return { layout, field, places, landing, harbour, beacon, network, paths }
 }

@@ -44,6 +44,7 @@ footpaths 17 routes, 220m total, longest 23m
 creek OK  head (19,23) 7.88m -> mouth (47,46) -14.3m  len 38.7m
 pasture (34.9,-9) r6   plots 4   ridges 5   isles 15/15 surfacing
 mill (29,-19.7) prominence 6.52m
+beacon (60.9,39.3) isle 5 freeboard 6.69m  reach 74.7m
 steading  farmhouse(-8,3) barn(-16,-14) aitta(-27,6) woodshed(-28,-7) sauna(-17,16)
 landing (-26,-17)  harbour (-13,-28)
 landmasses 3
@@ -53,6 +54,8 @@ meadow/meadow @ (178,128)  land 27% peak 5.68m  paths 13  jetty (151,126)  mill 
 waterways 3 legs 809.7m  connected OK  wet OK  clearance 0.67m
 boats 3  separation 115.79m  conflicts 0
 ```
+
+`beacon NONE` is the same kind of answer: the light goes on the *outermost* islet in the ring that is broad enough for masonry and has eight dry bearings at its footing, so an archipelago whose skerries are all too small gets no lighthouse. a beacon that moved isle on a run that did not touch `beacon.minRock`, `beacon.freeboard` or `terrain.isles` is a finding.
 
 `mill NONE` is a valid answer and not a failure — an island with nowhere level and exposed enough for a trestle does not get one. what would be a finding is a mill *appearing* or *moving* on a run that did not touch the siting rules, because everything the search reads is either the ground or something the farm already claimed.
 
@@ -82,7 +85,7 @@ its own vite entry importing the roster and nothing else from the scene, so it s
 bun run dev     # then open /props.html
 ```
 
-- **bare** — a contact sheet of all forty props, grouped `placed by hand` / `scattered`, captioned with triangle count and metres, filterable. cards flag any prop whose base is off `y = 0`.
+- **bare** — a contact sheet of the whole roster, grouped `placed by hand` / `scattered`, captioned with triangle count and metres, filterable. cards flag any prop whose base is off `y = 0`.
 - **`?prop=<name>&seed=<n>`** — four orthographic viewports (top / front / left / iso) with grids, wireframe and bounds.
 
 both are real urls. `esc` returns to the sheet, `1`–`4` solo a pane, `0` restores, `f` frames, `g`/`x`/`w`/`b` toggle grid, axes, wire and bounds.
@@ -163,6 +166,7 @@ on the running page — useful on a device you cannot attach a debugger to:
 | `?tier=minimal\|mobile\|desktop\|ultra` | forces a tier past detection *and* past tier memory |
 | `?post=0\|1` | forces the optical chain either way |
 | `?set=look.bloom=0,daylight.time=0.5` | any dotted config path, comma separated |
+| `?skip=water,mist,beacon,…` | leaves a whole family out — the list is `SCAPE_FAMILIES` in [`audit.ts`](src/scene/audit.ts) |
 
 ---
 
@@ -184,6 +188,7 @@ register in [`props/index.ts`](src/scene/props/index.ts) and put the name in `HE
 | `shore.ts` | boathouse and slipway, net rack, mooring stakes |
 | `upland.ts` | meadow barn, hay drying poles |
 | `mill.ts` | the post mill and its trestle, plus the sail wheel — **the one geometry not based at `y = 0`** |
+| `beacon.ts` | the lighthouse tower, and the optic — one halo plus one faded cone per panel |
 | `vegetation.ts` | spruce, pine, birch, grass, reeds, crops |
 | `stone.ts` | erratics, field stones, cobbles, cairns |
 | `objects.ts` | hollow clinker rowboat, bales, firewood, barrel, mailbox, driftwood |
@@ -212,6 +217,7 @@ register in [`props/index.ts`](src/scene/props/index.ts) and put the name in `HE
 | `boat-motion.ts` | synchronized legs, early jetty waits, seven-second dwell and bounded turns |
 | `boats.ts` | one dynamic `InstancedMesh`, plus stable live pose and wake records |
 | `creek.ts` | the beck: descent trace, channel, tidal mouth |
+| `beacon.ts` | the outermost rock broad and dry enough to carry a light, and the footing probe that proves it |
 | `mill.ts` | the exposed shoulder a windmill stands on, and the doorstep at the foot of its stair |
 | `mill-sails.ts` | every mill's wheel in one dynamic `InstancedMesh`, geared off `wind.strength` |
 | `terrain.ts` | shared archipelago geometry, height/slope banded colour, path wear painted in |
@@ -234,7 +240,9 @@ the runtime fleet does not use the survey's old fixed offsets as an animation cl
 
 ### an atmospheric system
 
-`src/scene/*.ts` — `atmosphere.ts`, `mist.ts`, `clouds.ts`, `aurora.ts`, `rain.ts`, `post.ts`, and the three clocks `daylight.ts` / `season.ts` / `weather.ts`. composed in [`create-isometric-scape.ts`](src/scene/create-isometric-scape.ts).
+`src/scene/*.ts` — `atmosphere.ts`, `mist.ts`, `clouds.ts`, `aurora.ts`, `rain.ts`, `beacon.ts`, `post.ts`, and the three clocks `daylight.ts` / `season.ts` / `weather.ts`. composed in [`create-isometric-scape.ts`](src/scene/create-isometric-scape.ts).
+
+anything mounted *after* `atmosphere.module` sees this frame's day; anything before it sees the last one's. that is the whole reason the coastal light is a layer here rather than part of the landscape that surveys it — `beacon.ts` reads `daylight.day` and the landscape publishes `lanternHubs` for it.
 
 the clocks are coupled, and in one direction each: the weather takes the year and decides how hard this week's precipitation falls, and the day takes the year and solves the sun's arc for it — `daylight.sample(time, year)`. so **the day's sky is a function of the week**, and `daylight.latitude` at 68°N means midwinter has no daylight in it and midsummer no night. anything reading the darkness of the sky reads `daylight.dark` (astronomical twilight, geometry) rather than a curve of the year.
 
