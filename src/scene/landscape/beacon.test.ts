@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { SCAPE_CONFIG } from '../config.ts'
 import { BEACON_FOOTING, beaconCrown, findBeaconSite, footingIsDry } from './beacon.ts'
+import { surveyArchipelago } from './archipelago.ts'
+import { createZoneTests } from './dressing-zones.ts'
 import { resolveIsles } from './height.ts'
 import { surveyScape } from './survey.ts'
 
@@ -80,6 +82,32 @@ describe('siting the light', () => {
 
     expect(Math.cos(site.bearing - home)).toBeCloseTo(1, 6)
   })
+
+  test('the ground inside the footing is spoken for', () => {
+    const archipelago         = surveyArchipelago(SCAPE_CONFIG)
+    const site                = archipelago.home.survey.beacon!
+    const { clear, onBeacon } = createZoneTests(archipelago)
+
+    // Ground cover never asks the placement solver anything, so the plinth has
+    // to be a zone rather than only a claim — otherwise the grass grows up
+    // through the masonry. World space here: the light is on the home island,
+    // whose origin is the middle of the world.
+    for (let step = 0; step < 12; step += 1) {
+      const around = step / 12 * Math.PI * 2
+      const x      = site.x + Math.cos(around) * (BEACON_FOOTING - 0.4)
+      const z      = site.z + Math.sin(around) * (BEACON_FOOTING - 0.4)
+
+      expect(onBeacon(x, z)).toBe(true)
+      expect(clear(x, z)).toBe(false)
+    }
+
+    // And the rock beyond it is ordinary ground again.
+    expect(onBeacon(site.x + BEACON_FOOTING + 0.5, site.z)).toBe(false)
+
+  // Its own budget: this is the only test in the file that surveys the whole
+  // archipelago rather than the home island, which is three surveys' work
+  // against a five-second default.
+  }, 30_000)
 
   test('a rock too small for masonry gets no tower', () => {
     expect(findBeaconSite(withBeacon({ minRock: 40 }), survey.field)).toBeNull()

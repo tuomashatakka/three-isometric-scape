@@ -188,7 +188,7 @@ register in [`props/index.ts`](src/scene/props/index.ts) and put the name in `HE
 | `shore.ts` | boathouse and slipway, net rack, mooring stakes |
 | `upland.ts` | meadow barn, hay drying poles |
 | `mill.ts` | the post mill and its trestle, plus the sail wheel — **the one geometry not based at `y = 0`** |
-| `beacon.ts` | the lighthouse tower, and the optic — one halo plus one faded cone per panel |
+| `beacon.ts` | the lighthouse tower, and the optic — a halo plus two crossed, vertex-graded fans per panel |
 | `vegetation.ts` | spruce, pine, birch, grass, reeds, crops |
 | `stone.ts` | erratics, field stones, cobbles, cairns |
 | `objects.ts` | hollow clinker rowboat, bales, firewood, barrel, mailbox, driftwood |

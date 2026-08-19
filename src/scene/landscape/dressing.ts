@@ -176,7 +176,7 @@ export function createDressing (
 
   // ---- feature tests -------------------------------------------------------
 
-  const { onYard, onTrack, onPath, onPlot, onPasture, clear } = createZoneTests(archipelago)
+  const { onYard, onTrack, onPath, onPlot, onPasture, onBeacon, clear } = createZoneTests(archipelago)
 
   // ---- hero props ----------------------------------------------------------
 
@@ -651,6 +651,7 @@ export function createDressing (
     onPath,
     onPlot,
     onPasture,
+    onBeacon,
     clear,
   })
 

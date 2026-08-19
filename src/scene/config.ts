@@ -407,7 +407,7 @@ export interface ScapeConfig {
     /** How far a beam reaches out over the water, in metres. */
     beamReach: number
 
-    /** Radius of a beam where it dies, in metres. */
+    /** Half-width of a beam where it dies, in metres. */
     beamSpread: number
   }
   dressing: DressingBudget
@@ -1011,9 +1011,9 @@ export const SCAPE_CONFIG = {
     minRock:    6,
     freeboard:  1.2,
     turn:       4,
-    lamp:       0.85,
+    lamp:       0.34,
     beamReach:  88,
-    beamSpread: 5.2,
+    beamSpread: 11,
   },
   // Roughly doubled against the run before this one, because the island is
   // roughly twice the ground. A budget is a *count*, not a density, so leaving

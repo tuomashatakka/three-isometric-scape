@@ -139,6 +139,37 @@ describe('the optic', () => {
     geometry.dispose()
   })
 
+  test('is brightest along its axis and dark at its edges', () => {
+    // One panel, so the axis is `+z` and the offset across the beam is `x`.
+    const geometry = buildBeaconOptic(createSeededRng(3), palette, { ...options, blades: 1 })
+    const position = geometry.getAttribute('position')
+    const color    = geometry.getAttribute('color')
+    let onAxis = 0
+    let atEdge = 0
+
+    // The claim the crossed fans exist to make: a beam has a middle. Sampled a
+    // quarter of the way out, where the grade down the length has taken little
+    // off yet, so what is left in the difference is the grade across the width.
+    for (let index = 0; index < color.count; index += 1) {
+      const along  = position.getZ(index)
+      const across = Math.abs(position.getX(index))
+
+      if (along < options.reach * 0.2 || along > options.reach * 0.3 || Math.abs(position.getY(index)) > 0.01)
+        continue
+
+      if (across < 0.2)
+        onAxis = Math.max(onAxis, color.getX(index))
+
+      if (across > options.spread * along / options.reach * 0.9)
+        atEdge = Math.max(atEdge, color.getX(index))
+    }
+
+    expect(onAxis).toBeGreaterThan(0.2)
+    expect(atEdge).toBeLessThan(onAxis * 0.4)
+
+    geometry.dispose()
+  })
+
   test('a tier with no panels still lights the lantern', () => {
     const geometry = buildBeaconOptic(createSeededRng(3), palette, { ...options, blades: 0 })
     const bounds   = boundsOf(geometry)

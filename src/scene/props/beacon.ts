@@ -1,4 +1,4 @@
-import type { BufferGeometry } from 'three'
+import { BufferGeometry, Color, Float32BufferAttribute } from 'three'
 import type { SeededRng } from 'threejs-scene'
 import { mergeParts, part } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
@@ -248,71 +248,148 @@ export interface BeaconOpticOptions {
   /** How far a beam reaches out over the water, in metres. */
   reach: number
 
-  /** Radius of a beam where it dies, in metres. */
+  /** Half-width of a beam where it dies, in metres. */
   spread: number
 }
+
+/** Rings of vertices down a beam, and quads across it. */
+const BEAM_RINGS  = 5
+const BEAM_ACROSS = 6
+
+/** How much of the horizontal fan's width and brightness the upright one gets. */
+const UPRIGHT_WIDTH  = 0.5
+const UPRIGHT_WEIGHT = 0.72
+
+/**
+ * How the light falls off down a beam and out to its edges.
+ *
+ * Both are gentle on purpose. A steep grade across the width leaves a bright
+ * wire down the axis with nothing either side of it — a laser, not a lantern —
+ * and a steep one down the length stops the beam before it has read as one.
+ */
+const BEAM_FALL  = 1.35
+const BEAM_FLANK = 0.7
 
 /**
  * The light itself: a halo at the lamp, and one beam per panel of the optic.
  *
  * Built at the origin and in the *lamp's* frame rather than the tower's, because
- * this geometry is carried by an `InstancedMesh` centred on each lantern —
- * see `scene/beacon.ts`. The beams lie level: a real optic throws at the horizon
- * and a beam pitched down at the water reads as a searchlight.
+ * this geometry is carried by an `InstancedMesh` centred on each lantern — see
+ * `scene/beacon.ts`. The beams lie level: a real optic throws at the horizon,
+ * and one pitched down at the water reads as a searchlight.
  *
- * The colour is faded out along each beam by hand after the merge. Additive
- * geometry with a flat tint ends in a visible cone base — a hard-edged plate of
- * light hanging in the dark a hundred metres offshore — and no amount of opacity
- * fixes that, because the edge is in the geometry rather than in the blend.
+ * **A beam is two crossed fans, not a cone**, and that is the whole finding of
+ * this geometry. A cone at a flat tint reads as a plank of cream-coloured
+ * timber: its surface is all silhouette and no axis, so nothing about it gets
+ * brighter toward the middle, and additive blending then saturates the lot. Two
+ * ruled fans crossed at right angles have a middle — they are brightest where
+ * they intersect, which is the axis — and the colour is graded down the length
+ * *and* out to both edges, so the beam dies into the night instead of ending in
+ * an edge. Additive geometry cannot be fixed with opacity, because the edge is
+ * in the geometry rather than in the blend.
  */
 export function buildBeaconOptic (
   rng:     SeededRng,
   palette: NordicPalette,
   options: BeaconOpticOptions,
 ): BufferGeometry {
-  const { blades, reach, spread } = options
-  const parts: BufferGeometry[]   = [
-    part(ball(0.66, 10), { color: palette.lampWarm, jitter: 0, rng }),
-  ]
+  const { reach, spread } = options
+  const blades            = Math.max(0, Math.round(options.blades))
+  const parts             = [ part(ball(0.66, 10), { color: palette.lampWarm, jitter: 0, rng }) ]
+  const lamp              = new Color(palette.lampWarm)
 
-  for (let index = 0; index < Math.max(0, Math.round(blades)); index += 1) {
-    const around = index / Math.max(1, Math.round(blades)) * Math.PI * 2
+  for (let index = 0; index < blades; index += 1) {
+    const around = index / Math.max(1, blades) * Math.PI * 2
+    const axis   = { x: Math.sin(around), z: Math.cos(around) }
 
-    // `part` rotates x, then y, then z. Laying the cone down on x and swinging
-    // it on y is therefore the one order that composes here: the apex ends up on
-    // the bearing rather than somewhere off it, which a z-then-y pair would give.
-    parts.push(part(cone(spread, reach, 5), {
-      at:     [ Math.sin(around) * reach / 2, 0, Math.cos(around) * reach / 2 ],
-      rotate: [ -Math.PI / 2, around, 0 ],
-      color:  palette.lampWarm,
-      jitter: 0,
-      rng,
-    }))
+    // Across the bearing for the flat fan, and straight up for the one crossing
+    // it. Both are ruled surfaces off the same axis, so they meet along it.
+    parts.push(beamFan(lamp, 1, (u, t) => ({
+      x: axis.x * t * reach - axis.z * u * t * spread,
+      y: 0,
+      z: axis.z * t * reach + axis.x * u * t * spread,
+    })))
+    parts.push(beamFan(lamp, UPRIGHT_WEIGHT, (u, t) => ({
+      x: axis.x * t * reach,
+      y: u * t * spread * UPRIGHT_WIDTH,
+      z: axis.z * t * reach,
+    })))
   }
 
-  const geometry = mergeParts(parts)
+  return mergeParts(parts)
+}
 
-  fadeFromLamp(geometry, reach)
+interface BeamPoint {
+  x: number
+  y: number
+  z: number
+}
+
+/**
+ * One ruled fan of light, graded to nothing at its tip and at both its edges.
+ *
+ * The grade is per *vertex* rather than per facet, which is why this is built by
+ * hand rather than through `part()`: a facet-tinted quad has a visible edge
+ * against the quad beside it, and a beam made of visible edges is a fan of
+ * planks. `1 - t` down the length and a cosine across the width are the two
+ * curves that make it read as a beam rather than as a wedge of geometry.
+ */
+function beamFan (
+  lamp:   Color,
+  weight: number,
+  at:     (u: number, t: number) => BeamPoint,
+): BufferGeometry {
+  const positions: number[] = []
+  const normals: number[]   = []
+  const uvs: number[]       = []
+  const colors: number[]    = []
+
+  const shade = (u: number, t: number): number =>
+    (1 - t) ** BEAM_FALL * Math.cos(Math.min(1, Math.abs(u)) * Math.PI / 2) ** BEAM_FLANK * weight
+
+  function push (u: number, t: number): void {
+    const point = at(u, t)
+    const level = shade(u, t)
+
+    positions.push(point.x, point.y, point.z)
+
+    // A flat normal along the fan's own plane. Nothing lights this geometry —
+    // the material is unlit and additive — but `mergeParts` requires every part
+    // to carry the same attributes, and a merge is what this is for.
+    normals.push(0, 1, 0)
+    uvs.push((u + 1) / 2, t)
+    colors.push(lamp.r * level, lamp.g * level, lamp.b * level)
+  }
+
+  for (let ring = 0; ring < BEAM_RINGS; ring += 1) {
+    // The first ring starts a fraction of a metre out rather than at the lamp,
+    // so the fan has a width to be graded across where the halo is brightest.
+    const near = (ring + 0.001) / BEAM_RINGS
+    const far  = (ring + 1) / BEAM_RINGS
+
+    for (let step = 0; step < BEAM_ACROSS; step += 1) {
+      const left  = -1 + step / BEAM_ACROSS * 2
+      const right = -1 + (step + 1) / BEAM_ACROSS * 2
+
+      push(left, near)
+      push(right, near)
+      push(right, far)
+
+      push(left, near)
+      push(right, far)
+      push(left, far)
+    }
+  }
+
+  const geometry = new BufferGeometry()
+
+  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3))
+  geometry.setAttribute('normal', new Float32BufferAttribute(normals, 3))
+  geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2))
+  geometry.setAttribute('color', new Float32BufferAttribute(colors, 3))
 
   return geometry
 }
 
-/** Dim the baked colour toward nothing at `reach` metres from the lamp. */
-function fadeFromLamp (geometry: BufferGeometry, reach: number): void {
-  const position = geometry.getAttribute('position')
-  const color    = geometry.getAttribute('color')
-
-  for (let index = 0; index < color.count; index += 1) {
-    const distance = Math.hypot(position.getX(index), position.getY(index), position.getZ(index))
-    const fade     = Math.max(0, 1 - distance / reach) ** 1.7
-
-    color.setXYZ(
-      index,
-      color.getX(index) * fade,
-      color.getY(index) * fade,
-      color.getZ(index) * fade,
-    )
-  }
-
-  color.needsUpdate = true
-}
+// perf: one beam is 60 triangles of unlit additive fill and the whole optic is
+// one geometry, merged once at build and drawn once per lantern.
