@@ -96,6 +96,7 @@ interface CompositionStats {
   footpaths:  { routes: number, length: number, longest: number }
   creek:      { head: [ number, number, number ], mouth: [ number, number, number ], length: number } | null
   pasture:    { x: number, z: number, radius: number } | null
+  mill:       { x: number, z: number, prominence: number } | null
   plots:      number
   ridges:     number
   isles:      { total: number, surfacing: number }
@@ -216,6 +217,11 @@ function compositionStats (landmass: LandmassSurvey, w: number, h: number): Comp
       x:      round(worldX(layout.pasture.x)),
       z:      round(worldZ(layout.pasture.z)),
       radius: round(layout.pasture.radius),
+    },
+    mill: layout.mill && {
+      x:          round(worldX(layout.mill.x)),
+      z:          round(worldZ(layout.mill.z)),
+      prominence: round(layout.mill.prominence, 2),
     },
     plots:  layout.plots.length,
     ridges: layout.ridges.length,
@@ -424,6 +430,9 @@ export function renderGrid (
 
       stamp(worldX(places.well.x), worldZ(places.well.z), 'o')
 
+      if (layout.mill)
+        stamp(worldX(layout.mill.x), worldZ(layout.mill.z), 'W')
+
       if (landing)
         stamp(worldX(landing.x), worldZ(landing.z), 'J')
 
@@ -464,6 +473,9 @@ export function formatStats (stats: MapStats): string {
       : 'pasture NONE') +
       `   plots ${stats.plots}   ridges ${stats.ridges}   ` +
       `isles ${stats.isles.surfacing}/${stats.isles.total} surfacing`,
+    stats.mill
+      ? `mill (${stats.mill.x},${stats.mill.z}) prominence ${stats.mill.prominence}m`
+      : 'mill NONE  <- no shoulder stood proud enough',
     `steading  ${steading}`,
     `landing ${stats.landing ? `(${stats.landing})` : 'NONE'}  ` +
       `harbour ${stats.harbour ? `(${stats.harbour})` : 'NONE'}`,
@@ -472,7 +484,8 @@ export function formatStats (stats: MapStats): string {
       `${landmass.id}/${landmass.profile} @ (${landmass.origin})  ` +
       `land ${landmass.land}% peak ${landmass.peak.height}m  ` +
       `paths ${landmass.footpaths.routes}  ` +
-      `jetty ${landmass.landing ? `(${landmass.landing})` : 'NONE'}`),
+      `jetty ${landmass.landing ? `(${landmass.landing})` : 'NONE'}  ` +
+      `mill ${landmass.mill ? `(${landmass.mill.x},${landmass.mill.z})` : 'NONE'}`),
     `waterways ${stats.waterways.legs} legs ${stats.waterways.length}m  ` +
       `connected ${stats.waterways.connected ? 'OK' : 'BROKEN'}  ` +
       `wet ${stats.waterways.wet ? 'OK' : 'DRY'}  ` +

@@ -61,6 +61,12 @@ const STILL = [
   'water.waveHeight=0',
   'boats.speed=0',
 
+  // The sails are already stopped by `wind.strength=0` above, because that is
+  // the factor their rate is scaled by. Named anyway: a capture must not depend
+  // on a second knob's value to be reproducible, and the day the gearing stops
+  // reading the wind is the day every still taken after it moves.
+  'mill.spin=0',
+
   // Both of the weather's rates. `speed` holds the front where `weather.time`
   // put it; `fall` stops the drops themselves, which are the only thing in the
   // scape that moves fast enough to be somewhere else between two frames.

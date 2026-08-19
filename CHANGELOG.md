@@ -2,6 +2,21 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## a windmill on the shoulder
+
+the exposed rise the farm never built on now has a post mill standing on it: a boarded buck on one oak post, four stone piers and two crosstrees under it, a stair down the back that reaches the ground, and four common sails turning off the sea wind.
+
+- **added** `props/mill.ts` — the post mill as a hero prop, and the sail wheel as a separate geometry. every piece of the trestle is modelled rather than implied, because the daylight under a post mill is most of what says it is one. **716 triangles**, merged into the settlement draw with everything else
+- **added** `landscape/mill.ts` — where a mill would stand, as a pure search. it scores *prominence*: the ground less the mean of eight probes twenty-two metres out. the mean and not the lowest of them, because a shoulder with one gully in it is still a shoulder, and scoring it by the gully puts every mill on the coast back in the middle of its island
+- **sited it last, after the beck**, which is the finding this run turned up rather than a preference. every other search runs before `createCreek` and hands the water another disc to miss — right when the thing being sited cannot move, and wrong for the one feature in the scape that could stand almost anywhere. sited in that queue, the mill moved a spring that had been on the same ridge for four runs and lengthened the course from **38.7 m to 53.7 m**. the mill takes the beck's centreline as a line to keep off instead, and every figure in the stats block but the footpaths is now unchanged
+- **kept the trestle on dry level ground and let the sails hang over the water.** the first version held the whole eight-metre sweep inside `landRadius` and no island but home qualified; a headland mill with a sail tip over the sea is what a headland mill looks like. what the trestle needs is a metre and a bit of level at pier spacing, which four dry-laid piers tolerate and a barn's sill does not
+- **`null` is an answer.** home and meadow build one; the ridge island does not, because every shoulder it has is too steep under a four-metre footing. `scape:map --stats` reports the site and its prominence per island, and stamps `W` on the grid, so a mill that moves on a run that did not touch the siting is visible as a number rather than as a surprise in a still
+- **added** `landscape/mill-sails.ts` — the wheels as one dynamic `InstancedMesh`, one instance per mill, **one draw for the archipelago**. the rotation is composed `'YXZ'` so the spin happens in the wheel's own plane rather than in world space, and the bounding sphere is given rather than derived, because three computes an instanced bound from the geometry at the identity and these hubs are three hundred metres apart — without it two of the three mills are culled from most poses
+- **geared the sails off the wind that already exists.** the rate is `mill.spin × wind.strength`, so a still day stops the wheel with nothing else set and no second "is it windy" number to keep in step. a stopped wheel writes no matrix and uploads no buffer. `mill.spin=0` is in `STILL` anyway, because a capture must not depend on another knob's value to be reproducible
+- **exposed** `mill.spin` (live, and on the overlay beside the wind it is scaled by), `mill.prominence` and `mill.sailSpan` (build-time, and off it). `prominence` is the switch — raise it past what the ground offers and the mills go
+- **gave the mill a footpath.** its doorstep is the foot of the tail stair, the same rule a building's doorstep follows, and the network plans a leg to it like any other place the farm walks to: **16 routes and 210 m becomes 17 and 220 m** on the home island, 12 and 13 on the meadow
+- **cost** one instanced draw and one 716-triangle merge per island, identical on every tier — `minimal` gets the mill `ultra` gets. no texture, no per-frame allocation, and three matrix writes on a frame the wind is blowing
+
 ## the sun that knows what week it is
 
 the scape's sun ran one arc at one authored noon height for every week of the year. it is solved from a latitude now, so this coast gets the year its snow and its sea ice already had: a midwinter with no daylight in it and a midsummer with no night.

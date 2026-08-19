@@ -325,6 +325,41 @@ export interface ScapeConfig {
      */
     wear: number
   }
+
+  /**
+   * The windmill on the exposed shoulder.
+   *
+   * Two build-time knobs and one live one, and the split is the usual one: where
+   * the mill *stands* is surveyed once and baked into the merged settlement, so
+   * `prominence` and `sailSpan` stay out of the overlay; how fast the wheel
+   * turns is read every frame, so `spin` is on it.
+   */
+  mill: {
+
+    /**
+     * Radians the sails turn per second at a wind strength of 1.
+     *
+     * The rate is multiplied by `wind.strength`, so the one number that already
+     * says how hard it is blowing says it here too rather than being duplicated.
+     * 0 is a mill with its brake on — and, because the strength is a factor,
+     * a still day stops the wheel without this being touched at all.
+     */
+    spin: number
+
+    /**
+     * Metres the ground has to stand above what surrounds it before a mill is
+     * built on it.
+     *
+     * The switch, and the only one. A mill wants the open shoulder nobody built
+     * on; 0 will put one on the first flat dry patch the search reaches, which
+     * is a mill in a hollow, and raising it past what an island offers takes
+     * that island's mill back out of the scape. See `landscape/mill.ts`.
+     */
+    prominence: number
+
+    /** Diameter of the sail wheel, in metres. Sized against the hub height. */
+    sailSpan: number
+  }
   dressing: DressingBudget
   wind: {
     strength: number
@@ -908,6 +943,15 @@ export const SCAPE_CONFIG = {
     width: 0.34,
     reach: 40,
     wear:  0.85,
+  },
+  // A sail wheel of 8.4 m against a hub 5.4 m up leaves the tips 1.2 m clear of
+  // the trestle's own ground at the bottom of the turn, which is about what a
+  // common-sail post mill actually had. Widen it much past nine and the sails
+  // are sweeping the heather.
+  mill: {
+    spin:       1.15,
+    prominence: 1.6,
+    sailSpan:   8.4,
   },
   // Roughly doubled against the run before this one, because the island is
   // roughly twice the ground. A budget is a *count*, not a density, so leaving

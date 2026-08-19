@@ -3,6 +3,8 @@ import type { ScapeConfig } from '../config.ts'
 import { coastWarp, sampleHeight } from '../noise.ts'
 import { createCreek } from './creek.ts'
 import type { Creek } from './creek.ts'
+import { MILL_FOOTING, findMillSite } from './mill.ts'
+import type { MillSite } from './mill.ts'
 import { distanceToPath, smoothPath } from './path.ts'
 import type { Vec2 } from './path.ts'
 
@@ -44,6 +46,9 @@ export interface ScapeLayout {
 
   /** The upland pasture, or `null` if this island has no room for one. */
   pasture: Pasture | null
+
+  /** The windmill's shoulder, or `null` if the island has no exposed rise. */
+  mill: MillSite | null
 
   /** The beck running off the high ground, or `null` if no ridge fed one. */
   creek:  Creek | null
@@ -465,12 +470,40 @@ export function createScapeLayout (config: ScapeConfig): ScapeLayout {
     ],
   )
 
+  // Last of all, and after the beck rather than before it. The mill is the only
+  // thing here that could be put almost anywhere, and the beck is the one thing
+  // that cannot be put anywhere at all — siting the mill first and handing the
+  // water another disc to miss moved a spring that had been on the same ridge
+  // for four runs. What does not negotiate goes first.
+  const mill = findMillSite(
+    {
+      ground:     (x, z) => sunkAt(config, x, z),
+      landRadius: landRadiusOf(config),
+      waterLevel: config.terrain.waterLevel,
+      prominence: config.mill.prominence,
+      sweep:      config.mill.sailSpan * 0.5,
+    },
+    yard,
+    [
+      { points: track, clearance: config.mill.sailSpan * 0.35 },
+      // The trestle clear of the channel, not the sweep. A sail may quite
+      // happily turn over running water; four dry-laid piers may not stand in
+      // it.
+      ...creek ? [{ points: creek.points, clearance: MILL_FOOTING + config.creek.width }] : [],
+    ],
+    [
+      ...plots.map(plot => ({ x: plot.x, z: plot.z, radius: Math.max(plot.halfW, plot.halfD) })),
+      ...pasture ? [{ x: pasture.x, z: pasture.z, radius: pasture.radius }] : [],
+    ],
+  )
+
   return {
     yard,
     track:      { points: track, width: config.layout.trackWidth },
     plots,
     ridges:     findRidges(config, yard),
     pasture,
+    mill,
     creek,
     extent:     config.terrain.size * 0.5,
     landRadius: landRadiusOf(config),

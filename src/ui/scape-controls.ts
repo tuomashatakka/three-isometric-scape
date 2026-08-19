@@ -335,6 +335,9 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         range('terrain.propGrain', 'timber & stone grain', 0, 1, 0.01),
         range('wind.strength', 'wind strength', 0, 3, 0.01),
         range('wind.speed', 'wind speed', 0, 4, 0.01),
+        // Scaled by the wind strength above rather than standing apart from it,
+        // so a still day already stops the wheel and this is only the gearing.
+        range('mill.spin', 'mill sails', 0, 4, 0.01),
       ],
     },
     {

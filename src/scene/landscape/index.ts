@@ -6,6 +6,7 @@ import { NOTHING_SKIPPED } from '../audit.ts'
 import type { ScapeSkips } from '../audit.ts'
 import type { ScapeConfig } from '../config.ts'
 import { createScapeMaterials } from '../props/material.ts'
+import { MILL_HUB_HEIGHT, MILL_HUB_REACH, MILL_SINK } from '../props/mill.ts'
 import type { ScapeMaterials } from '../props/material.ts'
 import { createTextureCatalogue } from '../textures/catalogue.ts'
 import type { AtmosphereQuality } from '../quality.ts'
@@ -19,7 +20,10 @@ import { createBoatFleet } from './boats.ts'
 import type { BoatFleet } from './boats.ts'
 import { createDressing } from './dressing.ts'
 import type { Dressing } from './dressing.ts'
+import { yawAlong } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
+import { createMillSails } from './mill-sails.ts'
+import type { MillHub, MillSails } from './mill-sails.ts'
 import { createArchipelagoTerrain } from './terrain.ts'
 import { createWater } from './water.ts'
 import type { Water } from './water.ts'
@@ -87,7 +91,36 @@ export function createLandscape (
   let materials: ScapeMaterials | null = null
   let dressing: Dressing | null        = null
   let fleet: BoatFleet | null          = null
+  let sails: MillSails | null          = null
   let water: Water | null              = null
+
+  /**
+   * Every mill's wheel, in world space.
+   *
+   * Resolved from the survey rather than reported back by the dressing, because
+   * the hub is a fact about where the mill *is* and not about the geometry that
+   * was raised there. `MILL_SINK` is read from the prop module for the same
+   * reason the dressing passes it: the wheel and the shaft it hangs on have to
+   * arrive at one number.
+   */
+  const millHubs: MillHub[] = archipelago.landmasses.flatMap(landmass => {
+    const { mill } = landmass.survey.layout
+
+    if (!mill)
+      return []
+
+    const x = mill.x + landmass.origin.x
+    const z = mill.z + landmass.origin.z
+
+    // Local `+z` is carried to `(cos bearing, sin bearing)` by the same yaw the
+    // prop is raised with, so the shaft reaches out along the bearing itself.
+    return [{
+      x:   x + Math.cos(mill.bearing) * MILL_HUB_REACH,
+      y:   field.heightAt(x, z) - MILL_SINK + MILL_HUB_HEIGHT,
+      z:   z + Math.sin(mill.bearing) * MILL_HUB_REACH,
+      yaw: yawAlong(mill.bearing),
+    }]
+  })
 
   const module = defineModule<Record<string, never>>({
     name: 'nordic-landscape',
@@ -132,7 +165,11 @@ export function createLandscape (
             turnLookAhead: config.boats.turnLookAhead,
           },
         })
+        sails = createMillSails({ config, hubs: millHubs, material: materials.ground })
         root.add(dressing.object, fleet.mesh)
+
+        if (sails)
+          root.add(sails.mesh)
       }
 
       ctx.scene.add(root)
@@ -160,6 +197,7 @@ export function createLandscape (
       const front = weather.sample(sky.time, now)
 
       fleet?.update(frame.delta)
+      sails?.update(frame.delta)
       materials?.update(frame.elapsed, now, front)
       water?.update(frame.elapsed, now, front, fleet?.wakeEmitters)
     },
@@ -167,6 +205,7 @@ export function createLandscape (
     dispose () {
       dressing?.dispose()
       fleet?.dispose()
+      sails?.dispose()
       water?.dispose()
 
       if (root) {
@@ -185,6 +224,7 @@ export function createLandscape (
       root      = null
       dressing  = null
       fleet     = null
+      sails     = null
       water     = null
       materials = null
     },
@@ -203,4 +243,5 @@ export function createLandscape (
 }
 
 // perf: one merged terrain draw, one water draw, one merged settlement draw,
-// one moving fleet draw, and one InstancedMesh per scattered prop type.
+// one moving fleet draw, one turning sail draw, and one InstancedMesh per
+// scattered prop type.
