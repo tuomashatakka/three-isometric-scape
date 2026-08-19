@@ -1,6 +1,7 @@
 import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
 import { buildAitta, buildBarn, buildFarmhouse, buildSauna, buildWoodshed } from './buildings.ts'
+import { buildWindmill } from './mill.ts'
 import { buildBarrel, buildDriftwood, buildFirewood, buildHayBale, buildMailbox, buildRowboat } from './objects.ts'
 import type { NordicPalette } from './palette.ts'
 import { buildBoathouse, buildMooringPost, buildNetRack } from './shore.ts'
@@ -51,6 +52,7 @@ export const PROPS = {
   woodshed:  buildWoodshed,
 
   meadowBarn: buildMeadowBarn,
+  windmill:   buildWindmill,
 
   jetty:     buildJetty,
   boathouse: buildBoathouse,
@@ -96,7 +98,7 @@ export type PropName = keyof typeof PROPS
 
 /** Placed once, by hand, then merged into the steading draw. */
 export const HERO_PROPS = [
-  'barn', 'farmhouse', 'sauna', 'aitta', 'woodshed', 'meadowBarn',
+  'barn', 'farmhouse', 'sauna', 'aitta', 'woodshed', 'meadowBarn', 'windmill',
   'jetty', 'boathouse', 'netRack', 'well', 'hayRack', 'logPile', 'flagpole',
   'bridge', 'cart', 'gate', 'rowboat', 'mailbox',
 ] as const satisfies readonly PropName[]

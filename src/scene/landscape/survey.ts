@@ -8,6 +8,7 @@ import { findHarbourBank, findLanding } from './landing.ts'
 import type { Spot } from './landing.ts'
 import { createScapeLayout, distanceToTrack } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
+import { MILL_FOOTING } from './mill.ts'
 import { planFarmNetwork } from './network.ts'
 import type { FarmNetwork } from './network.ts'
 import { STEADING_BUILDINGS, steadingPlaces } from './steading.ts'
@@ -60,8 +61,13 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
   const landing            = findLanding(layout, field, config)
   const harbour            = landing && findHarbourBank(layout, field, config, landing)
 
-  const avoid: Obstacle[] = STEADING_BUILDINGS.map(name => places[name])
-  const network           = planFarmNetwork(layout, places, [ landing, harbour ], avoid)
+  const avoid: Obstacle[] = [
+    ...STEADING_BUILDINGS.map(name => places[name]),
+    // The trestle, so a route bends round the piers rather than through them.
+    // The sail sweep is deliberately not in here — see `MILL_FOOTING`.
+    ...layout.mill ? [{ x: layout.mill.x, z: layout.mill.z, radius: MILL_FOOTING }] : [],
+  ]
+  const network = planFarmNetwork(layout, places, [ landing, harbour ], avoid)
 
   const paths = createFootpaths({
     routes:   network.routes,

@@ -33,25 +33,28 @@ bun run scape:map --layers paths,waterways,boats,buildings
 bun run scape:map --json               # for scripting
 ```
 
-the stats block is the check that catches what a still cannot — a beck that stopped tracing, an island that drowned, a pasture that never found room, footpaths that collapsed to zero, a route that crossed land or a fleet that collided. the first block is the legacy home-island shape; the landmass, waterway and boat blocks cover the full world. **read it before and after every change.**
+the stats block is the check that catches what a still cannot — a beck that stopped tracing, an island that drowned, a pasture that never found room, a mill that lost its shoulder, footpaths that collapsed to zero, a route that crossed land or a fleet that collided. the first block is the legacy home-island shape; the landmass, waterway and boat blocks cover the full world. **read it before and after every change.**
 
 ```text
 seed 7319  world 520m  home 196m  water -1.25m  grid 96x48  5.42x10.83 m/cell
 
 land 19.6%  above snowline 82%  peak 9.09m @ (17, 18)
 yard (-17,-0.7) r19    track 27pts 48.8m    landRadius 44
-footpaths 16 routes, 210m total, longest 23m
+footpaths 17 routes, 220m total, longest 23m
 creek OK  head (19,23) 7.88m -> mouth (47,46) -14.3m  len 38.7m
 pasture (34.9,-9) r6   plots 4   ridges 5   isles 15/15 surfacing
+mill (29,-19.7) prominence 6.52m
 steading  farmhouse(-8,3) barn(-16,-14) aitta(-27,6) woodshed(-28,-7) sauna(-17,16)
 landing (-26,-17)  harbour (-13,-28)
 landmasses 3
-home/home @ (0,0)  land 19.6% peak 9.09m  paths 16  jetty (-26,-17)
-ridge/ridge @ (-178,128)  land 15.1% peak 9.8m  paths 11  jetty (-151,138)
-meadow/meadow @ (178,128)  land 27% peak 5.68m  paths 12  jetty (151,126)
+home/home @ (0,0)  land 19.6% peak 9.09m  paths 17  jetty (-26,-17)  mill (29,-19.7)
+ridge/ridge @ (-178,128)  land 15.1% peak 9.8m  paths 11  jetty (-151,138)  mill NONE
+meadow/meadow @ (178,128)  land 27% peak 5.68m  paths 13  jetty (151,126)  mill (168.2,157.5)
 waterways 3 legs 809.7m  connected OK  wet OK  clearance 0.67m
 boats 3  separation 115.79m  conflicts 0
 ```
+
+`mill NONE` is a valid answer and not a failure — an island with nowhere level and exposed enough for a trestle does not get one. what would be a finding is a mill *appearing* or *moving* on a run that did not touch the siting rules, because everything the search reads is either the ground or something the farm already claimed.
 
 ### `bun run prop:map` — one prop, as ascii
 
@@ -180,6 +183,7 @@ register in [`props/index.ts`](src/scene/props/index.ts) and put the name in `HE
 | `structures.ts` | jetty, well, hay rack, gate, bridge, cart |
 | `shore.ts` | boathouse and slipway, net rack, mooring stakes |
 | `upland.ts` | meadow barn, hay drying poles |
+| `mill.ts` | the post mill and its trestle, plus the sail wheel — **the one geometry not based at `y = 0`** |
 | `vegetation.ts` | spruce, pine, birch, grass, reeds, crops |
 | `stone.ts` | erratics, field stones, cobbles, cairns |
 | `objects.ts` | hollow clinker rowboat, bales, firewood, barrel, mailbox, driftwood |
@@ -197,7 +201,7 @@ register in [`props/index.ts`](src/scene/props/index.ts) and put the name in `HE
 | --- | --- |
 | `archipelago.ts` | local surveys projected into one field, path set and port set — **the tools' entry point** |
 | `survey.ts` | one island's pure local composition, before anything is drawn |
-| `layout.ts` | yard, cart track, field plots, ridges, pasture, `sinkToIsland`, `yawAlong` |
+| `layout.ts` | yard, cart track, field plots, ridges, pasture, mill, `sinkToIsland`, `yawAlong` |
 | `height.ts` | authored ground, islets, beck, fbm underneath |
 | `steading.ts` | where the buildings stand, `faceToward`, `doorstepOf` |
 | `landing.ts` | one local shoreline, with an open-sea jetty and harbour |
@@ -208,6 +212,8 @@ register in [`props/index.ts`](src/scene/props/index.ts) and put the name in `HE
 | `boat-motion.ts` | synchronized legs, early jetty waits, seven-second dwell and bounded turns |
 | `boats.ts` | one dynamic `InstancedMesh`, plus stable live pose and wake records |
 | `creek.ts` | the beck: descent trace, channel, tidal mouth |
+| `mill.ts` | the exposed shoulder a windmill stands on, and the doorstep at the foot of its stair |
+| `mill-sails.ts` | every mill's wheel in one dynamic `InstancedMesh`, geared off `wind.strength` |
 | `terrain.ts` | shared archipelago geometry, height/slope banded colour, path wear painted in |
 | `water.ts` | baked bathymetry, swell, foam, glitter, winter ice and shader boat wakes |
 | `samplers.ts` | where the dressing throws its darts — island, disc, tread |

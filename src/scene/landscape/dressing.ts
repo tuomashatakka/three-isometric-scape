@@ -12,6 +12,7 @@ import type { PropName } from '../props/index.ts'
 import type { ScapeMaterials } from '../props/material.ts'
 import { Ploppable, baseFootprint } from '../props/ploppable.ts'
 import type { Footprint } from '../props/ploppable.ts'
+import { MILL_SINK } from '../props/mill.ts'
 import { buildStoneWallRun } from '../props/wall.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from './archipelago.ts'
@@ -387,6 +388,21 @@ export function createDressing (
 
     if (survey.harbour)
       raiseHarbour(survey.harbour)
+
+    // The windmill, out on the shoulder the survey found for it. Merged rather
+    // than plopped, unlike the five farmstead buildings: a mill stands on four
+    // dry-laid piers and the search already refused ground the trestle could
+    // not sit level on, so there is nothing here for a cut foundation to do.
+    // The reserve is what it does need — the solver has no idea the mill exists,
+    // and a spruce grown inside the sail sweep is a spruce being turned into
+    // firewood four times a minute.
+    if (layout.mill) {
+      const millX = layout.mill.x + ox
+      const millZ = layout.mill.z + oz
+
+      placeHero('windmill', millX, millZ, yawAlong(layout.mill.bearing), MILL_SINK)
+      solver.reserve(millX, millZ, config.mill.sailSpan * 0.5 + 1)
+    }
 
     // A bridge only earns its place where the track has something to cross.
     const crossing = findCrossing(layout, survey.field, localConfig)

@@ -2,6 +2,7 @@ import { CLEARANCE } from './footpath.ts'
 import type { FootpathRoute, Obstacle } from './footpath.ts'
 import { plotInfluence } from './layout.ts'
 import type { Plot, ScapeLayout } from './layout.ts'
+import { millDoorstep } from './mill.ts'
 import { distanceToPath } from './path.ts'
 import type { Vec2 } from './path.ts'
 import { STEADING_BUILDINGS, doorstepOf } from './steading.ts'
@@ -43,7 +44,7 @@ export interface Waypoint extends Vec2 {
   name: string
 
   /** What kind of place it is. Carried for the debug tools, not used in planning. */
-  kind: 'well' | 'door' | 'field' | 'meadow' | 'shore'
+  kind: 'well' | 'door' | 'field' | 'meadow' | 'mill' | 'shore'
 }
 
 /** One planned leg, as a pair of indices into the waypoint list. */
@@ -225,6 +226,16 @@ export function farmWaypoints (
       name: 'pasture',
       kind: 'meadow',
     })
+
+  // The mill's door is at the top of its tail stair, so the place walked to is
+  // the foot of the stair — the same rule as a building's doorstep, and for the
+  // same reason: a leg ending under the buck would have to be dragged back out
+  // from between the quarter bars.
+  if (layout.mill) {
+    const step = millDoorstep(layout.mill)
+
+    points.push({ x: step.x, z: step.z, name: 'mill', kind: 'mill' })
+  }
 
   const anchors = points.map(point => ({ x: point.x, z: point.z }))
 

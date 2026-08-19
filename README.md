@@ -184,7 +184,7 @@ src/
     ├── landscape/
     │   ├── survey.ts               the pure composition, before anything is drawn
     │   ├── archipelago.ts          every inhabited island, joined by what faces the world
-    │   ├── layout.ts               yard, cart track, field plots, ridges, pasture
+    │   ├── layout.ts               yard, cart track, field plots, ridges, pasture, mill
     │   ├── height.ts               authored ground, islets, beck, fbm underneath
     │   ├── steading.ts             where the buildings stand, and which way they face
     │   ├── landing.ts              the shoreline the jetty and the harbour are on
@@ -193,6 +193,8 @@ src/
     │   ├── footpath.ts             a planned leg traced into a worn line
     │   ├── cart-ruts.ts            the wheel lines worn down the cart track
     │   ├── creek.ts                the beck: descent trace, channel, tidal mouth
+    │   ├── mill.ts                 the exposed shoulder a windmill would stand on
+    │   ├── mill-sails.ts           every mill's wheel, turning in one instanced draw
     │   ├── waterway.ts             the navigable water between the ports
     │   ├── boats.ts                the fleet, and the wake it leaves
     │   ├── boat-motion.ts          one shared departure clock, one leg each
@@ -217,6 +219,7 @@ src/
         ├── structures.ts           jetty, well, hay rack, gate, bridge, cart
         ├── vegetation.ts           spruce, pine, birch, grass, reeds, crops
         ├── upland.ts               meadow barn, hay drying poles
+        ├── mill.ts                 the post mill, its trestle and its sail wheel
         ├── shore.ts                boathouse and slipway, net rack, mooring stakes
         ├── objects.ts              rowboat, bales, firewood, barrel, mailbox, driftwood
         └── stone.ts                erratics, field stones, cobbles, cairns
@@ -447,6 +450,22 @@ up the slope from the steading there is a walled hay meadow: a drystone wall, a 
 **it has to agree with the ground that gets built.** `height.ts` sinks the raw fbm into the island before anything else touches it, and the layout searches run before `height.ts` exists — so they were reading a height the terrain would never have. `sinkToIsland` is now that falloff, in one place, called by the height field *and* by the search that has to predict it. two approximations of the same curve is exactly how a wall gets built on the sea.
 
 the barn is set hard against the back wall: a building's claim on the solver is a circle around its longest half, which on a twelve-metre enclosure is most of the enclosure, and pushing it back leans that circle onto the wall's own claims instead of onto the meadow.
+
+## the mill on the shoulder
+
+out on the exposed rise the farm never built on there is a post mill: a boarded buck on a single oak post, four stone piers and two crosstrees under it, a stair down the back that reaches the ground, and four common sails turning off the sea wind. the geometry is [`props/mill.ts`](src/scene/props/mill.ts), where it stands is [`landscape/mill.ts`](src/scene/landscape/mill.ts), and the wheel that turns is [`landscape/mill-sails.ts`](src/scene/landscape/mill-sails.ts).
+
+**a mill is sited by a question the rest of the farm never asks: is there any wind here.** the yard search wants the flattest sheltered ground the island has and the pasture search wants high ground the farm is not already using — a mill wants neither of those, it wants the open shoulder. so `findMillSite` scores *prominence*: the ground's height less the mean of a ring of eight probes twenty-two metres out. the mean rather than the lowest of them, because a shoulder with one gully cutting into it is still a shoulder, and scoring it by the gully moves every mill on the coast back into the middle of its island.
+
+**it is sited last, after the beck, and that is the finding this feature turned up.** every other search runs before `createCreek` and hands the water a disc to miss, which is the right order when the thing being sited cannot move. a mill *can* move — it is the one feature in the scape that could stand almost anywhere — so putting it in that queue meant the beck was routed around it, and the first working version moved a spring that had been on the same ridge for four runs and lengthened the course by fifteen metres. what does not negotiate goes first. the mill now takes the beck's own centreline as a line to keep off, at the trestle's footing plus a channel width.
+
+**the trestle has to be on dry level ground; the sails do not.** the sweep is held clear of the field plots, the pasture and the cart track, but the wheel is allowed out past `landRadius` and over the water — a headland mill with a sail tip over the sea is what a headland mill looks like, and holding the whole eight-metre sweep inland is what stopped the smaller islands qualifying at all. what the *trestle* needs is a metre and a bit of level, measured as the spread of four probes at pier spacing, because four dry-laid piers tolerate a slope a barn's sill does not.
+
+**`null` is an answer.** at the default seed the home and meadow islands each build one and the ridge island does not: every shoulder it has is too steep under a four-metre footing. `scape:map --stats` says so per island rather than leaving it to be noticed. `mill.prominence` is the switch — raise it past what the ground offers and the mills go, which is the same shape as every other absence in this scape and for the same reason.
+
+**the wheel is the one part of a building here that cannot be merged.** everything else in the settlement is baked into one geometry at build; sails turn, so they are their own `InstancedMesh` with one instance per mill and one draw for the archipelago. its bounding sphere is *given* rather than derived, because three computes an instanced bound from the geometry at the identity and these hubs are three hundred metres apart — without it two of the three mills are culled from most poses. the rate is `mill.spin` scaled by `wind.strength`, so the knob that already says how hard it is blowing turns the wheel too, and a still day stops it with nothing else set. a stopped wheel writes no matrix and uploads no buffer.
+
+**the hub is one number in two places, so it is one constant.** the windshaft is modelled into the mill and the wheel is placed by a different module entirely; `MILL_HUB_HEIGHT`, `MILL_HUB_REACH` and `MILL_SINK` are exported from the prop and read by both, and the test that says no sail tip reaches the ground is stated against those constants rather than against a screenshot.
 
 ## the boat harbour
 
