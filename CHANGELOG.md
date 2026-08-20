@@ -107,7 +107,13 @@ the beams showed over land and vanished over water, at about half the headings o
   above it — checked against every tier *and* `unlockEffects`
 - **cost: `same` on all six tour poses**, structural unchanged — and that is *not* the proof it looks like. the tour never aims at the lighthouse, which sits far
   out at the rim, so no tour pose exercised the fix either way. what the six poses do prove is that renumbering rain, clouds, aurora and the night sky disturbed
-  **nothing**. the beams themselves want an aimed capture, and that has not been taken yet
+  **nothing**
+- **the aimed capture, since taken.** `--poses beacon` is a capture set in its own right now: the light itself, at night, from **four headings 90° apart** — because a
+  tie broken by projected depth flips with yaw, so a single heading can only ever photograph one side of the flip. against `d6ed866^` it reads `beacon-0` **same**,
+  `beacon-90` **same**, `beacon-180` **changed 1.15%**, `beacon-270` **changed 1.25%** — max block 67% and 99%, which is a beam appearing rather than noise drifting.
+  that is the shape the diagnosis predicted *and* the shape a real fix has: the two headings that already threw a beam did not move, and the two that showed bare
+  water now throw one. `.scape/ref-shots` also stopped being keyed on the commit alone — tier, size and the rest of the shot knobs are stamped beside it, because a
+  ref reused across a `--tier` change compares two different scapes and calls it a regression
 
 ## seven things that were never about this scape
 

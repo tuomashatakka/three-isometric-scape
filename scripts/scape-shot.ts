@@ -38,6 +38,28 @@ export const TOURS: Record<string, Pose[]> = {
     { name: 'winter', season: 0.02 },
   ],
 
+  /**
+   * The lighthouse, from four sides, at night.
+   *
+   * The tour aims at nothing in particular and the beacon is 74.7 metres out to
+   * the south-east, so no pose in it has ever had the tower in frame — which is
+   * how a heading-dependent beam bug survived six green diffs. These four sit on
+   * the light itself and turn all the way around it, because the failure was a
+   * render-order tie broken by projected depth: it flips with the camera's yaw,
+   * and a single heading can only ever photograph one side of the flip.
+   *
+   * The view size is chosen so the shoreline is still in the corner. Beams over
+   * water and beams over ground in the same frame is the whole comparison.
+   */
+  beacon: [ 0, 90, 180, 270 ].map(rot => ({
+    name:   `beacon-${rot}`,
+    rot,
+    zoom:   90,
+    time:   0.02,
+    season: 0.78,
+    set:    [ 'camera.focusX=60.9', 'camera.focusZ=39.3' ],
+  })),
+
   // The cheap pass: is there a scape at all, and does it survive being drawn.
   quick: [{ name: 'default' }],
 }
@@ -353,7 +375,7 @@ async function main (): Promise<void> {
     console.log([
       'scape:shot — the scape, from a pose, without anybody watching',
       '',
-      '  --poses tour          named set: tour (6 frames) | quick (1)',
+      '  --poses tour          named set: tour (6) | beacon (4, the light) | quick (1)',
       '  --rot 45 --zoom 70    camera yaw, and view size (tilt is derived from zoom)',
       '  --time 0.42           the day, 0..1',
       '  --season 0.5          the year, 0..1',

@@ -155,12 +155,15 @@ both are real urls. `esc` returns to the sheet, `1`–`4` solo a pane, `0` resto
 ```sh
 bun run scape:shot                                  # one frame, default pose
 bun run scape:shot --poses tour                     # 6 frames, one browser launch
+bun run scape:shot --poses beacon                   # the light, 4 headings, at night
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain
 ```
 
 `tour` is `default`, `near`, `far`, `noon`, `night`, `winter`. `night` pins a week as well as an hour, because the sun runs a seasonal arc and the config opens at a midsummer that has no night in it. every capture prints a line before anything opens the image, and most runs need only that line:
+
+`beacon` is the second set: the light itself, at night, from four headings 90° apart, aimed by `camera.focusX`/`focusZ` rather than by zoom. it exists because the beams' bug was a render-order tie broken by *projected depth*, and that flips with yaw — one heading can only ever photograph one side of the flip, and no pose in `tour` has the tower in frame at all. reach for it whenever the change touches the transparent stack.
 
 ```text
 near   ok   6.2s  fps  11.4  draws   77  tris 0.47M  f  43  err 0  -> .scape/shots/near.png
@@ -199,7 +202,7 @@ a later `--ref` run reuses it and does only the half that depends on the change:
 it warms the **tour** by default rather than the single default pose, because that is what stage 5 asks for; a cache of the wrong six pictures is correctly rejected
 and rebuilt, which is a head start that costs exactly as much as no head start.
 
-the reuse is keyed on the commit, written to `.scape/ref-shots/.ref-sha` beside the images. shots on disk say nothing about what they are shots *of*, so without
+the reuse is keyed on the commit **and on every knob that changes the picture** — tier, ratio, aa, post, skip, size, frames, stillness and `--set` — written to `.scape/ref-shots/.ref-sha` beside the images. shots on disk say nothing about what they are shots *of*, so without
 that a run reuses whatever the last one happened to leave behind. a mismatched sha, or any missing pose, rebuilds.
 
 builds the reference in a detached git worktree, serves both, captures the same poses through both, prints a table. an image is written **only** for a pose that moved past `--threshold`. the `structural:` line runs `scape:map --json` on both sides, tolerates the older single-island json shape, and compares landmasses, jetties, waterways and fleet safety when present.
@@ -471,4 +474,4 @@ the beacon's lamp glows. anything that should glow should be *made bright enough
 7. **a budget is a count, not a density.** growing the island without growing the budgets thins everything standing on it.
 8. **things sized in metres do not survive a change of scale.** express constants against `terrain.size` unless they are genuinely metres.
 9. **`scape:shot` and `scape:diff` default to `--tier mobile`, and mobile draws the ground with the one-tap lite path.** the normal map, the parallax relief and the macro octave all live on the six-tap path, so a change to any of them photographs as **exactly 0.00% on every pose** at the default tier — not a subtle difference, an identical file. that is the gate working, measured on the tier the gate turns it off on. it cost a full round of "the effect is not visible" debugging, up to painting the branch bright red and watching nothing happen. **any change to the detail injection in `props/material.ts` has to be captured with `--tier desktop`**, and a diff table quoted without one proves only that mobile still links.
-10. **a cached `scape:diff` reference was keyed on the commit and nothing else.** the prewarm sentinel stamped the sha, so a reference warmed at the default `--tier mobile` was happily reused for a `--tier desktop` head side — and the tiers do not merely look different, they build different programs. the table read `near 44.67% CHANGED / default 28.61% CHANGED` for a change whose actual subject moved a few pixels, and nothing in the output admitted the two halves were different tiers. the sentinel now stamps `captureShape(args)` — tier, ratio, skip, aa, post, size, still and gpu — beside the sha, and `scape-diff.test.ts` asserts each of those moves the key and that the port and the pose list do not. fixed, but worth knowing that a diff table is only ever as honest as what it thinks it is comparing.
+10. **a cached `scape:diff` reference was keyed on the commit and nothing else.** the prewarm sentinel stamped the sha, so a reference warmed at the default `--tier mobile` was happily reused for a `--tier desktop` head side — and the tiers do not merely look different, they build different programs. the table read `near 44.67% CHANGED / default 28.61% CHANGED` for a change whose actual subject moved a few pixels, and nothing in the output admitted the two halves were different tiers. fixed twice, independently and on the same day: `refStamp(rev, args)` now folds tier, ratio, aa, post, skip, size, frames, `--set` and the still flag into the sentinel, and `scape-diff.test.ts` asserts each of those moves the key while the port and the pose list do not. fixed, but worth knowing that a diff table is only ever as honest as what it thinks it is comparing.
