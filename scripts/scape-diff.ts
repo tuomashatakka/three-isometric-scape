@@ -256,13 +256,32 @@ async function resolveRef (ref: string): Promise<string> {
 const REF_SHOTS    = '.scape/ref-shots'
 const REF_SENTINEL = join(REF_SHOTS, '.ref-sha')
 
-async function refShotsMatch (rev: string, poses: readonly Pose[]): Promise<boolean> {
+/**
+ * What the shots on disk are shots *of*.
+ *
+ * The commit alone is not enough. Every knob below changes the picture without
+ * changing the ref, so a run that reused shots taken at another tier — or
+ * another size, or with a family skipped — would be comparing two different
+ * scapes and reporting the difference as a regression. Any mismatch rebuilds.
+ */
+function refStamp (rev: string, args: ReturnType<typeof parseArgs>): string {
+  const knobs = [ 'tier', 'ratio', 'aa', 'post', 'skip', 'size', 'frames' ]
+    .map(name => `${name}=${args.str(name) ?? ''}`)
+    .join(' ')
+
+  return `${rev} ${knobs} still=${!args.has('no-still')} set=${args.list('set').join(',')}`
+}
+
+async function refShotsMatch (
+  stamp: string,
+  poses: readonly Pose[],
+): Promise<boolean> {
   if (!existsSync(REF_SENTINEL))
     return false
 
   const stamped = (await Bun.file(REF_SENTINEL).text()).trim()
 
-  return stamped === rev && poses.every(pose => existsSync(join(REF_SHOTS, `${pose.name}.png`)))
+  return stamped === stamp && poses.every(pose => existsSync(join(REF_SHOTS, `${pose.name}.png`)))
 }
 
 async function prepareRef (rev: string): Promise<string> {
@@ -302,14 +321,15 @@ async function prepareReference (
   poses:  readonly Pose[],
   args:   ReturnType<typeof parseArgs>,
 ): Promise<{ tree: string; reused: boolean }> {
-  const rev  = await resolveRef(target)
-  const tree = await prepareRef(rev)
+  const rev   = await resolveRef(target)
+  const tree  = await prepareRef(rev)
+  const stamp = refStamp(rev, args)
 
-  if (await refShotsMatch(rev, poses))
+  if (await refShotsMatch(stamp, poses))
     return { tree, reused: true }
 
   await capture(tree, args.num('port', 4186), REF_SHOTS, poses, args)
-  await Bun.write(REF_SENTINEL, `${rev}\n`)
+  await Bun.write(REF_SENTINEL, `${stamp}\n`)
 
   return { tree, reused: false }
 }
