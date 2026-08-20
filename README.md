@@ -85,6 +85,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a working boat harbour: a boathouse on piles with a slipway, a net rack, and stakes in the shallows
 - a walled upland hay meadow with a barn, a gate and drying poles
 - a lighthouse on the outermost rock of the ring, throwing beams that sweep the water from dusk until dawn
+- gull colonies wheeling over every harbour mouth and over the outer rock, banking into the turn, down at night and mostly down in a squall
 - a beck traced downhill from a spring, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself
 - **three clocks** — a day, a year, and a weather front — each a phase and a speed, each deriving everything else from that phase
 - a solar arc solved from a latitude — a polar night at midwinter, a midnight sun at midsummer — with dusk and night palettes derived from it, plus seasonal growth, leaf turn, lying snow, sea ice, sea smoke, and rain that leaves the ground wet
@@ -184,6 +185,7 @@ src/
     ├── season.ts                   clock two: growth, turn, snow, ice, sea smoke
     ├── weather.ts                  clock three: the front, what falls, how long it stays wet
     ├── rain.ts                     the fall, as one screen-sized column of streaks
+    ├── birds.ts                     the gulls, and the rings they wheel on
     ├── lut.ts                      cached cinematic colour-grade recipes
     ├── mist.ts                     ground-mist sheets, and the sea smoke off the coast
     ├── noise.ts                    deterministic height sampler
@@ -206,6 +208,7 @@ src/
     │   ├── cart-ruts.ts            the wheel lines worn down the cart track
     │   ├── creek.ts                the beck: descent trace, channel, tidal mouth
     │   ├── beacon.ts               the outer rock a light would stand on
+    │   ├── colony.ts              the open water a flock can wheel over without crossing land
     │   ├── mill.ts                 the exposed shoulder a windmill would stand on
     │   ├── mill-sails.ts           every mill's wheel, turning in one instanced draw
     │   ├── waterway.ts             the navigable water between the ports
@@ -531,6 +534,28 @@ a boathouse stands in the next cove along from the landing, a net rack dries gea
 **the boathouse is anchored to the water, not to the ground.** the five farmstead buildings are `Ploppable`s that level a floor and grow a foundation down onto the terrain — do that here and the foundation buries the one part that has to be open, the mouth and the slipway running out of it under the surface. so it is placed at the waterline the way the jetty is, on its own piles, and pushed a little seaward so the back of the shed cuts into the slope the way a real one is dug in. being a hero prop it merges into the steading geometry, so the whole harbour costs no draw call at all.
 
 **a stake belongs to whoever drove it.** the mooring posts are the one scattered prop with a *placement* rule rather than a terrain rule: shallows, but only within thirty metres of the harbour. scattered on depth alone they would ring every islet in the archipelago, which says the opposite of what a harbour says.
+
+## the gulls
+
+over every harbour mouth in the archipelago, and over the rock the light stands on, a flock of gulls wheels. where a flock can hang is [`landscape/colony.ts`](src/scene/landscape/colony.ts); the birds themselves are [`scene/birds.ts`](src/scene/birds.ts).
+
+**a colony is sited by a ring, not by a point.** the obvious version walks one step seaward off the bank, finds deep water, and puts the flock there — and half the circle is then over the beach, because a centre over water is a different claim from a *ring* clear of the land. every candidate is tested all the way round before it is accepted, at one bearing every metre and a half rather than at a fixed count of them: sixteen bearings around a ring the width of a harbour mouth is four metres between samples, which steps clean over a skerry. the test in `colony.test.ts` states it as a fact about the ground — sixty-four bearings on every ring, all of them under the waterline.
+
+**the widest ring the coast will hold, not the first that fits.** the first candidate that fits anything at all is a step off a warped shore, where the ring is squeezed to nine metres and sixty birds fly through each other; a few metres further out the bay opens and the same flock has room to be a wheel. so the search keeps the best and only lets distance break a tie, which is the difference between a flock and a clot. at the default seed three of the four colonies get the full 28 m they asked for, and the home island's own harbour — the most enclosed bank in the archipelago — gets 24.1 m.
+
+**two anchors per island, and no fallback.** the harbour it lands its boats at, and the outer rock it built its light on — the two places on a coast a gull has a reason to be. an island with neither contributes nothing, and a bank with no room for even a reduced ring loses its flock rather than having one dropped somewhere arbitrary. `scape:map --stats` prints `gulls 4/4 colonies` with every centre and radius, because a flock is four pixels wide at the default pose and a missing one is invisible in a still.
+
+**a bird is eight vertices, and there is no body in it.** two wing quads meeting at a shoulder whose chord is 22% of the wingspan either side, which from the only angle this camera has *is* the body. everything else — the bearing round the ring, the bank into the turn, the sweep of the wing, the beat — happens in the vertex stage from two accumulating scalars, so the whole archipelago's birdlife is one draw call off one static buffer with nothing uploaded per frame.
+
+**the rates are quantised for the same reason the rain's are.** one scalar accumulates radians and every bird reads it at its own rate, so it has to be wrapped or it grows into a float that can no longer resolve a degree. wrapping is only invisible if every bird lands back on the bearing it started on, which needs `wrap × rate` to be a whole number of turns for *every* rate in the buffer — impossible with a continuous spread. five rates a fifth apart, wrapped at five turns, satisfies all of them at once.
+
+**banking is what makes a ring read as a wheel.** from above, a level bird and a banked one differ only in how much wing you can see, so a flock of level birds is a ring of cardboard however well each one is shaped. the wing plane is rolled a third of a radian into the turn, and the sign comes off the bird's own rate, so a colony that circles the other way banks the other way without a second attribute.
+
+**a gull is one colour.** the grey back is that white at 55% and the black tips are it at 16%, the way the star field carries one colour and takes its warm end from the scape's own dusk. three palette entries would be three things to keep in one family by hand, and the first retune is when they stop being in one.
+
+**the one place the birds are sized against the frame.** a capture is five hundred pixels tall and the default pose is five hundred metres of sea, so a metre is a pixel and an honest 1.6 m wingspan is a pixel and a half — which is not a bird, it is grain, and the film grain on top of it makes sure of that. so the wingspan has a floor at 1.8% of the view: below about ninety metres of view the floor stops binding and a gull is exactly as wide as the config says, and above it the bird holds a legible mark the way a chart holds a symbol however far out it is drawn. everything else about them — the ceiling, the ring, the bob — stays in metres and stays there when the world or the camera grows.
+
+**they are down at night, and mostly down in a squall.** `birdsAloft` is the whole rule: the daylight fades them in through dusk and out again, and `weather.fall` keeps seven tenths of what is left on the water. neither threshold is a knob — a gull's working day is a fact about the light rather than a thing to tune — and `birds.flight` is the one strength that scales all of it, including to nothing. that is also why the tour's `night` and `winter` poses read `same`: at 68° north the midwinter pose is a polar night, and there are no birds up in it.
 
 ## the clock
 

@@ -80,6 +80,12 @@ export const STILL = [
   // poses — night and winter — a diff is most sensitive at.
   'beacon.turn=0',
 
+  // Both of the flock's rates. The sweep is what carries a gull round its ring
+  // and the beat is what its wings are doing while it goes — two integrals, two
+  // ways for the same bird to be somewhere else in the next frame.
+  'birds.speed=0',
+  'birds.flap=0',
+
   // Both of the weather's rates. `speed` holds the front where `weather.time`
   // put it; `fall` stops the drops themselves, which are the only thing in the
   // scape that moves fast enough to be somewhere else between two frames.
