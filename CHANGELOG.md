@@ -2,6 +2,29 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the last of the reinvention, and one split not made
+
+the prop viewer built its own renderer. it now takes the runtime's — and the two things that looked like the same job, but were not, are written down rather than
+left to be rediscovered.
+
+- **the quad view takes `createRenderer`**, with both of its flattering defaults off. shadows have nothing to fall on in an inspection stage, and ACES is a *film*
+curve: it rolls off exactly the highlights this page exists to let you read. a viewer that grades what it shows cannot be measured from, so `NoToneMapping` keeps
+it neutral — which is what three does by default, and therefore what it did before. the win is small and real: the context attributes and the pixel-ratio cap now
+live in one place
+- **not `attachResizeObserver`.** it watches the canvas's *parent* where this watches the canvas, and the camera it keeps in sync is a perspective one. four
+orthographic frustums and four pane rectangles are recomputed on every resize here regardless, so routing through it would add a layer that does none of the work
+and quietly changes which element is measured
+- **not the contact sheet either.** it needs `preserveDrawingBuffer` so each thumbnail can be read back out of the canvas, and the factory does not expose that
+context attribute. a candidate for the next upstream batch; not a reason to cut a release on its own
+- **and `main.ts` was not split.** the plan said to, on the grounds that it was six hundred lines of three unrelated state machines. it is **313 effective lines** —
+under half the enforced 666, and not in the five largest files in the repository. the case for splitting it was a number that turned out to be the raw line count
+of a file that is largely documentation. splitting it anyway would be an unrelated micro-edit with no headline, which is the definition of a bad run
+
+**verified where a capture cannot see.** `/props.html` is not in any tour pose, so both pages were opened in a browser: four panes in their own quadrants at
+device ratio 2 rather than a squared 4, the whole roster drawing in the contact sheet, and the same ungraded look as before.
+
+**cost: nothing.** `scape:diff --ref origin/main --poses tour` reads `same` on all six poses.
+
 ## the gesture rig we already had
 
 the camera's pointer handling was a hand-rolled multi-touch state machine: a map of live pointers, a two-finger frame, tap detection, capture. the runtime ships

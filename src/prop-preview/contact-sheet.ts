@@ -80,8 +80,15 @@ function buildSheet (): Sheet {
   canvas.width  = WIDTH
   canvas.height = HEIGHT
 
+  // Not `createRenderer`, unlike the quad view: this one needs
+  // `preserveDrawingBuffer` so each thumbnail can be read back out of the
+  // canvas after it is drawn, and the factory does not expose that context
+  // attribute. A candidate for the next upstream batch, not a reason to cut a
+  // release on its own.
   const renderer = new WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true })
 
+  // Fixed at 1 on purpose. Every card is the same size whatever display this
+  // opens on, so the sheet is comparable between machines.
   renderer.setPixelRatio(1)
   renderer.setSize(WIDTH, HEIGHT, false)
   renderer.setClearColor(new Color('#12150f'), 1)

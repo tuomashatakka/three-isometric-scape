@@ -10,12 +10,14 @@ import {
   HemisphereLight,
   Mesh,
   MeshStandardMaterial,
+  NoToneMapping,
   OrthographicCamera,
   Scene,
   Sphere,
   Vector3,
-  WebGLRenderer,
 } from 'three'
+import type { WebGLRenderer } from 'three'
+import { createRenderer } from 'threejs-scene'
 
 
 /**
@@ -165,9 +167,18 @@ interface Stage {
  * this page exists to find.
  */
 function buildStage (canvas: HTMLCanvasElement): Stage {
-  const renderer = new WebGLRenderer({ canvas, antialias: true })
+  // The runtime's bootstrap, with both of its flattering defaults turned off.
+  // Shadows have nothing to fall on here, and ACES is a *film* curve: it rolls
+  // off the highlights, which is the half of a facet this page exists to let
+  // you read. A viewer that grades what it shows cannot be measured from.
+  const renderer = createRenderer({
+    canvas,
+    shadows:     false,
+    toneMapping: NoToneMapping,
+  })
 
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+  // Four panes, one canvas: each is cleared and drawn inside its own scissor
+  // rectangle rather than the renderer clearing the whole frame per pass.
   renderer.autoClear = false
   renderer.setScissorTest(true)
 
@@ -483,6 +494,11 @@ export function createQuadView (canvas: HTMLCanvasElement, initial: QuadViewOpti
   canvas.addEventListener('pointercancel', onPointerUp)
   canvas.addEventListener('wheel', onWheel, { passive: false })
 
+  // Deliberately not `attachResizeObserver`: it watches the canvas's *parent*
+  // where this watches the canvas, and the camera it keeps in sync is a
+  // perspective one. Four orthographic frustums and four pane rectangles are
+  // recomputed in `resize` regardless, so routing through it would add a layer
+  // that does none of the work and changes which element is measured.
   const observer = new ResizeObserver(resize)
   observer.observe(canvas)
 
