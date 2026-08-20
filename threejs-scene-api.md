@@ -19,7 +19,7 @@ problem, it was that nothing here said what was already available.
 | `App` | interface | — |
 | `AppCameraOptions` | interface | — |
 | `AppLoopOptions` | interface | — |
-| `AppModule` | interface | src/scene/clouds.ts, src/scene/vitals.ts, src/scene/rain.ts +9 |
+| `AppModule` | interface | src/scene/mist.ts, src/scene/camera-controls.ts, src/scene/aurora.ts +10 |
 | `AppOptions` | interface | — |
 | `AppSceneOptions` | interface | — |
 | `attachPointerGesture` | function | src/scene/camera-controls.ts |
@@ -32,10 +32,10 @@ problem, it was that nothing here said what was already available.
 | `createFollowCamera` | function | — |
 | `createFrameLoop` | function | — |
 | `createIsoCamera` | function | src/scene/create-isometric-scape.ts |
-| `createRenderer` | function | src/prop-preview/quad-view.ts, src/scene/create-isometric-scape.ts |
-| `createSeededRng` | function | src/prop-preview/main.ts, src/prop-preview/contact-sheet.ts, src/scene/rain.ts +18 |
+| `createRenderer` | function | src/scene/create-isometric-scape.ts, src/prop-preview/quad-view.ts |
+| `createSeededRng` | function | src/scene/beacon.ts, src/scene/landscape/survey.ts, src/scene/landscape/dressing.ts +19 |
 | `createStore` | function | src/context-recovery.ts |
-| `defineModule` | function | src/scene/clouds.ts, src/scene/vitals.ts, src/scene/rain.ts +8 |
+| `defineModule` | function | src/scene/mist.ts, src/scene/camera-controls.ts, src/scene/aurora.ts +9 |
 | `Disposable` | interface | — |
 | `disposeMaterial` | function | — |
 | `disposeMesh` | function | — |
@@ -57,21 +57,21 @@ problem, it was that nothing here said what was already available.
 | `PointerGestureCallbacks` | interface | — |
 | `PointerGestureOptions` | interface | — |
 | `readNumberPath` | function | src/ui/graphics-panel.ts |
-| `readPath` | function | src/ui/settings-store.ts, src/ui/settings-store.test.ts, scripts/scape-shot.test.ts |
+| `readPath` | function | src/ui/settings-store.test.ts, src/ui/settings-store.ts, scripts/scape-shot.test.ts |
 | `readTextPath` | function | src/ui/graphics-panel.ts |
 | `Reducer` | type | — |
 | `RendererOptions` | interface | — |
 | `ResizeHandler` | type | — |
 | `resizeIsoCamera` | function | src/scene/camera-controls.ts |
 | `SceneContext` | interface | src/scene/atmosphere.ts, src/scene/vitals.test.ts |
-| `SeededRng` | interface | src/scene/props/vegetation.ts, src/scene/props/stone.ts, src/scene/props/buildings.ts +14 |
+| `SeededRng` | interface | src/scene/landscape/dressing.ts, src/scene/landscape/samplers.ts, src/scene/landscape/dressing-zones.ts +15 |
 | `Size` | interface | — |
-| `smoothstep` | function | src/scene/clouds.ts, src/scene/season.ts, src/scene/noise.ts +14 |
+| `smoothstep` | function | src/scene/mist.ts, src/scene/daylight.ts, src/scene/camera-controls.ts +15 |
 | `Store` | interface | src/context-recovery.ts |
 | `StoreListener` | type | — |
 | `valueNoise1d` | function | src/scene/landscape/cart-ruts.ts |
 | `Vec3` | type | — |
-| `writePath` | function | src/ui/settings-store.ts, src/ui/graphics-panel.ts, src/ui/settings-store.test.ts +2 |
+| `writePath` | function | src/ui/settings-store.test.ts, src/ui/graphics-panel.ts, src/ui/settings-store.ts +2 |
 
 ## `threejs-scene/modules/lighting`
 
@@ -209,7 +209,7 @@ problem, it was that nothing here said what was already available.
 | `applyTaper` | function | src/scene/props/vegetation.ts |
 | `applyTwist` | function | — |
 | `ASCII_SHADES` | const | scripts/prop-map.test.ts |
-| `ASCII_VIEWS` | const | scripts/prop-map.test.ts, scripts/prop-map.ts |
+| `ASCII_VIEWS` | const | scripts/prop-map.ts, scripts/prop-map.test.ts |
 | `AsciiRasterOptions` | interface | — |
 | `AsciiRasterResult` | interface | — |
 | `AsciiView` | interface | — |
@@ -217,15 +217,15 @@ problem, it was that nothing here said what was already available.
 | `ASSET_MANIFEST` | const | — |
 | `AssetManifestEntry` | interface | — |
 | `AssetMaterialPresetName` | type | — |
-| `auditPalette` | function | scripts/prop-map.test.ts, scripts/prop-map.ts |
+| `auditPalette` | function | scripts/prop-map.ts, scripts/prop-map.test.ts |
 | `Axis` | type | — |
 | `AxisName` | type | — |
 | `bakeFacetColors` | function | — |
-| `ball` | const | src/scene/props/vegetation.ts, src/scene/props/objects.ts, src/scene/props/beacon.ts +2 |
+| `ball` | const | src/scene/props/shore.ts, src/scene/props/vegetation.ts, src/scene/props/beacon.ts +2 |
 | `blade` | const | src/scene/props/vegetation.ts |
 | `BoatOptions` | interface | — |
 | `boatProp` | function | — |
-| `box` | const | src/scene/props/vegetation.ts, src/scene/props/buildings.ts, src/scene/props/objects.ts +6 |
+| `box` | const | src/scene/props/shore.ts, src/scene/props/vegetation.ts, src/scene/props/timber.ts +6 |
 | `buildAndReview` | function | — |
 | `BuildAttempt` | interface | — |
 | `buildKitGeometry` | function | — |
@@ -237,7 +237,7 @@ problem, it was that nothing here said what was already available.
 | `CloudOptions` | interface | — |
 | `cloudProp` | function | — |
 | `CompositePart` | interface | — |
-| `cone` | const | src/scene/props/vegetation.ts, src/scene/props/beacon.ts, src/scene/props/upland.ts |
+| `cone` | const | src/scene/props/vegetation.ts, src/scene/props/upland.ts, src/scene/props/beacon.ts |
 | `ConnectionGraph` | interface | — |
 | `ConnectionGraphOptions` | interface | — |
 | `CREATE_PROP_SCHEMA` | const | — |
@@ -273,9 +273,9 @@ problem, it was that nothing here said what was already available.
 | `createTriplanarMaterial` | function | — |
 | `CrystalOptions` | interface | — |
 | `crystalProp` | function | — |
-| `cyl` | const | src/scene/props/vegetation.ts, src/scene/props/buildings.ts, src/scene/props/objects.ts +7 |
+| `cyl` | const | src/scene/props/shore.ts, src/scene/props/vegetation.ts, src/scene/props/timber.ts +7 |
 | `defineProp` | function | — |
-| `deg` | const | src/scene/props/vegetation.ts, src/scene/props/buildings.ts, src/scene/props/objects.ts +5 |
+| `deg` | const | src/scene/props/shore.ts, src/scene/props/vegetation.ts, src/scene/props/timber.ts +5 |
 | `displaceByNoise` | function | — |
 | `edgeSplit` | function | — |
 | `extractJson` | function | — |
@@ -294,7 +294,7 @@ problem, it was that nothing here said what was already available.
 | `GridTextureOptions` | interface | — |
 | `GrimeOptions` | interface | — |
 | `groupBounds` | function | — |
-| `hedron` | const | src/scene/props/vegetation.ts, src/scene/props/stone.ts, src/scene/props/beacon.ts +1 |
+| `hedron` | const | src/scene/props/vegetation.ts, src/scene/props/beacon.ts, src/scene/props/stone.ts +1 |
 | `HolographicMaterialOptions` | interface | — |
 | `InfiniteGround` | interface | — |
 | `InfiniteGroundOptions` | interface | — |
@@ -323,9 +323,9 @@ problem, it was that nothing here said what was already available.
 | `MATERIAL_PRESETS` | const | — |
 | `MaterialPreset` | type | — |
 | `MaterialPresetParams` | type | — |
-| `mergeGeometryList` | function | src/scene/landscape/dressing.ts, src/scene/landscape/terrain.ts, src/scene/landscape/cart-ruts.ts +1 |
+| `mergeGeometryList` | function | src/scene/landscape/dressing.ts, src/scene/landscape/cart-ruts.ts, src/scene/landscape/terrain.ts +1 |
 | `mergeMeshes` | function | — |
-| `mergeParts` | function | src/scene/props/vegetation.ts, src/scene/props/stone.ts, src/scene/props/buildings.ts +9 |
+| `mergeParts` | function | src/scene/props/shore.ts, src/scene/props/vegetation.ts, src/scene/props/mill.ts +9 |
 | `MergePartsOptions` | interface | — |
 | `mergeVertices` | function | — |
 | `NoiseDisplaceOptions` | interface | — |
@@ -339,7 +339,7 @@ problem, it was that nothing here said what was already available.
 | `ParamSpec` | type | — |
 | `ParamSpecMap` | type | — |
 | `ParamValue` | type | — |
-| `part` | function | src/scene/props/vegetation.ts, src/scene/props/stone.ts, src/scene/props/buildings.ts +10 |
+| `part` | function | src/scene/props/shore.ts, src/scene/props/vegetation.ts, src/scene/props/timber.ts +10 |
 | `PART_DEFAULTS` | const | — |
 | `PartOptions` | interface | — |
 | `PartSpec` | interface | — |
@@ -374,7 +374,7 @@ problem, it was that nothing here said what was already available.
 | `PropTool` | interface | — |
 | `PropToolResult` | interface | — |
 | `RadialLayout` | interface | — |
-| `rasterizeAscii` | function | scripts/prop-map.test.ts, scripts/prop-map.ts |
+| `rasterizeAscii` | function | scripts/prop-map.ts, scripts/prop-map.test.ts |
 | `recomputeNormals` | function | — |
 | `RepeatMode` | type | — |
 | `RepeatSpec` | interface | — |
@@ -404,7 +404,7 @@ problem, it was that nothing here said what was already available.
 | `SpecIssue` | interface | — |
 | `SpecReview` | interface | — |
 | `SpecVec3` | type | — |
-| `spread` | function | src/scene/props/vegetation.ts, src/scene/props/objects.ts, src/scene/props/structures.ts +3 |
+| `spread` | function | src/scene/props/shore.ts, src/scene/props/vegetation.ts, src/scene/props/timber.ts +3 |
 | `starShape` | function | — |
 | `SURFACE_NAMES` | const | — |
 | `SurfaceRibbonOptions` | interface | — |

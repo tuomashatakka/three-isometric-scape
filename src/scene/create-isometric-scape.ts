@@ -14,6 +14,7 @@ import type { CameraPath } from './camera-path.ts'
 import { createCloudLayer } from './clouds.ts'
 import { createLandscape } from './landscape/index.ts'
 import { createMistLayer } from './mist.ts'
+import { createNightSky } from './nightsky.ts'
 import { createAtmospherePost } from './post.ts'
 import type { AtmosphereQuality } from './quality.ts'
 import { createRainLayer } from './rain.ts'
@@ -257,6 +258,18 @@ export function createIsometricScape (
     daylight: atmosphere.daylight,
   }))
 
+  // Both clocks again, and read straight off the config rather than through a
+  // state: the hour *is* the star wheel's angle and the week is what the month
+  // is counted off, so the sky needs the phases themselves and not what the
+  // daylight rig derived from them. Returns null on the tier with no stars to
+  // give, which is the same tier that has no veils.
+  const nightsky = unless(skip, 'nightsky', () => createNightSky({
+    camera,
+    config,
+    quality,
+    daylight: atmosphere.daylight,
+  }))
+
   // The second and third clocks — the weather for how hard it is falling, the
   // year for what it falls as. Mounted after the landscape, which is what
   // resolves both of them, so the column draws the same instant the ground
@@ -321,6 +334,7 @@ export function createIsometricScape (
     mist,
     clouds,
     aurora,
+    nightsky,
     rain,
     beacon,
     post,

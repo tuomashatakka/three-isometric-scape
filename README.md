@@ -89,6 +89,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - **three clocks** — a day, a year, and a weather front — each a phase and a speed, each deriving everything else from that phase
 - a solar arc solved from a latitude — a polar night at midwinter, a midnight sun at midsummer — with dusk and night palettes derived from it, plus seasonal growth, leaf turn, lying snow, sea ice, sea smoke, and rain that leaves the ground wet
 - an aurora over the dark half of the year, gated on the night and on how much night the week has
+- a star field that turns one whole revolution a day, with a galactic band across it, and a moon that keeps its own month — full at midnight, new at noon, and riding high over the midwinter sun
 - view-reactive fog, a gradient sky, deterministic drifting ground mist, and a sky cloud deck
 - a configurable 3d-lut grade with vignette, miniature tilt-shift, bloom and film grain
 - a live graphics overlay that persists to local storage and reloads what you left it at
@@ -167,6 +168,8 @@ src/
 └── scene/
     ├── atmosphere.ts               gradient sky, linear fog, sun and fill rig
     ├── aurora.ts                   auroral veils over the dark half of the year
+    ├── nightsky.ts                 the star field, the wheel it turns on, and the moon's month
+    ├── sky-deck.ts                 what every hung sheet shares: the zoom reveal, the frame it follows
     ├── camera-controls.ts          pointer, touch, keyboard, focus, orbit
     ├── camera-follow.ts            riding a moving fleet instance instead of the map
     ├── beacon.ts                   the coastal light: the lamp, and the beams it sweeps
@@ -364,9 +367,9 @@ the two fade on one shared `trafficAt`, so the lines can never outlive the dirt 
 
 ## every effect, on every tier
 
-a tier is a bundle of decisions taken from what the device says about itself, and the cheap ones leave whole systems out rather than drawing poor versions of them — no post chain on mobile, no shadow maps, no aurora on `minimal`. that is the right default and it is the wrong ceiling: it is the reader's hardware, and a preset written from a media query is not better informed about it than they are.
+a tier is a bundle of decisions taken from what the device says about itself, and the cheap ones leave whole systems out rather than drawing poor versions of them — no post chain on mobile, no shadow maps, no aurora and no stars on `minimal`. that is the right default and it is the wrong ceiling: it is the reader's hardware, and a preset written from a media query is not better informed about it than they are.
 
-`runtime.effects` is the switch. `tier` is the preset as authored; `all` runs it through [`unlockEffects`](src/scene/quality.ts), which turns on every boolean and lifts every zeroed count to the smallest number at which that system still reads as itself — one veil is an aurora, a few hundred drops are a shower.
+`runtime.effects` is the switch. `tier` is the preset as authored; `all` runs it through [`unlockEffects`](src/scene/quality.ts), which turns on every boolean and lifts every zeroed count to the smallest number at which that system still reads as itself — one veil is an aurora, a few hundred drops are a shower, a few hundred points are a sky.
 
 **it turns systems on; it does not spend the tier's budget.** pixel ratio, terrain and water segments, the scatter budget, the shadow map size and the frame cap are untouched, and there is a test that says so. a phone asked for every effect gets every effect *at a phone's scale*, because those numbers are what the tier is actually for — handing them up as well would turn a switch into a way to cook a handset.
 
@@ -668,6 +671,49 @@ no weather term, deliberately. solar activity is not something this scape models
 the two arcs are combined with a maximum rather than a sum: two curtains overlapping do not make a brighter curtain, and adding them fills in the dark gap the second arc exists to show.
 
 **cost: one draw per veil, and none at all for most of the year.** the veils are two-sided and still one draw each — three renders a transparent double-sided material in two passes, right for a curved shell and waste for a flat sheet, so `forceSinglePass` is set. they are made *invisible* rather than transparent whenever the light is out. `auroraLayers` is 3 on `ultra`, 2 on `desktop`, **1 on `mobile`** and 0 on `minimal`: the phone gets an aurora, and the tier that only exists after a context loss gets a plain dark sky rather than a dimmer one.
+
+## the night sky
+
+for a scape that had spent a run solving the sun's arc out of a latitude, and another one lighting a lamp for the dark it produced, the sky that dark arrived in was **empty**. `daylight.ts` had been carrying the sentence "1 once the sun is far enough under for the stars" in a doc comment for months with nothing on the other end of it. this is the other end of it.
+
+two hands, and **neither of them is a new clock**. the star wheel is `daylight.time` read straight as an hour angle — one turn of the deck per turn of the day — and the month is `season.time` counted against `LUNATIONS`, 12.368 synodic months to the year. nothing integrates and nothing is stateful, so stopping either clock stops what it drives, scrubbing the overlay's time slider backwards runs the sky backwards with it, and **`STILL` needed no new entry** for either.
+
+### the field is sized against the frame
+
+the first version of this module sized its deck from `archipelago.worldSize`, the way the aurora and the clouds size theirs, and it was **wrong in a way that is worth writing down**. a sky is at infinity: it does not slide past as the eye pans over the ground, and pulling back does not bring more of it into view. size the deck from the world and 520 metres of archipelago spreads a night's worth of stars over eight frames of open sea — about a dozen of them land on screen, and the result reads as a blank sky with some dust in it. `scape:diff` said `same` at every pose and it was right to.
+
+every extent here is therefore **frame-sized**, which puts this module beside `rain.ts` rather than beside `aurora.ts`: the deck is baked on a unit disc, pinned to the camera's focus, and scaled by the live view every frame. `starCount` is consequently already a screen density — 1900 stars are 1900 stars on screen at any zoom and over any archipelago, and a run that grows the world does not have to come back here.
+
+the deck itself is still a deck, and still the aurora's fiction: an orthographic camera tipped fifty degrees down has no horizon in its frame to hang a sky against, so the only sky this scape can have is one it looks down on. the field is over the islands as well as over the water, and the veils and the cloud deck have always been.
+
+### the moon is the sun, a month along
+
+the moon is not authored anywhere. it is a body on the sun's own arc, displaced by the month in the two ways a month displaces it:
+
+- **a phase behind in hour angle**, so a full moon transits at midnight and a first quarter at dusk
+- **a lunation ahead along the ecliptic**, so its declination is the sun's a month later
+
+`daylight.ts` grew `bodyHeight` and `bodySwing` for it — the hour-angle solution written against a declination rather than against the year, with `sunHeight` and `sunSwing` now one line each on top of them. the alternative was a second copy of the same trigonometry that could drift out of step with the first.
+
+that second displacement is the one worth having, and there is a test that states it: **the midwinter full moon rides high over the midwinter sun.** give the moon the sun's own declination and the two would be equal, and a northern winter would lose the one light it actually has. the same expression gives the lit fraction and the terminator in the fragment shader, so the moon's brightness and the moon's shape cannot disagree.
+
+**the disc is billboarded, and it is the one place the deck fiction is broken on purpose.** a quad lying flat on the deck is seen at the camera's own fifty degrees, and a moon squashed to two thirds of its width reads as a bug in a way a foreshortened aurora never does. it also burns above white by default — `atmosphere.moonlight` is 1.35 against a disc colour of ~0.86 linear, which puts a full moon over the bloom's 0.94 threshold and leaves a crescent's thin limb under it, the same trade `beacon.glow` is written down for.
+
+the unlit face keeps a little earthshine. without it a young moon reads as a scratch on the sky rather than as a sphere.
+
+### what the field is made of
+
+positions come off the seeded rng, so the sky is the same sky for the same seed and a different one for a different seed. brightness is a uniform draw cubed, which is roughly how magnitudes fall out — a handful of stars carry the eye and the rest are the grain behind them — and it drives the point size as well as the colour.
+
+**a fraction of the field is pulled into a galactic band**, because a band is the one piece of structure that stops a scattered field reading as noise. the band's chord is shortened to the deck's circle rather than the placement being rejected and redrawn: re-drawing would take a variable number of numbers out of the rng, and the field's determinism would then depend on how many times it missed.
+
+the warm end of the star tone is `daylight.dusk`, the amber the scape's own golden hour is authored in, rather than a second red that only this module could be tuned by. `palette.star` is the cool end.
+
+### the gate, and what it costs
+
+one gate, the aurora's: `daylight.dark`. the stars open on it directly and the moon on its square root, because a gibbous moon is plainly visible in a blue afternoon and a fourth-magnitude star is not. a midsummer night at 68°N never gets a star, and that is the same geometry that gives the aurora nothing to do in june rather than a second curve of the year.
+
+**cost: two draws, and none at all for most of the year.** one `Points` over a baked field — one vertex a star, no allocation after the bake — and one unit quad. both unlit, both additive, both made *invisible* rather than transparent whenever the sun is up or the view is close in. `starCount` is 3200 on `ultra`, 1900 on `desktop`, **700 on `mobile`** and 0 on `minimal`: the phone gets a sky, and the tier that only exists after a context loss gets a plain dark one rather than a thin bad one.
 
 ## the sky deck
 

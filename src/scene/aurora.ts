@@ -19,6 +19,7 @@ import type { ScapeConfig } from './config.ts'
 import type { DaylightState } from './daylight.ts'
 import { sampleHeight } from './noise.ts'
 import type { AtmosphereQuality } from './quality.ts'
+import { deckReveal, deckViewSize } from './sky-deck.ts'
 
 
 export interface AuroraOptions {
@@ -295,14 +296,8 @@ export function createAuroraLayer ({
     },
 
     update (_state, frame) {
-      const { minViewSize, maxViewSize }          = config.camera
       const { aurora, auroraHeight, cloudHeight } = config.atmosphere
-      const viewSize                              = camera.userData.viewSize as number ?? config.camera.viewSize
-      const zoom                                  = smoothstep(
-        minViewSize + (maxViewSize - minViewSize) * 0.45,
-        minViewSize + (maxViewSize - minViewSize) * 0.9,
-        viewSize,
-      )
+      const zoom                                  = deckReveal(deckViewSize(camera, config), config.camera)
 
       // Both clocks and the zoom, in one number. The veils are made invisible
       // rather than transparent below it, because a map-wide additive quad

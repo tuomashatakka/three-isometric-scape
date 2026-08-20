@@ -2,6 +2,35 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the sky the dark was always for
+
+`daylight.ts` has been carrying the sentence *"1 once the sun is far enough under for the stars"* in a doc comment since the solar arc landed, with nothing on the
+other end of it. the scape had a polar night, an aurora and a lighthouse burning through it, and the sky all three happened in was empty. it has a star field and a
+moon now, and **neither of them is a fourth clock**.
+
+- **the wheel is the day.** [`nightsky.ts`](src/scene/nightsky.ts) reads `daylight.time` straight as an hour angle — one turn of the deck per turn of the day — so
+nothing integrates, scrubbing the overlay's time slider backwards runs the sky backwards, and **`STILL` needed no new entry**. the pole is 68° up on this coast,
+which is close enough to overhead that a deck turning about its own centre *is* the sky turning about the pole
+- **the month is the year.** `season.time` counted against 12.368 lunations. the moon is a body on the sun's own arc displaced two ways: a phase behind in hour
+angle, so a full moon transits at midnight and a first quarter at dusk, and a lunation ahead along the ecliptic, so its declination is the sun's a month later.
+that second term is why **the midwinter full moon rides high over the midwinter sun**, which is a test rather than a claim — share the sun's declination and the
+two come out equal, and a northern winter loses the one light it has
+- **`daylight.ts` grew `bodyHeight` and `bodySwing`** — the hour-angle solution written against a declination instead of against the year — with `sunHeight` and
+`sunSwing` now one line each on top of them. the alternative was a second copy of the same trigonometry, free to drift out of step with the first
+- **the first version was world-sized, and `scape:diff` was right to call it `same`.** sized from `archipelago.worldSize` like the aurora beside it, 520 metres of
+archipelago spread one night's stars over eight frames of open sea: about a dozen on screen, reading as a blank sky with dust in it. a sky is at infinity, so every
+extent here is frame-sized — baked on a unit disc, pinned to the camera focus, scaled by the live `viewSize`. `starCount` is consequently already a screen density,
+and a run that grows the world never has to come back to it
+- **the disc is billboarded**, and it is the one place the deck fiction is broken on purpose: a quad lying flat is seen at the camera's own fifty degrees, and a
+moon squashed to two thirds of its width reads as a bug in a way a foreshortened aurora never does. `atmosphere.moonlight` at 1.35 against a ~0.86 linear white puts
+a full moon over the bloom's 0.94 threshold and leaves a crescent's limb under it — the same trade `beacon.glow` is written down for
+- **[`sky-deck.ts`](src/scene/sky-deck.ts) is the reveal both decks now share.** the aurora's zoom fade was the third copy of the same curve about to be written;
+two skies fading in at two different zooms is the sort of thing nobody notices until the pull-out looks wrong
+- **cost: two draws, and none at all for most of the year.** one `Points` over a baked field — one vertex a star, nothing allocated after the bake — and one unit
+quad, both unlit, both additive, both made *invisible* rather than transparent whenever the sun is up or the view is close in. `starCount` 3200 `ultra` / 1900
+`desktop` / **700 `mobile`** / 0 `minimal`. `scape:diff`: **`night` moved, every other pose `same`**, structural unchanged. the changed-pixel figure is small by the
+nature of a point field — a sky of one-to-four-pixel stars cannot move many pixels — so the still is the evidence and the number is not
+
 ## three state machines, one store
 
 `main.ts` was 633 lines holding three unrelated machines in one closure scope: a query-string parser, the mount, and the webgl context-loss ladder. they shared
