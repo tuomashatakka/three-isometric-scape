@@ -16,6 +16,7 @@ import { bodyHeight, bodySwing, declination } from './daylight.ts'
 import type { DaylightState } from './daylight.ts'
 import type { AtmosphereQuality } from './quality.ts'
 import { deckFocus, deckReveal, deckViewSize } from './sky-deck.ts'
+import { LAYER } from './layers.ts'
 
 
 export interface NightSkyOptions {
@@ -390,7 +391,7 @@ export function createNightSky ({
 
   const wheel         = new Points(stars, starMaterial)
   wheel.name          = 'nightsky-stars'
-  wheel.renderOrder   = 34
+  wheel.renderOrder   = LAYER.stars
   wheel.frustumCulled = false
   wheel.visible       = false
 
@@ -412,7 +413,7 @@ export function createNightSky ({
 
   const moon         = new Mesh(disc, moonMaterial)
   moon.name          = 'nightsky-moon'
-  moon.renderOrder   = 35
+  moon.renderOrder   = LAYER.moon
   moon.frustumCulled = false
   moon.visible       = false
 

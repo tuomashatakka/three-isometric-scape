@@ -13,6 +13,7 @@ import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import type { DaylightState } from './daylight.ts'
 import { sampleHeight } from './noise.ts'
 import type { AtmosphereQuality } from './quality.ts'
+import { LAYER } from './layers.ts'
 
 
 export interface CloudOptions {
@@ -155,7 +156,7 @@ export function createCloudLayer ({
     mesh.name          = `cloud-${index + 1}`
     mesh.rotation.x    = -Math.PI / 2
     mesh.position.y    = base + index * 5.5
-    mesh.renderOrder   = 20 + index
+    mesh.renderOrder   = LAYER.clouds + index
     mesh.frustumCulled = false
     mesh.visible       = false
 

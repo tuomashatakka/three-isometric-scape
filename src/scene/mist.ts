@@ -14,6 +14,7 @@ import type { DaylightState } from './daylight.ts'
 import { sampleHeight } from './noise.ts'
 import type { AtmosphereQuality } from './quality.ts'
 import type { SeasonState } from './season.ts'
+import { LAYER } from './layers.ts'
 
 
 export interface MistOptions {
@@ -388,7 +389,7 @@ export function createMistLayer ({
     mesh.name          = `mist-${index + 1}`
     mesh.rotation.x    = -Math.PI / 2
     mesh.position.y    = waterLine + 1.45 + index * 1.15
-    mesh.renderOrder   = 2 + index
+    mesh.renderOrder   = LAYER.mist + index
     mesh.frustumCulled = false
     mesh.visible       = visible
 
@@ -402,7 +403,7 @@ export function createMistLayer ({
     const mesh         = new Mesh(upright, material)
     mesh.name          = `mist-slice-${index + 1}`
     mesh.position.y    = waterLine + MIST_HEIGHT * 0.5 - 0.6
-    mesh.renderOrder   = 2 + count + index
+    mesh.renderOrder   = LAYER.mist + count + index
     mesh.frustumCulled = false
     mesh.visible       = visible
 
@@ -429,9 +430,10 @@ export function createMistLayer ({
     mesh.rotation.x = -Math.PI / 2
     mesh.position.y = waterLine + SMOKE_RISE + index * SMOKE_STEP
 
-    // Under the mist, which starts at 2. Painted first so the sheets the island
-    // is standing in are composited over the steam beyond it rather than under.
-    mesh.renderOrder   = index
+    // Under the mist, so the sheets the island is standing in are composited
+    // over the steam beyond it rather than under. This was at `index`, which
+    // put the first sheet at 0 — tied with the water it is steaming off.
+    mesh.renderOrder   = LAYER.seaSmoke + index
     mesh.frustumCulled = false
 
     // Off until the year says otherwise — at the authored midsummer there is

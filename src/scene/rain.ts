@@ -14,6 +14,7 @@ import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import type { AtmosphereQuality } from './quality.ts'
 import type { SeasonState } from './season.ts'
 import type { WeatherState } from './weather.ts'
+import { LAYER } from './layers.ts'
 
 
 export interface RainOptions {
@@ -246,7 +247,7 @@ export function createRainLayer ({
 
   const mesh       = new Mesh(geometry, material)
   mesh.name        = 'rain'
-  mesh.renderOrder = 12
+  mesh.renderOrder = LAYER.rain
   mesh.visible     = false
 
   // Every vertex is placed by the shader, so the bounding volume three would

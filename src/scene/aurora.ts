@@ -17,6 +17,7 @@ import type { DaylightState } from './daylight.ts'
 import { sampleHeight } from './noise.ts'
 import type { AtmosphereQuality } from './quality.ts'
 import { deckReveal, deckViewSize } from './sky-deck.ts'
+import { LAYER } from './layers.ts'
 
 
 export interface AuroraOptions {
@@ -262,9 +263,7 @@ export function createAuroraLayer ({
     mesh.name       = `aurora-${index + 1}`
     mesh.rotation.x = -Math.PI / 2
 
-    // Over the cloud deck, which is at 20 and up. Weather is a kilometre off the
-    // ground and this is a hundred kilometres, so the clouds pass beneath it.
-    mesh.renderOrder   = 30 + index
+    mesh.renderOrder   = LAYER.aurora + index
     mesh.frustumCulled = false
     mesh.visible       = false
 

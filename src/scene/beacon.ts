@@ -5,6 +5,7 @@ import type { DaylightState } from './daylight.ts'
 import { buildBeaconOptic } from './props/beacon.ts'
 import { resolvePalette } from './props/index.ts'
 import type { AtmosphereQuality } from './quality.ts'
+import { LAYER } from './layers.ts'
 
 
 /**
@@ -160,7 +161,14 @@ export function createBeaconLight (options: BeaconLightOptions): ScapeModule | n
   mesh.updateMatrix()
   mesh.matrixAutoUpdate = false
   mesh.boundingSphere   = lanternBounds(hubs, beamReach)
-  mesh.visible          = false
+
+  // Over the sea, under the fog. Without this the beams inherited 0, tied with
+  // the water, and three broke the tie on a projected depth taken from *this*
+  // mesh's hand-set bounding sphere — centred on the lanterns out at the rim,
+  // against a water sphere centred near the origin. Half the headings on the
+  // compass put the sea in front of its own lighthouse.
+  mesh.renderOrder = LAYER.beacon
+  mesh.visible     = false
 
   const carrier = new Object3D()
   let phase     = 0

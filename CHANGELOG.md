@@ -2,6 +2,25 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the sea in front of its own lighthouse
+
+the beams showed over land and vanished over water, at about half the headings on the compass. the cause is one number nobody wrote down.
+
+- **three's transparent sort is `groupOrder → renderOrder → projected depth → id`** (`reversePainterSortStable`). every transparent layer in this scape names its
+  `renderOrder` — mist at 2, rain at 12, clouds at 20, aurora at 30, stars at 34 — **except the water and the beams**, which both inherited the default of **0**
+- **a tie falls through to the depth compare, and that compare is a guess.** it projects *one point per object*: `object.boundingSphere.center` when there is one,
+  the geometry's otherwise. the beams are an `InstancedMesh` with a hand-set sphere centred on the lanterns at **(60.9, 39.3)**; the water's is its geometry's,
+  near the origin. two centres seventy-odd metres apart, so rotating the camera flips which projects nearer — and with it, which of the two gets painted second
+- **over land it never showed** because terrain is *opaque*: it writes depth, and the beams test against it. over water there is nothing to test against — both
+  draw with `depthWrite: false`, which is correct for transparency and exactly why the order has to be stated rather than measured
+- **the sea smoke had the same bug**, unreported: it indexed from `index`, so its first sheet also sat at 0, tied with the water it steams off
+- **[`layers.ts`](src/scene/layers.ts) is now the one place the stack is ordered**, spaced by ten so a layer can be slipped in without renumbering. five files stopped
+  carrying magic numbers, and `layers.test.ts` asserts the ladder ascends, that nothing shares the sea floor, and that no multi-sheet band can index into the one
+  above it — checked against every tier *and* `unlockEffects`
+- **cost: `same` on all six tour poses**, structural unchanged — and that is *not* the proof it looks like. the tour never aims at the lighthouse, which sits far
+  out at the rim, so no tour pose exercised the fix either way. what the six poses do prove is that renumbering rain, clouds, aurora and the night sky disturbed
+  **nothing**. the beams themselves want an aimed capture, and that has not been taken yet
+
 ## seven things that were never about this scape
 
 The upstream batch. `threejs-scene` 0.6.0 and 0.6.1 went out, and this scape stopped keeping its own copy of everything in them — **−1054 lines from `src/`** for no

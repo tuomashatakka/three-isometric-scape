@@ -17,6 +17,7 @@ import type { TextureCatalogue } from '../textures/catalogue.ts'
 import type { WeatherState } from '../weather.ts'
 import type { BoatWakeEmitter } from './boats.ts'
 import type { HeightField } from './height.ts'
+import { LAYER } from '../layers.ts'
 
 
 /**
@@ -500,9 +501,14 @@ export function createWater (
   }
   material.customProgramCacheKey = () => `scape-water:${lite ? 'lite' : 'full'}`
 
-  const mesh         = new Mesh(geometry, material)
-  mesh.name          = 'water'
-  mesh.position.y    = config().terrain.waterLevel
+  const mesh      = new Mesh(geometry, material)
+  mesh.name       = 'water'
+  mesh.position.y = config().terrain.waterLevel
+
+  // The floor of the transparent stack. Left at three's default of 0 this was
+  // *tied* with the beacon's beams and the sea smoke, and a tie falls through
+  // to a depth compare that a camera rotation can flip.
+  mesh.renderOrder   = LAYER.water
   mesh.receiveShadow = true
 
   // The swell is entirely in the shader — the plane itself sits at the

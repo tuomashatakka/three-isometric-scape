@@ -169,6 +169,7 @@ src/
     ├── atmosphere.ts               gradient sky, linear fog, sun and fill rig
     ├── alpha-field.ts               the DataTexture the three sheet layers share
     ├── aurora.ts                   auroral veils over the dark half of the year
+    ├── layers.ts                    the order the transparent half is painted in
     ├── nightsky.ts                 the star field, the wheel it turns on, and the moon's month
     ├── sky-deck.ts                 what every hung sheet shares: the zoom reveal, the frame it follows
     ├── camera-controls.ts          pointer, touch, keyboard, focus, orbit
