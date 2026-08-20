@@ -51,10 +51,18 @@ export const TOURS: Record<string, Pose[]> = {
  * the same reason and wind for a subtler one: the foliage sway is driven from
  * elapsed time, so a tree is only in the same place twice if no time passed.
  */
-const STILL = [
+export const STILL = [
   'daylight.speed=0',
   'season.speed=0',
   'wind.strength=0',
+
+  // The wind's rate as well as its amplitude. `wind.strength=0` already zeroes
+  // everything the wind is multiplied into, so this changes no capture today —
+  // but the rain integrates it (`heading += delta * wind.speed`), and a rate
+  // that keeps advancing behind a zeroed amplitude is one refactor away from
+  // being visible again. Same reasoning as `mill.spin` below.
+  'wind.speed=0',
+
   'look.grain=0',
   'atmosphere.cloudSpeed=0',
   'atmosphere.auroraSpeed=0',

@@ -32,6 +32,7 @@ bun run dev        # http://127.0.0.1:4174
 the gate, all four clean before anything ships:
 
 ```sh
+bun run gate        # all four at once, one summary
 bun run lint        # warnings included — the repo is warning-clean
 bun run typecheck
 bun test

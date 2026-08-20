@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { Box3 } from 'three'
 import { createSeededRng } from 'threejs-scene'
-import { PROPS, buildProp, resolvePalette } from './index.ts'
+import { HERO_PROPS, PROPS, SCATTER_PROPS, buildProp, resolvePalette } from './index.ts'
 import type { PropName } from './index.ts'
 
 
@@ -53,5 +53,31 @@ describe('prop roster', () => {
 
     a.dispose()
     b.dispose()
+  })
+})
+
+/**
+ * A prop is registered in `PROPS` and then spent — merged into the steading
+ * draw as a hero, or stamped through one `InstancedMesh` as scatter. Choosing
+ * which is a deliberate act; *forgetting* to choose is silent. The builder still
+ * compiles, its determinism test still passes, `prop:map` still draws it, and
+ * nothing ever puts it in the scape.
+ */
+describe('the roster is fully spent', () => {
+  test('every prop is either a hero or scattered', () => {
+    const spent   = new Set<string>([ ...HERO_PROPS, ...SCATTER_PROPS ])
+    const orphans = Object.keys(PROPS).filter(name => !spent.has(name))
+
+    expect(orphans).toEqual([])
+  })
+
+  test('no prop is spent twice, and none is spent that does not exist', () => {
+    const spent = [ ...HERO_PROPS, ...SCATTER_PROPS ]
+
+    expect(spent.length).toBe(new Set(spent).size)
+    expect(spent.length).toBe(Object.keys(PROPS).length)
+
+    for (const name of spent)
+      expect(PROPS).toHaveProperty(name)
   })
 })

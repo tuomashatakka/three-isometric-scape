@@ -141,7 +141,26 @@ noise floor, measured: two captures of the same commit differ in ~14% of pixels 
 
 ## the gate
 
-all four, in this order, all clean, before anything is pushed:
+one command, and it is all four:
+
+```sh
+bun run gate        # lint, typecheck, test, build — concurrently, one summary
+```
+
+```text
+gate · 16.8s
+
+lint       ok      2.1s
+typecheck  ok      1.5s
+test       ok     16.8s
+build      ok      1.9s
+```
+
+nothing in the gate contends with anything else in it — no test opens a port, spawns a process or launches a browser, and `vite build` only ever *writes* `dist/`, which none of the others read — so they run at once. the wall clock is the slowest one rather than the sum, and a clean run is four lines instead of four screens. **only a failure prints its output**, and it prints all of it.
+
+`--only lint,test` runs a subset. `--sequential` is the escape hatch for a one- or two-core box, where four cpu-bound processes thrash worse than they parallelise. `--fast` drops `build`'s redundant second `tsc` pass and is off by default: the moment this stops running the exact command CI runs is the moment "gate green, ci red" becomes possible.
+
+the four underneath are still there, still in this order, and still all clean before anything is pushed:
 
 ```sh
 bun run lint        # eslint, warnings included — the repo is warning-clean
@@ -150,7 +169,11 @@ bun test            # bun test
 bun run build       # tsc --noEmit && vite build
 ```
 
-`bunx eslint . --fix` first, then read the diff it produced. do not hand-format against [`@tuomashatakka/eslint-config`](https://www.npmjs.com/package/@tuomashatakka/eslint-config): no semicolons, single quotes, two-space indent, value-aligned object keys, stroustrup braces, spaces inside braces and brackets, two blank lines after the import block. it also enforces **max 400 statements-ish per function and a file line limit** — a file over it is telling you to split it.
+`bunx eslint . --fix` first, then read the diff it produced. do not hand-format against [`@tuomashatakka/eslint-config`](https://www.npmjs.com/package/@tuomashatakka/eslint-config): no semicolons, single quotes, two-space indent, value-aligned object keys, stroustrup braces, spaces inside braces and brackets, two blank lines after the import block.
+
+the size limits it enforces, as actual numbers rather than as a feeling: **40 statements** per function, **cyclomatic complexity 14**, **max depth 6**, and **666 lines per file** counted with comments and blank lines skipped. every one is a warning, and the gate is warning-clean, so in practice every one is an error. a file or a function past one of them is telling you to split it.
+
+three more live in [`eslint.config.mjs`](eslint.config.mjs) rather than in the shared config, because they are this scape's rules and not style: **no `Math.random`, no `Date.now`, no `requestAnimationFrame`** anywhere in `src/`. each fails with the reason and with the thing to reach for instead.
 
 other scripts: `bun run dev` (vite on 127.0.0.1:4174), `bun run preview`.
 
@@ -261,7 +284,7 @@ there is **no `enabled` flag anywhere**: an effect is off when its strength is z
 
 - **draw calls are the budget, vertices are not.** a prop with four hundred parts and one with forty cost the same draw. a *new material*, or a *new mesh that is neither merged nor instanced*, is what costs.
 - **everything generated is deterministic.** no `Math.random`, no `Date.now`, no iteration-order dependence. fork the seeded rng (`rng.fork(name)`) so adding a prop does not reshuffle every prop built after it.
-- **anything that moves needs a speed that can reach zero**, and that speed goes in `STILL` in [`scripts/scape-shot.ts`](scripts/scape-shot.ts). a hard-coded animation rate cannot be stopped, so it cannot be captured, so it silently poisons every visual diff taken after it lands.
+- **anything that moves needs a speed that can reach zero**, and that speed goes in `STILL` in [`scripts/scape-shot.ts`](scripts/scape-shot.ts). a hard-coded animation rate cannot be stopped, so it cannot be captured, so it silently poisons every visual diff taken after it lands. [`scape-shot.test.ts`](scripts/scape-shot.test.ts) checks this rather than trusting it: the candidates are read off the *overlay*, which is the authoritative "visual and read per frame" set, and a rate-named knob missing from `STILL` fails by name. it checks the quieter direction too — that every `STILL` entry still addresses a live config path — because a rename turns an entry into a no-op that still reads as coverage.
 - **moving state has one owner.** expose stable allocation-free pose records to cameras, wakes and diagnostics; never let each consumer resample the same route with its own turn or dwell rules.
 - **every tier still has to run.** new cost is gated on `AtmosphereQuality` in [`quality.ts`](src/scene/quality.ts); `mobile` is the one to defend. if a system cannot be made cheap, give it a tier gate and a graceful *absence*, not a broken-looking cheap version.
 - **lifecycle discipline.** generation in `build`, animation in `update`, viewport work in `resize`, teardown in `dispose`. `createApp` owns the only render loop — never add a `requestAnimationFrame`. everything allocated on the gpu is released in `dispose`.

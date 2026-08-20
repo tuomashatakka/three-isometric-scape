@@ -2,6 +2,22 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the rules the tools now enforce
+
+four house rules were prose, which means they were checked by whoever remembered to check them. they are now checked by the gate, and writing the checks found two things prose had missed.
+
+- **added** `bun run gate` — lint, typecheck, test and build **at once**, as one four-line summary, with the full output of only whatever failed. safe because nothing in the gate contends with anything else in it: no test opens a port, spawns a process or launches a browser, and `vite build` only *writes* `dist/`, which none of the others read. 16.8s against 22.3s sequential — a modest clock win, because `bun test` is the long pole and everything else hides behind it. the real win is that a clean run is four lines instead of four screens. `--only`, `--sequential` and `--fast` where they earn it
+- **added** `scripts/scape-shot.test.ts`, which closes the trap that costs the most. the candidates come off the **overlay**, not the config, and that is the whole trick: the house rule already requires a knob to be in the panel if and only if it is visual and read per frame, so the panel *is* the list of things that can move. a rate-named knob missing from `STILL` now fails by name
+- **found by that test: `wind.speed` was never in `STILL`.** [`rain.ts`](src/scene/rain.ts) integrates it — `heading += delta * wind.speed` — so it is a real clock. it happened to be invisible because `wind.strength=0` zeroes what the wind is multiplied into, which is exactly the "a capture must not depend on a second knob's value" dependency the `mill.spin` comment in that file already warns about. now stopped in its own right
+- **found by that test: `season.turn` is not a rate at all.** it is the turn of the *year* — an amount, 0..1, scaling a tint off `season.time`. it is declared as an exception with that reason rather than by loosening the pattern, and a second test asserts the exception still names a real knob, so a rename cannot leave a stale excuse covering some future rate
+- **added** the other direction, which is quieter and worse: every `STILL` entry must still address a live config path. a rename turns an entry into a silent no-op that still reads as coverage — nothing fails, nothing warns, and every capture after it has a clock running in it
+- **added** three lint rules for `src/`: **no `Math.random`** (fork the seeded rng), **no `Date.now`** (take elapsed time off the frame), **no `requestAnimationFrame`** (`createApp` owns the only render loop). each fails with the reason and the thing to reach for. all three start green
+- **added** `config.test.ts` — no knob is a boolean, tested by *shape* rather than by name, because `enabled` is only the most obvious spelling of that mistake and `on`, `visible` and `active` are the same one with better cover. plus: every knob is a number, a string or a list, and every number is finite
+- **added** to `props.test.ts` — every prop in the roster is spent, as a hero or as scatter, exactly once. an unregistered prop compiles, passes its own determinism test, draws under `prop:map`, and never appears in the scape
+- **corrected the docs against the actual gate.** `agents.md` said the config enforces "max 400 statements-ish per function"; it enforces **40**, plus complexity 14, depth 6 and 666 lines per file. an agent reading the old number would write functions ten times over the limit. `instructions.md`'s "roughly four hundred lines" per module is now the enforced 666
+
+**cost: nothing at runtime.** no source file outside the tests changed except one line added to `STILL`. `scape:diff --ref origin/main --poses tour` reads `same` on all six poses.
+
 ## the machinery that was never about this island
 
 four things in here were general-purpose code wearing a scape's clothes: an ascii rasteriser, a ribbon builder, a set of primitive constructors and a dotted-path reader. none of them knew anything about an archipelago. they now live in `threejs-scene` `0.5.0` and this repo imports them, which is **784 lines lighter** across `src/` and `scripts/` — 80 added against 864 removed — and one place to fix them instead of three.

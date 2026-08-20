@@ -89,7 +89,7 @@ the house rules. each is load-bearing for either performance or determinism, and
 
 **follow the lint config.** do not hand-format. write the code, run `bunx eslint . --fix`, then read the diff it produced.
 
-**keep the codebase clean.** a module past roughly four hundred lines wants splitting the way `landscape/` and `props/` already were — and the lint config will tell you. name things the way the neighbouring code names them. comment the decisions that are not obvious, and not the ones that are. dead code, commented-out experiments and `any` do not ship.
+**keep the codebase clean.** a module past **666 lines** — the enforced limit, counted with comments and blank lines skipped — wants splitting the way `landscape/` and `props/` already were — and the lint config will tell you. name things the way the neighbouring code names them. comment the decisions that are not obvious, and not the ones that are. dead code, commented-out experiments and `any` do not ship.
 
 **dependencies are a last resort.** `three` and `threejs-scene` are the runtime, and the scene is built from primitives on purpose. adding a package needs a real justification in the pull request body; adding one to avoid writing forty lines of geometry does not qualify.
 
@@ -127,14 +127,13 @@ if the tools cannot run at all — no chromium, a build that will not serve — 
 
 ## 6. verify
 
-all four, in this order, all clean:
+one command, and it is all four:
 
 ```sh
-bun run lint
-bun run typecheck
-bun test
-bun run build
+bun run gate
 ```
+
+it runs lint, typecheck, test and build at once and prints one four-line summary, dumping the full output only of whatever failed. the wall clock is the slowest check rather than the sum. `--sequential` if the box is small; the four scripts underneath still work on their own.
 
 `bun run lint` must be clean **warnings included** — the repository is warning-clean and a new warning is a new problem.
 
