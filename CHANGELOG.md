@@ -2,6 +2,36 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## two great islands, and the strand that makes them one
+
+the world goes from 520 m to **1520 m** and gains two landmasses of 455 m across — ten times the area of the outer holdings, which is a different kind of
+place rather than a bigger version of the same one. a farm on either is a holding *on a landmass*, with fell and forest behind it that it will never touch.
+
+- **a tombolo cannot be surveyed the way anything else here is.** every landform is built inside one patch's own local frame and the patches deliberately never
+  overlap, so a bar that joins two of them has to be world space — [`landscape/strand.ts`](src/scene/landscape/strand.ts) folds into the composite field as a
+  **maximum** after the per-patch dispatch. never a minimum: the bar may raise the seabed under it and must not lower the island it runs into, which is also
+  what lets both ends vanish under the rising shore instead of needing a join built for them
+- **everything downstream inherits it for nothing.** the bathymetry mask bakes off the same field, the ferry routes already test depth so they round the bar,
+  and `scape:map` samples the same query so it draws in ascii with no change to the script
+- **`scape:map --stats` gained a `strand` line**, because the bar's whole claim is a fact about the ground and it is invisible from every pose the tour takes:
+  `strand sound<->fell  len 450m  crest 1.1m  lowest 0.8m  CONNECTED`
+- **affordability is one new per-island knob, `detail`, and one rather than two on purpose.** how finely an island is *drawn* and how densely it is *dressed* are
+  the same question, and a fell nobody lands on needs neither at the farm's rate. at 0.45 the two are drawn at ~1.4 m to a quad and dressed at half the home
+  island's density. left at 1 they would have taken `areaScale` from 2.08 to **12.9** — every scatter budget sixfold, through a solver that is O(claims) per attempt
+- **two scale fixes came out of it.** the strand's `heightAt` rejects on a bounding box first — it is the query the whole scape is built on, and walking a
+  76-segment polyline for every terrain vertex, placement, navigation cell and mask texel took the survey to **49 s**. and `simplify` in `waterway.ts` looked for
+  the furthest reachable waypoint by counting down from the far end: O(n²) segment tests, each itself nine probes per step, so tripling the span raised it by
+  roughly a cube. it halves the range now
+- **it also shipped a red gate, and that is fixed here.** three assertions counted the islands with the literal `3` — `archipelago.test.ts` and two in `scape-map.test.ts`
+  — so adding the sound and the fell turned them into failures about a number rather than about the world. they ask `config.archipelago.landmasses.length` now. the
+  third failure was real and not a number: `scape:map` drew **one jetty of five** at the fixed 160x80 the test used, because 1520 m across 160 columns is 9.5 m to a
+  cell and a jetty and its harbour are closer together than that. the grid is derived from the world now — a cell about three metres across — which keeps the
+  assertion's meaning instead of weakening it
+- **cost, and it is not paid.** the survey went from **~16 ms to 11.15 s** — measured on this tree, `/usr/bin/time -p bun scripts/scape-map.ts` — and the *scene
+  build pays it as well as the tool*, which makes it the app's cold start rather than a slow script. it is the navigation grid over a world of three times the
+  span; the two fixes above brought it down from 49 s and the grid itself is untouched. **that is the next run's whole subject**, and this bullet exists because
+  the run that caused it deferred the fix to a "next commit" that was never written
+
 ## the ground stands up, and one wind blows over it
 
 three systems, because the second needed the first's texture and the third needed the second's map. the run's own
