@@ -78,7 +78,7 @@ describe('the one wind', () => {
 
   test('the direction is a unit vector at every phase', () => {
     for (let step = 0; step <= 60; step += 1) {
-      const state = run({ time: step / 60, gustSpeed: 0 }, 1)
+      const state = run({ time: step / 60, speed: 0 }, 1)
 
       expect(Math.hypot(state.dirX, state.dirZ)).toBeCloseTo(1, 12)
     }
@@ -109,7 +109,7 @@ describe('the one wind', () => {
   })
 
   test('a steady wind neither strengthens nor veers, however fast the clock runs', () => {
-    const steady  = run({ gust: 0, gustSpeed: 4 }, 120)
+    const steady  = run({ gust: 0, speed: 4 }, 120)
     const bearing = SCAPE_CONFIG.wind.bearing * Math.PI / 180
 
     expect(steady.bearing).toBeCloseTo(bearing, 12)
@@ -118,7 +118,7 @@ describe('the one wind', () => {
 
   test('a gust lifts the strength above the resting one and never below it', () => {
     for (let step = 0; step <= 40; step += 1) {
-      const state = run({ time: step / 40, gustSpeed: 0, gust: 1, strength: 0.8 }, 1)
+      const state = run({ time: step / 40, speed: 0, gust: 1, strength: 0.8 }, 1)
 
       expect(state.strength).toBeGreaterThanOrEqual(state.base - 1e-12)
       expect(state.strength).toBeLessThanOrEqual(state.base * 2 + 1e-12)
@@ -135,7 +135,7 @@ describe('the one wind', () => {
   })
 
   test('the phase wraps rather than growing without bound', () => {
-    const state = run({ gustSpeed: 60 }, 600)
+    const state = run({ speed: 60 }, 600)
 
     expect(state.phase).toBeGreaterThanOrEqual(0)
     expect(state.phase).toBeLessThan(1)

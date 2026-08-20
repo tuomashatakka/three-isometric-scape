@@ -17,6 +17,7 @@ import type {
 import { defineModule } from 'threejs-scene'
 import type { SceneContext } from 'threejs-scene'
 import { standardLighting } from 'threejs-scene/modules/lighting'
+import { landmassTerrain } from './config.ts'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import { createDaylight } from './daylight.ts'
 import type { DaylightState } from './daylight.ts'
@@ -264,7 +265,9 @@ export function createAtmosphereLayer ({
   const horizon     = new Color()
   const bounceBase  = new Color(authored.palette.meadow)
   const tallest     = Math.max(
-    ...authored.archipelago.landmasses.map(landmass => landmass.terrain.height),
+    ...authored.archipelago.landmasses.map(
+      landmass => landmassTerrain(authored, landmass).height,
+    ),
   ) + CANOPY
   const hemiGain    = quality.environment ? 1 : AMBIENT_TAKEOVER
 

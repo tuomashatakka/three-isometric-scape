@@ -21,6 +21,27 @@ export interface HeightField {
 
   /** Absolute gradient magnitude — drives the granite-on-steep-faces rule. */
   slopeAt(x: number, z: number): number
+
+  /**
+   * Which way the ground faces, as a unit vector written into `target`.
+   *
+   * The same two differences {@link HeightField.slopeAt} takes, kept rather than
+   * collapsed to a magnitude — a slope says *how steep*, and anything standing
+   * on the ground also needs *which way*. Every scattered stone, stump and
+   * cobble is tipped by this, which is the difference between a boulder resting
+   * on a hillside and a boulder standing to attention on one.
+   *
+   * Writes into a caller-owned record because it runs tens of thousands of times
+   * during a build, exactly as the samplers do.
+   */
+  normalAt(x: number, z: number, target: GroundNormal): GroundNormal
+}
+
+/** A unit normal in the ground plane's frame. Deliberately not a `three` type. */
+export interface GroundNormal {
+  x: number
+  y: number
+  z: number
 }
 
 /** Fraction of an islet's radius held at full height before the skirt starts. */
@@ -39,6 +60,47 @@ const TRACK_DEPTH   = 0.26
 const YARD_STRENGTH = 0.94
 const PLOT_STRENGTH = 0.9
 const SLOPE_REACH   = 0.75
+
+/**
+ * The two questions about the ground's lean, from one pair of differences.
+ *
+ * Shared by `createHeightField` and by the archipelago's composite field, which
+ * previously wrote the same central difference out twice. Two implementations of
+ * "which way is downhill" is the sort of duplication that stays correct right up
+ * until one of them is retuned.
+ */
+export function surfaceQueries (
+  heightAt: (x: number, z: number) => number,
+): Pick<HeightField, 'slopeAt' | 'normalAt'> {
+  // Caller-owned scratch of its own: both readers run per vertex and per
+  // placement, and neither can afford a pair of allocations to answer.
+  const gradient = { dx: 0, dz: 0 }
+
+  function sample (x: number, z: number): void {
+    gradient.dx = (heightAt(x + SLOPE_REACH, z) - heightAt(x - SLOPE_REACH, z)) / (SLOPE_REACH * 2)
+    gradient.dz = (heightAt(x, z + SLOPE_REACH) - heightAt(x, z - SLOPE_REACH)) / (SLOPE_REACH * 2)
+  }
+
+  return {
+    slopeAt (x, z) {
+      sample(x, z)
+      return Math.hypot(gradient.dx, gradient.dz)
+    },
+
+    normalAt (x, z, target) {
+      sample(x, z)
+
+      // The normal of a height field is `(-dh/dx, 1, -dh/dz)`, normalised. The
+      // signs are the same ones `textures/normals.ts` is written down for.
+      const length = Math.hypot(gradient.dx, 1, gradient.dz)
+
+      target.x = -gradient.dx / length
+      target.y = 1 / length
+      target.z = -gradient.dz / length
+      return target
+    },
+  }
+}
 
 function smoothProfile (values: number[], passes: number): number[] {
   let current = values
@@ -272,13 +334,5 @@ export function createHeightField (config: ScapeConfig, layout: ScapeLayout): He
     return Math.min(levelled, levelled + (bedLevel(sample.at, sample.course) - levelled) * sample.claim)
   }
 
-  return {
-    heightAt,
-
-    slopeAt (x, z) {
-      const dx = heightAt(x + SLOPE_REACH, z) - heightAt(x - SLOPE_REACH, z)
-      const dz = heightAt(x, z + SLOPE_REACH) - heightAt(x, z - SLOPE_REACH)
-      return Math.hypot(dx, dz) / (SLOPE_REACH * 2)
-    },
-  }
+  return { heightAt, ...surfaceQueries(heightAt) }
 }

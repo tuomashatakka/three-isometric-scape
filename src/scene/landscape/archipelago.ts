@@ -1,5 +1,7 @@
-import type { LandmassProfile, ScapeConfig } from '../config.ts'
+import { landmassLayout, landmassTerrain } from '../config.ts'
+import type { LandmassProfile, LandmassSpec, ScapeConfig } from '../config.ts'
 import type { Footpath, Footpaths } from './footpath.ts'
+import { surfaceQueries } from './height.ts'
 import type { HeightField } from './height.ts'
 import type { Vec2 } from './path.ts'
 import { surveyScape } from './survey.ts'
@@ -31,24 +33,12 @@ export interface ArchipelagoSurvey {
   waterLevel: number
 }
 
-const SLOPE_REACH = 0.75
-
-function landmassConfig (
-  config: ScapeConfig,
-  spec:   ScapeConfig['archipelago']['landmasses'][number],
-): ScapeConfig {
+function landmassConfig (config: ScapeConfig, spec: LandmassSpec): ScapeConfig {
   return {
     ...config,
     seed:    (config.seed ^ spec.seedOffset) >>> 0,
-    terrain: {
-      ...config.terrain,
-      ...spec.terrain,
-      isles: spec.satellites === 'home' ? config.terrain.isles : [],
-    },
-    layout: {
-      ...config.layout,
-      ...spec.layout,
-    },
+    terrain: landmassTerrain(config, spec),
+    layout:  landmassLayout(config, spec),
   }
 }
 
@@ -57,7 +47,7 @@ function assertSeparate (config: ScapeConfig): void {
   const halfWorld                 = worldSize * 0.5
 
   for (const landmass of landmasses) {
-    const half = landmass.terrain.size * 0.5
+    const half = landmassTerrain(config, landmass).size * 0.5
 
     if (Math.abs(landmass.origin[0]) + half > halfWorld || Math.abs(landmass.origin[1]) + half > halfWorld)
       throw new Error(`${landmass.id} terrain patch leaves the archipelago plane`)
@@ -67,7 +57,8 @@ function assertSeparate (config: ScapeConfig): void {
     for (let b = a + 1; b < landmasses.length; b += 1) {
       const first  = landmasses[a]
       const second = landmasses[b]
-      const reach  = (first.terrain.size + second.terrain.size) * 0.5
+      const reach  =
+        (landmassTerrain(config, first).size + landmassTerrain(config, second).size) * 0.5
 
       if (
         Math.abs(first.origin[0] - second.origin[0]) < reach &&
@@ -105,16 +96,7 @@ function createCompositeField (
       : seabed
   }
 
-  return {
-    landmassAt,
-    heightAt,
-
-    slopeAt (x, z) {
-      const dx = heightAt(x + SLOPE_REACH, z) - heightAt(x - SLOPE_REACH, z)
-      const dz = heightAt(x, z + SLOPE_REACH) - heightAt(x, z - SLOPE_REACH)
-      return Math.hypot(dx, dz) / (SLOPE_REACH * 2)
-    },
-  }
+  return { landmassAt, heightAt, ...surfaceQueries(heightAt) }
 }
 
 function createWorldPaths (landmasses: readonly LandmassSurvey[]): Footpaths {

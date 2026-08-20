@@ -1,6 +1,7 @@
-import { LinearFilter, LinearMipmapLinearFilter, RepeatWrapping } from 'three'
+import { DataTexture, LinearFilter, LinearMipmapLinearFilter, NoColorSpace, RGBAFormat, RepeatWrapping } from 'three'
 import type { Texture } from 'three'
 import { createNoiseTexture, createSeamlessNoiseTexture } from 'threejs-scene/modules/assets'
+import { normalFromHeight } from './normals.ts'
 
 
 /**
@@ -26,7 +27,7 @@ import { createNoiseTexture, createSeamlessNoiseTexture } from 'threejs-scene/mo
  * has never heard of.
  */
 export type TextureId =
-  'ground.grain' | 'ground.wear' | 'prop.bark' | 'sky.cloudShadow' |
+  'ground.grain' | 'ground.normal' | 'ground.wear' | 'prop.bark' | 'sky.cloudShadow' |
   'water.ripple' | 'water.wave' | 'water.shoreMask' |
   'sky.deck' | 'sky.aurora' | 'sky.gradient' | 'mist.field' | 'post.lut'
 
@@ -67,10 +68,18 @@ export const TEXTURES: readonly TextureEntry[] = [
   {
     id:        'ground.grain',
     origin:    'catalogue',
-    purpose:   'fine soil grit — albedo mottle, roughness break-up and the normal perturbation taken as its finite difference',
+    purpose:   'fine soil grit — the albedo mottle and the roughness break-up, and the field `ground.normal` is the gradient of',
     size:      512,
     module:    'textures/catalogue.ts',
     consumers: [ 'uDetailMap' ],
+  },
+  {
+    id:        'ground.normal',
+    origin:    'catalogue',
+    purpose:   'the grit\u2019s tangent normal and its height, baked off the grain rather than differenced six ways per fragment',
+    size:      512,
+    module:    'textures/catalogue.ts',
+    consumers: [ 'uGroundNormalMap' ],
   },
   {
     id:        'ground.wear',
@@ -196,6 +205,26 @@ function mipped (texture: Texture): Texture {
   return texture
 }
 
+/** Texels per side of the grain field and the normal map baked off it. */
+const GRAIN_SIZE = 512
+
+/**
+ * The fine grit, as a field.
+ *
+ * Two consumers now — the albedo mottle samples it directly and the normal map
+ * is its gradient — so the parameters are written down once. Two calls with the
+ * same seed give byte-identical data, which is what lets the normal builder take
+ * its source and throw it away rather than reaching into the catalogue's cache.
+ */
+function grainField (seed: number): DataTexture {
+  return createSeamlessNoiseTexture({
+    size:      GRAIN_SIZE,
+    seed:      seed ^ 0x77c1,
+    frequency: 12,
+    octaves:   5,
+  })
+}
+
 /**
  * The builders, one per catalogue-owned entry.
  *
@@ -204,8 +233,33 @@ function mipped (texture: Texture): Texture {
  * accidentally become the same noise.
  */
 const BUILDERS: Record<string, (seed: number) => Texture> = {
-  'ground.grain': seed =>
-    tiled(createSeamlessNoiseTexture({ size: 512, seed: seed ^ 0x77c1, frequency: 12, octaves: 5 })),
+  'ground.grain': seed => tiled(grainField(seed)),
+
+  // The grain's own gradient, resolved once at build. It carries the height in
+  // its alpha as well, because the parallax march needs one and a map that is
+  // already bound is a cheaper place to keep it than a second fetch.
+  //
+  // Mipmapped, unlike the field it comes from. A normal map minified past one
+  // texel per pixel is the tinfoil failure the lake's ripple map is commented
+  // for — a different random tangent in every pixel, and a specular that fires
+  // in a scatter of them.
+  'ground.normal': seed => {
+    const source  = grainField(seed)
+    const data    = (source.image as { data: Uint8Array }).data
+    const texture = new DataTexture(
+      normalFromHeight(data, GRAIN_SIZE),
+      GRAIN_SIZE,
+      GRAIN_SIZE,
+      RGBAFormat,
+    )
+
+    // Freed immediately: it was never uploaded, and it exists only as the field
+    // the gradient was taken from.
+    source.dispose()
+
+    texture.colorSpace = NoColorSpace
+    return mipped(texture)
+  },
 
   // Deliberately its own noise rather than the grain read at a low frequency,
   // which is what it used to be. The same field at two scales is self-similar by

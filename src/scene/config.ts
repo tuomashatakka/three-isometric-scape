@@ -44,22 +44,54 @@ export interface LandmassSpec {
   /** Whether this landmass inherits the home island's surrounding skerries. */
   satellites: 'home' | 'none'
 
-  terrain: {
-    size:        number
-    height:      number
-    shoreBand:   number
-    islandInner: number
-    islandOuter: number
-  }
+  /**
+   * Only what this island's ground does *differently*.
+   *
+   * The top-level `terrain` and `layout` sections are the defaults, and an
+   * island that omits a field simply has the home island's answer for it. That
+   * is not tidiness: the home landmass used to restate all eleven of those
+   * numbers verbatim, which meant every one of them existed twice and had to be
+   * kept in agreement by hand — and the two were read by different code, so a
+   * pair that drifted apart would have shown up as a farm sited on one island
+   * and drawn on a differently shaped one.
+   */
+  terrain?: Partial<LandmassTerrain>
+  layout?:  Partial<LandmassLayout>
+}
 
-  layout: {
-    yardRadius:    number
-    trackWidth:    number
-    plotCount:     number
-    forestBias:    number
-    harbourSpread: number
-    pastureRadius: number
+/** The part of `terrain` an island is allowed its own answer to. */
+export type LandmassTerrain =
+  Pick<ScapeConfig['terrain'], 'size' | 'height' | 'shoreBand' | 'islandInner' | 'islandOuter'>
+
+/** The part of `layout` an island is allowed its own answer to. */
+export type LandmassLayout = Pick<
+  ScapeConfig['layout'],
+  'yardRadius' | 'trackWidth' | 'plotCount' | 'forestBias' | 'harbourSpread' | 'pastureRadius'
+>
+
+/**
+ * One island's ground, resolved out of the defaults and its own overrides.
+ *
+ * The single place that knows a spec is partial. Everything that asks an island
+ * how big it is goes through here — the separation check, the mist's land mask,
+ * the terrain patch and the local survey — so there is one answer rather than
+ * one per caller.
+ */
+export function landmassTerrain (config: ScapeConfig, spec: LandmassSpec): ScapeConfig['terrain'] {
+  return {
+    ...config.terrain,
+    ...spec.terrain,
+
+    // The skerries belong to the home island's own composition. An outer
+    // landmass that inherited them would be surrounded by a ring of rocks
+    // measured against a coastline it does not have.
+    isles: spec.satellites === 'home' ? config.terrain.isles : [],
   }
+}
+
+/** One island's composition, resolved the same way. See {@link landmassTerrain}. */
+export function landmassLayout (config: ScapeConfig, spec: LandmassSpec): ScapeConfig['layout'] {
+  return { ...config.layout, ...spec.layout }
 }
 
 export interface DressingBudget {
@@ -436,7 +468,15 @@ export interface ScapeConfig {
     /** How hard it is blowing at rest, before the gust lifts it. 0 is a still day. */
     strength: number
 
-    /** How fast the wind travels, per unit of strength. 0 freezes every surface it scrolls. */
+    /**
+     * How fast the wind travels, per unit of strength.
+     *
+     * The rate for everything, including the gust front — a wind that blows
+     * harder brings its squalls through faster, and a separate fronts-per-minute
+     * knob was a second rate saying the same thing twice. 0 freezes every
+     * surface the scape scrolls *and* the front with it, which is the whole of
+     * what a still needs.
+     */
     speed: number
 
     /** Compass bearing the wind blows toward, in degrees. */
@@ -450,10 +490,7 @@ export interface ScapeConfig {
      */
     gust: number
 
-    /** Fronts per minute. 0 freezes the wind wherever `time` left it. */
-    gustSpeed: number
-
-    /** Phase of the gust front, 0..1. */
+    /** Phase of the gust front, 0..1. Carried by `wind.speed`. */
     time: number
   }
 
@@ -982,27 +1019,16 @@ export const SCAPE_CONFIG = {
   archipelago: {
     worldSize:  520,
     landmasses: [
+      // No `terrain` and no `layout`: the home island *is* the default, and the
+      // sections above are where its eleven numbers live. Restating them here
+      // is what this spec used to do, and it meant every one of them existed in
+      // two places that nothing checked against each other.
       {
         id:         'home',
         profile:    'home',
         origin:     [ 0, 0 ],
         seedOffset: 0,
         satellites: 'home',
-        terrain:    {
-          size:        196,
-          height:      11.5,
-          shoreBand:   1.15,
-          islandInner: 0.52,
-          islandOuter: 0.63,
-        },
-        layout: {
-          yardRadius:    19,
-          trackWidth:    3.2,
-          plotCount:     4,
-          forestBias:    0.72,
-          harbourSpread: 38,
-          pastureRadius: 6,
-        },
       },
       {
         id:         'ridge',
@@ -1161,12 +1187,11 @@ export const SCAPE_CONFIG = {
   // `landscape/mill.ts` — so the sails are turned into a wind that is now
   // actually blowing that way rather than into a wind nobody had written down.
   wind: {
-    strength:  0.9,
-    speed:     1.35,
-    bearing:   -106,
-    gust:      0.45,
-    gustSpeed: 0.22,
-    time:      0.31,
+    strength: 0.9,
+    speed:    1.35,
+    bearing:  -106,
+    gust:     0.45,
+    time:     0.31,
   },
   water: {
     sparkle:        0.5,

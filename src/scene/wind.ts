@@ -83,6 +83,15 @@ const TAU = Math.PI * 2
 const VEER = 0.21
 
 /**
+ * Fronts per minute, per unit of wind speed.
+ *
+ * A sixth puts a squall through about every four and a half minutes at the
+ * default wind, which is the rate the separate `gustSpeed` knob this replaced
+ * was set to.
+ */
+const GUST_RATE = 1 / 6
+
+/**
  * The gust at a phase of the front, 0..1.
  *
  * Three incommensurate sines rather than one, for the reason the lake's glitter
@@ -162,7 +171,11 @@ export function createWind (config: LiveConfig): Wind {
     update (state_, frame) {
       const wind = state_.wind
 
-      wind.time = (wind.time + frame.delta * wind.gustSpeed / 60) % 1
+      // The front is carried by the wind, not by a rate of its own. A harder
+      // wind brings its squalls through faster, which is the physics and also
+      // the reason there is no second knob here saying so — and it is what lets
+      // `wind.speed=0` freeze the gust along with everything else it stops.
+      wind.time = (wind.time + frame.delta * wind.speed * GUST_RATE / 60) % 1
 
       resolve(wind.time)
 

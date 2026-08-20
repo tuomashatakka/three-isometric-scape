@@ -1,11 +1,103 @@
 import type { ScapeConfig } from '../config.ts'
 import type { FencePoint } from '../props/fence.ts'
 import type { PropName } from '../props/index.ts'
+import { alignToSlope } from './align.ts'
+import type { TiltWeight } from './align.ts'
+import type { ArchipelagoSurvey } from './archipelago.ts'
 import type { Creek } from './creek.ts'
 import type { HeightField } from './height.ts'
 import type { Spot } from './landing.ts'
 import { yawAlong } from './layout.ts'
 import type { Plot, ScapeLayout, Vec2 } from './layout.ts'
+import { drawnSurfaceOf, patchSegments } from './terrain.ts'
+
+
+/** Where a prop meets the ground, and which way that ground is facing. */
+export interface GroundContact {
+
+  /**
+   * The continuous field, as the rules read it.
+   *
+   * Carried here beside the drawn surface so both answers come from one place:
+   * a *rule* asks whether ground is above the water or steep enough for scree
+   * and wants the smooth field, and a *placement* asks where the triangle
+   * actually is. Mixing the two up is how a prop passes the beach test and then
+   * gets laid half a metre under the beach.
+   */
+  heightAt(x: number, z: number): number
+
+  /**
+   * The ground *as the terrain draws it*.
+   *
+   * Placements used to read `heightAt`, which is the continuous field the
+   * terrain's vertices were sampled *from* rather than the chord they were
+   * joined into. The two differ by tens of centimetres wherever the ground
+   * curves, and that gap is what every scattered prop's `- 0.1` sink was
+   * quietly paying for: sink everything far enough and nothing floats, at the
+   * price of everything on level ground being buried a little.
+   */
+  surfaceAt(x: number, z: number): number
+
+  /**
+   * The euler that stands a prop at `(x, z)` facing `yaw`, taking `tilt` of the
+   * ground's lean. See `align.ts`.
+   */
+  standing(x: number, z: number, yaw: number, tilt: TiltWeight): [number, number, number]
+}
+
+/**
+ * One answer about where the ground is, for everything that stands on it.
+ *
+ * Dispatched per landmass because each patch is drawn on its own grid, at the
+ * density `patchSegments` fixes — the same function the terrain itself uses, so
+ * there is one answer to how finely an island is drawn rather than two that can
+ * drift apart.
+ */
+export function createGroundContact (
+  config:      ScapeConfig,
+  archipelago: ArchipelagoSurvey,
+  segments:    number,
+): GroundContact {
+  const { field } = archipelago
+  const drawn     = new Map(archipelago.landmasses.map(landmass => [
+    landmass.id,
+    drawnSurfaceOf(
+      landmass.survey.field,
+      landmass.config.terrain.size,
+      patchSegments(config.terrain.size, landmass.config.terrain.size, segments),
+    ),
+  ]))
+
+  // Reused by every placement. `normalAt` writes into a caller-owned record for
+  // the reason the samplers do, and `alignToSlope` does the same with its euler.
+  const normal                           = { x: 0, y: 1, z: 0 }
+  const facing: [number, number, number] = [ 0, 0, 0 ]
+
+  return {
+    heightAt: field.heightAt,
+
+    surfaceAt (x, z) {
+      const landmass = field.landmassAt(x, z)
+      const patch    = landmass && drawn.get(landmass.id)
+
+      return patch && landmass
+        ? patch(x - landmass.origin.x, z - landmass.origin.z)
+        : field.heightAt(x, z)
+    },
+
+    /**
+     * The tilt is taken from the *continuous* field while the height is taken
+     * from the drawn one, and the split is deliberate. A chord's normal is
+     * constant across a quad and then jumps at the diagonal, so two cobbles a
+     * hand apart would lean at visibly different angles; the field is smooth,
+     * and a prop only has to look like it belongs on the triangle it is resting
+     * on rather than to be co-planar with it.
+     */
+    standing (x, z, yaw, tilt) {
+      return alignToSlope(field.normalAt(x, z, normal), yaw, tilt, facing)
+    },
+  }
+}
 
 
 const FOLIAGE: ReadonlySet<string> = new Set([

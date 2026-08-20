@@ -326,12 +326,10 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         range('wind.strength', 'strength', 0, 3, 0.01),
         range('wind.speed', 'speed', 0, 4, 0.01),
         range('wind.bearing', 'bearing', -180, 180, 1),
-        toggled(
-          'gusts',
-          range('wind.gust', 'variation', 0, 1, 0.01),
-          0.45,
-          [ range('wind.gustSpeed', 'fronts / min', 0, 2, 0.01) ],
-        ),
+        // No separate rate under it: how fast a front comes through is
+        // `wind.speed` above, because a harder wind brings its squalls through
+        // faster and two numbers for that was two numbers to keep in step.
+        toggled('gusts', range('wind.gust', 'variation', 0, 1, 0.01), 0.45),
       ],
     },
     {

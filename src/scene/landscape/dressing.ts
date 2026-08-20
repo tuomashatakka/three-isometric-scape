@@ -16,10 +16,11 @@ import { BEACON_SINK } from '../props/beacon.ts'
 import { MILL_SINK } from '../props/mill.ts'
 import { buildStoneWallRun } from '../props/wall.ts'
 import type { AtmosphereQuality } from '../quality.ts'
+import type { TiltWeight } from './align.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from './archipelago.ts'
 import { BEACON_FOOTING } from './beacon.ts'
 import type { Spot } from './landing.ts'
-import { findCrossing, isFoliage, plotOutline, trackPointNear } from './dressing-helpers.ts'
+import { createGroundContact, findCrossing, isFoliage, plotOutline, trackPointNear } from './dressing-helpers.ts'
 import { createScatterRules, createZoneTests } from './dressing-zones.ts'
 import { yawAlong } from './layout.ts'
 import type { Plot, Vec2 } from './layout.ts'
@@ -38,6 +39,33 @@ interface ScatterSampling {
 }
 
 const TAU = Math.PI * 2
+
+/**
+ * How much of the ground's lean each family of prop takes.
+ *
+ * Four answers rather than one, because "does this thing stand plumb" is a
+ * question about what the thing *is*. See `align.ts` for the rotation itself.
+ */
+const TILT = {
+
+  /** Stone. It was left where it rolled and it is lying on the hill entirely. */
+  loose: 1,
+
+  /** Timber the sea or the wind put down, which is nearly the same thing. */
+  fallen: 0.85,
+
+  /**
+   * Set down by somebody, on whatever ground they had.
+   *
+   * The dead spruce is in here rather than with the growing ones on purpose: a
+   * trunk that is still alive corrects toward the light every year, and one that
+   * is not has stopped.
+   */
+  placed: 0.55,
+
+  /** Grows toward the light whatever it is rooted in, and mostly wins. */
+  rooted: 0.28,
+} as const
 
 /**
  * How much ground a plinth is willing to bridge, in metres.
@@ -160,7 +188,15 @@ export function createDressing (
     harbourQuota,
     areaScale,
   }              = createDressingSampling(config, archipelago, rng)
-  const heightAt = field.heightAt
+  // Where anything standing on the ground meets it, and which way that ground
+  // faces. All three live next door in `dressing-helpers.ts`, because none of
+  // them is about dressing — they are facts about the terrain as drawn.
+  const { heightAt, surfaceAt, standing } = createGroundContact(
+    config,
+    archipelago,
+    quality.terrainSegments,
+  )
+
   const budget   = (count: number): number =>
     Math.max(
       archipelago.landmasses.length,
@@ -669,13 +705,13 @@ export function createDressing (
 
     // Biggest footprints first — a field already full of saplings has no room
     // left for a boulder, and the reverse is never a problem.
-    scatterStructural('erratic', config.dressing.erratic, 1.6, stoneRule(0.2), 0.7, 1.4, 40)
-    scatterStructural('cairn', config.dressing.cairn, 1.3, stoneRule(0.6), 0.85, 1.2, 40)
-    scatterStructural('pine', config.dressing.pine, 0.9, conifer(0.7, 2.4, 0.6), 0.7, 1.35, 40)
-    scatterStructural('spruce', config.dressing.spruce, 0.6, conifer(1, 1, 0.7), 0.62, 1.5, 40)
-    scatterStructural('birch', config.dressing.birch, 0.7, birchRule, 0.68, 1.3, 40)
-    scatterStructural('deadSpruce', config.dressing.deadSpruce, 0.6, conifer(0.5, 0.8, 0.9), 0.6, 1.2, 40)
-    scatterStructural('hayBale', config.dressing.hayBale, 1, plotEdge, 0.85, 1.15, 90)
+    scatterStructural('erratic', config.dressing.erratic, 1.6, stoneRule(0.2), 0.7, 1.4, 40, {}, TILT.loose)
+    scatterStructural('cairn', config.dressing.cairn, 1.3, stoneRule(0.6), 0.85, 1.2, 40, {}, TILT.placed)
+    scatterStructural('pine', config.dressing.pine, 0.9, conifer(0.7, 2.4, 0.6), 0.7, 1.35, 40, {}, TILT.rooted)
+    scatterStructural('spruce', config.dressing.spruce, 0.6, conifer(1, 1, 0.7), 0.62, 1.5, 40, {}, TILT.rooted)
+    scatterStructural('birch', config.dressing.birch, 0.7, birchRule, 0.68, 1.3, 40, {}, TILT.rooted)
+    scatterStructural('deadSpruce', config.dressing.deadSpruce, 0.6, conifer(0.5, 0.8, 0.9), 0.6, 1.2, 40, {}, TILT.placed)
+    scatterStructural('hayBale', config.dressing.hayBale, 1, plotEdge, 0.85, 1.15, 90, {}, TILT.placed)
     scatterStructural(
       'barrel',
       config.dressing.barrel,
@@ -696,8 +732,8 @@ export function createDressing (
       90,
       { sample: sampleYard, quota: yardQuota, claimScale: 0.55 },
     )
-    scatterStructural('fieldStone', config.dressing.fieldStone, 0.45, stoneRule(-0.4), 0.7, 1.5, 30)
-    scatterStructural('driftwood', config.dressing.driftwood, 0.7, beachRule(0.4), 0.75, 1.3, 30)
+    scatterStructural('fieldStone', config.dressing.fieldStone, 0.45, stoneRule(-0.4), 0.7, 1.5, 30, {}, TILT.loose)
+    scatterStructural('driftwood', config.dressing.driftwood, 0.7, beachRule(0.4), 0.75, 1.3, 30, {}, TILT.fallen)
     scatterStructural(
       'mooringPost',
       config.dressing.mooringPost,
@@ -721,8 +757,8 @@ export function createDressing (
       40,
       { sample: samplePasture, quota: pastureQuota, claimScale: 0.35 },
     )
-    scatterStructural('sapling', config.dressing.sapling, 0.35, openGround(0.5, 0.95), 0.7, 1.5, 30)
-    scatterStructural('stump', config.dressing.stump, 0.35, openGround(0.6, 0.85), 0.75, 1.4, 30)
+    scatterStructural('sapling', config.dressing.sapling, 0.35, openGround(0.5, 0.95), 0.7, 1.5, 30, {}, TILT.rooted)
+    scatterStructural('stump', config.dressing.stump, 0.35, openGround(0.6, 0.85), 0.75, 1.4, 30, {}, TILT.rooted)
 
     // ---- ground cover --------------------------------------------------------
 
@@ -730,18 +766,18 @@ export function createDressing (
       const height = heightAt(x, z)
       return height > water + 0.2 && !onTrack(x, z) && !onPath(x, z) &&
         (onPlot(x, z) === 0 || rng.next() > 0.75)
-    }, 0.6, 1.5, 0)
+    }, 0.6, 1.5, 0, 16, true, sampleSpot, TILT.rooted)
 
     scatterCover('heather', config.dressing.heather, (x, z) => {
       const height = heightAt(x, z)
       return height > water + 2.6 && clear(x, z)
-    }, 0.7, 1.4, 0)
+    }, 0.7, 1.4, 0, 16, true, sampleSpot, TILT.rooted)
 
     // The one cover the pasture keeps: a mown hay meadow is the flowers.
     scatterCover('wildflower', config.dressing.wildflower, (x, z) => {
       const height = heightAt(x, z)
       return height > water + 0.5 && (clear(x, z) && height < water + 4.5 || onPasture(x, z) > 0.25)
-    }, 0.7, 1.5, 0)
+    }, 0.7, 1.5, 0, 16, true, sampleSpot, TILT.rooted)
 
     // The shore and the scree: wherever the turf never took, the stone under it
     // is what shows. Not foliage, whatever the default says — a cobble that
@@ -749,7 +785,7 @@ export function createDressing (
     scatterCover('cobble', config.dressing.cobble, (x, z) => {
       const height = heightAt(x, z)
       return height < water + 0.7 || field.slopeAt(x, z) > 0.5
-    }, 0.7, 1.4, 0, 16, false)
+    }, 0.7, 1.4, 0, 16, false, sampleSpot, TILT.loose)
 
     // The paving. Sampled along the legs themselves rather than thrown at the
     // island, so the whole budget lands on the tread — which is the difference
@@ -757,12 +793,12 @@ export function createDressing (
     const sampleTread = createTreadSampler(paths, rng.fork('tread'))
 
     if (sampleTread)
-      scatterCover('cobble', config.dressing.pathStone, onPath, 0.42, 0.95, 0, 4, false, sampleTread)
+      scatterCover('cobble', config.dressing.pathStone, onPath, 0.42, 0.95, 0, 4, false, sampleTread, TILT.loose)
 
     scatterCover('reeds', config.dressing.reeds, (x, z) => {
       const height = heightAt(x, z)
       return height > water - 0.55 && height < water + 0.3
-    }, 0.7, 1.5, 0, 30)
+    }, 0.7, 1.5, 0, 30, true, sampleSpot, TILT.rooted)
 
     scatterCover('lilyPads', config.dressing.lilyPads, (x, z) => {
       const height = heightAt(x, z)
@@ -770,7 +806,7 @@ export function createDressing (
     }, 0.8, 1.4, water + 0.02, 30)
 
     scatterCover('crop', config.dressing.crop, (x, z) =>
-      onPlot(x, z) > 0.35 && heightAt(x, z) > water + 0.6, 0.85, 1.15, 0, 90)
+      onPlot(x, z) > 0.35 && heightAt(x, z) > water + 0.6, 0.85, 1.15, 0, 90, true, sampleSpot, TILT.rooted)
   }
 
   dressGround()
@@ -812,6 +848,7 @@ export function createDressing (
     maxScale: number,
     attempts = 26,
     sampling: ScatterSampling = {},
+    tilt: TiltWeight = 0,
   ): void {
     const total  = budget(count)
     const sample = sampling.sample ?? sampleSpot
@@ -836,9 +873,14 @@ export function createDressing (
       if (!spot)
         return null
 
+      const yaw = rng.range(0, TAU)
+
+      // A quarter of the sink it used to take. The height is the drawn surface
+      // now rather than the field it was sampled from, so what is left is
+      // contact rather than compensation.
       return {
-        at:     [ spot.x, heightAt(spot.x, spot.z) - 0.1, spot.z ],
-        rotate: [ 0, rng.range(0, TAU), 0 ],
+        at:     [ spot.x, surfaceAt(spot.x, spot.z) - 0.025, spot.z ],
+        rotate: standing(spot.x, spot.z, yaw, tilt),
         scale:  rng.range(minScale, maxScale),
         tint:   shade(rng, 0.86, 1.1),
       }
@@ -855,6 +897,7 @@ export function createDressing (
     attempts = 16,
     foliage = true,
     sample = sampleSpot,
+    tilt: TiltWeight = 0,
   ): void {
     const total = budget(count)
     root.add(stamp(name, total, () => {
@@ -864,9 +907,14 @@ export function createDressing (
         if (!accept(x, z))
           continue
 
+        const yaw = rng.range(0, TAU)
+
+        // Anything with a fixed height is floating on the water rather than
+        // lying on the ground, so it takes no tilt whatever it was asked for —
+        // a lily pad on a slope is a lily pad on a hill.
         return {
-          at:     [ x, fixedY || heightAt(x, z) - 0.06, z ],
-          rotate: [ 0, rng.range(0, TAU), 0 ],
+          at:     [ x, fixedY || surfaceAt(x, z) - 0.02, z ],
+          rotate: standing(x, z, yaw, fixedY ? 0 : tilt),
           scale:  rng.range(minScale, maxScale),
           tint:   shade(rng, 0.84, 1.12),
         }

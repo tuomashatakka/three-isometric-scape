@@ -9,6 +9,7 @@ import {
 import type { OrthographicCamera, Texture } from 'three'
 import { defineModule, smoothstep } from 'threejs-scene'
 import { bakeAlphaField } from 'threejs-scene/modules/assets'
+import { landmassTerrain } from './config.ts'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import type { DaylightState } from './daylight.ts'
 import { sampleHeight } from './noise.ts'
@@ -113,6 +114,26 @@ export function mistSliceReach (index: number, count: number, viewSize: number):
   return (index - (count - 1) / 2) * mistSliceSpacing(viewSize)
 }
 
+/**
+ * Every island's extent, resolved once.
+ *
+ * Both masks are per-vertex loops over every landmass, and a spec's terrain is
+ * only partial now — so resolving it inside the loop would rebuild the same
+ * five numbers a quarter of a million times and allocate an object for each.
+ */
+function islandExtents (config: ScapeConfig): { x: number, z: number, size: number, landRadius: number }[] {
+  return config.archipelago.landmasses.map(landmass => {
+    const island = landmassTerrain(config, landmass)
+
+    return {
+      x:          landmass.origin[0],
+      z:          landmass.origin[1],
+      size:       island.size,
+      landRadius: island.size * 0.5 * island.islandOuter,
+    }
+  })
+}
+
 function mistMaskSegments (size: number): number {
   return Math.ceil(size / MASK_CELL_UNITS)
 }
@@ -164,6 +185,7 @@ function sheetGeometry (size: number, config: ScapeConfig): PlaneGeometry {
   const geometry = new PlaneGeometry(size, size, segments, segments)
   const position = geometry.getAttribute('position')
   const colors   = new Float32Array(position.count * 4)
+  const islands  = islandExtents(config)
 
   for (let index = 0; index < position.count; index += 1) {
     const x      = position.getX(index)
@@ -171,11 +193,11 @@ function sheetGeometry (size: number, config: ScapeConfig): PlaneGeometry {
     const offset = index * 4
     let alpha    = 0
 
-    for (const landmass of config.archipelago.landmasses) {
-      const distance = Math.hypot(x - landmass.origin[0], z - landmass.origin[1])
+    for (const island of islands) {
+      const distance = Math.hypot(x - island.x, z - island.z)
       alpha = Math.max(alpha, 1 - smoothstep(
-        landmass.terrain.size * REACH_IN,
-        landmass.terrain.size * REACH_OUT,
+        island.size * REACH_IN,
+        island.size * REACH_OUT,
         distance,
       ))
     }
@@ -243,6 +265,7 @@ function smokeGeometry (size: number, config: ScapeConfig): PlaneGeometry {
   const position = geometry.getAttribute('position')
   const colors   = new Float32Array(position.count * 4)
   const half     = size * 0.5
+  const islands  = islandExtents(config)
 
   for (let index = 0; index < position.count; index += 1) {
     const x      = position.getX(index)
@@ -251,13 +274,12 @@ function smokeGeometry (size: number, config: ScapeConfig): PlaneGeometry {
     const offset = index * 4
     let offshore = 1
 
-    for (const landmass of config.archipelago.landmasses) {
-      const landRadius = landmass.terrain.size * 0.5 * landmass.terrain.islandOuter
-      const distance   = Math.hypot(x - landmass.origin[0], z - landmass.origin[1])
+    for (const island of islands) {
+      const distance = Math.hypot(x - island.x, z - island.z)
 
       offshore = Math.min(offshore, smoothstep(
-        landRadius * SMOKE_IN,
-        landRadius * SMOKE_OUT,
+        island.landRadius * SMOKE_IN,
+        island.landRadius * SMOKE_OUT,
         distance,
       ))
     }

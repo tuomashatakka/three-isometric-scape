@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { drawnSurfaceOf } from './terrain.ts'
+import { surfaceQueries } from './height.ts'
 import type { HeightField } from './height.ts'
 
 
@@ -8,10 +9,10 @@ const SEGMENTS = 10
 const STEP     = SIZE / SEGMENTS
 
 /** A ground with real curvature in it, so a chord and the field disagree. */
-const rolling: HeightField = {
-  heightAt: (x, z) => Math.sin(x * 0.31) * 2.4 + Math.cos(z * 0.22) * 1.7,
-  slopeAt:  () => 0,
-}
+const height = (x: number, z: number): number =>
+  Math.sin(x * 0.31) * 2.4 + Math.cos(z * 0.22) * 1.7
+
+const rolling: HeightField = { heightAt: height, ...surfaceQueries(height) }
 
 const surface = drawnSurfaceOf(rolling, SIZE, SEGMENTS)
 

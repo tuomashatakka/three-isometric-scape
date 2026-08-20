@@ -290,6 +290,23 @@ function cartRutPatch (
   })
 }
 
+/**
+ * How finely one island's patch is drawn.
+ *
+ * A *density*, held constant across the archipelago: the segment count follows
+ * the patch's own size so a bigger island arrives with the same metres to a
+ * quad rather than the same number of them. Exported because the terrain is no
+ * longer the only reader — the dressing has to sample the ground *as drawn*,
+ * and it can only do that if it knows the grid the drawing is on.
+ */
+export function patchSegments (
+  worldSize:    number,
+  patchSize:    number,
+  baseSegments: number,
+): number {
+  return Math.max(24, Math.round(baseSegments * patchSize / worldSize))
+}
+
 function terrainMesh (geometry: BufferGeometry, material: Material): Mesh {
   const terrain         = new Mesh(geometry, material)
   terrain.name          = 'terrain'
@@ -345,9 +362,10 @@ export function createArchipelagoTerrain (
   pieces.push(seabed)
 
   for (const landmass of archipelago.landmasses) {
-    const segments = Math.max(
-      24,
-      Math.round(baseSegments * landmass.config.terrain.size / config.terrain.size),
+    const segments = patchSegments(
+      config.terrain.size,
+      landmass.config.terrain.size,
+      baseSegments,
     )
     const geometry = terrainGeometry(
       landmass.config,

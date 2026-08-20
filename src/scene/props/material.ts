@@ -7,6 +7,7 @@ import type { LiveConfig } from '../config.ts'
 import type { SeasonState } from '../season.ts'
 import { createTextureCatalogue } from '../textures/catalogue.ts'
 import type { TextureCatalogue } from '../textures/catalogue.ts'
+import { GROUND_NORMAL_GAIN } from '../textures/normals.ts'
 import type { WeatherState } from '../weather.ts'
 import type { WindState } from '../wind.ts'
 
@@ -151,10 +152,9 @@ const WIND_VERTEX = /* glsl */`
  *
  * Vertex colour alone gives the terrain its *palette* but not its *surface* —
  * at this camera distance a metre of ground is a few pixels wide, and without
- * something at that scale it reads as coloured paper. Two things fix it and
- * both are one texture: a fine albedo mottle, and a normal perturbation taken
- * as the finite difference of the same fetch, which is what makes the light
- * catch on soil rather than sliding over it.
+ * something at that scale it reads as coloured paper. Two things fix it: a fine
+ * albedo mottle, and a real normal map baked off the same field, which is what
+ * makes the light catch on soil rather than sliding over it.
  *
  * World-space projection, weighted by how horizontal the surface is — so the
  * shared material can carry it without smearing streaks down every barn wall.
@@ -173,6 +173,7 @@ const WIND_VERTEX = /* glsl */`
  */
 const DETAIL_PARS_FRAGMENT = /* glsl */`
   uniform sampler2D uDetailMap;
+  uniform sampler2D uGroundNormalMap;
   uniform sampler2D uWearMap;
   uniform sampler2D uBarkMap;
   uniform float uDetailScale;
@@ -229,12 +230,11 @@ const PROP_GRAIN_FRAGMENT = /* glsl */`
 `
 
 /**
- * The same grain, for a gpu that cannot afford to look for it six times.
+ * The same grain, for a gpu that cannot afford to look for it three times.
  *
- * One dependent texture read instead of six. It keeps the albedo mottle and the
- * roughness break-up, which are what stop the ground reading as coloured paper,
- * and gives up the macro octave and the normal perturbation — the latter needs
- * three fetches to exist at all, since it is a finite difference.
+ * One dependent texture read instead of three. It keeps the albedo mottle and
+ * the roughness break-up, which are what stop the ground reading as coloured
+ * paper, and gives up the macro octave and the normal map with it.
  *
  * This is a steady-frame quality budget, not the context-loss fix. The connected
  * Pixel 10 a/b test traced that failure to the separate shadow-map depth pass.
@@ -265,13 +265,9 @@ const DETAIL_FRAGMENT = /* glsl */`
   // sampled at two frequencies is self-similar by construction, so the patches
   // landed exactly where the grit was already darkest and the two reinforced
   // into a lumpy weave rather than reading as two different histories.
-  vec2 wearUv  = scapeUv * 0.14;
-  float grain  = texture2D(uDetailMap, scapeUv).r;
-  float grainX = texture2D(uDetailMap, scapeUv + vec2(0.015, 0.0)).r;
-  float grainZ = texture2D(uDetailMap, scapeUv + vec2(0.0, 0.015)).r;
-  float wear   = texture2D(uWearMap, wearUv).r;
-  float wearX  = texture2D(uWearMap, wearUv + vec2(0.02, 0.0)).r;
-  float wearZ  = texture2D(uWearMap, wearUv + vec2(0.0, 0.02)).r;
+  vec2 wearUv = scapeUv * 0.14;
+  float grain = texture2D(uDetailMap, scapeUv).r;
+  float wear  = texture2D(uWearMap, wearUv).r;
 
   diffuseColor.rgb *= 1.0 + scapeAmt * (grain - 0.5) * 1.6;
   diffuseColor.rgb *= 1.0 + scapeAmt * uDetailMacro * (wear - 0.5) * 1.15;
@@ -285,8 +281,22 @@ const DETAIL_FRAGMENT = /* glsl */`
   // wet ground from dry at this distance — the albedo barely moves.
   roughnessFactor = clamp(roughnessFactor - scapeAmt * uDetailMacro * (wear - 0.5) * 0.3, 0.05, 1.0);
 
-  vec3 scapeBump = vec3(grainX - grain, 0.0, grainZ - grain) * 3.0 +
-    vec3(wearX - wear, 0.0, wearZ - wear) * uDetailMacro * 2.2;
+  // One fetch, where there used to be four differenced by hand. The map's own
+  // tangent is the grain's gradient resolved at full texel resolution and with
+  // the sign a height field actually has — see textures/normals.ts for what was
+  // wrong with the difference it replaces.
+  //
+  // The projection is planar and world-space, so the tangent frame is simply
+  // world x and world z with the surface's own up between them: the map's x and
+  // y land straight in the ground plane and nothing has to be built.
+  //
+  // The macro octave keeps its albedo and its roughness and deliberately loses
+  // its normal. A metre-wide patch of wear is damp ground, not raised ground —
+  // there is nothing there to catch the light on, and two more fetches to prove
+  // it was two fetches spent agreeing with a flat surface.
+  vec2 scapeTangent = texture2D(uGroundNormalMap, scapeUv).xy * 2.0 - 1.0;
+  vec3 scapeBump    = vec3(scapeTangent.x, 0.0, scapeTangent.y) * ${GROUND_NORMAL_GAIN.toFixed(2)};
+
   normal = normalize(normal + mat3(viewMatrix) * scapeBump * scapeAmt);
 ${PROP_GRAIN_FRAGMENT}
 `
@@ -408,6 +418,12 @@ export function createScapeMaterials (
   const cloudMap  = textures.get('sky.cloudShadow')
   const detailMap = textures.get('ground.grain')
   const wearMap   = textures.get('ground.wear')
+
+  // Only where something samples it. The lite path has one fetch to spend and
+  // spends it on albedo, so a tier that will never read this must not pay to
+  // bake and upload a 512² map — the grain stands in as a bound sampler the
+  // program does not reach.
+  const normalMap = detailTaps >= 6 ? textures.get('ground.normal') : detailMap
   const barkMap   = textures.get('prop.bark')
 
   const cloudOffset: IUniform<Vector2>   = { value: new Vector2() }
@@ -424,13 +440,14 @@ export function createScapeMaterials (
     uWindDir:      windDir,
   }
   const detail: Record<string, IUniform> = {
-    uDetailMap:      { value: detailMap },
-    uWearMap:        { value: wearMap },
-    uBarkMap:        { value: barkMap },
-    uDetailScale:    { value: 1 / Math.max(0.5, config().terrain.detailScale) },
-    uDetailStrength: { value: config().terrain.detailGrain },
-    uDetailMacro:    { value: config().terrain.detailMacro },
-    uPropGrain:      { value: config().terrain.propGrain },
+    uDetailMap:       { value: detailMap },
+    uGroundNormalMap: { value: normalMap },
+    uWearMap:         { value: wearMap },
+    uBarkMap:         { value: barkMap },
+    uDetailScale:     { value: 1 / Math.max(0.5, config().terrain.detailScale) },
+    uDetailStrength:  { value: config().terrain.detailGrain },
+    uDetailMacro:     { value: config().terrain.detailMacro },
+    uPropGrain:       { value: config().terrain.propGrain },
   }
 
   // Both materials share these instances, so the year is written once a frame
