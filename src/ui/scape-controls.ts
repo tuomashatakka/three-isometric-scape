@@ -111,48 +111,12 @@ const GRADES: readonly GradeName[] = [
  */
 const EFFECT_MODES: readonly string[] = [ 'tier', 'all' ]
 
-function walk (root: object, path: string): [ Record<string, unknown>, string ] | null {
-  const keys = path.split('.')
-  const last = keys.pop()
-  let node: unknown = root
-
-  for (const key of keys) {
-    if (typeof node !== 'object' || node === null)
-      return null
-    node = (node as Record<string, unknown>)[key]
-  }
-
-  if (!last || typeof node !== 'object' || node === null)
-    return null
-
-  return [ node as Record<string, unknown>, last ]
-}
-
-/** Read a dotted path out of the config. `undefined` if any step is missing. */
-export function readPath (root: object, path: string): unknown {
-  const slot = walk(root, path)
-  return slot ? slot[0][slot[1]] : undefined
-}
-
-/** Write a dotted path into the config. Silently does nothing if the path is dead. */
-export function writePath (root: object, path: string, value: unknown): void {
-  const slot = walk(root, path)
-
-  if (slot)
-    slot[0][slot[1]] = value
-}
-
-export function readNumber (root: object, path: string): number {
-  const value = readPath(root, path)
-  return typeof value === 'number' ? value : 0
-}
-
-export function readText (root: object, path: string): string {
-  const value = readPath(root, path)
-  return typeof value === 'string' ? value : ''
-}
-
-/** Every leaf path the overlay persists, in declaration order. */
+/**
+ * Every leaf path the overlay persists, in declaration order.
+ *
+ * The paths themselves are read and written with `readPath`/`writePath` from
+ * the runtime — this module owns the *tree*, not the addressing.
+ */
 export function controlPaths (sections: readonly ControlSection[]): string[] {
   return sections
     .filter(section => section.persist !== false)

@@ -1,8 +1,7 @@
 import { BufferGeometry, Color, Float32BufferAttribute } from 'three'
 import type { SeededRng } from 'threejs-scene'
-import { mergeParts, part } from 'threejs-scene/modules/assets'
+import { ball, box, cone, cyl, hedron, mergeParts, part } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
-import { ball, box, cone, cyl, rock } from './primitives.ts'
 
 
 /**
@@ -92,7 +91,7 @@ export function buildLighthouse (rng: SeededRng, palette: NordicPalette): Buffer
     const around = index / 6 * Math.PI * 2 + rng.range(-0.2, 0.2)
     const reach  = rng.range(2.3, 2.9)
 
-    parts.push(part(rock(rng.range(0.34, 0.58)), {
+    parts.push(part(hedron(rng.range(0.34, 0.58)), {
       at:     [ Math.cos(around) * reach, rng.range(0.06, 0.2), Math.sin(around) * reach ],
       rotate: [ rng.range(0, 1), around, rng.range(0, 1) ],
       scale:  [ 1, rng.range(0.5, 0.8), 1 ],

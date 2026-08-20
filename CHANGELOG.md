@@ -2,6 +2,19 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the machinery that was never about this island
+
+four things in here were general-purpose code wearing a scape's clothes: an ascii rasteriser, a ribbon builder, a set of primitive constructors and a dotted-path reader. none of them knew anything about an archipelago. they now live in `threejs-scene` `0.5.0` and this repo imports them, which is **784 lines lighter** across `src/` and `scripts/` — 80 added against 864 removed — and one place to fix them instead of three.
+
+- **moved upstream** `scripts/raster.ts` → `rasterizeAscii` / `auditPalette` / `ASCII_VIEWS` / `ASCII_SHADES`. it was always the missing half of the runtime's own prop-authoring pipeline: `validatePropSpec` says a spec is legal and `reviewProp` says the result does not float, but neither could say *what it looks like*, so a model authoring geometry was reasoning blind. `prop:map` is unchanged at the command line
+- **moved upstream** `props/primitives.ts` → the primitives now come from `modules/assets`. `rock` is `hedron` there, so that it does not read as a synonym for `createRockGeometry` sitting in the same barrel; ten prop builders follow the rename
+- **moved upstream** the cart ruts' ribbon builder → `createSurfaceRibbon`. the beck and the waterway trace their own strips the same way, and three hand-written copies of cross-section-times-arc-length indexing is three places for the winding to be wrong in. `cart-ruts.ts` went from 302 lines to 162 and **all 17 of its determinism tests pass unchanged**, which is the only evidence worth having that the extraction is faithful
+- **moved upstream** `readPath`/`writePath` out of the graphics overlay, plus `wanderAt` as `valueNoise1d` and the layer teardown as `disposeMesh`. `scape-controls.ts` owns the control *tree* now, not the addressing — five callers take the readers from the runtime instead
+- **cost: nothing.** `scape:diff --ref origin/main --poses tour` reads **0.00% on all six poses**, `same` everywhere, `no structural change`. the ruts are the same vertices in the same order: the extraction reproduces the arithmetic exactly rather than approximating it. no new dependency, no draw call moved, no tier gate touched
+- **also** `threejs-scene` gained a `CHANGELOG.md`, a `build:watch` for developing against a linked consumer, and a publish workflow — releases were a manual `npm publish` from one machine with tags four versions out of date
+
+**the rule this sets:** generic machinery belongs in the runtime; if a helper has to know about *this* archipelago, it stays in `src/`. the atmosphere layers deliberately did **not** move — `mist`, `clouds`, `aurora` and `rain` share a recipe but differ in their noise and falloff and read this scape's own `sampleHeight`, so they only rhyme. neither did the prop viewer's quad view: `modules/assets` is DOM-free and ssr-safe on purpose, and a keyboard-driven multi-pane widget would end that.
+
 ## the light on the outer rock
 
 the furthest skerry in the ring now carries a lighthouse: a battered stone tower with a painted band round its middle, a corbelled gallery, a glazed lantern room and a vent finial on the cap. after dark the lamp comes up and the optic turns, sweeping beams out over the water until dawn.

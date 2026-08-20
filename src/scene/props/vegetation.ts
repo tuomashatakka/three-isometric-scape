@@ -1,8 +1,7 @@
 import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
-import { applyBend, applyTaper, mergeParts, part } from 'threejs-scene/modules/assets'
+import { applyBend, applyTaper, ball, blade, box, cone, cyl, deg, hedron, mergeParts, part, spread } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
-import { ball, blade, box, cone, cyl, deg, rock, spread } from './primitives.ts'
 
 
 const TAU = Math.PI * 2
@@ -220,7 +219,7 @@ export function buildHeather (rng: SeededRng, palette: NordicPalette): BufferGeo
   const parts: BufferGeometry[] = []
 
   for (let puff = 0; puff < 4; puff += 1)
-    parts.push(part(rock(0.2 + rng.range(0, 0.09), 0), {
+    parts.push(part(hedron(0.2 + rng.range(0, 0.09), 0), {
       at:     [ rng.range(-0.22, 0.22), 0.13, rng.range(-0.22, 0.22) ],
       scale:  [ 1, 0.55, 1 ],
       color:  puff % 2 === 0 ? palette.heather : palette.moss,

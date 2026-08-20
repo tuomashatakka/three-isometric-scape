@@ -1,7 +1,6 @@
 import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
-import { part } from 'threejs-scene/modules/assets'
-import { box, cyl, deg, spread } from './primitives.ts'
+import { box, cyl, deg, part, spread } from 'threejs-scene/modules/assets'
 
 
 /**

@@ -1,4 +1,5 @@
 import './style.css'
+import { writePath } from 'threejs-scene'
 import { SCAPE_CONFIG } from './scene/config.ts'
 import { createIsometricScape } from './scene/create-isometric-scape.ts'
 import type { AtmosphereQuality } from './scene/quality.ts'
@@ -22,7 +23,7 @@ import { createFpsMeter } from './ui/fps-meter.ts'
 import { createGraphicsPanel } from './ui/graphics-panel.ts'
 import { readCardHidden, writeCardHidden } from './ui/overlay-state.ts'
 import { createScapeCard } from './ui/scape-card.ts'
-import { createScapeControls, writePath } from './ui/scape-controls.ts'
+import { createScapeControls } from './ui/scape-controls.ts'
 import { createSettingsStore } from './ui/settings-store.ts'
 
 

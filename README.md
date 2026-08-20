@@ -44,7 +44,7 @@ bun run build
 
 the stats block is the part that earns its keep. a beck that failed to trace, an island that drowned, a pasture that never found room and a set of footpaths that collapsed to nothing are all *invisible* in a still at the default pose, and all of them are one field here.
 
-`prop:map` is the same bargain one scale down, with its own z-buffered rasteriser. a building forty metres off, at one fixed angle, under a colour grade is exactly the viewing condition that let a gable end poke through its own roof for months — and `--audit`, which names the palette entry every baked facet came from and the height band it covers, turns *"does `faluDark` appear above the roofline"* into one line of output.
+`prop:map` is the same bargain one scale down, on the runtime's z-buffered ascii rasteriser. a building forty metres off, at one fixed angle, under a colour grade is exactly the viewing condition that let a gable end poke through its own roof for months — and `--audit`, which names the palette entry every baked facet came from and the height band it covers, turns *"does `faluDark` appear above the roofline"* into one line of output.
 
 the audit has to match in **linear** colour. three bakes the colour attribute out of srgb and that conversion is a power curve rather than a scale, so a swatch compared in srgb does not point the same way as its own facets: matched wrong, the rust chimney lands in the falu bucket and hides the very fault the tool exists to find. hues separate cleanly; the greys (granite, shingle, iron, trim) are near-collinear and trade places, so read those as one family.
 
@@ -215,7 +215,6 @@ src/
         ├── palette.ts              the nordic colour vocabulary
         ├── material.ts             shared materials, cloud shadow, wind, wetness, snow
         ├── ploppable.ts            2d placement with a ground-following foundation
-        ├── primitives.ts           terse primitive constructors
         ├── fence.ts / wall.ts      continuous ground-following runs
         ├── timber.ts               cladding, gable and roof vocabulary
         ├── buildings.ts            barn, farmhouse, sauna, aitta, woodshed
@@ -231,7 +230,6 @@ src/
 scripts/
 ├── args.ts                         the shared command line, and dotted-path overrides
 ├── browser.ts                      finding a chromium, and serving what it looks at
-├── raster.ts                       the ascii rasteriser and the palette audit
 ├── prop-map.ts                     one prop as ascii, from six angles
 ├── scape-map.ts                    the whole composition as ascii
 ├── scape-shot.ts                   headless stills, posed and pinned

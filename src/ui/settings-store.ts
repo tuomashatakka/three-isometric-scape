@@ -1,4 +1,5 @@
-import { controlPaths, readPath, writePath } from './scape-controls.ts'
+import { readPath, writePath } from 'threejs-scene'
+import { controlPaths } from './scape-controls.ts'
 import type { ControlSection } from './scape-controls.ts'
 
 

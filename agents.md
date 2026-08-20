@@ -61,7 +61,7 @@ boats 3  separation 115.79m  conflicts 0
 
 ### `bun run prop:map` — one prop, as ascii
 
-the same bargain one scale down. builds exactly one geometry through its own z-buffered rasteriser ([`scripts/raster.ts`](scripts/raster.ts)). **use this instead of a screenshot when you touch a prop builder.**
+the same bargain one scale down. builds exactly one geometry and draws it through the runtime's z-buffered ascii rasteriser (`rasterizeAscii` from `threejs-scene/modules/assets`). **use this instead of a screenshot when you touch a prop builder.**
 
 ```sh
 bun run prop:map farmhouse                 # the play angle
@@ -178,10 +178,11 @@ on the running page — useful on a device you cannot attach a debugger to:
 
 register in [`props/index.ts`](src/scene/props/index.ts) and put the name in `HERO_PROPS` (merged into the single steading draw) or `SCATTER_PROPS` (one `InstancedMesh`) deliberately.
 
+the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `blade`, plus `deg` and `spread` — come from `threejs-scene/modules/assets`. `hedron` is the flat-facetted polyhedron; `createRockGeometry` in the same barrel is the one with noise displaced into its surface.
+
 | file | holds |
 | --- | --- |
 | `palette.ts` | the nordic colour vocabulary |
-| `primitives.ts` | terse primitive constructors (`box`, `cyl`, …) |
 | `timber.ts` | cladding, gables, roofs, dormers, windows — **and the roof-plane rule** |
 | `buildings.ts` | farmhouse, barn, sauna, aitta, woodshed |
 | `structures.ts` | jetty, well, hay rack, gate, bridge, cart |
@@ -291,11 +292,13 @@ state flows down (`store → module.update → scene`), input flows back through
 
 | entry | used for |
 | --- | --- |
-| `threejs-scene` | `createApp`, `defineModule`, `createSeededRng`, `createRenderer`, `createIsoCamera`/`resizeIsoCamera`, `createLUT`, `createSeamlessNoiseTexture`, `smoothstep` |
+| `threejs-scene` | `createApp`, `defineModule`, `createSeededRng`, `createRenderer`, `createIsoCamera`/`resizeIsoCamera`, `createLUT`, `createSeamlessNoiseTexture`, `smoothstep`, `hash2`, `valueNoise1d`, `readPath`/`writePath`/`readNumberPath`/`readTextPath` |
 | `threejs-scene/modules/lighting` | `standardLighting()` |
 | `threejs-scene/modules/post` | `postProcessing()`, `createAo`, `createSsr`, `createTraa` |
 | `threejs-scene/modules/post/webgl` | the individual effect passes |
-| `threejs-scene/modules/assets` | `part`, `mergeParts`, `mergeGeometryList`, `kitMaterial`, `markShared`, `scatterInstances`, `createPlacementField`, `applyTaper` |
+| `threejs-scene/modules/assets` | `part`, `mergeParts`, `mergeGeometryList`, `kitMaterial`, `markShared`, `scatterInstances`, `createPlacementField`, `applyBend`/`applyTaper`, `createRockGeometry`, the primitives (`box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `blade`, `deg`, `spread`), `createSurfaceRibbon`, `rasterizeAscii`/`auditPalette`/`ASCII_VIEWS`/`ASCII_SHADES`, `createNoiseTexture`/`createSeamlessNoiseTexture`, `Prop` |
+
+**this repo is where several of those came from.** the ascii rasteriser, the surface ribbon, the primitives, `valueNoise1d`, the dotted-path readers and `disposeMesh` were all written here first and pushed up in `0.5.0`. generic machinery belongs in the runtime; if a helper has to know about *this* archipelago, it stays in `src/`.
 
 ### `modules/assets`, the parts this scene lives on
 
@@ -305,6 +308,8 @@ state flows down (`store → module.update → scene`), input flows back through
 - **`scatterInstances({ geometry, material, count, place })`** stamps one `InstancedMesh`. `place()` returns `{ at, rotate, scale, tint }` or `null`.
 - **`createPlacementField({ rng, extent, heightAt, minHeight })`** is the keep-out solver. **test your own rules first and only `reserve()` an accepted spot** — `place()` claims the moment its own query passes, so a caller that then rejects on a slope test leaves a claim blocking everyone else, and a few hundred of those saturate the field with nothing in it.
 - **`markShared(resource)`** exempts a pooled resource from a `Prop`'s ownership, so `dispose()` does not blank a neighbour's material.
+- **`createSurfaceRibbon({ path, across, step, heightAt, centreAt, colorAt })`** lays an open strip along a polyline and drapes it on a surface. the cart ruts are two of these off one centreline, merged. sample the surface *as drawn*, not the height field — see the note in [`cart-ruts.ts`](src/scene/landscape/cart-ruts.ts).
+- **`rasterizeAscii(geometry, { view, cols, cell })`** and **`auditPalette(geometry, palette)`** are what `prop:map` is built on. both read `position` as a triangle soup, which is exactly what `mergeParts` emits.
 
 the module also carries an llm prop-authoring dialect (`buildProp`, `validatePropSpec`, `reviewProp`, `createPropTool`, `generateProp`), procedural materials and textures, and an `ASSET_MANIFEST`. this scene does not use them — it builds its props from primitives on purpose — but they are there.
 

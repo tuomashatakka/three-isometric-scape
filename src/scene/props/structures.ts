@@ -1,8 +1,7 @@
 import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
-import { mergeParts, part } from 'threejs-scene/modules/assets'
+import { ball, box, cyl, deg, hedron, mergeParts, part, spread } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
-import { ball, box, cyl, deg, rock, spread } from './primitives.ts'
 
 
 /**
@@ -234,7 +233,7 @@ export function buildBridge (rng: SeededRng, palette: NordicPalette): BufferGeom
   const width                   = 2.6
 
   for (const sz of [ -1, 1 ])
-    parts.push(part(rock(1.1, 0), {
+    parts.push(part(hedron(1.1, 0), {
       at:     [ 0, 0.2, sz * (length / 2 - 0.3) ],
       scale:  [ width / 2 + 0.3, 0.8, 0.8 ],
       color:  palette.granite,

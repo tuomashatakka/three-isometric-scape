@@ -1,8 +1,7 @@
 import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
-import { mergeParts, part } from 'threejs-scene/modules/assets'
+import { ball, box, cyl, deg, mergeParts, part, spread } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
-import { ball, box, cyl, deg, spread } from './primitives.ts'
 
 
 /** Loose objects — the clutter that says the farm is lived in. */

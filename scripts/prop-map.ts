@@ -1,9 +1,9 @@
 import { createSeededRng } from 'threejs-scene'
+import { ASCII_VIEWS, auditPalette, rasterizeAscii } from 'threejs-scene/modules/assets'
+import type { AsciiViewName } from 'threejs-scene/modules/assets'
 import { NORDIC_PALETTE } from '../src/scene/props/palette.ts'
 import { PROPS, buildProp, resolvePalette } from '../src/scene/props/index.ts'
 import type { PropName } from '../src/scene/props/index.ts'
-import { VIEWS, paletteAudit, rasterize } from './raster.ts'
-import type { ViewName } from './raster.ts'
 import { parseArgs } from './args.ts'
 
 
@@ -30,7 +30,7 @@ const HELP = `prop:map — draw one prop as ASCII, without a GPU
 
   bun run prop:map <name...> [options]
 
-  --view <a,b>   ${Object.keys(VIEWS).join(' ')}          (default iso)
+  --view <a,b>   ${Object.keys(ASCII_VIEWS).join(' ')}          (default iso)
   --cols <n>     grid width                       (default 96)
   --cell <n>     terminal cell height/width       (default 2)
   --seed <n>     build seed                       (default 11)
@@ -50,13 +50,13 @@ function fixed (value: number, places = 2): string {
  * means the prop floats or sinks when it is plopped, and the triangle count is
  * the only honest measure of what a "small tweak" to a builder actually cost.
  */
-function drawProp (name: PropName, views: ViewName[], cols: number, cell: number, seed: number, audit: boolean): string {
+function drawProp (name: PropName, views: AsciiViewName[], cols: number, cell: number, seed: number, audit: boolean): string {
   const palette       = resolvePalette()
   const geometry      = buildProp(name, createSeededRng(seed), palette)
   const out: string[] = []
 
   for (const view of views) {
-    const shot = rasterize(geometry, { view, cols, cell })
+    const shot = rasterizeAscii(geometry, { view, cols, cell })
     const size = [ 0, 1, 2 ].map(axis => shot.max[axis] - shot.min[axis])
 
     out.push(`── ${name} · ${view} ${'─'.repeat(Math.max(0, cols - name.length - view.length - 6))}`)
@@ -73,7 +73,7 @@ function drawProp (name: PropName, views: ViewName[], cols: number, cell: number
 
   if (audit) {
     out.push(`   ${'colour'.padEnd(16)}${'facets'.padStart(7)}${'lowest'.padStart(9)}${'highest'.padStart(9)}`)
-    for (const row of paletteAudit(geometry, NORDIC_PALETTE))
+    for (const row of auditPalette(geometry, NORDIC_PALETTE))
       out.push(`   ${row.name.padEnd(16)}${String(row.facets).padStart(7)}${fixed(row.minY).padStart(9)}${fixed(row.maxY).padStart(9)}`)
     out.push('')
   }
@@ -114,7 +114,7 @@ function main (): void {
     return
   }
 
-  const views = (args.str('view', 'iso').split(',') as ViewName[]).filter(view => view in VIEWS)
+  const views = (args.str('view', 'iso').split(',') as AsciiViewName[]).filter(view => view in ASCII_VIEWS)
   const cols  = Math.max(16, Math.min(400, args.num('cols', 96)))
   const cell  = args.num('cell', 2)
   const seed  = args.num('seed', 11)

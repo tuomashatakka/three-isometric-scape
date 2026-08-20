@@ -1,10 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import { BoxGeometry } from 'three'
 import { createSeededRng } from 'threejs-scene'
-import { mergeParts, part } from 'threejs-scene/modules/assets'
+import { ASCII_SHADES, ASCII_VIEWS, auditPalette, mergeParts, part, rasterizeAscii } from 'threejs-scene/modules/assets'
 import { NORDIC_PALETTE } from '../src/scene/props/palette.ts'
 import { buildProp, resolvePalette } from '../src/scene/props/index.ts'
-import { SHADES, VIEWS, paletteAudit, rasterize } from './raster.ts'
 
 
 /**
@@ -20,7 +19,7 @@ const rng = (): ReturnType<typeof createSeededRng> => createSeededRng(3)
 
 describe('the projection', () => {
   test('every view basis is orthonormal', () => {
-    for (const [ name, basis ] of Object.entries(VIEWS)) {
+    for (const [ name, basis ] of Object.entries(ASCII_VIEWS)) {
       const axes = [ basis.u, basis.v, basis.w ]
 
       for (const axis of axes)
@@ -39,7 +38,7 @@ describe('the projection', () => {
 
   test('a cube fills a square, and the scale is metres per column', () => {
     const geometry = part(new BoxGeometry(2, 2, 2), { color: '#b0b0b0', jitter: 0, rng: rng() })
-    const shot     = rasterize(geometry, { view: 'front', cols: 21, cell: 1 })
+    const shot     = rasterizeAscii(geometry, { view: 'front', cols: 21, cell: 1 })
 
     expect(shot.triangles).toBe(12)
 
@@ -67,13 +66,13 @@ describe('the projection', () => {
       part(new BoxGeometry(1, 1, 0.2), { at: [ 0, 0, 2 ], color: '#ffffff', jitter: 0, rng: rng() }),
     ])
 
-    const shot   = rasterize(geometry, { view: 'front', cols: 41, cell: 1 })
+    const shot   = rasterizeAscii(geometry, { view: 'front', cols: 41, cell: 1 })
     const middle = shot.lines[20]
 
     const near = middle[20]
     const far  = middle[2]
 
-    expect(SHADES.indexOf(near)).toBeGreaterThan(SHADES.indexOf(far))
+    expect(ASCII_SHADES.indexOf(near)).toBeGreaterThan(ASCII_SHADES.indexOf(far))
 
     // And the dark slab is drawn rather than dropped — an unlit facet has to be
     // distinguishable from a missing one.
@@ -86,7 +85,7 @@ describe('the projection', () => {
 describe('the palette audit', () => {
   test('it names the paint a prop was actually built from', () => {
     const geometry = buildProp('farmhouse', rng(), resolvePalette())
-    const rows     = paletteAudit(geometry, NORDIC_PALETTE)
+    const rows     = auditPalette(geometry, NORDIC_PALETTE)
     const by       = (name: string): { maxY: number } | undefined => rows.find(row => row.name === name)
 
     // Falu red on the walls, granite in the chimney cap. Matching in sRGB puts
@@ -114,7 +113,7 @@ describe('the palette audit', () => {
 
     for (const [ prop, wall ] of Object.entries(walls)) {
       const geometry = buildProp(prop as 'barn', rng(), resolvePalette())
-      const rows     = paletteAudit(geometry, NORDIC_PALETTE)
+      const rows     = auditPalette(geometry, NORDIC_PALETTE)
       const painted  = rows.find(row => row.name === wall)
       const roof     = rows.find(row => row.name === 'shingle' || row.name === 'shingleWorn')
 

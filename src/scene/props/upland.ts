@@ -1,8 +1,7 @@
 import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
-import { mergeParts, part } from 'threejs-scene/modules/assets'
+import { box, cone, cyl, deg, mergeParts, part, spread } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
-import { box, cone, cyl, deg, spread } from './primitives.ts'
 import { claddingPlanks, gableEnd, gabledRoof } from './timber.ts'
 
 

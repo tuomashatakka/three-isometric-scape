@@ -1,5 +1,5 @@
 import { readSectionOpen, writeSectionOpen } from './overlay-state.ts'
-import { readNumber, readText, writePath } from './scape-controls.ts'
+import { readNumberPath, readTextPath, writePath } from 'threejs-scene'
 import type { ControlSection, RangeControl, ScapeControl, SelectControl } from './scape-controls.ts'
 
 
@@ -164,7 +164,7 @@ export function createGraphicsPanel (options: GraphicsPanelOptions): GraphicsPan
     })
 
     const update = (): void => {
-      input.valueAsNumber = readNumber(config, control.path)
+      input.valueAsNumber = readNumberPath(config, control.path)
       value.value         = format(input.valueAsNumber, control.step)
     }
 
@@ -209,7 +209,7 @@ export function createGraphicsPanel (options: GraphicsPanelOptions): GraphicsPan
     })
 
     refresh.push(() => {
-      select.value = readText(config, control.path)
+      select.value = readTextPath(config, control.path)
     })
 
     row.append(label, select)
@@ -228,7 +228,7 @@ export function createGraphicsPanel (options: GraphicsPanelOptions): GraphicsPan
     const box      = element('input')
     const name     = element('span', undefined, control.label)
     const nested   = element('div', 'gfx-nested')
-    let remembered = readNumber(config, strength.path) || control.restore
+    let remembered = readNumberPath(config, strength.path) || control.restore
 
     box.type         = 'checkbox'
     box.autocomplete = 'off'
@@ -244,7 +244,7 @@ export function createGraphicsPanel (options: GraphicsPanelOptions): GraphicsPan
     // is no other flag for it to disagree with — so the switch follows its own
     // knob rather than waiting for the next full sync to notice.
     const track = (): void => {
-      const on = readNumber(config, strength.path) > 0
+      const on = readNumberPath(config, strength.path) > 0
 
       box.checked      = on
       group.dataset.on = String(on)
@@ -257,7 +257,7 @@ export function createGraphicsPanel (options: GraphicsPanelOptions): GraphicsPan
       if (box.checked)
         writePath(config, strength.path, remembered || control.restore)
       else {
-        remembered = readNumber(config, strength.path) || remembered
+        remembered = readNumberPath(config, strength.path) || remembered
         writePath(config, strength.path, 0)
       }
 

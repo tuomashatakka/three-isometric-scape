@@ -1,4 +1,4 @@
-import { writePath } from '../src/ui/scape-controls.ts'
+import { writePath } from 'threejs-scene'
 
 
 /**

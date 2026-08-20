@@ -1,8 +1,7 @@
 import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
-import { createRockGeometry, mergeParts, part } from 'threejs-scene/modules/assets'
+import { createRockGeometry, hedron, mergeParts, part } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
-import { rock } from './primitives.ts'
 
 
 /**
@@ -29,7 +28,7 @@ function graniteBody (
 
   for (let patch = 0; patch < lichen; patch += 1) {
     const angle = rng.range(0, Math.PI * 2)
-    parts.push(part(rock(radius * rng.range(0.2, 0.34), 0), {
+    parts.push(part(hedron(radius * rng.range(0.2, 0.34), 0), {
       at:     [ Math.cos(angle) * radius * 0.6, radius * rng.range(0.85, 1.1), Math.sin(angle) * radius * 0.5 ],
       scale:  [ 1, 0.34, 1 ],
       color:  rng.next() > 0.5 ? palette.lichen : palette.moss,

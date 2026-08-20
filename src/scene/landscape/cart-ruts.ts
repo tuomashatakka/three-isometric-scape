@@ -1,5 +1,6 @@
-import { BufferAttribute, BufferGeometry, Color } from 'three'
-import { hash2, smoothstep } from 'threejs-scene'
+import { smoothstep, valueNoise1d } from 'threejs-scene'
+import { createSurfaceRibbon, mergeGeometryList } from 'threejs-scene/modules/assets'
+import type { BufferGeometry, Color } from 'three'
 import type { Vec2 } from './path.ts'
 
 
@@ -22,6 +23,11 @@ import type { Vec2 } from './path.ts'
  * ribbon is painted with the *ground's own* colour at that point, sampled from
  * the terrain painter, and only the middle darkens. There is nothing to sort
  * and nothing to fade, because the edge already matches what it lies on.
+ *
+ * The strip itself is `createSurfaceRibbon` from the runtime — the beck and the
+ * waterway want the same thing, and three hand-written copies of the same
+ * cross-section-times-arc-length indexing arithmetic is three places for the
+ * winding to be wrong in.
  */
 export interface CartRutsOptions {
 
@@ -112,191 +118,45 @@ export function trafficAt (fromYard: number, reach: number): number {
 }
 
 /**
- * Smooth 1D value noise off the shared coordinate hash.
- *
- * `hash2` is a hash, not a field — consecutive metres of track are unrelated
- * values, and a rut jittered by one is gravel rather than a rut. Interpolating
- * between whole cells with a smoothstep is what turns it into a line that
- * wanders.
- */
-function wanderAt (along: number, span: number, phase: number): number {
-  const scaled = along / span
-  const cell   = Math.floor(scaled)
-  const blend  = smoothstep(0, 1, scaled - cell)
-
-  return hash2(cell, phase) * (1 - blend) + hash2(cell + 1, phase) * blend
-}
-
-/** Cross-sections at a fixed arc length along a polyline, with their normals. */
-function traceTrack (track: readonly Vec2[], step: number): Section[] {
-  const sections: Section[] = []
-  let along                 = 0
-
-  for (let index = 0; index < track.length - 1; index += 1) {
-    const a      = track[index]
-    const b      = track[index + 1]
-    const dx     = b.x - a.x
-    const dz     = b.z - a.z
-    const length = Math.hypot(dx, dz)
-
-    if (length === 0)
-      continue
-
-    // The normal of a +z-long segment points along -x, and which of the two
-    // sides that is does not matter: the ruts are symmetric about the centre.
-    const normalX = -dz / length
-    const normalZ = dx / length
-
-    for (let cut = 0; cut < length; cut += step) {
-      const travel = cut / length
-
-      sections.push({
-        x:     a.x + dx * travel,
-        z:     a.z + dz * travel,
-        normalX,
-        normalZ,
-        along: along + cut,
-      })
-    }
-
-    along += length
-  }
-
-  const last = track[track.length - 1]
-  const tail = sections[sections.length - 1]
-
-  if (tail)
-    sections.push({ ...tail, x: last.x, z: last.z, along })
-
-  return sections
-}
-
-interface Section {
-  x:       number
-  z:       number
-  normalX: number
-  normalZ: number
-  along:   number
-}
-
-/** The three attribute arrays the ribbon is written into. */
-interface RibbonBuffers {
-  positions: Float32Array
-  uvs:       Float32Array
-  colors:    Float32Array
-}
-
-/**
- * One wheel line, written into the buffers from `first`.
- *
- * `side` is which side of the centreline it runs down; everything else about
- * the two ruts is identical, including the sideways wander, because they are
- * one axle.
- */
-function writeRut (
-  side:     number,
-  sections: readonly Section[],
-  weights:  readonly number[],
-  options:  CartRutsOptions,
-  buffers:  RibbonBuffers,
-  first:    number,
-): void {
-  const { yard, gauge, width, reach, wear, rut, surfaceAt, groundAt } = options
-
-  const span   = sections[sections.length - 1].along || 1
-  const sample = new Color()
-
-  let vertex = first
-
-  for (const section of sections) {
-    const drift  = (wanderAt(section.along, WANDER_SPAN, side * 0.5) - 0.5) * width * 1.2
-    const patch  = PATCH_FLOOR + (1 - PATCH_FLOOR) * wanderAt(section.along, PATCH_SPAN, side * 3.7)
-    const centre = side * gauge * 0.5 + drift
-
-    const traffic = trafficAt(Math.hypot(section.x - yard.x, section.z - yard.z), reach)
-
-    for (let step = 0; step < ACROSS.length; step += 1) {
-      const offset = centre + ACROSS[step] * width
-      const x      = section.x + section.normalX * offset
-      const z      = section.z + section.normalZ * offset
-
-      buffers.positions[vertex * 3]     = x
-      buffers.positions[vertex * 3 + 1] = surfaceAt(x, z) + LIFT
-      buffers.positions[vertex * 3 + 2] = z
-
-      buffers.uvs[vertex * 2]     = ACROSS[step] * 0.5 + 0.5
-      buffers.uvs[vertex * 2 + 1] = section.along / span
-
-      groundAt(x, z, sample)
-        .lerp(rut, weights[step] * wear * traffic * patch)
-        .toArray(buffers.colors, vertex * 3)
-
-      vertex += 1
-    }
-  }
-}
-
-/**
- * The quads of one strip, wound so the ribbon faces up.
- *
- * A section's tangent crossed into its normal points down, so the corners go
- * across before they go along.
- */
-function stripIndices (first: number, sections: number): number[] {
-  const indices: number[] = []
-
-  for (let section = 0; section < sections - 1; section += 1)
-    for (let step = 0; step < ACROSS.length - 1; step += 1) {
-      const corner = first + section * ACROSS.length + step
-
-      indices.push(
-        corner, corner + 1, corner + ACROSS.length,
-        corner + 1, corner + ACROSS.length + 1, corner + ACROSS.length,
-      )
-    }
-
-  return indices
-}
-
-/**
  * The two rut strips as one indexed geometry in the island's local space, or
  * `null` when the scape has no ruts to draw — no wear, or no track to wear.
  *
  * Attributes match the terrain patches exactly, because this is merged with
  * them: position, normal, uv and a three-component colour.
+ *
+ * Both wheel lines run off one centreline, and every difference between them is
+ * a sign: the same wander, the same patchiness, mirrored. They are one axle.
  */
 export function cartRutGeometry (options: CartRutsOptions): BufferGeometry | null {
-  if (options.wear <= 0 || options.width <= 0 || options.track.length < 2)
+  const { track, yard, gauge, width, reach, wear, rut, surfaceAt, groundAt } = options
+
+  if (wear <= 0 || width <= 0 || track.length < 2)
     return null
 
-  const sections = traceTrack(options.track, STEP)
-
-  if (sections.length < 2)
-    return null
-
+  // The weights are read off the unscaled cross-section, so the middle carries
+  // the full wear and the outer edges carry none of it whatever `width` is.
   const weights = ACROSS.map(offset => 1 - smoothstep(0, 1, Math.abs(offset)))
-  const stride  = sections.length * ACROSS.length
-  const buffers = {
-    positions: new Float32Array(stride * 2 * 3),
-    uvs:       new Float32Array(stride * 2 * 2),
-    colors:    new Float32Array(stride * 2 * 3),
-  }
+  const across  = ACROSS.map(offset => offset * width)
 
-  const indices: number[] = []
+  const strips = [ -1, 1 ].map(side => createSurfaceRibbon({
+    path:     track,
+    across,
+    step:     STEP,
+    heightAt: (x, z) => surfaceAt(x, z) + LIFT,
 
-  for (const [ strip, side ] of [ -1, 1 ].entries()) {
-    writeRut(side, sections, weights, options, buffers, strip * stride)
-    indices.push(...stripIndices(strip * stride, sections.length))
-  }
+    centreAt: section =>
+      side * gauge * 0.5 +
+      (valueNoise1d(section.along, WANDER_SPAN, side * 0.5) - 0.5) * width * 1.2,
 
-  const { positions, uvs, colors } = buffers
-  const geometry                   = new BufferGeometry()
+    colorAt: ({ x, z, step, section }, target) => {
+      const patch   = PATCH_FLOOR + (1 - PATCH_FLOOR) * valueNoise1d(section.along, PATCH_SPAN, side * 3.7)
+      const traffic = trafficAt(Math.hypot(section.x - yard.x, section.z - yard.z), reach)
 
-  geometry.setAttribute('position', new BufferAttribute(positions, 3))
-  geometry.setAttribute('uv', new BufferAttribute(uvs, 2))
-  geometry.setAttribute('color', new BufferAttribute(colors, 3))
-  geometry.setIndex(indices)
-  geometry.computeVertexNormals()
+      groundAt(x, z, target).lerp(rut, weights[step] * wear * traffic * patch)
+    },
+  }))
 
-  return geometry
+  const built = strips.filter((strip): strip is BufferGeometry => strip !== null)
+
+  return built.length > 0 ? mergeGeometryList(built, false) : null
 }
