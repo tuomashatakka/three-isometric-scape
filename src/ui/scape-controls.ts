@@ -240,7 +240,7 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         range('atmosphere.fogDensity', 'fog density', 0, 0.9, 0.01),
         range('atmosphere.fogBreath', 'fog breath', 0, 0.4, 0.01),
         range('atmosphere.cloudShadow', 'cloud shadow', 0, 1, 0.01),
-        range('atmosphere.cloudSpeed', 'cloud drift', 0, 3, 0.01),
+        range('atmosphere.cloudDrag', 'cloud drift', 0, 3, 0.01),
         toggled(
           'sky clouds',
           range('atmosphere.cloudCover', 'cover', 0, 1, 0.01),
@@ -281,7 +281,7 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           'ground mist',
           range('atmosphere.mistAmount', 'density', 0, 1, 0.01),
           0.34,
-          [ range('atmosphere.mistWind', 'drift', 0, 1.5, 0.01) ],
+          [ range('atmosphere.mistDrag', 'drift', 0, 1.5, 0.01) ],
         ),
       ],
     },
@@ -308,11 +308,30 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         // soil terms cannot reach because they weigh themselves by how
         // horizontal a face is.
         range('terrain.propGrain', 'timber & stone grain', 0, 1, 0.01),
-        range('wind.strength', 'wind strength', 0, 3, 0.01),
-        range('wind.speed', 'wind speed', 0, 4, 0.01),
-        // Scaled by the wind strength above rather than standing apart from it,
+        // Scaled by the wind's live strength rather than standing apart from it,
         // so a still day already stops the wheel and this is only the gearing.
         range('mill.spin', 'mill sails', 0, 4, 0.01),
+      ],
+    },
+    {
+      // Its own section, and up in the air with the weather it belongs to. It
+      // used to be two sliders at the bottom of `ground`, which is where it made
+      // sense when the only thing it moved was the grass — one wind now drives
+      // the mist, the deck, the fall, the sails and the sea as well, and the
+      // three drift responses that answer it sit under the systems they belong
+      // to rather than here.
+      group:    'air',
+      title:    'wind',
+      controls: [
+        range('wind.strength', 'strength', 0, 3, 0.01),
+        range('wind.speed', 'speed', 0, 4, 0.01),
+        range('wind.bearing', 'bearing', -180, 180, 1),
+        toggled(
+          'gusts',
+          range('wind.gust', 'variation', 0, 1, 0.01),
+          0.45,
+          [ range('wind.gustSpeed', 'fronts / min', 0, 2, 0.01) ],
+        ),
       ],
     },
     {

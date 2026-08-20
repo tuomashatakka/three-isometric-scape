@@ -13,6 +13,7 @@ import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import type { DaylightState } from './daylight.ts'
 import { sampleHeight } from './noise.ts'
 import type { AtmosphereQuality } from './quality.ts'
+import type { WindState } from './wind.ts'
 import type { SeasonState } from './season.ts'
 import { LAYER } from './layers.ts'
 
@@ -30,17 +31,31 @@ export interface MistOptions {
    * else, so this is the only thing that decides whether it exists at all.
    */
   season: SeasonState
+
+  /**
+   * The scape's one wind.
+   *
+   * Every sheet used to pick a heading off the seed and its own index, so a bank
+   * of fog crossed the island at an angle unrelated to the grass leaning in it.
+   * They travel on the wind now, spread by a few degrees apiece so the stack
+   * still has parallax in it.
+   */
+  wind: WindState
 }
 
 interface MistSheet {
-  mesh:   Mesh
-  driftX: number
-  driftZ: number
+  mesh: Mesh
+
+  /** Radians this sheet's heading is turned off the wind. See {@link MistOptions.wind}. */
+  spread: number
   speed:  number
 
   /** Accumulated wind travel, in UV units. Slices add a world term on top. */
   phaseX: number
   phaseY: number
+
+  /** Wind travel this sheet has already scrolled to, so a live response cannot jump. */
+  travelled: number
 
   /** This layer's share of the authored density. */
   weight: number
@@ -52,6 +67,9 @@ interface MistSheet {
 const TEXTURE_SIZE = 128
 const DRIFT_SPEED  = 1.6
 const LAYER_ALPHA  = 0.34
+
+/** Radians between one sheet's heading and the next. See {@link MistOptions.wind}. */
+const SHEET_SPREAD = 0.11
 
 /** Per-slice opacity of the upright sheets, before the mist amount scales it. */
 const SLICE_ALPHA = 0.26
@@ -280,6 +298,7 @@ export function createMistLayer ({
   quality,
   daylight,
   season,
+  wind,
 }: MistOptions): ScapeModule {
   const count      = Math.max(1, quality.mistLayers)
   const sliceCount = Math.max(1, Math.round(count / 2))
@@ -309,14 +328,12 @@ export function createMistLayer ({
   }
 
   function drift (index: number, weight: number, color: Color): Omit<MistSheet, 'mesh'> {
-    const heading = config().seed * 0.001 + index * 0.7
-
     return {
-      driftX: Math.cos(heading),
-      driftZ: Math.sin(heading),
-      speed:  1 + index * 0.45,
-      phaseX: 0,
-      phaseY: 0,
+      spread:    (index % 5 - 2) * SHEET_SPREAD,
+      speed:     1 + index * 0.45,
+      phaseX:    0,
+      phaseY:    0,
+      travelled: 0,
       weight,
       color,
     }
@@ -355,7 +372,7 @@ export function createMistLayer ({
    * invisible rather than transparent, because a fullscreen transparent quad
    * that contributes nothing still costs every pixel it covers.
    */
-  function advance (sheet: MistSheet, amount: number, delta: number): void {
+  function advance (sheet: MistSheet, amount: number): void {
     const material = sheet.mesh.material as MeshBasicMaterial
     const map      = material.map
 
@@ -366,15 +383,21 @@ export function createMistLayer ({
     if (!map)
       return
 
-    const travel = delta *
+    // Differenced against the wind's own travel rather than integrated from a
+    // delta, for the reason the cloud deck gives: a response moved on the
+    // overlay should change where the sheet goes next, not where it already is.
+    const step = (wind.travel - sheet.travelled) *
       DRIFT_SPEED *
       sheet.speed *
-      config().atmosphere.mistWind /
+      config().atmosphere.mistDrag /
       sheetSize *
       map.repeat.x
 
-    sheet.phaseX += sheet.driftX * travel
-    sheet.phaseY += sheet.driftZ * travel
+    const heading = wind.bearing + sheet.spread
+
+    sheet.travelled = wind.travel
+    sheet.phaseX   += Math.cos(heading) * step
+    sheet.phaseY   += Math.sin(heading) * step
     map.offset.set(sheet.phaseX, sheet.phaseY)
   }
 
@@ -454,7 +477,7 @@ export function createMistLayer ({
         ctx.scene.add(sheet.mesh)
     },
 
-    update (_state, frame) {
+    update () {
       const density  = config().atmosphere.mistAmount
       const viewSize = camera.userData.viewSize as number ?? config().camera.viewSize
 
@@ -465,14 +488,14 @@ export function createMistLayer ({
       smokeColor.copy(daylight.horizon).lerp(WHITE, 0.62)
 
       for (const sheet of drifting)
-        advance(sheet, density, frame.delta)
+        advance(sheet, density)
 
       // The year, not the weather. Sea smoke is off for all but a fortnight of
       // it, and the read is the same live field the ground and the lake take
       // their winter from — sampled once upstream, so the coast cannot be
       // steaming on a week the bays beside it are already shut on.
       for (const sheet of smoke)
-        advance(sheet, season.smoke, frame.delta)
+        advance(sheet, season.smoke)
 
       // The upright slices face the camera and spread along its view axis, so
       // the stack always has depth to look through whatever the elevation.

@@ -8,6 +8,7 @@ import type { SeasonState } from '../season.ts'
 import { createTextureCatalogue } from '../textures/catalogue.ts'
 import type { TextureCatalogue } from '../textures/catalogue.ts'
 import type { WeatherState } from '../weather.ts'
+import type { WindState } from '../wind.ts'
 
 /** The two materials every solid thing in the scape draws with. */
 export interface ScapeMaterials {
@@ -18,8 +19,8 @@ export interface ScapeMaterials {
   /** Instanced vegetation — same look, plus a vertex sway. */
   foliage: MeshStandardMaterial
 
-  /** Advance cloud drift, wind phase, the year and the weather. Allocation-free. */
-  update(elapsed: number, season: SeasonState, weather: WeatherState): void
+  /** Advance cloud drift, the wind, the year and the weather. Allocation-free. */
+  update(wind: WindState, season: SeasonState, weather: WeatherState): void
   dispose(): void
 }
 
@@ -109,14 +110,25 @@ const UP_PARS_FRAGMENT = /* glsl */`
 `
 
 /**
- * Per-instance foliage sway. The phase is derived from the instance's own world
- * translation so a field of grass never pulses in unison, and the amplitude is
- * weighted by local height so trunks stay planted while tips travel.
+ * Per-instance foliage sway, on the scape's one wind.
+ *
+ * The amplitude is weighted by local height so trunks stay planted while tips
+ * travel, and the phase is the instance's own world translation *projected onto
+ * the wind bearing* — which is the whole difference between this and what it
+ * replaced. A phase built from `x * 0.35 + z * 0.27` decorrelates a field of
+ * grass, and that is all it does: the pulse crosses the meadow along a fixed
+ * diagonal nobody chose, and it crosses it whichever way the wind is blowing.
+ * Projected instead, the crest travels *downwind*, so a gust arriving off the
+ * sea reads as one wave running up the hillside.
+ *
+ * The sway itself is a lean plus a flutter rather than a symmetric wobble. Grass
+ * in a wind does not oscillate about vertical — it is pushed over and shivers
+ * there, which is what the `0.6 +` is.
  */
 const WIND_PARS_VERTEX = /* glsl */`
-  uniform float uWindTime;
-  uniform float uWindSpeed;
+  uniform float uWindPhase;
   uniform float uWindStrength;
+  uniform vec2 uWindDir;
 `
 
 const WIND_VERTEX = /* glsl */`
@@ -126,10 +138,12 @@ const WIND_VERTEX = /* glsl */`
   #else
     vec3 swayOrigin = vec3(0.0);
   #endif
-  float swayPhase  = uWindTime * uWindSpeed + swayOrigin.x * 0.35 + swayOrigin.z * 0.27;
+  float swayPhase  = uWindPhase * 1.7 + dot(swayOrigin.xz, uWindDir) * 0.22;
   float swayAmount = pow(max(transformed.y, 0.0), 1.4) * uWindStrength * 0.03;
-  transformed.x += sin(swayPhase) * swayAmount;
-  transformed.z += cos(swayPhase * 0.77 + 1.3) * swayAmount * 0.62;
+  vec2 swayLean    = uWindDir * (0.6 + 0.4 * sin(swayPhase)) +
+    vec2(-uWindDir.y, uWindDir.x) * sin(swayPhase * 0.77 + 1.3) * 0.38;
+  transformed.x += swayLean.x * swayAmount;
+  transformed.z += swayLean.y * swayAmount;
 `
 
 /**
@@ -371,6 +385,15 @@ const GROUND_LIE = 'smoothstep(0.22, 0.72, vScapeUp)'
 /** A tuft or a bough holds snow whichever way its facets happen to point. */
 const FOLIAGE_LIE = '0.55'
 
+/**
+ * Cloud-map UV travelled per unit of wind travel.
+ *
+ * Measured rather than chosen: the deck used to scroll at `elapsed *
+ * cloudSpeed * 0.06`, and the default wind travels at `speed * strength` =
+ * 1.215 per second, so 0.05 lands the shadow at the rate it has always had.
+ */
+const CLOUD_DRIFT = 0.05
+
 export function createScapeMaterials (
   config: LiveConfig,
   skip: ScapeSkips = NOTHING_SKIPPED,
@@ -394,10 +417,11 @@ export function createScapeMaterials (
     uCloudScale:    { value: 1 / Math.max(1, config().atmosphere.cloudScale) },
     uCloudStrength: { value: config().atmosphere.cloudShadow },
   }
+  const windDir: IUniform<Vector2>     = { value: new Vector2(1, 0) }
   const wind: Record<string, IUniform> = {
-    uWindTime:     { value: 0 },
-    uWindSpeed:    { value: config().wind.speed },
+    uWindPhase:    { value: 0 },
     uWindStrength: { value: config().wind.strength },
+    uWindDir:      windDir,
   }
   const detail: Record<string, IUniform> = {
     uDetailMap:      { value: detailMap },
@@ -526,13 +550,16 @@ export function createScapeMaterials (
     // Uniforms are refreshed from the config every frame rather than captured
     // at build. The scape's tuning surface is the config object, and a knob
     // that only takes effect on reload is not a knob.
-    update (elapsed, year, sky) {
-      const drift = config().atmosphere.cloudSpeed
+    update (breeze, year, sky) {
+      // One travel, one bearing. The deck overhead scrolls off the same two
+      // numbers in `clouds.ts`, which is what finally puts a cloud and the
+      // shadow it casts on the same heading.
+      const drift = config().atmosphere.cloudDrag * breeze.travel * CLOUD_DRIFT
 
-      cloudOffset.value.set(elapsed * drift * 0.06, elapsed * drift * 0.021)
-      wind.uWindTime.value         = elapsed
-      wind.uWindSpeed.value        = config().wind.speed
-      wind.uWindStrength.value     = config().wind.strength
+      cloudOffset.value.set(breeze.dirX * drift, breeze.dirZ * drift)
+      windDir.value.set(breeze.dirX, breeze.dirZ)
+      wind.uWindPhase.value        = breeze.travel
+      wind.uWindStrength.value     = breeze.strength
       shared.uCloudStrength.value  = config().atmosphere.cloudShadow
       shared.uCloudScale.value     = 1 / Math.max(1, config().atmosphere.cloudScale)
       detail.uDetailStrength.value = config().terrain.detailGrain

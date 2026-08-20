@@ -13,6 +13,7 @@ import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import type { DaylightState } from './daylight.ts'
 import { sampleHeight } from './noise.ts'
 import type { AtmosphereQuality } from './quality.ts'
+import type { WindState } from './wind.ts'
 import { LAYER } from './layers.ts'
 
 
@@ -23,21 +24,39 @@ export interface CloudOptions {
 
   /** Live sky state, so the deck is lit by the same clock as everything else. */
   daylight: DaylightState
+
+  /** The scape's one wind. The deck no longer picks a heading off the seed. */
+  wind: WindState
 }
 
 interface CloudDeck {
-  mesh:   Mesh
-  driftX: number
-  driftZ: number
+  mesh: Mesh
+
+  /**
+   * How far this deck's heading is turned off the wind, in radians.
+   *
+   * Not a heading of its own — a spread. Real cloud at two heights travels on
+   * two slightly different winds, and a stack that scrolls in perfect parallel
+   * reads as one printed sheet however many layers it has; a stack that ignores
+   * the wind entirely reads as four unrelated skies. This is the small angle
+   * between those two mistakes.
+   */
+  spread: number
   speed:  number
   phaseX: number
   phaseY: number
   weight: number
+
+  /** Wind travel this deck has already scrolled to, so a live response cannot jump. */
+  travelled: number
 }
 
 const TEXTURE_SIZE = 128
 const DRIFT_SPEED  = 2.4
 const DECK_ALPHA   = 0.34
+
+/** Radians between one deck's heading and the next. See {@link CloudDeck.spread}. */
+const DECK_SPREAD = 0.14
 
 /**
  * Tile width as a fraction of the widest authored frame.
@@ -118,6 +137,7 @@ export function createCloudLayer ({
   config,
   quality,
   daylight,
+  wind,
 }: CloudOptions): ScapeModule {
   const count    = Math.max(2, quality.mistLayers)
   const deckSize = config().archipelago.worldSize * 4.4
@@ -135,7 +155,6 @@ export function createCloudLayer ({
   }
 
   const decks = Array.from({ length: count }, (_unused, index): CloudDeck => {
-    const heading  = config().seed * 0.0013 + index * 1.1
     const weight   = (1 - index / (count + 1)) * DECK_ALPHA
     const material = new MeshBasicMaterial({
       name:         `cloud-deck-${index + 1}`,
@@ -162,11 +181,11 @@ export function createCloudLayer ({
 
     return {
       mesh,
-      driftX: Math.cos(heading),
-      driftZ: Math.sin(heading),
-      speed:  1 + index * 0.38,
-      phaseX: 0,
-      phaseY: 0,
+      spread:    (index - (count - 1) / 2) * DECK_SPREAD,
+      speed:     1 + index * 0.38,
+      phaseX:    0,
+      phaseY:    0,
+      travelled: 0,
       weight,
     }
   })
@@ -179,7 +198,7 @@ export function createCloudLayer ({
         ctx.scene.add(deck.mesh)
     },
 
-    update (_state, frame) {
+    update (_state) {
       const { minViewSize, maxViewSize } = config().camera
       const viewSize                     = camera.userData.viewSize as number ?? config().camera.viewSize
       const zoom                         = smoothstep(
@@ -205,15 +224,22 @@ export function createCloudLayer ({
         if (!map || !deck.mesh.visible)
           continue
 
-        const travel = frame.delta *
+        // Differenced against the wind's own travel rather than integrated from
+        // a delta, so moving the response on the overlay changes how far the
+        // deck goes next rather than teleporting it to where it would have been
+        // had the new value always applied.
+        const step = (wind.travel - deck.travelled) *
           DRIFT_SPEED *
           deck.speed *
-          config().atmosphere.cloudSpeed /
+          config().atmosphere.cloudDrag /
           deckSize *
           map.repeat.x
 
-        deck.phaseX += deck.driftX * travel
-        deck.phaseY += deck.driftZ * travel
+        const heading = wind.bearing + deck.spread
+
+        deck.travelled = wind.travel
+        deck.phaseX   += Math.cos(heading) * step
+        deck.phaseY   += Math.sin(heading) * step
         map.offset.set(deck.phaseX, deck.phaseY)
       }
     },

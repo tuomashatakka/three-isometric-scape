@@ -422,9 +422,39 @@ export interface ScapeConfig {
     beamSpread: number
   }
   dressing: DressingBudget
+
+  /**
+   * The wind, and the only one in the scape.
+   *
+   * Every system that answers to it keeps a dimensionless *response* rather than
+   * a rate of its own — `atmosphere.cloudDrag`, `atmosphere.mistDrag`,
+   * `mill.spin`, `water.chop` — so one gust is one wave crossing the grass, the
+   * mist, the sea and the sky together. See `scene/wind.ts`.
+   */
   wind: {
+
+    /** How hard it is blowing at rest, before the gust lifts it. 0 is a still day. */
     strength: number
-    speed:    number
+
+    /** How fast the wind travels, per unit of strength. 0 freezes every surface it scrolls. */
+    speed: number
+
+    /** Compass bearing the wind blows toward, in degrees. */
+    bearing: number
+
+    /**
+     * How much the front varies, 0..1.
+     *
+     * The switch for the gusting, and the only one: 0 is a steady wind that
+     * neither strengthens nor veers, however fast `gustSpeed` is running.
+     */
+    gust: number
+
+    /** Fronts per minute. 0 freezes the wind wherever `time` left it. */
+    gustSpeed: number
+
+    /** Phase of the gust front, 0..1. */
+    time: number
   }
 
   /** The lake's surface response. Every one of these is live. */
@@ -492,10 +522,19 @@ export interface ScapeConfig {
     tiltFar: number
   }
   atmosphere: {
-    fogDensity:   number
-    fogBreath:    number
-    mistAmount:   number
-    mistWind:     number
+    fogDensity: number
+    fogBreath:  number
+    mistAmount: number
+
+    /**
+     * How hard the ground mist answers the wind, 0..1.
+     *
+     * A response, not a speed. The rate is `wind.speed` and the direction is
+     * `wind.bearing`; this only decides how much of that the sheets take, which
+     * is what keeps a bank of fog moving slower than the cloud above it without
+     * either of them having a wind of its own.
+     */
+    mistDrag:     number
     skyTop:       number
     sunColor:     number
     sunStrength:  number
@@ -509,8 +548,15 @@ export interface ScapeConfig {
     /** World units per cloud-map tile. */
     cloudScale: number
 
-    /** Cloud drift speed. Shared by the shadow map and the sky deck. */
-    cloudSpeed: number
+    /**
+     * How hard the cloud answers the wind, 0..1.
+     *
+     * Shared by the deck overhead and the shadow it casts on the ground, which
+     * is the point: before the wind was shared these two scrolled at one speed
+     * along two different headings, and a cloud crossed the sky one way while
+     * its own shadow crossed the island another.
+     */
+    cloudDrag: number
 
     /** Sky-deck opacity when fully zoomed out, 0 disables the deck. */
     cloudCover: number
@@ -1110,9 +1156,17 @@ export const SCAPE_CONFIG = {
     mooringPost: 22,
     hayPole:     7,
   },
+  // A steady onshore breeze with a real gust in it. The bearing is the same
+  // quarter the mill's search assumes the weather comes from — see
+  // `landscape/mill.ts` — so the sails are turned into a wind that is now
+  // actually blowing that way rather than into a wind nobody had written down.
   wind: {
-    strength: 0.9,
-    speed:    1.35,
+    strength:  0.9,
+    speed:     1.35,
+    bearing:   -106,
+    gust:      0.45,
+    gustSpeed: 0.22,
+    time:      0.31,
   },
   water: {
     sparkle:        0.5,
@@ -1137,7 +1191,7 @@ export const SCAPE_CONFIG = {
     fogDensity:   0.3,
     fogBreath:    0.08,
     mistAmount:   0.34,
-    mistWind:     0.36,
+    mistDrag:     0.36,
     skyTop:       0x5c727e,
     sunColor:     0xffe8bd,
     sunStrength:  2.85,
@@ -1146,7 +1200,7 @@ export const SCAPE_CONFIG = {
     hemiStrength: 0.72,
     cloudShadow:  0.42,
     cloudScale:   92,
-    cloudSpeed:   0.9,
+    cloudDrag:    0.9,
     cloudCover:   0.5,
     cloudHeight:  34,
     aurora:       1,

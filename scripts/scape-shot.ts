@@ -63,8 +63,13 @@ export const STILL = [
   // being visible again. Same reasoning as `mill.spin` below.
   'wind.speed=0',
 
+  // The gust front as well as the two rates above it. `wind.strength=0` already
+  // zeroes what a gust is a multiplier on, so this changes no capture today —
+  // but `wind.time` advances on its own clock, and a phase that keeps turning
+  // behind a zeroed amplitude is one refactor away from being visible again.
+  'wind.gustSpeed=0',
+
   'look.grain=0',
-  'atmosphere.cloudSpeed=0',
   'atmosphere.auroraSpeed=0',
   'water.waveHeight=0',
   'boats.speed=0',

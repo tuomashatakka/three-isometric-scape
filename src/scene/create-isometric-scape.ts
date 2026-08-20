@@ -23,6 +23,8 @@ import { createRainLayer } from './rain.ts'
 import { createRuntime } from './runtime.ts'
 import { createVitals } from './vitals.ts'
 import type { VitalsSample } from './vitals.ts'
+import { createWind } from './wind.ts'
+import type { WindState } from './wind.ts'
 
 
 export interface IsometricScape {
@@ -214,6 +216,9 @@ interface SkyOptions {
   skip:     ScapeSkips
   daylight: DaylightState
   season:   SeasonState
+
+  /** The one wind. The mist and the deck answer it; the aurora deliberately does not. */
+  wind: WindState
 }
 
 /**
@@ -229,10 +234,10 @@ interface SkyOptions {
  * counted off. Each returns null on a tier with nothing to give, so the
  * cheapest device gets a plain sky rather than a poor one.
  */
-function hangSkies ({ camera, config, quality, skip, daylight, season }: SkyOptions): ScapeModule[] {
+function hangSkies ({ camera, config, quality, skip, daylight, season, wind }: SkyOptions): ScapeModule[] {
   return [
-    unless(skip, 'mist', () => createMistLayer({ camera, config, quality, daylight, season })),
-    unless(skip, 'clouds', () => createCloudLayer({ camera, config, quality, daylight })),
+    unless(skip, 'mist', () => createMistLayer({ camera, config, quality, daylight, season, wind })),
+    unless(skip, 'clouds', () => createCloudLayer({ camera, config, quality, daylight, wind })),
     unless(skip, 'aurora', () => createAuroraLayer({ camera, config, quality, daylight })),
     unless(skip, 'nightsky', () => createNightSky({ camera, config, quality, daylight })),
   ].filter((module): module is ScapeModule => module !== null)
@@ -276,8 +281,14 @@ export function createIsometricScape (
   // Built before anything that asks it a question. It owns the shadow map's
   // refresh rate, and the atmosphere has to know the answer before it decides
   // whether fitting a frustum is worth doing this frame.
-  const runtime    = createRuntime(readConfig)
-  const landscape  = createLandscape(readConfig, quality, skip)
+  const runtime = createRuntime(readConfig)
+
+  // The fourth clock, and mounted ahead of everything that answers to it. One
+  // wind, resolved once a frame: the grass, the mist, the deck overhead, the
+  // fall, the sails, the swell and the ice all read this same record, so a gust
+  // is one event crossing the scape rather than five that happen to coincide.
+  const wind       = createWind(readConfig)
+  const landscape  = createLandscape(readConfig, quality, wind.state, skip)
   const atmosphere = createAtmosphereLayer({
     camera,
     config:       readConfig,
@@ -293,6 +304,7 @@ export function createIsometricScape (
     skip,
     daylight: atmosphere.daylight,
     season:   landscape.season,
+    wind:     wind.state,
   })
 
   // The second and third clocks — the weather for how hard it is falling, the
@@ -305,6 +317,7 @@ export function createIsometricScape (
     quality,
     weather: landscape.weather,
     season:  landscape.season,
+    wind:    wind.state,
   }))
 
   // The coastal light, mounted after the atmosphere because what decides whether
@@ -354,6 +367,11 @@ export function createIsometricScape (
     // First, so everything it changes is already in force on the frame it
     // changed them on — and so `shadowDue` is settled before it is asked.
     runtime.module,
+
+    // Before the landscape, because the landscape's materials and its lake read
+    // the wind this resolves. A module that sampled it a second time would be
+    // reading a different gust in the same frame.
+    wind.module,
     landscape.module,
     controls,
     atmosphere.module,

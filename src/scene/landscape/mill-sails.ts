@@ -23,7 +23,13 @@ export interface MillSails {
 
   /** How far the wheel has turned, in radians. Read by the tests, not the scene. */
   readonly phase: number
-  update(delta: number): void
+
+  /**
+   * Turn the wheel. `windStrength` is the live wind's — gust included — so a
+   * squall visibly spins the mill up rather than the sails running at whatever
+   * the config's resting strength says all year.
+   */
+  update(delta: number, windStrength: number): void
   dispose(): void
 }
 
@@ -42,9 +48,9 @@ export interface MillSailsOptions {
  * than as the front of it. One geometry, one material and one instance buffer
  * keep the archipelago's mills to a single draw between them.
  *
- * The rate is `mill.spin` scaled by `wind.strength`, so the knob that already
- * says how hard it is blowing turns the wheel too, and a still day stops it
- * without anything else being set. A stopped wheel writes no matrix and uploads
+ * The rate is `mill.spin` scaled by the live wind's strength, so the knob that
+ * already says how hard it is blowing turns the wheel too, a gust spins it up,
+ * and a still day stops it without anything else being set. A stopped wheel writes no matrix and uploads
  * no buffer, which is what lets a capture be taken twice the same way.
  *
  * @returns `null` when no island had a shoulder to build a mill on — the caller
@@ -103,11 +109,11 @@ export function createMillSails (options: MillSailsOptions): MillSails | null {
       return phase
     },
 
-    update (delta) {
+    update (delta, windStrength) {
       if (disposed)
         return
 
-      const rate = Math.max(0, config().mill.spin) * Math.max(0, config().wind.strength)
+      const rate = Math.max(0, config().mill.spin) * Math.max(0, windStrength)
 
       if (rate === 0)
         return

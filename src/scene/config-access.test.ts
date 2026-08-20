@@ -6,6 +6,7 @@ import { createConfigAccess } from './config-access.ts'
 import { createDaylight } from './daylight.ts'
 import { createSeason } from './season.ts'
 import { createWeather } from './weather.ts'
+import { createWind } from './wind.ts'
 
 
 function access (): ReturnType<typeof createConfigAccess<ScapeConfig>> {
@@ -101,6 +102,23 @@ describe('a knob moved after the scape was built', () => {
     config.write('season.ice', 0)
 
     expect(year.sample(0.06).freeze).toBe(0)
+  })
+
+  test('reaches the wind', () => {
+    const config = access()
+    const wind   = createWind(config.read)
+
+    wind.module.build?.(undefined as never)
+
+    const before = wind.state.dirX
+
+    config.write('wind.bearing', SCAPE_CONFIG.wind.bearing + 90)
+    wind.module.update?.(config.read(), { delta: 0, elapsed: 0, frame: 1 }, undefined as never)
+
+    // A capture cannot check this: `?set=` is applied before the scape mounts,
+    // so a wind that stopped answering after build would photograph identically
+    // at every pose while the whole scape leaned the wrong way live.
+    expect(wind.state.dirX).not.toBeCloseTo(before, 3)
   })
 
   test('reaches the weather', () => {

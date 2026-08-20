@@ -14,6 +14,7 @@ import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import type { AtmosphereQuality } from './quality.ts'
 import type { SeasonState } from './season.ts'
 import type { WeatherState } from './weather.ts'
+import type { WindState } from './wind.ts'
 import { LAYER } from './layers.ts'
 
 
@@ -27,6 +28,16 @@ export interface RainOptions {
 
   /** Live year. The fall takes its white from the same snow the ground does. */
   season: SeasonState
+
+  /**
+   * The scape's one wind, and where the slant comes from.
+   *
+   * The column used to integrate a heading of its own off `wind.speed`, which
+   * made the rain lean on a bearing that had nothing to do with the one the
+   * grass under it was leaning on. A shower falling one way through foliage bent
+   * another is two systems that have not been introduced.
+   */
+  wind: WindState
 }
 
 /**
@@ -216,6 +227,7 @@ export function createRainLayer ({
   quality,
   weather,
   season,
+  wind,
 }: RainOptions): ScapeModule | null {
   if (quality.rainDrops < 1)
     return null
@@ -262,8 +274,7 @@ export function createRainLayer ({
   // Metres fallen, not seconds elapsed. Keeping the integral rather than the
   // clock is what lets `weather.fall` be turned down to zero and back up without
   // the whole column jumping to where it would have been had it never stopped.
-  let fallen  = 0
-  let heading = 0
+  let fallen = 0
 
   return defineModule<ScapeConfig>({
     name: 'rain',
@@ -292,13 +303,12 @@ export function createRainLayer ({
         viewSize * STREAK * (1 - (1 - FLAKE_LENGTH) * sleet),
       )
 
-      // The wind the grass already leans on, resolved into the same bearing the
-      // foliage sway uses. A shower falling straight down through bent grass is
-      // two systems that have not been introduced to each other.
-      heading += frame.delta * config().wind.speed * 0.21
+      // The wind the grass already leans on, taken from the one place that
+      // knows which way it is blowing. The gust is in `strength`, so a squall
+      // arrives slanted harder without a second curve saying so.
       slant.set(
-        Math.sin(heading) * config().wind.strength * SLANT,
-        Math.cos(heading * 0.77 + 1.3) * config().wind.strength * SLANT * 0.62,
+        wind.dirX * wind.strength * SLANT,
+        wind.dirZ * wind.strength * SLANT,
       )
 
       // The same white the ground is going, taken live from the year rather than

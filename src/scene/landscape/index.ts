@@ -15,6 +15,7 @@ import { createSeason } from '../season.ts'
 import type { SeasonState } from '../season.ts'
 import { createWeather } from '../weather.ts'
 import type { WeatherState } from '../weather.ts'
+import type { WindState } from '../wind.ts'
 import { surveyArchipelago } from './archipelago.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
 import { createBoatFleet } from './boats.ts'
@@ -70,6 +71,7 @@ export interface Landscape {
 export function createLandscape (
   config: LiveConfig,
   quality: AtmosphereQuality,
+  wind: WindState,
   skip: ScapeSkips = NOTHING_SKIPPED,
 ): Landscape {
   const surfaces: Object3D[] = []
@@ -228,9 +230,9 @@ export function createLandscape (
       const front = weather.sample(sky.time, now)
 
       fleet?.update(frame.delta)
-      sails?.update(frame.delta)
-      materials?.update(frame.elapsed, now, front)
-      water?.update(frame.elapsed, now, front, fleet?.wakeEmitters)
+      sails?.update(frame.delta, wind.strength)
+      materials?.update(wind, now, front)
+      water?.update(frame.elapsed, wind, now, front, fleet?.wakeEmitters)
     },
 
     dispose () {

@@ -15,6 +15,7 @@ import type { AtmosphereQuality } from '../quality.ts'
 import type { SeasonState } from '../season.ts'
 import type { TextureCatalogue } from '../textures/catalogue.ts'
 import type { WeatherState } from '../weather.ts'
+import type { WindState } from '../wind.ts'
 import type { BoatWakeEmitter } from './boats.ts'
 import type { HeightField } from './height.ts'
 import { LAYER } from '../layers.ts'
@@ -39,11 +40,12 @@ export interface Water {
   mesh: Mesh
 
   /**
-   * Advance swell, ripple, boat wakes and foam phase, and take the year's
-   * freeze and the weather's chop. Allocation-free.
+   * Advance swell, ripple, boat wakes and foam phase, and take the wind, the
+   * year's freeze and the weather's chop. Allocation-free.
    */
   update(
     elapsed: number,
+    wind: WindState,
     season: SeasonState,
     weather: WeatherState,
     wakes?: readonly BoatWakeEmitter[],
@@ -54,6 +56,15 @@ export interface Water {
 const SHORE_RESOLUTION = 512
 const MAX_DEPTH        = 3.2
 const MAX_BOAT_WAKES   = 3
+
+/**
+ * Ripple-map UV travelled per unit of wind travel.
+ *
+ * Measured, not chosen. The offset used to advance at `elapsed * 0.014` and the
+ * default wind travels at `speed * strength` = 1.215 per second, so 0.0115
+ * leaves the sea's texture moving at the rate it always did.
+ */
+const RIPPLE_DRIFT = 0.0115
 
 /**
  * The swell, shared verbatim by both stages.
@@ -542,7 +553,7 @@ export function createWater (
 
     // Read back from the config every frame rather than captured at build, so
     // the tuning overlay can drive the lake without rebuilding the scene.
-    update (elapsed, season, weather, wakes) {
+    update (elapsed, wind, season, weather, wakes) {
       // Rain, without a uniform or a fetch of its own. A shower does two things
       // to a lake and the shader already has a knob for each: it puts the surface
       // into a chop that kills the glitter — a sun lobe needs a facet to hold
@@ -553,7 +564,16 @@ export function createWater (
       const fall = weather.fall
 
       syncBoatWakes(wakes)
-      rippleOffset.value.set(elapsed * 0.014, elapsed * 0.0092)
+
+      // The ripple scrolls on the wind rather than on a pair of rates nobody
+      // could point at: a sea whose texture travels one way while the grass on
+      // the shore leans another is the same disagreement the mist and the cloud
+      // had. `RIPPLE_DRIFT` is what the old fixed rate works out to at the
+      // default wind, so a still day still shows the sea it always showed.
+      rippleOffset.value.set(
+        wind.dirX * wind.travel * RIPPLE_DRIFT,
+        wind.dirZ * wind.travel * RIPPLE_DRIFT,
+      )
       waveTime.value                   = elapsed
       uniforms.uBoatWakeStrength.value = config().water.wakeStrength
       uniforms.uSparkle.value          = config().water.sparkle * (1 - 0.85 * fall)

@@ -10,8 +10,15 @@ const HUBS: MillHub[] = [
   { x: 168, y: 9.1, z: 157.5, yaw: -1.2 },
 ]
 
-function withConfig (mill: Partial<typeof SCAPE_CONFIG.mill>, wind = SCAPE_CONFIG.wind) {
-  return { ...SCAPE_CONFIG, mill: { ...SCAPE_CONFIG.mill, ...mill }, wind }
+function withConfig (
+  mill: Partial<typeof SCAPE_CONFIG.mill>,
+  wind: Partial<typeof SCAPE_CONFIG.wind> = {},
+) {
+  return {
+    ...SCAPE_CONFIG,
+    mill: { ...SCAPE_CONFIG.mill, ...mill },
+    wind: { ...SCAPE_CONFIG.wind, ...wind },
+  }
 }
 
 describe('the turning sails', () => {
@@ -57,7 +64,9 @@ describe('the turning sails', () => {
       material: new MeshStandardMaterial(),
     })!
 
-    sails.update(0.5)
+    // The strength is the *live wind's*, gust included, rather than the config's
+    // resting value — which is what makes a squall spin the wheel up.
+    sails.update(0.5, 0.9)
     expect(sails.phase).toBeCloseTo(1.15 * 0.9 * 0.5, 6)
     sails.dispose()
   })
@@ -73,8 +82,8 @@ describe('the turning sails', () => {
         material: new MeshStandardMaterial(),
       })!
 
-      sails.update(4)
-      sails.update(4)
+      sails.update(4, config.wind.strength)
+      sails.update(4, config.wind.strength)
 
       // Not merely slow: a capture that advanced by however long the page took
       // to be ready is a capture that is different on every run.
@@ -91,7 +100,7 @@ describe('the turning sails', () => {
     })!
 
     for (let frame = 0; frame < 200; frame += 1)
-      sails.update(0.1)
+      sails.update(0.1, 1)
 
     expect(sails.phase).toBeGreaterThanOrEqual(0)
     expect(sails.phase).toBeLessThan(Math.PI * 2)
@@ -107,7 +116,7 @@ describe('the turning sails', () => {
 
     sails.dispose()
     sails.dispose()
-    sails.update(1)
+    sails.update(1, 1)
     expect(sails.phase).toBe(0)
   })
 })
