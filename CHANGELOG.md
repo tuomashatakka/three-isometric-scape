@@ -2,6 +2,31 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## what the runtime already does, and what it should not be asked to do
+
+no new capability. this is the run that checked the remaining migration candidates against the code instead of against a summary, and three of them turned out to be
+wrong in the same way: a pattern that matches on names rather than on what a function does.
+
+- **the beck and the waterway were never ribbons.** the survey grouped `traceTrack`, `traceDescent` and `traceGrid` as three copies of one strip builder. only the
+first was: `traceDescent` and `traceGrid` both return `Vec2[]` and are *pathfinders*, and the beck is **carved into the heightfield** ([`height.ts`](src/scene/landscape/height.ts))
+rather than drawn as geometry. neither file contains a `BufferAttribute` or an index. the ribbon extraction was already complete when the cart ruts moved
+- **`reviewProp` would measure almost nothing here.** three of its five checks — detached pieces, buried pieces, duplicated pieces — need more than one mesh, and
+this kit merges every prop into a single geometry. the two that do work are base height and overall scale, and [`props.test.ts`](src/scene/props/props.test.ts) already
+asserts both, with thresholds tuned to *this* scape: `min.y > -0.75` because the mill and the jetty are deliberately based below zero, and `< 14 m` because the
+lighthouse is 11.6. a generic 20-metre "that is scenery" threshold would never fire
+- **depth of field would fight the tilt-shift.** `look.tiltShift` is a screen-space blur banded on the projected focus *line* and scaled by zoom — the miniature
+look an isometric scape is built around. `createDof` is real depth-based bokeh, so having both means blurring twice, and three's `BokehPass` is written for a
+perspective camera
+- **and a lens flare is not a post pass.** it is a scene object attached to a light, needing sprite textures a caller supplies. this scape has none and is
+procedural on purpose
+- **all of it is now written down** in [`agents.md`](agents.md), as a table of what looks like an obvious win and is not, with the reason for each. the point of a
+migration is to stop reinventing what exists; the point of this table is to stop *re-investigating* what has already been ruled out
+
+**the one still worth doing** is selective bloom: this scape's bloom is whole-frame, so the beacon's lamp cannot glow without lifting the whole night sky with it.
+that is a themed run of its own.
+
+**cost: nothing.** documentation only, no `src/` change.
+
 ## the last of the reinvention, and one split not made
 
 the prop viewer built its own renderer. it now takes the runtime's — and the two things that looked like the same job, but were not, are written down rather than

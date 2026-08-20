@@ -403,7 +403,27 @@ the module also carries an llm prop-authoring dialect (`buildProp`, `validatePro
 
 ### also available, unused here
 
-`modules/physics` (optional cannon-es peer: rigid bodies, cloth, position-based liquid) and the `camera/follow` rig. adding either is a real dependency decision, not a convenience.
+[`threejs-scene-api.md`](threejs-scene-api.md) lists every export and whether this scape uses it. most of the unused surface is simply unused. these are the ones that
+look like obvious wins and are **not** — each was tried or measured, and each would cost more than it returns. do not re-open one without a reason that is not on
+this list.
+
+| export | why not |
+| --- | --- |
+| `modules/physics` | an optional `cannon-es` peer. a real dependency decision, not a convenience |
+| `createFollowCamera` | a damped *perspective* chase rig; this scape is orthographic and has its own follow in [`camera-follow.ts`](src/scene/camera-follow.ts) |
+| `attachResizeObserver` | watches the canvas's *parent*, and syncs perspective cameras. the quad view watches the canvas and has four orthographic frustums |
+| `disposeScene` / `disposeMaterial` | dispose indiscriminately. this scape pools materials through `markShared`, so per-module teardown is the correct instrument |
+| `createInfiniteGround` | an endless tile grid. the scape is a bounded archipelago with an authored heightfield |
+| `reviewProp` | three of its five checks need more than one mesh, and this kit merges every prop into one geometry. the two that do work — base height and scale — are already asserted in [`props.test.ts`](src/scene/props/props.test.ts) with thresholds tuned to this scape, not to a generic prop |
+| `createDof` | real depth-of-field, and `look.tiltShift` is already a screen-space blur banded on the focus line. two blurs fight, and three's `BokehPass` is written for a perspective camera |
+| `createLensflare` | not a post pass at all — a scene object needing caller-supplied sprite textures. this scape is procedural and DOM-free on purpose |
+| `createChromaticAberration` | the grade pass already carries chromatic aberration |
+| `createFXAA` / `createSMAA` / `createSsaa` | antialiasing is chosen per tier and overridden by `?aa=` |
+| the hand-built props, `kitProp`, `defineProp` | this scene builds from primitives on purpose |
+
+**the one that is still worth doing:** `createSelectiveBloom` / `createEmissiveBloom`. this scape's bloom is whole-frame; a selective pass would let the beacon's
+lamp and lit windows glow *without* lifting the whole night sky with them. that is a themed run of its own — emissive materials on named meshes, a bloom layer, a
+tier gate and a mobile cost — not a line to slip into another change.
 
 ---
 
