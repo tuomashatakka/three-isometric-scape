@@ -166,6 +166,7 @@ src/
 │   └── settings-store.ts           local-storage snapshot of those same paths
 └── scene/
     ├── atmosphere.ts               gradient sky, linear fog, sun and fill rig
+    ├── alpha-field.ts               the DataTexture the three sheet layers share
     ├── aurora.ts                   auroral veils over the dark half of the year
     ├── camera-controls.ts          pointer, touch, keyboard, focus, orbit
     ├── camera-follow.ts            riding a moving fleet instance instead of the map

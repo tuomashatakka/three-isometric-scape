@@ -1,17 +1,14 @@
 import {
   BufferAttribute,
   Color,
-  DataTexture,
   DoubleSide,
-  LinearFilter,
   Mesh,
   MeshBasicMaterial,
-  MirroredRepeatWrapping,
   PlaneGeometry,
-  RGBAFormat,
 } from 'three'
 import type { OrthographicCamera, Texture } from 'three'
 import { defineModule, smoothstep } from 'threejs-scene'
+import { bakeAlphaField } from './alpha-field.ts'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import type { DaylightState } from './daylight.ts'
 import { sampleHeight } from './noise.ts'
@@ -125,16 +122,8 @@ export function createCloudLayer ({
   const deckSize = config().archipelago.worldSize * 4.4
   const base     = config().terrain.waterLevel + config().atmosphere.cloudHeight
   const geometry = deckGeometry(deckSize)
-  const field    = new Uint8Array(TEXTURE_SIZE * TEXTURE_SIZE * 4)
   const tint     = new Color()
-  bakeClouds(field, config().seed ^ 0x2c17)
-
-  const texture       = new DataTexture(field, TEXTURE_SIZE, TEXTURE_SIZE, RGBAFormat)
-  texture.wrapS       = MirroredRepeatWrapping
-  texture.wrapT       = MirroredRepeatWrapping
-  texture.magFilter   = LinearFilter
-  texture.minFilter   = LinearFilter
-  texture.needsUpdate = true
+  const texture  = bakeAlphaField(TEXTURE_SIZE, f => bakeClouds(f, config().seed ^ 0x2c17))
 
   function tile (index: number): Texture {
     const map = texture.clone()

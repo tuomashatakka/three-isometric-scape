@@ -2,18 +2,16 @@ import {
   AdditiveBlending,
   BufferAttribute,
   Color,
-  DataTexture,
   DoubleSide,
-  LinearFilter,
   Mesh,
   MeshBasicMaterial,
   PlaneGeometry,
-  RGBAFormat,
   RepeatWrapping,
   SRGBColorSpace,
 } from 'three'
 import type { OrthographicCamera, Texture } from 'three'
 import { defineModule, smoothstep } from 'threejs-scene'
+import { bakeAlphaField } from './alpha-field.ts'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import type { DaylightState } from './daylight.ts'
 import { sampleHeight } from './noise.ts'
@@ -215,16 +213,11 @@ export function createAuroraLayer ({
   const count    = quality.auroraLayers
   const deckSize = config().archipelago.worldSize * 4.4
   const geometry = veilGeometry(deckSize)
-  const field    = new Uint8Array(TEXTURE_SIZE * TEXTURE_SIZE * 4)
-  bakeVeil(field, config().seed ^ 0x6b19, new Color(config().palette.aurora), new Color(config().palette.auroraCrown))
-
-  const texture       = new DataTexture(field, TEXTURE_SIZE, TEXTURE_SIZE, RGBAFormat)
-  texture.wrapS       = RepeatWrapping
-  texture.wrapT       = RepeatWrapping
-  texture.magFilter   = LinearFilter
-  texture.minFilter   = LinearFilter
-  texture.colorSpace  = SRGBColorSpace
-  texture.needsUpdate = true
+  const texture  = bakeAlphaField(
+    TEXTURE_SIZE,
+    f => bakeVeil(f, config().seed ^ 0x6b19, new Color(config().palette.aurora), new Color(config().palette.auroraCrown)),
+    { wrap: RepeatWrapping, colorSpace: SRGBColorSpace },
+  )
 
   function tile (index: number): Texture {
     const map = texture.clone()

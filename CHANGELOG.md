@@ -2,6 +2,27 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## one texture constructor, and nine passes that will not be asked again
+
+two jobs off the queue, one of them by deleting the queue entry.
+
+- **the three sheet layers stopped rebuilding the same `DataTexture`.** mist, the cloud deck and the auroral veil each painted a different noise into an identical
+seven-line construction — field, texture, both wrap modes, both filters, `needsUpdate`. `bakeAlphaField(size, sampler, options?)` in
+[`alpha-field.ts`](src/scene/alpha-field.ts) takes the size and a sampler and hands back the texture; each layer keeps its own noise and falloff, which is the half
+that was never duplicated. **29 lines out of the call sites**, and each bake is now one expression
+- **aurora genuinely differed and stayed differing.** it wraps `Repeat` where the other two mirror, and it is the only one in `SRGBColorSpace` — so those are options
+rather than a flattened default. mirroring is the default because two of three want it
+- **the catalogue test had an opinion about this, and it was right.** `alpha-field.ts` calls `new DataTexture`, so the roster's "every module that builds one is
+catalogued" rule fired. relabelling all three entries to point at the helper would have been the easy fix and the wrong one: `module` answers *where does this texture
+come from*, and for the cloud deck that is still `clouds.ts`. the shared constructor is excluded by name, with the reason written down, and the rule still bites for
+any layer that bakes a field without cataloguing it
+- **nine post passes joined the "measured and rejected" table.** the queue said start with `createDof` and `createLensflare`; both were already rejected, so the real
+question was what is left. the answer is *nothing*, and the reasons are now written down so no future run re-derives them. `createMotionBlur` was the closest call —
+ortho-safe, and the depth texture it wants already exists on `desktop`/`ultra` — and it loses on the interaction model: panning is the primary gesture here and the rig
+revolves at rest, so it would blur the frames that must stay legible. `createOutline` loses to the threshold: a followed hull can be overdriven past 0.94 the way
+`beacon.glow` is, for no pass at all
+- **cost: `same` on all six tour poses**, structural unchanged. the texture work is a pure refactor and the pass work shipped no code — only the reasons not to
+
 ## the config the app was never given
 
 `createApp` was handed `state: {}`. an empty store, and the whole tuning surface passed down beside it as a plain object every module captured — which is not the
