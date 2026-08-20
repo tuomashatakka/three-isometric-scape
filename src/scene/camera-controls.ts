@@ -121,6 +121,37 @@ export function headingDelta (from: number, to: number): number {
   return (to - from + 540) % 360 - 180
 }
 
+/**
+ * Rotate a ground point around a pivot by a heading change.
+ *
+ * The point under the cursor stays fixed while the rest of the world swings
+ * around it — the same feel as grabbing a map. Pure maths, no side effects:
+ * the caller owns all three vectors.
+  */
+type FocusType = { x: number, z: number }
+
+type PivotType = { x: number, z: number }
+
+type RotateAroundPivotReturnType = { x: number, z: number }
+
+export function rotateAroundPivot (
+  focus:    FocusType,
+  pivot:    PivotType,
+  dHeading: number,
+): RotateAroundPivotReturnType {
+  const dx  = focus.x - pivot.x
+  const dz  = focus.z - pivot.z
+  const rad = dHeading * Math.PI / 180
+  const cos = Math.cos(rad)
+  const sin = Math.sin(rad)
+  // Positive heading change is clockwise in the XZ plane (top-down), so the
+  // sin term is negated relative to the standard CCW rotation matrix.
+  return {
+    x: pivot.x + dx * cos + dz * sin,
+    z: pivot.z - dx * sin + dz * cos,
+  }
+}
+
 export function zoomViewSize (
   viewSize: number,
   scale: number,
@@ -224,14 +255,24 @@ export function createCameraControls (
   // One scratch set for the whole module. Every frame reads from these and none
   // of them ever escapes, which is what keeps the update path allocation-free.
   const scratch = {
-    right:      new Vector3(),
-    forward:    new Vector3(),
-    aim:        [ 0, 0, 0 ] as [number, number, number],
-    raycaster:  new Raycaster(),
-    pointerNdc: new Vector2(),
+    right:         new Vector3(),
+    forward:       new Vector3(),
+    aim:           [ 0, 0, 0 ] as [number, number, number],
+    raycaster:     new Raycaster(),
+    pointerNdc:    new Vector2(),
+    rotationPivot: null as { x: number, z: number } | null,
+    pivotHeading:  0,
+    pivotFocus:    new Vector3(),
   }
 
   const { right, forward, raycaster, pointerNdc, aim: aimTarget } = scratch
+
+  // The cursor's vertical position in 0..1 screen space, for the tilt-shift
+  // focus band. NaN means no pointer has entered the canvas yet — the post
+  // chain falls back to the camera's look-at point. Only a fine pointer (mouse
+  // or pen) drives this; coarse pointers (touch) never write it, so the band
+  // stays at the look-at for the whole session.
+  let pointerScreenY = Number.NaN
   const boatFollow                                                = createBoatFollowController(baseRotation)
 
   /**
@@ -391,11 +432,29 @@ export function createCameraControls (
 
   // Dragging right swings the world right, which means the *camera* goes the
   // other way. The scaffold had the sign of a turntable, not of a grab.
-  function rotateTo (dx: number): void {
+  //
+  // When a pivot was captured at press, the focus orbits around that fixed
+  // point — the world turns about where the reader grabbed it, the way a map
+  // does. Without a pivot the old single-point orbit is preserved.
+  function rotateTo (dx: number, pivot?: { x: number, z: number } | null): void {
     leavePath()
     leaveBoat()
     stopRevolving()
-    target.heading = wrapHeading(target.heading + dx * ROTATE_PER_PIXEL)
+
+    const dHeading = dx * ROTATE_PER_PIXEL
+    target.heading = wrapHeading(target.heading + dHeading)
+
+    if (pivot) {
+      const rotated = rotateAroundPivot(
+        { x: scratch.pivotFocus.x, z: scratch.pivotFocus.z },
+        pivot,
+        dHeading,
+      )
+      target.focus.x = clamp(rotated.x, -maxFocus, maxFocus)
+      target.focus.z = clamp(rotated.z, -maxFocus, maxFocus)
+      target.focus.y = landscape.heightAt(target.focus.x, target.focus.z)
+    }
+
     retarget()
   }
 
@@ -454,7 +513,7 @@ export function createCameraControls (
    * the canvas so the arrow keys work afterwards. Both are why this hangs off
    * the press rather than the first move.
    */
-  function onPressStart (_x: number, _y: number, event: PointerEvent): void {
+  function onPressStart (x: number, y: number, event: PointerEvent): void {
     onManualControl()
     canvas.focus({ preventScroll: true })
 
@@ -465,13 +524,40 @@ export function createCameraControls (
       (event.button === 1 || event.button === 2 || event.shiftKey || event.ctrlKey || event.metaKey)
 
     dragAction = rotates ? 'rotate' : 'pan'
+
+    // Orbit pivots around the point under the cursor. Captured once, held for
+    // the gesture — re-deriving per frame makes the world slide under the hand.
+    if (rotates) {
+      const bounds     = canvas.getBoundingClientRect()
+      const [ nx, ny ] = clientPointToNdc(x, y, bounds)
+      pointerNdc.set(nx, ny)
+      raycaster.setFromCamera(pointerNdc, camera)
+
+      const hit = raycaster.intersectObjects(landscape.surfaces, false)[0]
+
+      if (hit) {
+        scratch.rotationPivot = { x: hit.point.x, z: hit.point.z }
+        scratch.pivotHeading  = target.heading
+        scratch.pivotFocus.copy(target.focus)
+      }
+      else
+        scratch.rotationPivot = null
+    }
+
+    // Track where the cursor is for the tilt-shift focus band — only a fine
+    // pointer (mouse/pen) drives it; the gesture callback already filters by
+    // pointerType for the rotate verb, so this just writes the screen y.
+    if (event.pointerType === 'mouse' || event.pointerType === 'pen') {
+      const bounds = canvas.getBoundingClientRect()
+      pointerScreenY = 1 - (y - bounds.top) / bounds.height
+    }
   }
 
   function onDrag (dx: number, dy: number): void {
     if (dragAction === 'pan')
       panTo(dx, dy)
     else
-      rotateTo(dx)
+      rotateTo(dx, scratch.rotationPivot)
   }
 
   /**
@@ -502,6 +588,23 @@ export function createCameraControls (
       : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? canvas.clientHeight : 1
 
     zoomTo(Math.exp(-delta * unit * WHEEL_SPEED))
+  }
+
+  /**
+   * Track the cursor for the tilt-shift focus band.
+   *
+   * Only a fine pointer (mouse, pen) drives this — touch has no hover, so the
+   * band stays at the camera look-at for the whole session. A coarse pointer
+   * never writes `pointerScreenY`.
+   */
+  function onHover (_x: number, y: number): void {
+    const bounds = canvas.getBoundingClientRect()
+    pointerScreenY = 1 - (y - bounds.top) / bounds.height
+  }
+
+  /** Clear the orbit pivot when the gesture ends. */
+  function onPressEnd (): void {
+    scratch.rotationPivot = null
   }
 
   function onKeyDown (event: KeyboardEvent): void {
@@ -594,6 +697,10 @@ export function createCameraControls (
     if (!boatFollow.active)
       pose.focus.y = landscape.heightAt(pose.focus.x, pose.focus.z)
     apply()
+
+    // Expose the cursor position for the tilt-shift focus band. NaN means no
+    // pointer has entered the canvas — the post chain uses the look-at point.
+    camera.userData.pointerScreenY = pointerScreenY
   }
 
   function attach (): () => void {
@@ -602,7 +709,18 @@ export function createCameraControls (
     // this scape means by a gesture.
     const detachGesture = attachPointerGesture(
       canvas,
-      { onPressStart, onDrag, onPinch, onTap, onWheel },
+      {
+        onPressStart,
+        onPressEnd,
+        onDrag,
+        onPinch,
+        onTap,
+        onWheel,
+        onHover,
+        onLeave () {
+          pointerScreenY = Number.NaN
+        },
+      },
       { tapMovePx: TAP_MOVE_PX, tapThresholdMs: TAP_MAX_MS },
     )
 

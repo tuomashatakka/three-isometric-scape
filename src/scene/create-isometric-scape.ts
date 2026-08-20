@@ -325,12 +325,13 @@ export function createIsometricScape (
   const post = quality.post && !skip.has('post')
     ? createAtmospherePost({
       camera,
-      config:      readConfig,
+      config:        readConfig,
       quality,
-      sunPosition: atmosphere.sunPosition,
+      reducedMotion: options.reducedMotion,
+      sunPosition:   atmosphere.sunPosition,
       // Resolved lazily: post builds last, so the lake already exists by the
       // time the composer asks what it should be reflecting.
-      water:       () => landscape.surfaces.find(surface => surface.name === 'water') as Mesh | null ?? null,
+      water:         () => landscape.surfaces.find(surface => surface.name === 'water') as Mesh | null ?? null,
     })
     : null
 

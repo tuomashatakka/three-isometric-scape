@@ -2,6 +2,23 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the lens looks where you are looking
+
+two pointer features, and the whole difficulty is that **no capture ever moves a pointer** — so both had to change nothing at all when there is not one.
+
+- **the tilt-shift band tracks the cursor.** worth naming what "focus point" turned out to mean: `HorizontalTiltShiftShader` computes `hh = h * abs(r - vUv.y)`, so `r`
+  is a focused *horizontal line*, not a point — which is what a real tilt-shift lens does. a true 2d focus point is a radial bokeh shader, a different effect
+  entirely. the band is what shipped
+- **rotate-drag orbits the point under the cursor.** `rotateAroundPivot(focus, pivot, delta)` is pure and exported, and the pivot is captured **once** at
+  `onPressStart` and held — re-deriving it per frame from a moving cursor makes the world slide under the hand. keyboard rotation passes no pivot and keeps the old
+  single-point orbit
+- **the ease had to be fixed before it could ship.** it blended `lookAtLine` (0..1) with a projected `y` (-1..1) — two different spaces — and re-derived from a
+  fresh anchor every frame, so it never actually travelled. now one persistent value in the shader's own 0..1 space, eased across frames, snapping on the first
+  frame and under `reducedMotion`
+- **touch keeps today's behaviour.** a touchscreen has no hover, so only a fine pointer drives the band; without one the band sits exactly where it always did
+- **cost: `same` on all six tour poses**, structural unchanged — which for these two features is the *entire* acceptance test rather than a footnote. six new tests
+  cover the pivot maths: the point under the cursor stays fixed, a 360° round-trip is identity, distance is preserved, and the wrap at 0/360 holds
+
 ## the sea in front of its own lighthouse
 
 the beams showed over land and vanished over water, at about half the headings on the compass. the cause is one number nobody wrote down.

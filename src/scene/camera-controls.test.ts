@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { clampFocus, clientPointToNdc, headingDelta, tiltForViewSize, wrapHeading, zoomViewSize } from './camera-controls.ts'
+import { clampFocus, clientPointToNdc, headingDelta, rotateAroundPivot, tiltForViewSize, wrapHeading, zoomViewSize } from './camera-controls.ts'
 
 
 describe('camera control math', () => {
@@ -40,5 +40,77 @@ describe('camera control math', () => {
     // Past the edge the camera would open on a view no drag could get back to,
     // because a drag is held inside this same box.
     expect(clampFocus(-900, 900, 250)).toEqual({ x: -250, z: 250 })
+  })
+
+  describe('rotateAroundPivot', () => {
+    test('the pivot point stays fixed across a heading change', () => {
+      // The focus is 10 units east of the pivot. After a 90° rotation, it
+      // should be 10 units south, but the pivot must not have moved.
+      const focus  = { x: 10, z: 0 }
+      const pivot  = { x: 0, z: 0 }
+      const result = rotateAroundPivot(focus, pivot, 90)
+
+      // Pivot unchanged (trivially — it is the origin).
+      expect(pivot.x).toBe(0)
+      expect(pivot.z).toBe(0)
+
+      // Focus rotated 90° CW in the XZ plane: (10,0) → (0,-10).
+      expect(result.x).toBeCloseTo(0, 8)
+      expect(result.z).toBeCloseTo(-10, 8)
+    })
+
+    test('zero rotation leaves the focus unchanged', () => {
+      const focus  = { x: 7, z: -3 }
+      const pivot  = { x: 2, z: 5 }
+      const result = rotateAroundPivot(focus, pivot, 0)
+
+      expect(result.x).toBeCloseTo(7, 8)
+      expect(result.z).toBeCloseTo(-3, 8)
+    })
+
+    test('rotating 360° returns to the start', () => {
+      const focus  = { x: 12, z: 8 }
+      const pivot  = { x: 3, z: -1 }
+      const result = rotateAroundPivot(focus, pivot, 360)
+
+      expect(result.x).toBeCloseTo(focus.x, 8)
+      expect(result.z).toBeCloseTo(focus.z, 8)
+    })
+
+    test('the pivot-distance is preserved', () => {
+      const focus  = { x: 5, z: 7 }
+      const pivot  = { x: -2, z: 3 }
+      const before = Math.hypot(focus.x - pivot.x, focus.z - pivot.z)
+
+      for (const angle of [ 30, 90, 137, 270, -45 ]) {
+        const result = rotateAroundPivot(focus, pivot, angle)
+        const after  = Math.hypot(result.x - pivot.x, result.z - pivot.z)
+        expect(after).toBeCloseTo(before, 8)
+      }
+    })
+
+    test('heading wrap-around at 0/360', () => {
+      // A focus at (5,0), pivot at origin. Rotating by -5° should give
+      // nearly the same result as rotating by 355°.
+      const focus = { x: 5, z: 0 }
+      const pivot = { x: 0, z: 0 }
+      const a     = rotateAroundPivot(focus, pivot, -5)
+      const b     = rotateAroundPivot(focus, pivot, 355)
+
+      expect(a.x).toBeCloseTo(b.x, 8)
+      expect(a.z).toBeCloseTo(b.z, 8)
+    })
+
+    test('rotation at 45° (isometric base angle)', () => {
+      // Focus 10 units from pivot along the +x axis. A 45° rotation should
+      // put it on the diagonal.
+      const focus    = { x: 10, z: 0 }
+      const pivot    = { x: 0, z: 0 }
+      const result   = rotateAroundPivot(focus, pivot, 45)
+      const expected = 10 * Math.SQRT1_2
+
+      expect(result.x).toBeCloseTo(expected, 8)
+      expect(result.z).toBeCloseTo(-expected, 8)
+    })
   })
 })

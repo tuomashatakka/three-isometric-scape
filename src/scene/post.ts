@@ -22,9 +22,10 @@ import type { AtmosphereQuality } from './quality.ts'
 
 
 export interface PostOptions {
-  camera:  OrthographicCamera
-  config:  LiveConfig
-  quality: AtmosphereQuality
+  camera:        OrthographicCamera
+  config:        LiveConfig
+  quality:       AtmosphereQuality
+  reducedMotion: boolean
 
   /** Sun position in world space, owned by the atmosphere module. */
   sunPosition: Vector3
@@ -45,6 +46,9 @@ const BLUR_MIN         = 0.7
 const BLUR_MAX         = 1.8
 const SECOND_PASS_STEP = 1.7
 const GRAIN_SCALE      = 0.09
+
+/** Exponential approach rate for the focus band easing, in e-folds per second. */
+const SETTLE_RATE = 6.2
 
 const projected = new Vector3()
 const target    = new Vector3()
@@ -84,6 +88,7 @@ export function createAtmospherePost ({
   camera,
   config,
   quality,
+  reducedMotion,
   sunPosition,
   water,
 }: PostOptions): ScapeModule {
@@ -99,6 +104,13 @@ export function createAtmospherePost ({
   let extras: Pass[]                  = []
   let size                            = { width: 1, height: 1 }
   let amount                          = config().look.tiltShift
+
+  /** Where the focused band is *now*, eased toward where it wants to be. */
+  let focusNow                        = Number.NaN
+
+  // The last frame's delta, so the focus band easing can run in `aimFocus`
+  // without the frame context leaking into the effects chain.
+  let frameDelta = 0
 
   // The chain's own copy of the surface. An `EffectComposer` snapshots the
   // renderer's pixel ratio when it is built and never looks again, so a live
@@ -116,11 +128,33 @@ export function createAtmospherePost ({
   }
 
   function aimFocus (): void {
+    // The tilt-shift band is a focused horizontal stripe, not a point — the
+    // HorizontalTiltShiftShader modulates blur by vertical distance from `r`,
+    // and a true 2D focus point would need a radial/bokeh shader instead.
+    // When a fine pointer (mouse/pen) is on the canvas, the band tracks its
+    // screen y; otherwise it falls back to the camera's look-at projection.
     const stored = camera.userData.target as readonly [number, number, number] | undefined
     target.set(stored?.[0] ?? 0, stored?.[1] ?? 0, stored?.[2] ?? 0)
     projected.copy(target).project(camera)
 
-    const focusLine = (projected.y + 1) / 2
+    // All of this is in the shader's own 0..1 screen space, not the projection's
+    // -1..1 — `r` is compared against `vUv.y`. Converting once here and staying
+    // converted is what keeps the ease from blending two different spaces.
+    const lookAtLine = (projected.y + 1) / 2
+    const pointerY   = camera.userData.pointerScreenY as number | undefined
+    const wanted     = typeof pointerY === 'number' && !Number.isNaN(pointerY)
+      ? pointerY
+      : lookAtLine
+
+    // Eased across frames rather than re-derived within one, so the band
+    // actually travels instead of jumping a fixed fraction from a fresh anchor
+    // every time. A still pointer settles, which is what lets a capture be
+    // reproducible; reducedMotion and the first frame both snap.
+    focusNow = Number.isNaN(focusNow) || reducedMotion
+      ? wanted
+      : focusNow + (wanted - focusNow) * (1 - Math.exp(-frameDelta * SETTLE_RATE))
+
+    const focusLine = focusNow
     for (const pair of pairs) {
       pair.horizontal.uniforms.r.value = focusLine
       pair.vertical.uniforms.r.value   = focusLine
@@ -376,6 +410,7 @@ export function createAtmospherePost ({
     },
 
     update (state, frame, ctx) {
+      frameDelta = Math.min(frame.delta, 0.1)
       aimFocus()
       aimSun()
       syncSurface()
