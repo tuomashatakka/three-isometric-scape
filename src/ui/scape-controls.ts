@@ -298,6 +298,30 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       ],
     },
     {
+      group: 'ground & water',
+      title: 'the gulls',
+
+      // Filed under the water because that is what they are over, the way the
+      // coastal light is. How *many* there are is the tier's — see
+      // `quality.birdCount` — and where they hang is the survey's, so what is
+      // left here is how much of the colony is up and what it is doing. The
+      // colony spread is deliberately absent: it decides where the rings were
+      // fitted, which takes a rebuild to see.
+      controls: [
+        toggled(
+          'gulls',
+          range('birds.flight', 'aloft', 0, 1, 0.01, quality.birdCount > 0),
+          0.85,
+          [
+            range('birds.speed', 'wheeling', 0, 1.5, 0.01),
+            range('birds.flap', 'wingbeats a second', 0, 6, 0.1),
+            range('birds.wingspan', 'wingspan (m)', 0.4, 4, 0.05),
+            range('birds.ceiling', 'ceiling (m)', 4, 60, 0.5),
+          ],
+        ),
+      ],
+    },
+    {
       group:    'ground & water',
       title:    'ground',
       controls: [

@@ -19,6 +19,8 @@ import { surveyArchipelago } from './archipelago.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
 import { createBoatFleet } from './boats.ts'
 import type { BoatFleet } from './boats.ts'
+import { planColonies } from './colony.ts'
+import type { Colony } from './colony.ts'
 import { createDressing } from './dressing.ts'
 import type { Dressing } from './dressing.ts'
 import { yawAlong } from './layout.ts'
@@ -38,6 +40,15 @@ export interface Landscape {
   heightAt(x: number, z: number): number
   layout:      ScapeLayout
   archipelago: ArchipelagoSurvey
+
+  /**
+   * Where the gulls wheel, in world metres.
+   *
+   * Published rather than drawn here, for the reason the lantern hubs are: where
+   * a flock can hang is a fact about the water the survey found, and what the
+   * birds do about it belongs to `scene/birds.ts`.
+   */
+  colonies: readonly Colony[]
 
   /** Live fleet accessor; null until the landscape module has built. */
   boatFleet(): BoatFleet | null
@@ -152,6 +163,15 @@ export function createLandscape (
       z: beacon.z + landmass.origin.z,
     }]
   })
+
+  /**
+   * Every flock the coast can carry, sited over open water.
+   *
+   * Surveyed here beside the hubs and the lanterns, and for the same reason:
+   * it is an answer about the ground and the sea rather than about geometry, so
+   * it is resolved once with the rest of the survey and read by whoever needs it.
+   */
+  const colonies = planColonies(archipelago, config())
 
   const module = defineModule<ScapeConfig>({
     name: 'nordic-landscape',
@@ -268,6 +288,7 @@ export function createLandscape (
     layout,
     archipelago,
     boatFleet: () => fleet,
+    colonies,
     lanternHubs,
     season:    season.state,
     weather:   weather.state,

@@ -2,6 +2,7 @@ import { SCAPE_CONFIG } from '../src/scene/config.ts'
 import { surveyArchipelago } from '../src/scene/landscape/archipelago.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from '../src/scene/landscape/archipelago.ts'
 import { scheduledFleetMinimumSeparation } from '../src/scene/landscape/boat-motion.ts'
+import { planColonies } from '../src/scene/landscape/colony.ts'
 import { distanceToTrack } from '../src/scene/landscape/layout.ts'
 import { createPathQuery, pathLength } from '../src/scene/landscape/path.ts'
 import { STEADING_BUILDINGS } from '../src/scene/landscape/steading.ts'
@@ -128,6 +129,19 @@ export interface MapStats extends CompositionStats {
     count:      number
     separation: number
     conflicts:  number
+  }
+
+  /**
+   * The gull colonies, and the birds dealt across them.
+   *
+   * Here rather than in a screenshot on purpose: a flock is four pixels wide at
+   * the default pose, so a harbour that lost its ring is invisible in a still
+   * and is one number short here.
+   */
+  colonies: {
+    count: number
+    asked: number
+    sited: { id: string, kind: string, x: number, z: number, radius: number }[]
   }
 }
 
@@ -292,6 +306,7 @@ export function surveyStats (
 
   const { id: _id, profile: _profile, origin: _origin, ...legacy } = home
   const { waterways }                                              = survey
+  const colonies                                                   = planColonies(survey, config)
   const scheduleSeparation                                         = scheduledFleetMinimumSeparation(
     waterways.route,
     waterways.boatOffsets.length,
@@ -320,6 +335,25 @@ export function surveyStats (
       count:      waterways.boatOffsets.length,
       separation: round(scheduleSeparation, 2),
       conflicts:  scheduleSeparation + 1e-6 < config.boats.separation ? 1 : 0,
+    },
+    colonies: {
+      count: colonies.length,
+
+      // What every landmass *offered* — a landing and, where it has one, an
+      // outer rock. The gap between this and the count is the finding: a coast
+      // that could not fit a ring over open water lost its flock silently.
+      asked: survey.landmasses.reduce(
+        (sum, landmass) =>
+          sum + (landmass.survey.landing ? 1 : 0) + (landmass.survey.beacon ? 1 : 0),
+        0,
+      ),
+      sited: colonies.map(colony => ({
+        id:     colony.id,
+        kind:   colony.kind,
+        x:      Math.round(colony.x),
+        z:      Math.round(colony.z),
+        radius: round(colony.radius),
+      })),
     },
   }
 }
@@ -507,6 +541,10 @@ export function formatStats (stats: MapStats): string {
       `clearance ${stats.waterways.clearance}m`,
     `boats ${stats.boats.count}  separation ${stats.boats.separation}m  ` +
       `conflicts ${stats.boats.conflicts}`,
+    `gulls ${stats.colonies.count}/${stats.colonies.asked} colonies  ` +
+      (stats.colonies.sited
+        .map(colony => `${colony.id}/${colony.kind} (${colony.x},${colony.z}) r${colony.radius}`)
+        .join('  ') || '<- no coast had open water to fit a ring over'),
   ]
 
   return lines.join('\n')

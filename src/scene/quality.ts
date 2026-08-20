@@ -55,6 +55,19 @@ export interface AtmosphereQuality {
   rainDrops: number
 
   /**
+   * Gulls in the air across the whole archipelago. 0 is a coast with no birds
+   * on it.
+   *
+   * A count and not a density, and — unlike `starCount` and `rainDrops` — one
+   * that is sized against the *map* rather than the frame: the flocks hang over
+   * fixed colonies in the world, so pulling back shows more of them and zooming
+   * in shows one. That is what a bird is, and it is why the number is dealt
+   * across the colonies the survey found rather than scattered over the view.
+   * The cost is eight vertices and four triangles each, in one shared draw.
+   */
+  birdCount: number
+
+  /**
    * Panels in the coastal light's optic — how many beams sweep at once. 0 is a
    * tier that gets a lit lantern and no beams.
    *
@@ -157,6 +170,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     auroraLayers:    0,
     starCount:       0,
     rainDrops:       0,
+    birdCount:       0,
     beaconBlades:    0,
     terrainSegments: 60,
     scatterScale:    0.16,
@@ -185,6 +199,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     auroraLayers:    1,
     starCount:       700,
     rainDrops:       900,
+    birdCount:       90,
     beaconBlades:    1,
     terrainSegments: 84,
     scatterScale:    0.32,
@@ -229,6 +244,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     auroraLayers:    2,
     starCount:       1_900,
     rainDrops:       2_600,
+    birdCount:       260,
     beaconBlades:    2,
     terrainSegments: 208,
     scatterScale:    1,
@@ -257,6 +273,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     auroraLayers:    3,
     starCount:       3_200,
     rainDrops:       4_200,
+    birdCount:       420,
     beaconBlades:    3,
     terrainSegments: 288,
     scatterScale:    1.5,
@@ -302,6 +319,7 @@ const UNLOCKED_FLOOR = {
   auroraLayers:   1,
   starCount:      700,
   rainDrops:      700,
+  birdCount:      90,
   beaconBlades:   1,
   detailTaps:     6,
 } as const
@@ -338,6 +356,7 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
     auroraLayers:   Math.max(quality.auroraLayers, UNLOCKED_FLOOR.auroraLayers),
     starCount:      Math.max(quality.starCount, UNLOCKED_FLOOR.starCount),
     rainDrops:      Math.max(quality.rainDrops, UNLOCKED_FLOOR.rainDrops),
+    birdCount:      Math.max(quality.birdCount, UNLOCKED_FLOOR.birdCount),
     beaconBlades:   Math.max(quality.beaconBlades, UNLOCKED_FLOOR.beaconBlades),
     detailTaps:     Math.max(quality.detailTaps, UNLOCKED_FLOOR.detailTaps),
   }

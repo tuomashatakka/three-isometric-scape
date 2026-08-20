@@ -110,9 +110,12 @@ ridge/ridge @ (-178,128)  land 15.1% peak 9.8m  paths 11  jetty (-151,138)  mill
 meadow/meadow @ (178,128)  land 27% peak 5.68m  paths 13  jetty (151,126)  mill (168.2,157.5)
 waterways 3 legs 809.7m  connected OK  wet OK  clearance 0.67m
 boats 3  separation 115.79m  conflicts 0
+gulls 4/4 colonies  home/harbour (-53,-63) r24.1  home/rock (71,46) r28  ridge/harbour (-116,147) r28  meadow/harbour (103,132) r28
 ```
 
 `beacon NONE` is the same kind of answer: the light goes on the *outermost* islet in the ring that is broad enough for masonry and has eight dry bearings at its footing, so an archipelago whose skerries are all too small gets no lighthouse. a beacon that moved isle on a run that did not touch `beacon.minRock`, `beacon.freeboard` or `terrain.isles` is a finding.
+
+`gulls 4/4 colonies` is the flock line, and the two numbers are the finding: the second is what the islands *offered* — one landing each, plus an outer rock where a light was built — and the first is how many of those found open water wide enough to fit a whole ring over. `3/4` on a run that did not touch `birds.spread`, the coastline or the landings means a bank closed up. this is here rather than in a screenshot because a flock is four pixels wide at the default pose.
 
 `mill NONE` is a valid answer and not a failure — an island with nowhere level and exposed enough for a trestle does not get one. what would be a finding is a mill *appearing* or *moving* on a run that did not touch the siting rules, because everything the search reads is either the ground or something the farm already claimed.
 
@@ -310,6 +313,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `boats.ts` | one dynamic `InstancedMesh`, plus stable live pose and wake records |
 | `creek.ts` | the beck: descent trace, channel, tidal mouth |
 | `beacon.ts` | the outermost rock broad and dry enough to carry a light, and the footing probe that proves it |
+| `colony.ts` | the open water off a harbour or an outer rock that a flock can wheel over without crossing land |
 | `mill.ts` | the exposed shoulder a windmill stands on, and the doorstep at the foot of its stair |
 | `mill-sails.ts` | every mill's wheel in one dynamic `InstancedMesh`, geared off `wind.strength` |
 | `terrain.ts` | shared archipelago geometry, height/slope banded colour, path wear painted in |
@@ -334,19 +338,19 @@ the pointer bookkeeping — capture, live pointers, the pinch frame, tap detecti
 
 ### an atmospheric system
 
-`src/scene/*.ts` — `atmosphere.ts`, `mist.ts`, `clouds.ts`, `aurora.ts`, `nightsky.ts`, `rain.ts`, `beacon.ts`, `post.ts`, and the three clocks `daylight.ts` / `season.ts` / `weather.ts`. composed in [`create-isometric-scape.ts`](src/scene/create-isometric-scape.ts). the hung sheets share [`sky-deck.ts`](src/scene/sky-deck.ts) — the zoom reveal and the focus they follow — so two decks cannot fade in at two different zooms.
+`src/scene/*.ts` — `atmosphere.ts`, `mist.ts`, `clouds.ts`, `aurora.ts`, `nightsky.ts`, `rain.ts`, `birds.ts`, `beacon.ts`, `post.ts`, and the three clocks `daylight.ts` / `season.ts` / `weather.ts`. composed in [`create-isometric-scape.ts`](src/scene/create-isometric-scape.ts). the hung sheets share [`sky-deck.ts`](src/scene/sky-deck.ts) — the zoom reveal and the focus they follow — so two decks cannot fade in at two different zooms.
 
 anything mounted *after* `atmosphere.module` sees this frame's day; anything before it sees the last one's. that is the whole reason the coastal light is a layer here rather than part of the landscape that surveys it — `beacon.ts` reads `daylight.day` and the landscape publishes `lanternHubs` for it.
 
 the clocks are coupled, and in one direction each: the weather takes the year and decides how hard this week's precipitation falls, and the day takes the year and solves the sun's arc for it — `daylight.sample(time, year)`. so **the day's sky is a function of the week**, and `daylight.latitude` at 68°N means midwinter has no daylight in it and midsummer no night. anything reading the darkness of the sky reads `daylight.dark` (astronomical twilight, geometry) rather than a curve of the year.
 
-shared atmosphere has four scale measures and they are not interchangeable: sheet/deck reach follows `archipelago.worldSize`, cloud and aurora composition follows `camera.maxViewSize`, rain, the night sky and upright mist follow the live `viewSize`, and genuine metre features such as the 79-metre mist tile stay in metres. audit all four when the world or camera grows; swapping `terrain.size` for `worldSize` everywhere is how one fixed bug becomes four fresh ones, uwu.
+shared atmosphere has four scale measures and they are not interchangeable: sheet/deck reach follows `archipelago.worldSize`, cloud and aurora composition follows `camera.maxViewSize`, rain, the night sky and upright mist follow the live `viewSize`, and genuine metre features such as the 79-metre mist tile and the gulls' 26-metre ceiling stay in metres. the birds are the one system that is *both*: they hang at world-surveyed colonies in metres, and their wingspan carries a floor at 1.8% of the live `viewSize` so a bird pulled fully out is a legible mark rather than a pixel and a half of grain. audit all four when the world or camera grows; swapping `terrain.size` for `worldSize` everywhere is how one fixed bug becomes four fresh ones, uwu.
 
 **a sky is at infinity, and that decides its scale class before anything else does.** the night sky was written world-sized first, like the aurora beside it, and 520 metres of archipelago spread one night's stars over eight frames of open sea — a dozen on screen, and `scape:diff` correctly reported `same` at every pose. anything that should not slide past as the eye pans, and should not gain detail as the eye pulls back, is pinned to the camera's focus and scaled by the live `viewSize`. its count is then already a screen density and a run that grows the world never has to come back to it.
 
 ### a knob
 
-[`config.ts`](src/scene/config.ts) is the public tuning surface. **if it is visual and read per frame**, add a dotted path to [`ui/scape-controls.ts`](src/ui/scape-controls.ts) and it persists, resets and becomes url-addressable for free. **if it needs a rebuild to be seen** (`archipelago.*`, `layout.*`, `creek.*`, `footpath.*`, `dressing.*`, and every `boats.*` field except `speed`) leave it out of the overlay — a slider that lies about what it does is worse than no slider.
+[`config.ts`](src/scene/config.ts) is the public tuning surface. **if it is visual and read per frame**, add a dotted path to [`ui/scape-controls.ts`](src/ui/scape-controls.ts) and it persists, resets and becomes url-addressable for free. **if it needs a rebuild to be seen** (`archipelago.*`, `layout.*`, `creek.*`, `footpath.*`, `dressing.*`, `birds.spread`, and every `boats.*` field except `speed`) leave it out of the overlay — a slider that lies about what it does is worse than no slider.
 
 there is **no `enabled` flag anywhere**: an effect is off when its strength is zero.
 
