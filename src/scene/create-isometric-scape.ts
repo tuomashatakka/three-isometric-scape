@@ -1,5 +1,5 @@
 import { Vector2, Vector3 } from 'three'
-import type { Mesh, WebGLRenderer } from 'three'
+import type { Mesh, OrthographicCamera, WebGLRenderer } from 'three'
 import { createApp, createIsoCamera, createRenderer } from 'threejs-scene'
 import type { Store } from 'threejs-scene'
 import { NOTHING_SKIPPED, reportPrograms } from './audit.ts'
@@ -12,8 +12,11 @@ import { createCameraControls } from './camera-controls.ts'
 import type { CameraOpening } from './camera-controls.ts'
 import type { CameraPath } from './camera-path.ts'
 import { createCloudLayer } from './clouds.ts'
+import type { DaylightState } from './daylight.ts'
 import { createLandscape } from './landscape/index.ts'
 import { createMistLayer } from './mist.ts'
+import { createNightSky } from './nightsky.ts'
+import type { SeasonState } from './season.ts'
 import { createAtmospherePost } from './post.ts'
 import type { AtmosphereQuality } from './quality.ts'
 import { createRainLayer } from './rain.ts'
@@ -204,6 +207,37 @@ function unless<T> (skip: ScapeSkips, family: ScapeFamily, build: () => T): T | 
   return skip.has(family) ? null : build()
 }
 
+interface SkyOptions {
+  camera:   OrthographicCamera
+  config:   LiveConfig
+  quality:  AtmosphereQuality
+  skip:     ScapeSkips
+  daylight: DaylightState
+  season:   SeasonState
+}
+
+/**
+ * Everything hung above the water, in the order it is hung.
+ *
+ * Four sheets that differ only in what they carry: the landscape and the
+ * atmosphere are both mounted ahead of them, so the hour and the week each one
+ * reads have already been resolved for this frame by the time it asks. The
+ * mist takes both clocks; the cloud deck and the aurora take the day, because
+ * the arc it is on already knows what week of the year it is; the night sky
+ * takes the two phases themselves rather than what the rig derived from them,
+ * since the hour *is* the star wheel's angle and the week is what the month is
+ * counted off. Each returns null on a tier with nothing to give, so the
+ * cheapest device gets a plain sky rather than a poor one.
+ */
+function hangSkies ({ camera, config, quality, skip, daylight, season }: SkyOptions): ScapeModule[] {
+  return [
+    unless(skip, 'mist', () => createMistLayer({ camera, config, quality, daylight, season })),
+    unless(skip, 'clouds', () => createCloudLayer({ camera, config, quality, daylight })),
+    unless(skip, 'aurora', () => createAuroraLayer({ camera, config, quality, daylight })),
+    unless(skip, 'nightsky', () => createNightSky({ camera, config, quality, daylight })),
+  ].filter((module): module is ScapeModule => module !== null)
+}
+
 export function createIsometricScape (
   canvas: HTMLCanvasElement,
   config: ScapeConfig,
@@ -252,31 +286,14 @@ export function createIsometricScape (
     shadowDue:    runtime.shadowDue,
   })
 
-  // Both clocks, live. The landscape and the atmosphere are both mounted ahead
-  // of the mist, so the hour and the week the sheets read have already been
-  // resolved for this frame by the time they are asked for.
-  const mist = unless(skip, 'mist', () => createMistLayer({
+  const skies = hangSkies({
     camera,
     config:   readConfig,
     quality,
+    skip,
     daylight: atmosphere.daylight,
     season:   landscape.season,
-  }))
-
-  const clouds = unless(skip, 'clouds', () =>
-    createCloudLayer({ camera, config: readConfig, quality, daylight: atmosphere.daylight }))
-
-  // One clock, because there is only one question: how much sky the sun has
-  // left. The arc it is on already knows what week of the year it is, so the
-  // aurora does not need the year a second time. Returns null on any tier with
-  // no veils to give, so the cheapest device simply has a plain sky rather than
-  // a dimmer one.
-  const aurora = unless(skip, 'aurora', () => createAuroraLayer({
-    camera,
-    config:   readConfig,
-    quality,
-    daylight: atmosphere.daylight,
-  }))
+  })
 
   // The second and third clocks — the weather for how hard it is falling, the
   // year for what it falls as. Mounted after the landscape, which is what
@@ -339,9 +356,7 @@ export function createIsometricScape (
     landscape.module,
     controls,
     atmosphere.module,
-    mist,
-    clouds,
-    aurora,
+    ...skies,
     rain,
     beacon,
     post,

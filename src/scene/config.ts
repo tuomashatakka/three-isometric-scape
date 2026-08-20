@@ -538,6 +538,25 @@ export interface ScapeConfig {
 
     /** How fast the veils travel. Their own drift — an aurora does not blow on the wind. */
     auroraSpeed: number
+
+    /**
+     * Brightness of the star field. 0 is a sky that never comes out.
+     *
+     * It is also the switch, and the only one: how much of the field is up on
+     * any given night is the daylight clock's business, and how far round it has
+     * turned is that clock's phase read as an hour angle. See `nightsky.ts`.
+     */
+    starlight: number
+
+    /**
+     * Brightness of the moon. 0 takes the disc out of the sky.
+     *
+     * Above 1 on purpose by default: the disc has to clear the bloom's threshold
+     * to bloom rather than merely be pale, the same trade `beacon.glow` is
+     * written down for. The phase scales it, so a new moon is dark without this
+     * being touched, and there is no separate switch for the month.
+     */
+    moonlight: number
   }
 
   /**
@@ -748,6 +767,18 @@ export interface ScapeConfig {
      * it, which is why there is no second colour for the snowfall.
      */
     rain: number
+
+    /**
+     * The cool end of the star field.
+     *
+     * One colour rather than two: the warm end of the field is the scape's own
+     * `daylight.dusk` amber, so the sky's warm and its low sun stay in one
+     * family and there is no second red that only the stars can be tuned by.
+     */
+    star: number
+
+    /** The lit face of the moon. Paler and cooler than lying snow — it is a light, not a surface. */
+    moon: number
 
     /** The dense heart of an auroral curtain, where it is thick enough to be green. */
     aurora: number
@@ -1121,6 +1152,13 @@ export const SCAPE_CONFIG = {
     aurora:       1,
     auroraHeight: 52,
     auroraSpeed:  0.45,
+    starlight:    0.85,
+
+    // Measured the way the beacon's glow was. The disc's own white is ~0.86
+    // linear and a full moon opens at the whole of it, so 1.35 puts the lit face
+    // over the bloom's 0.94 threshold and leaves a crescent's thin limb under
+    // it — a full moon that flares and a young one that does not.
+    moonlight: 1.35,
   },
   // `time` and `azimuth` are set to land the opening frame on the light the
   // scape was graded under, so the cycle starts where the stills were taken.
@@ -1200,6 +1238,8 @@ export const SCAPE_CONFIG = {
     autumn:       0xb4762f,
     ice:          0xa8bcc0,
     rain:         0xc6d2d8,
+    star:         0xdce8ff,
+    moon:         0xe4e9e0,
     aurora:       0x6df2a8,
     auroraCrown:  0x7a5bd6,
   },

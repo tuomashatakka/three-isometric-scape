@@ -329,13 +329,15 @@ the pointer bookkeeping — capture, live pointers, the pinch frame, tap detecti
 
 ### an atmospheric system
 
-`src/scene/*.ts` — `atmosphere.ts`, `mist.ts`, `clouds.ts`, `aurora.ts`, `rain.ts`, `beacon.ts`, `post.ts`, and the three clocks `daylight.ts` / `season.ts` / `weather.ts`. composed in [`create-isometric-scape.ts`](src/scene/create-isometric-scape.ts).
+`src/scene/*.ts` — `atmosphere.ts`, `mist.ts`, `clouds.ts`, `aurora.ts`, `nightsky.ts`, `rain.ts`, `beacon.ts`, `post.ts`, and the three clocks `daylight.ts` / `season.ts` / `weather.ts`. composed in [`create-isometric-scape.ts`](src/scene/create-isometric-scape.ts). the hung sheets share [`sky-deck.ts`](src/scene/sky-deck.ts) — the zoom reveal and the focus they follow — so two decks cannot fade in at two different zooms.
 
 anything mounted *after* `atmosphere.module` sees this frame's day; anything before it sees the last one's. that is the whole reason the coastal light is a layer here rather than part of the landscape that surveys it — `beacon.ts` reads `daylight.day` and the landscape publishes `lanternHubs` for it.
 
 the clocks are coupled, and in one direction each: the weather takes the year and decides how hard this week's precipitation falls, and the day takes the year and solves the sun's arc for it — `daylight.sample(time, year)`. so **the day's sky is a function of the week**, and `daylight.latitude` at 68°N means midwinter has no daylight in it and midsummer no night. anything reading the darkness of the sky reads `daylight.dark` (astronomical twilight, geometry) rather than a curve of the year.
 
-shared atmosphere has four scale measures and they are not interchangeable: sheet/deck reach follows `archipelago.worldSize`, cloud and aurora composition follows `camera.maxViewSize`, rain and upright mist follow the live `viewSize`, and genuine metre features such as the 79-metre mist tile stay in metres. audit all four when the world or camera grows; swapping `terrain.size` for `worldSize` everywhere is how one fixed bug becomes four fresh ones, uwu.
+shared atmosphere has four scale measures and they are not interchangeable: sheet/deck reach follows `archipelago.worldSize`, cloud and aurora composition follows `camera.maxViewSize`, rain, the night sky and upright mist follow the live `viewSize`, and genuine metre features such as the 79-metre mist tile stay in metres. audit all four when the world or camera grows; swapping `terrain.size` for `worldSize` everywhere is how one fixed bug becomes four fresh ones, uwu.
+
+**a sky is at infinity, and that decides its scale class before anything else does.** the night sky was written world-sized first, like the aurora beside it, and 520 metres of archipelago spread one night's stars over eight frames of open sea — a dozen on screen, and `scape:diff` correctly reported `same` at every pose. anything that should not slide past as the eye pans, and should not gain detail as the eye pulls back, is pinned to the camera's focus and scaled by the live `viewSize`. its count is then already a screen density and a run that grows the world never has to come back to it.
 
 ### a knob
 

@@ -260,6 +260,17 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
             range('atmosphere.auroraSpeed', 'drift', 0, 2, 0.01),
           ],
         ),
+        // Beside the aurora, because it is the same deck and the same one gate:
+        // how much sky the sun has left. There is no height and no drift under
+        // it, and that is the point — the wheel's angle is the hour and the
+        // month is the year, so everything that would have been a knob here is
+        // already a slider somewhere else on this panel.
+        toggled(
+          'night sky',
+          range('atmosphere.starlight', 'starlight', 0, 1.5, 0.01, quality.starCount > 0),
+          0.85,
+          [ range('atmosphere.moonlight', 'moon', 0, 2.5, 0.01) ],
+        ),
       ],
     },
     {

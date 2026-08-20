@@ -29,6 +29,18 @@ export interface AtmosphereQuality {
   auroraLayers: number
 
   /**
+   * Stars in the field. 0 is a tier whose sky never comes out.
+   *
+   * A count and not a density, and — like `rainDrops` and unlike almost
+   * everything else here — one that is already a screen density, because the
+   * deck it is scattered over is sized against the *frame* rather than against
+   * the map. 1900 stars are 1900 stars on screen at any zoom and over any
+   * archipelago. The cost is one draw and one vertex per star, so a phone gets
+   * a thinner sky rather than a smaller one.
+   */
+  starCount: number
+
+  /**
    * Drops in the falling column. 0 is a tier it never rains on.
    *
    * A count and not a density: the column is sized against the *frame* rather
@@ -146,6 +158,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     msaaSamples:     0,
     tiltShiftPairs:  0,
     auroraLayers:    0,
+    starCount:       0,
     rainDrops:       0,
     beaconBlades:    0,
     terrainSegments: 60,
@@ -173,6 +186,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     msaaSamples:     0,
     tiltShiftPairs:  0,
     auroraLayers:    1,
+    starCount:       700,
     rainDrops:       900,
     beaconBlades:    1,
     terrainSegments: 84,
@@ -216,6 +230,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     msaaSamples:     4,
     tiltShiftPairs:  2,
     auroraLayers:    2,
+    starCount:       1_900,
     rainDrops:       2_600,
     beaconBlades:    2,
     terrainSegments: 208,
@@ -243,6 +258,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     msaaSamples:     8,
     tiltShiftPairs:  2,
     auroraLayers:    3,
+    starCount:       3_200,
     rainDrops:       4_200,
     beaconBlades:    3,
     terrainSegments: 288,
@@ -287,6 +303,7 @@ const UNLOCKED_FLOOR = {
   mistLayers:     2,
   tiltShiftPairs: 1,
   auroraLayers:   1,
+  starCount:      700,
   rainDrops:      700,
   beaconBlades:   1,
   detailTaps:     6,
@@ -322,6 +339,7 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
     mistLayers:     Math.max(quality.mistLayers, UNLOCKED_FLOOR.mistLayers),
     tiltShiftPairs: Math.max(quality.tiltShiftPairs, UNLOCKED_FLOOR.tiltShiftPairs),
     auroraLayers:   Math.max(quality.auroraLayers, UNLOCKED_FLOOR.auroraLayers),
+    starCount:      Math.max(quality.starCount, UNLOCKED_FLOOR.starCount),
     rainDrops:      Math.max(quality.rainDrops, UNLOCKED_FLOOR.rainDrops),
     beaconBlades:   Math.max(quality.beaconBlades, UNLOCKED_FLOOR.beaconBlades),
     detailTaps:     Math.max(quality.detailTaps, UNLOCKED_FLOOR.detailTaps),

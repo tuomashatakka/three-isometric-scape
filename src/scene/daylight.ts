@@ -80,20 +80,30 @@ export function declination (year: number, axialTilt: number): number {
 }
 
 /**
- * Sine of the sun's elevation, for a phase of the day and a phase of the year.
+ * Sine of a body's elevation, for a phase of the day and a declination.
  * Negative below the horizon.
  *
  * The standard hour-angle solution rather than a shaped sine: it is no more
  * code, and it is the only form that makes the day *length* fall out of the
  * latitude instead of having to be authored beside it.
+ *
+ * Written against a declination rather than against the year because the sun is
+ * not the only thing this coast has in its sky. The moon runs the same arc a
+ * lunation further along the ecliptic — see `nightsky.ts` — and the alternative
+ * to sharing the solution is a second copy of it that can drift out of step
+ * with this one.
  */
-export function sunHeight (time: number, year: number, latitude: number, axialTilt: number): number {
+export function bodyHeight (time: number, dec: number, latitude: number): number {
   const phase = time - Math.floor(time)
-  const dec   = declination(year, axialTilt)
   const lat   = latitude * DEGREES
   const hour  = (phase - 0.5) * TAU
 
   return Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec) * Math.cos(hour)
+}
+
+/** Sine of the sun's elevation, for a phase of the day and a phase of the year. */
+export function sunHeight (time: number, year: number, latitude: number, axialTilt: number): number {
+  return bodyHeight(time, declination(year, axialTilt), latitude)
 }
 
 /**
@@ -118,7 +128,8 @@ export function dayLength (year: number, latitude: number, axialTilt: number): n
 }
 
 /**
- * How far round from its noon bearing the sun has travelled, in radians.
+ * How far round from its transit bearing a body at this declination has
+ * travelled, in radians.
  *
  * Signed the way the day runs, so the light keeps sweeping in one direction,
  * and derived rather than authored — which is what replaces the fixed fraction
@@ -126,10 +137,10 @@ export function dayLength (year: number, latitude: number, axialTilt: number): n
  * sun crawls along a short southern arc; a midsummer one at this latitude goes
  * the whole way round and stands due north at midnight.
  */
-export function sunSwing (time: number, year: number, latitude: number, axialTilt: number): number {
+export function bodySwing (time: number, dec: number, latitude: number): number {
   const phase  = time - Math.floor(time)
   const hour   = (phase - 0.5) * TAU
-  const height = sunHeight(phase, year, latitude, axialTilt)
+  const height = bodyHeight(phase, dec, latitude)
   const lat    = latitude * DEGREES
   const flat   = Math.sqrt(Math.max(0, 1 - height * height))
   const spread = flat * Math.cos(lat)
@@ -139,10 +150,15 @@ export function sunSwing (time: number, year: number, latitude: number, axialTil
   if (spread < 1e-6)
     return 0
 
-  const cosine  = (Math.sin(declination(year, axialTilt)) - height * Math.sin(lat)) / spread
+  const cosine  = (Math.sin(dec) - height * Math.sin(lat)) / spread
   const bearing = Math.acos(Math.min(1, Math.max(-1, cosine)))
 
   return hour <= 0 ? bearing - Math.PI : Math.PI - bearing
+}
+
+/** How far round from its noon bearing the sun has travelled, in radians. */
+export function sunSwing (time: number, year: number, latitude: number, axialTilt: number): number {
+  return bodySwing(time, declination(year, axialTilt), latitude)
 }
 
 /** Sine of eighteen degrees under the horizon — the end of astronomical twilight. */
