@@ -1,17 +1,14 @@
 import {
   BufferAttribute,
   Color,
-  DataTexture,
-  LinearFilter,
   Mesh,
   MeshBasicMaterial,
-  MirroredRepeatWrapping,
   PlaneGeometry,
-  RGBAFormat,
   Vector3,
 } from 'three'
 import type { OrthographicCamera, Texture } from 'three'
 import { defineModule, smoothstep } from 'threejs-scene'
+import { bakeAlphaField } from './alpha-field.ts'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import type { DaylightState } from './daylight.ts'
 import { sampleHeight } from './noise.ts'
@@ -292,15 +289,7 @@ export function createMistLayer ({
   const geometry   = sheetGeometry(sheetSize, config())
   const upright    = sliceGeometry(sheetSize, MIST_HEIGHT)
   const offshore   = smokeGeometry(sheetSize, config())
-  const field      = new Uint8Array(TEXTURE_SIZE * TEXTURE_SIZE * 4)
-  bakeMist(field, config().seed ^ 0x53a9)
-
-  const texture       = new DataTexture(field, TEXTURE_SIZE, TEXTURE_SIZE, RGBAFormat)
-  texture.wrapS       = MirroredRepeatWrapping
-  texture.wrapT       = MirroredRepeatWrapping
-  texture.magFilter   = LinearFilter
-  texture.minFilter   = LinearFilter
-  texture.needsUpdate = true
+  const texture    = bakeAlphaField(TEXTURE_SIZE, f => bakeMist(f, config().seed ^ 0x53a9))
 
   const mistColor = new Color(config().palette.fog).lerp(WHITE, 0.32)
 

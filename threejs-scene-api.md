@@ -7,7 +7,7 @@ Every symbol the runtime exports, and whether this scape uses it. **Read this be
 writing a helper** — the reinvention this file exists to stop was never a discipline
 problem, it was that nothing here said what was already available.
 
-**62 of 390 exports used.** Everything marked `—` is available and unused.
+**64 of 390 exports used.** Everything marked `—` is available and unused.
 
 ## `threejs-scene`
 
@@ -33,7 +33,7 @@ problem, it was that nothing here said what was already available.
 | `createFrameLoop` | function | — |
 | `createIsoCamera` | function | src/scene/create-isometric-scape.ts |
 | `createRenderer` | function | src/scene/create-isometric-scape.ts, src/prop-preview/quad-view.ts |
-| `createSeededRng` | function | src/scene/beacon.ts, src/scene/landscape/survey.ts, src/scene/landscape/dressing.ts +19 |
+| `createSeededRng` | function | src/scene/beacon.ts, src/scene/landscape/survey.ts, src/scene/landscape/dressing.ts +20 |
 | `createStore` | function | src/scene/config-access.test.ts, src/context-recovery.ts |
 | `defineModule` | function | src/scene/mist.ts, src/scene/camera-controls.ts, src/scene/aurora.ts +9 |
 | `Disposable` | interface | — |
@@ -200,14 +200,14 @@ problem, it was that nothing here said what was already available.
 
 ## `threejs-scene/modules/assets`
 
-27 of 218 used.
+29 of 218 used.
 
 | symbol | kind | used by |
 | --- | --- | --- |
 | `applyBend` | function | src/scene/props/vegetation.ts |
 | `applyGrime` | function | — |
 | `applyTaper` | function | src/scene/props/vegetation.ts |
-| `applyTwist` | function | — |
+| `applyTwist` | function | src/scene/props/vegetation.ts |
 | `ASCII_SHADES` | const | scripts/prop-map.test.ts |
 | `ASCII_VIEWS` | const | scripts/prop-map.ts, scripts/prop-map.test.ts |
 | `AsciiRasterOptions` | interface | — |
@@ -276,7 +276,7 @@ problem, it was that nothing here said what was already available.
 | `cyl` | const | src/scene/props/shore.ts, src/scene/props/vegetation.ts, src/scene/props/timber.ts +7 |
 | `defineProp` | function | — |
 | `deg` | const | src/scene/props/shore.ts, src/scene/props/vegetation.ts, src/scene/props/timber.ts +5 |
-| `displaceByNoise` | function | — |
+| `displaceByNoise` | function | src/scene/props/vegetation.ts |
 | `edgeSplit` | function | — |
 | `extractJson` | function | — |
 | `extrudeAlongPath` | function | — |

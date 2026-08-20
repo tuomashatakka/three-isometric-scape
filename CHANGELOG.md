@@ -31,6 +31,47 @@ quad, both unlit, both additive, both made *invisible* rather than transparent w
 `desktop` / **700 `mobile`** / 0 `minimal`. `scape:diff`: **`night` moved, every other pose `same`**, structural unchanged. the changed-pixel figure is small by the
 nature of a point field — a sky of one-to-four-pixel stars cannot move many pixels — so the still is the evidence and the number is not
 
+## the cone that stopped reading as a traffic cone
+
+`vegetation.ts` already used two of the runtime's four vertex deformers — `applyBend` and `applyTaper`, on grass blades. The other two were sitting there unused, and
+the conifers were the reason to care: a `cone(radius, height, 7)` is a *perfect* cone, and at the near pose that is what it looks like.
+
+- **`displaceByNoise` on every canopy tier.** Spruce and pine push each rim vertex along its own normal by a tenth of that tier's own radius, so the silhouette goes
+ragged and needle-like instead of geometric. Birch puffs get the same at 0.12 of their radius, for lumpy foliage rather than smooth spheres. This is the trick
+`createRockGeometry` already uses on stone, borrowed at a tenth of the amplitude
+- **`applyTwist` on the grass.** The bend puts a lean into a blade; the twist puts a *fold* into it, so its flat face catches light along a curve rather than as one
+plank-flat facet. That is also why four blades stop reading as four copies of one
+- **determinism was never at risk, by construction.** `NoiseDisplaceOptions` takes an `rng?: SeededRng` — the same fork the builder already holds — so the noise is
+part of the seeded stream rather than beside it. Byte-for-byte stable per seed, and `vegetation.test.ts` (new, 7 tests) now asserts exactly that, plus that the noise
+*reached* the geometry rather than being a silent no-op, and that the twist pivots from the blade's base so the root stays planted
+- **it costs nothing.** **Triangle counts are identical** — 80 spruce, 106 pine, 140 birch, 112 grass, before and after — because these modifiers move vertices and
+never add one. All four are `SCATTER_PROPS`, so each is built once into one canonical geometry and stamped through a single `InstancedMesh`: the per-vertex loop runs
+at build, not per instance and not per frame. Nothing to tier-gate, and `mobile` is unaffected
+- **cost: `near` moved 0.97% and nothing else did.** Predicted before running — `near` is the close pose where canopies and grass fill the frame; `far` is 540m out
+where sub-metre detail is sub-pixel. `default`/`noon`/`far` came in at 0.02%, `night`/`winter` at 0.00%, all `same`, structural unchanged. The diff image puts every
+changed pixel on a canopy rim or a grass tuft — the fences, barrels and buildings in the same frame are untouched
+
+## one texture constructor, and nine passes that will not be asked again
+
+two jobs off the queue, one of them by deleting the queue entry.
+
+- **the three sheet layers stopped rebuilding the same `DataTexture`.** mist, the cloud deck and the auroral veil each painted a different noise into an identical
+seven-line construction — field, texture, both wrap modes, both filters, `needsUpdate`. `bakeAlphaField(size, sampler, options?)` in
+[`alpha-field.ts`](src/scene/alpha-field.ts) takes the size and a sampler and hands back the texture; each layer keeps its own noise and falloff, which is the half
+that was never duplicated. **29 lines out of the call sites**, and each bake is now one expression
+- **aurora genuinely differed and stayed differing.** it wraps `Repeat` where the other two mirror, and it is the only one in `SRGBColorSpace` — so those are options
+rather than a flattened default. mirroring is the default because two of three want it
+- **the catalogue test had an opinion about this, and it was right.** `alpha-field.ts` calls `new DataTexture`, so the roster's "every module that builds one is
+catalogued" rule fired. relabelling all three entries to point at the helper would have been the easy fix and the wrong one: `module` answers *where does this texture
+come from*, and for the cloud deck that is still `clouds.ts`. the shared constructor is excluded by name, with the reason written down, and the rule still bites for
+any layer that bakes a field without cataloguing it
+- **nine post passes joined the "measured and rejected" table.** the queue said start with `createDof` and `createLensflare`; both were already rejected, so the real
+question was what is left. the answer is *nothing*, and the reasons are now written down so no future run re-derives them. `createMotionBlur` was the closest call —
+ortho-safe, and the depth texture it wants already exists on `desktop`/`ultra` — and it loses on the interaction model: panning is the primary gesture here and the rig
+revolves at rest, so it would blur the frames that must stay legible. `createOutline` loses to the threshold: a followed hull can be overdriven past 0.94 the way
+`beacon.glow` is, for no pass at all
+- **cost: `same` on all six tour poses**, structural unchanged. the texture work is a pure refactor and the pass work shipped no code — only the reasons not to
+
 ## the config the app was never given
 
 `createApp` was handed `state: {}`. an empty store, and the whole tuning surface passed down beside it as a plain object every module captured — which is not the

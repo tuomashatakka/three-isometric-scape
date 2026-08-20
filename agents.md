@@ -276,7 +276,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `upland.ts` | meadow barn, hay drying poles |
 | `mill.ts` | the post mill and its trestle, plus the sail wheel — **the one geometry not based at `y = 0`** |
 | `beacon.ts` | the lighthouse tower, and the optic — a halo plus two crossed, vertex-graded fans per panel |
-| `vegetation.ts` | spruce, pine, birch, grass, reeds, crops |
+| `vegetation.ts` | spruce, pine, birch, grass, reeds, crops — and all four runtime vertex deformers: `applyTaper`/`applyBend`/`applyTwist` on a blade, `displaceByNoise` on every canopy |
 | `stone.ts` | erratics, field stones, cobbles, cairns |
 | `objects.ts` | hollow clinker rowboat, bales, firewood, barrel, mailbox, driftwood |
 | `fence.ts` / `wall.ts` | ground-following runs — take a polyline, not an rng |
@@ -429,6 +429,15 @@ this list.
 | `createChromaticAberration` | the grade pass already carries chromatic aberration |
 | `createFXAA` / `createSMAA` / `createSsaa` | antialiasing is chosen per tier and overridden by `?aa=` |
 | the hand-built props, `kitProp`, `defineProp` | this scene builds from primitives on purpose |
+| `createMotionBlur` | ortho-safe, and the depth texture it needs already exists on `desktop`/`ultra` — but pan is the *primary* gesture on a map-like camera and the rig auto-revolves at rest, so it would blur exactly the frames that have to stay legible, and blur a tableau meant to read as still |
+| `createOutline` | its only job here would be marking the boat `camera-follow.ts` tracks, and **the threshold is the instrument** — a followed hull can be overdriven past 0.94 the way `beacon.glow` is, for no new pass and no new render target. an extra masked render plus a separable blur to draw a game-HUD affordance in a scene that has none |
+| `createRadialBlur` | its own source says it "ignores 3D depth… not physically correct lighting". the depth-aware `createGodRaysPass` is already wired on the tiers that have a post chain, and `mobile` has none at all — so there is no tier where this is the right tool for a job nothing else does |
+| `createAfterimage` | whole-frame feedback. smears boats, mill sails, aurora and rain into arcade echo trails |
+| `createLensingPass` | a gravitational-lens warp with an optional dark core. no naturalistic reading on a nordic coastline |
+| `createStereoRenderer` | "both anaglyph and stereo modes bypass EffectComposer" — it cannot coexist with AO, SSR, bloom, grade or the LUT at all. a hard incompatibility, not a taste call |
+| `createHudBeamTransition` | a transient UI reveal-wipe, not an atmosphere pass. there is no `look.*` strength for it to be |
+| `createCrtPass`, `createRetroPass`, `createPixel`, `createSobel`, `createBurnInPass`, the glitch trio | retro and synthetic by design. this scape is naturalistic and painterly; they fight the look categorically |
+| `createBloom` (the standalone) | redundant — `postProcessing()`'s own `bloom` option already builds the `UnrealBloomPass` this scape tunes at 0.94 |
 
 | `createSelectiveBloom` / `createEmissiveBloom` | a two-composer technique that renders the scene **twice** per frame, and its bloom buffer is not reachable without its own final composer. the whole-frame bloom here already has a **0.94 threshold** tuned above the fog, so a light only has to be bright enough to cross it — see `beacon.glow`, which is that idea and costs no extra draw |
 

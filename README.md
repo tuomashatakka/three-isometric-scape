@@ -167,6 +167,7 @@ src/
 │   └── settings-store.ts           local-storage snapshot of those same paths
 └── scene/
     ├── atmosphere.ts               gradient sky, linear fog, sun and fill rig
+    ├── alpha-field.ts               the DataTexture the three sheet layers share
     ├── aurora.ts                   auroral veils over the dark half of the year
     ├── nightsky.ts                 the star field, the wheel it turns on, and the moon's month
     ├── sky-deck.ts                 what every hung sheet shares: the zoom reveal, the frame it follows
