@@ -2,6 +2,29 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## seven things that were never about this scape
+
+The upstream batch. `threejs-scene` 0.6.0 and 0.6.1 went out, and this scape stopped keeping its own copy of everything in them — **−1054 lines from `src/`** for no
+behaviour change at all.
+
+- **the program audit was the big one.** `scene/audit.ts` was 474 lines, and 402 of them imported nothing but `WebGLRenderer` — reading `LINK_STATUS` before the
+  first draw, and walking a shader's `#ifdef`s and `#define`s *together* to count the varyings a driver actually sees. None of that was ever about an archipelago. It
+  is `reportPrograms`, `readVaryings`, `packedRows`, `varyingRowLimit` and the census upstream now, with its 16 tests. What is left here is the 70 lines that *are*
+  ours: which families exist and how `?skip=` names them
+- **`withPath` went up as the write primitive `createStore` always implied.** Written here yesterday, and it belonged beside `readPath`/`writePath` from the start
+- **`createStateAccess`** is `config-access.ts` with the scape taken out — who owns state before a mount, after it, and across the gap. This file is now four lines
+  and a type alias
+- **`bakeAlphaField`** moved into `modules/assets`, where it is DOM-free like the rest of that module. The catalogue rule followed it: the test greps for texture
+  constructors, so `bakeAlphaField(` joined the regex rather than the helper being exempted
+- **`readQualitySignals`/`describeQualitySignals`** are pure device probing. `quality.ts` keeps what is genuinely this scape's — the tier presets, `unlockEffects`,
+  and the mapping from signals to *this* budget
+- **`createLadderMemory`** is `tier-memory.ts` generified over a ladder: 117 lines down to 44, and the remaining 44 are the storage key, the build stamp and the
+  reason the stamp exists
+- **the runtime documents itself now.** 0.6.1 ships `llms.txt` — 198 real signatures grouped by import path, generated from its own type declarations so it cannot
+  drift from the installed version. `agents.md` and `instructions.md` both point at it: our digest answers *do we already have this*, theirs answers *what exactly
+  does it take*
+- **cost: `same` on all six tour poses**, structural unchanged, 579 tests. Every line that left was a line that was never about this place
+
 ## the sky the dark was always for
 
 `daylight.ts` has been carrying the sentence *"1 once the sun is far enough under for the stars"* in a doc comment since the solar arc landed, with nothing on the

@@ -7,23 +7,8 @@ import { CATALOGUE_TEXTURES, TEXTURES, createTextureCatalogue } from './catalogu
 const SCENE = new URL('..', import.meta.url).pathname
 
 /** The calls that put a texture on the gpu. Anything here has to be catalogued. */
-const CONSTRUCTORS = /new DataTexture\(|createNoiseTexture\(|createSeamlessNoiseTexture\(|createCinematicLUT\(/u
+const CONSTRUCTORS = /new DataTexture\(|bakeAlphaField\(|createNoiseTexture\(|createSeamlessNoiseTexture\(|createCinematicLUT\(/u
 
-/**
- * The shared constructors, which own no texture of their own.
- *
- * `alpha-field.ts` calls `new DataTexture` on behalf of whoever asked — the
- * mist, the cloud deck and the auroral veil each hand it a painted field and
- * get a texture back. So it is where the *construction* lives and never where a
- * texture comes *from*, and the catalogue's `module` has to keep pointing at the
- * layer that painted the field, or three unrelated maps all end up claiming one
- * generic helper as their origin and the roster stops answering the question it
- * exists to answer.
- *
- * The rule below still bites: a new layer that bakes its own field without
- * cataloguing it fails, whether it wraps the bytes itself or asks for help.
- */
-const SHARED = new Set([ 'alpha-field.ts' ])
 
 function sourceFiles (root: string): string[] {
   return readdirSync(root).flatMap(name => {
@@ -66,7 +51,7 @@ describe('the texture catalogue', () => {
     const found = sourceFiles(SCENE)
       .filter(path => CONSTRUCTORS.test(readFileSync(path, 'utf8')))
       .map(path => relative(SCENE, path))
-      .filter(path => !known.has(path) && !SHARED.has(path))
+      .filter(path => !known.has(path))
 
     expect(found).toEqual([])
   })

@@ -8,7 +8,7 @@ import {
 } from 'three'
 import type { OrthographicCamera, Texture } from 'three'
 import { defineModule, smoothstep } from 'threejs-scene'
-import { bakeAlphaField } from './alpha-field.ts'
+import { bakeAlphaField } from 'threejs-scene/modules/assets'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import type { DaylightState } from './daylight.ts'
 import { sampleHeight } from './noise.ts'

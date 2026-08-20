@@ -1,3 +1,7 @@
+import { describeQualitySignals, readQualitySignals } from 'threejs-scene'
+import type { QualitySignals } from 'threejs-scene'
+
+
 export type AtmosphereQualityTier = 'minimal' | 'mobile' | 'desktop' | 'ultra'
 
 export interface AtmosphereQuality {
@@ -135,13 +139,6 @@ export interface AtmosphereQuality {
   waterSpan: number
 }
 
-export interface QualitySignals {
-  coarsePointer:       boolean
-  compactViewport:     boolean
-  pixelRatio:          number
-  hardwareConcurrency: number
-  wideViewport:        boolean
-}
 
 const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = {
   // Not a tier any device is detected into — it is where a device lands after
@@ -422,40 +419,7 @@ export function selectAtmosphereQuality ({
   return atmosphereQuality('desktop')
 }
 
-/**
- * What the device says about itself.
- *
- * Split out from the selection so the answer can be *shown*. A tier that turns
- * out to be wrong for a device is indistinguishable from a tier that is right
- * and still too heavy, unless you can read the signals it was picked from.
- */
-export function readQualitySignals (): QualitySignals {
-  return {
-    coarsePointer:       globalThis.matchMedia?.('(pointer: coarse)').matches ?? false,
-    // 1100px, not 900. A phone turned on its side is 844 to 932 css pixels wide
-    // depending on the handset, so 900 cut straight through the middle of the
-    // range and handed the larger half of every phone in landscape to the desktop
-    // tier — a 2048 shadow map and a full optical chain, on a phone. The rule
-    // above still asks for a coarse pointer as well, so a laptop with a
-    // touchscreen keeps its tier; only devices that are compact *and* touch-first
-    // are affected, and those are phones.
-    compactViewport:     globalThis.matchMedia?.('(max-width: 1100px)').matches ?? false,
-    pixelRatio:          globalThis.devicePixelRatio ?? 1,
-    hardwareConcurrency: globalThis.navigator?.hardwareConcurrency ?? 4,
-    wideViewport:        globalThis.matchMedia?.('(min-width: 1280px)').matches ?? false,
-  }
-}
-
-export function describeQualitySignals (signals: QualitySignals): string {
-  const memory = (globalThis.navigator as { deviceMemory?: number } | undefined)?.deviceMemory
-
-  return [
-    `coarse ${signals.coarsePointer}`,
-    `compact ${signals.compactViewport}`,
-    `wide ${signals.wideViewport}`,
-    `dpr ${signals.pixelRatio}`,
-    `cores ${signals.hardwareConcurrency}`,
-    memory === undefined ? 'ram ?' : `ram ${memory}gb`,
-    `${globalThis.innerWidth}×${globalThis.innerHeight}css`,
-  ].join(' · ')
-}
+// Re-exported so the app has one place to ask about the device, and so a
+// consumer does not have to know which of these the runtime happens to own.
+export { describeQualitySignals, readQualitySignals }
+export type { QualitySignals }

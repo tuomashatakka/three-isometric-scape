@@ -8,6 +8,7 @@ the tool reference for anything working on this repository without a pair of eye
 | --- | --- | --- |
 | where am i starting from | `bun run brief` | ~2 s, no browser |
 | what does the runtime already do | [`threejs-scene-api.md`](threejs-scene-api.md) | one read |
+| what is its exact signature | `node_modules/threejs-scene/llms.txt` | one read, ships with the package |
 | did the composition survive | `bun run scape:map --stats` | ~1.5 s cold, no browser |
 | where is everything | `bun run scape:map` | ~1.5 s cold, no browser |
 | what does this one prop look like | `bun run prop:map <name>` | ~40 ms, no browser |
@@ -58,6 +59,10 @@ bun run api:digest --check   # say whether it is stale, change nothing
 ```
 
 every symbol the runtime exports, which subpath it comes from, and which of our files import it. **read it before writing a helper.**
+
+**for a signature, read the runtime's own reference instead:** `node_modules/threejs-scene/llms.txt`. it ships with the package, is generated from its built type
+declarations, and carries every export's real signature plus the rules that separate code which compiles from code which behaves. our digest answers *do we already
+have this and do we use it*; theirs answers *what exactly does it take*. do not guess a signature when both files are on disk.
 
 it is the one generated file that *is* committed, and the exception has a reason: everything else the brief prints changes on every commit, and this changes only
 when the dependency's version does — so its diff is a review event worth having rather than noise. `--check` warns and never rewrites, because bumping the

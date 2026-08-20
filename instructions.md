@@ -56,6 +56,8 @@ then read, and only these:
 
 - **[`src/scene/config.ts`](src/scene/config.ts)** — the public tuning surface and the fastest map of what the scene currently has.
 - **[`src/scene/quality.ts`](src/scene/quality.ts)** — every new cost needs an answer for the mobile tier.
+- **`node_modules/threejs-scene/llms.txt`** — the runtime's own reference, shipped with the package and generated from its type declarations. every export's exact
+  signature, plus the contract and the traps. **read this for a signature rather than guessing one.**
 - **[`threejs-scene-api.md`](threejs-scene-api.md)** — every symbol the runtime exports and whether this scape uses it. **read it before writing a helper.** most
 of what a run is tempted to build by hand already exists there, and this file is the only thing that says so.
 - **the [readme](README.md)** section `brief --sections readme` pointed you at.
