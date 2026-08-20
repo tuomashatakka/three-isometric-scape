@@ -41,7 +41,10 @@ export function createSpotSampler (
   for (const landmass of archipelago.landmasses) {
     const radius = landmass.survey.layout.landRadius * 1.22
 
-    total += radius * radius
+    // Weighted by the island's own detail as well as its area, so the darts fall
+    // where the budget was raised for. Without it a fell at 0.45 would take the
+    // same share of every scatter as ground twice as densely dressed.
+    total += radius * radius * landmass.detail
     regions.push({
       x:     landmass.origin.x,
       z:     landmass.origin.z,

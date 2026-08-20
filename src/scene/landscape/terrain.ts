@@ -1,14 +1,17 @@
 import { BufferAttribute, Color, Mesh, PlaneGeometry } from 'three'
 import type { BufferGeometry, Material } from 'three'
 import { hash2, smoothstep } from 'threejs-scene'
-import { mergeGeometryList } from 'threejs-scene/modules/assets'
+import { createSurfaceRibbon, mergeGeometryList } from 'threejs-scene/modules/assets'
 import type { ScapeConfig } from '../config.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
 import { cartRutGeometry, trafficAt } from './cart-ruts.ts'
 import type { Footpaths } from './footpath.ts'
+import { surfaceQueries } from './height.ts'
 import type { HeightField } from './height.ts'
 import { distanceToTrack, pastureInfluence, plotInfluence } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
+import type { Vec2 } from './path.ts'
+import type { Strand } from './strand.ts'
 
 
 /**
@@ -295,16 +298,21 @@ function cartRutPatch (
  *
  * A *density*, held constant across the archipelago: the segment count follows
  * the patch's own size so a bigger island arrives with the same metres to a
- * quad rather than the same number of them. Exported because the terrain is no
- * longer the only reader — the dressing has to sample the ground *as drawn*,
- * and it can only do that if it knows the grid the drawing is on.
+ * quad rather than the same number of them. `detail` is the one island's own
+ * answer on top of that — a fell nobody lands on is drawn coarser, which is
+ * what makes an island of ten times the area affordable at all.
+ *
+ * Exported because the terrain is no longer the only reader: the dressing has
+ * to sample the ground *as drawn*, and it can only do that if it knows the grid
+ * the drawing is on.
  */
 export function patchSegments (
   worldSize:    number,
   patchSize:    number,
   baseSegments: number,
+  detail = 1,
 ): number {
-  return Math.max(24, Math.round(baseSegments * patchSize / worldSize))
+  return Math.max(24, Math.round(baseSegments * patchSize / worldSize * detail))
 }
 
 function terrainMesh (geometry: BufferGeometry, material: Material): Mesh {
@@ -333,8 +341,79 @@ export function createTerrain (
 }
 
 /**
- * One seabed and three independently sampled terrain patches, merged into one
- * draw. Each patch keeps the original island's metres-per-segment density.
+ * The bar between two patches, as geometry.
+ *
+ * The height field has it — `createCompositeField` folds it in as a maximum —
+ * but nothing *draws* it: the terrain is one patch per island, the patches stop
+ * at their own edges by construction, and between them is the seabed quad nine
+ * metres down. So the crest is a strip of its own, draped on the composite field
+ * the same way the cart ruts are draped on the ground they run over, and merged
+ * into the same single terrain draw.
+ *
+ * Five edges rather than three. The outer pair sit out where the skirt has
+ * already fallen back to the seabed, which is what puts the seam under several
+ * metres of water instead of along the waterline where it would be read as a
+ * cut edge.
+ *
+ * Sampled from the composite field rather than from a drawn surface, and that is
+ * the one place in this scape where those two are the same thing: over the gap
+ * there is no drawn terrain for the strip to stand off from.
+ */
+/**
+ * One island's local field, with the bar's own claim folded into it.
+ *
+ * Local coordinates in and local heights out, so the patch sampler is unchanged
+ * — the translation to world space and back happens here, in the one place that
+ * knows the patch has an origin at all.
+ */
+function withStrand (field: HeightField, strand: Strand, origin: Vec2): HeightField {
+  const heightAt = (x: number, z: number): number =>
+    Math.max(field.heightAt(x, z), strand.heightAt(x + origin.x, z + origin.z))
+
+  return { heightAt, ...surfaceQueries(heightAt) }
+}
+
+function strandGeometry (config: ScapeConfig, strand: Strand, field: HeightField): BufferGeometry | null {
+  const { width }      = config.strand
+  const { waterLevel } = config.terrain
+  const sand           = new Color(config.palette.shore)
+  const silt           = new Color(config.palette.silt)
+  const shingle        = new Color(config.palette.scree)
+
+  return createSurfaceRibbon({
+    path:   strand.points,
+    // Half-widths, in metres, outward from the centreline.
+    across: [ -2.4, -1.15, 0, 1.15, 2.4 ].map(edge => edge * width),
+    step:   3,
+
+    // Lifted by a hand's breadth. Both ends overlap the island patch they run
+    // into, which draws its own copy of the bar's rounded root — the two agree
+    // about the height to the millimetre, and two coplanar surfaces are a
+    // z-fight that flickers as the camera moves.
+    heightAt: (x, z) => field.heightAt(x, z) + 0.05,
+
+    colorAt: ({ x, z, u }, target) => {
+      const depth = waterLevel - field.heightAt(x, z)
+
+      // Shingle along the dry crown, sand at the waterline, silt out on the
+      // drowned skirt. The crown reads as coarser than the beach on purpose: a
+      // bar is what the sea could not carry any further.
+      target.copy(depth > 0 ? silt : sand)
+
+      if (depth <= 0)
+        target.lerp(shingle, (1 - Math.abs(u - 0.5) * 2) * 0.45)
+      else
+        target.lerp(silt, Math.min(1, depth * 0.4))
+
+      const grain = hash2(x * 0.09, z * 0.09) * 0.16
+      target.multiplyScalar(0.9 + grain)
+    },
+  })
+}
+
+/**
+ * One seabed, every island's patch, and the bar between two of them, merged into
+ * one draw. Each patch keeps its own metres-per-segment density.
  */
 export function createArchipelagoTerrain (
   config:       ScapeConfig,
@@ -366,11 +445,22 @@ export function createArchipelagoTerrain (
       config.terrain.size,
       landmass.config.terrain.size,
       baseSegments,
+      landmass.detail,
     )
+
+    // The patch draws its own share of the bar. A strand's rounded root reaches
+    // a couple of dozen metres inland of the shore it starts at, and a patch
+    // sampled from its local field alone would draw the island the bar is *not*
+    // joined to — with the strip then hovering over ground that had never heard
+    // of it.
+    const ground = archipelago.strand
+      ? withStrand(landmass.survey.field, archipelago.strand, landmass.origin)
+      : landmass.survey.field
+
     const geometry = terrainGeometry(
       landmass.config,
       landmass.survey.layout,
-      landmass.survey.field,
+      ground,
       landmass.survey.paths,
       segments,
     )
@@ -393,6 +483,13 @@ export function createArchipelagoTerrain (
       ruts.translate(landmass.origin.x, 0, landmass.origin.z)
       pieces.push(ruts)
     }
+  }
+
+  if (archipelago.strand) {
+    const bar = strandGeometry(config, archipelago.strand, archipelago.field)
+
+    if (bar)
+      pieces.push(bar)
   }
 
   const merged = mergeGeometryList(pieces, false)

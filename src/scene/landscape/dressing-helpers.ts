@@ -64,7 +64,12 @@ export function createGroundContact (
     drawnSurfaceOf(
       landmass.survey.field,
       landmass.config.terrain.size,
-      patchSegments(config.terrain.size, landmass.config.terrain.size, segments),
+      patchSegments(
+        config.terrain.size,
+        landmass.config.terrain.size,
+        segments,
+        landmass.detail,
+      ),
     ),
   ]))
 

@@ -129,8 +129,15 @@ function createDressingSampling (
   const yardQuota     = yards.map(feature => createDiscSampler(rng, [ feature ]))
   const harbourQuota  = harbours.map(feature => createDiscSampler(rng, [ feature ]))
   const homeArea      = config.terrain.size ** 2
+
+  // Weighted by each island's own `detail`, which is what keeps a landmass of
+  // ten times the area from multiplying every budget in the scape by ten. A
+  // budget is a count, so leaving this alone would not have thinned the outer
+  // islands — it would have thickened the whole archipelago, and put the
+  // placement solver, which is O(claims) per attempt, through six times the work
+  // for ground the camera rarely reaches.
   const areaScale     = archipelago.landmasses.reduce(
-    (total, landmass) => total + landmass.config.terrain.size ** 2,
+    (total, landmass) => total + landmass.config.terrain.size ** 2 * landmass.detail,
     0,
   ) / homeArea
 

@@ -132,6 +132,24 @@ export interface MapStats extends CompositionStats {
   }
 
   /**
+   * The bar joining two of the islands, or `null` where there is none.
+   *
+   * The one landform in the scape that cannot be checked from a still. It runs
+   * between two patches at the far south of the world, three hundred metres from
+   * anything the tour aims at, and its whole claim — *these two islands are one
+   * island* — is a fact about the ground rather than about the picture. So the
+   * claim is a number: the lowest the crest gets anywhere along the line, which
+   * is above the waterline or the bar is not a bar.
+   */
+  strand: {
+    between:   [ string, string ]
+    length:    number
+    crest:     number
+    lowest:    number
+    connected: boolean
+  } | null
+
+  /**
    * The gull colonies, and the birds dealt across them.
    *
    * Here rather than in a screenshot on purpose: a flock is four pixels wide at
@@ -305,6 +323,7 @@ export function surveyStats (
     throw new Error('the map could not find the home landmass')
 
   const { id: _id, profile: _profile, origin: _origin, ...legacy } = home
+  const strand                                                     = strandStats(survey, config)
   const { waterways }                                              = survey
   const colonies                                                   = planColonies(survey, config)
   const scheduleSeparation                                         = scheduledFleetMinimumSeparation(
@@ -336,6 +355,7 @@ export function surveyStats (
       separation: round(scheduleSeparation, 2),
       conflicts:  scheduleSeparation + 1e-6 < config.boats.separation ? 1 : 0,
     },
+    strand,
     colonies: {
       count: colonies.length,
 
@@ -494,6 +514,55 @@ export function renderGrid (
   return grid.map(row => row.join('')).join('\n')
 }
 
+/**
+ * The bar, walked end to end.
+ *
+ * Sampling the *composite* field rather than the strand's own profile, and that
+ * is the whole point of the check: what a walker meets is the maximum of the bar
+ * and whatever patch it is over, which is the thing the rest of the scape
+ * actually reads. Asking the strand what it thinks it is would answer a question
+ * nobody had.
+ */
+function strandStats (survey: ArchipelagoSurvey, config: ScapeConfig): MapStats['strand'] {
+  const { strand } = survey
+
+  if (!strand)
+    return null
+
+  const steps = 240
+  const from  = strand.points[0]
+  const to    = strand.points[strand.points.length - 1]
+  let lowest   = Infinity
+
+  for (let step = 0; step <= steps; step += 1) {
+    const t = step / steps
+    const x = from.x + (to.x - from.x) * t
+    const z = from.z + (to.z - from.z) * t
+
+    // Widthwise as well as lengthwise: the centreline wanders, so a straight
+    // walk between the anchors leaves it and comes back. The best the bar offers
+    // across a few metres either side is what a walker would find.
+    let best = -Infinity
+
+    for (let across = -3; across <= 3; across += 1) {
+      const dx = -(to.z - from.z) / strand.length * across * config.strand.width * 0.5
+      const dz = (to.x - from.x) / strand.length * across * config.strand.width * 0.5
+
+      best = Math.max(best, survey.field.heightAt(x + dx, z + dz))
+    }
+
+    lowest = Math.min(lowest, best)
+  }
+
+  return {
+    between:   [ ...config.strand.between ] as [ string, string ],
+    length:    round(strand.length),
+    crest:     config.strand.crest,
+    lowest:    round(lowest - config.terrain.waterLevel),
+    connected: lowest > config.terrain.waterLevel,
+  }
+}
+
 /** The stats block, as the run reads it. */
 export function formatStats (stats: MapStats): string {
   const steading = Object.entries(stats.steading)
@@ -541,6 +610,12 @@ export function formatStats (stats: MapStats): string {
       `clearance ${stats.waterways.clearance}m`,
     `boats ${stats.boats.count}  separation ${stats.boats.separation}m  ` +
       `conflicts ${stats.boats.conflicts}`,
+    stats.strand
+      ? `strand ${stats.strand.between[0]}<->${stats.strand.between[1]}  ` +
+        `len ${stats.strand.length}m  crest ${stats.strand.crest}m  ` +
+        `lowest ${stats.strand.lowest}m  ` +
+        `${stats.strand.connected ? 'CONNECTED' : 'DROWNED'}`
+      : 'strand NONE  <- no pair of islands is named, or the crest is zero',
     `gulls ${stats.colonies.count}/${stats.colonies.asked} colonies  ` +
       (stats.colonies.sited
         .map(colony => `${colony.id}/${colony.kind} (${colony.x},${colony.z}) r${colony.radius}`)

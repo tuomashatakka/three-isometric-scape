@@ -1,4 +1,4 @@
-import { landmassLayout, landmassTerrain } from '../config.ts'
+import { landmassDetail, landmassLayout, landmassTerrain } from '../config.ts'
 import type { LandmassProfile, LandmassSpec, ScapeConfig } from '../config.ts'
 import type { Footpath, Footpaths } from './footpath.ts'
 import { surfaceQueries } from './height.ts'
@@ -6,6 +6,8 @@ import type { HeightField } from './height.ts'
 import type { Vec2 } from './path.ts'
 import { surveyScape } from './survey.ts'
 import type { ScapeSurvey } from './survey.ts'
+import { surveyStrand } from './strand.ts'
+import type { Strand } from './strand.ts'
 import { createWaterways, createWorldPort } from './waterway.ts'
 import type { WaterwayNetwork, WorldPort } from './waterway.ts'
 
@@ -14,8 +16,17 @@ export interface LandmassSurvey {
   id:      string
   profile: LandmassProfile
   origin:  Vec2
-  config:  ScapeConfig
-  survey:  ScapeSurvey
+
+  /**
+   * How closely this island is drawn and dressed, relative to the home island.
+   *
+   * Resolved once here rather than read off the spec by every caller — the
+   * terrain's segment count and the dressing's budgets both scale by it, and two
+   * readings of an optional field is how one of them ends up at the default.
+   */
+  detail: number
+  config: ScapeConfig
+  survey: ScapeSurvey
 }
 
 export interface ArchipelagoField extends HeightField {
@@ -25,6 +36,15 @@ export interface ArchipelagoField extends HeightField {
 export interface ArchipelagoSurvey {
   landmasses: readonly LandmassSurvey[]
   home:       LandmassSurvey
+
+  /**
+   * The bar joining two of the islands, or `null` on an archipelago with none.
+   *
+   * Published rather than kept inside the field, because the terrain has to
+   * *draw* it: the patches stop at their own edges and there is nothing between
+   * them but the seabed quad nine metres down. See `landscape/terrain.ts`.
+   */
+  strand:     Strand | null
   field:      ArchipelagoField
   paths:      Footpaths
   ports:      readonly WorldPort[]
@@ -71,6 +91,7 @@ function assertSeparate (config: ScapeConfig): void {
 function createCompositeField (
   config:     ScapeConfig,
   landmasses: readonly LandmassSurvey[],
+  strand:     Strand | null,
 ): ArchipelagoField {
   const seabed = config.terrain.waterLevel - config.terrain.seabedDrop
 
@@ -90,10 +111,16 @@ function createCompositeField (
 
   function heightAt (x: number, z: number): number {
     const landmass = landmassAt(x, z)
-
-    return landmass
+    const ground   = landmass
       ? landmass.survey.field.heightAt(x - landmass.origin.x, z - landmass.origin.z)
       : seabed
+
+    // A maximum, never a minimum, and never conditional on which patch answered.
+    // The bar may raise the seabed it lies on and must not lower the island it
+    // runs into — which is also what lets both of its ends simply vanish under
+    // the rising shore instead of needing a join. Off the bar `heightAt` returns
+    // the seabed, so this is already the no-op a branch would have been.
+    return strand ? Math.max(ground, strand.heightAt(x, z)) : ground
   }
 
   return { landmassAt, heightAt, ...surfaceQueries(heightAt) }
@@ -176,6 +203,7 @@ export function surveyArchipelago (config: ScapeConfig): ArchipelagoSurvey {
       id:      spec.id,
       profile: spec.profile,
       origin:  { x: spec.origin[0], z: spec.origin[1] },
+      detail:  landmassDetail(spec),
       config:  local,
       survey:  surveyScape(local),
     }
@@ -185,7 +213,11 @@ export function surveyArchipelago (config: ScapeConfig): ArchipelagoSurvey {
   if (!home)
     throw new Error('the archipelago has no home landmass')
 
-  const field     = createCompositeField(config, landmasses)
+  // Surveyed before the field, because the field is what it is folded into —
+  // and surveyed from the landmasses' own local fields, so the shore it starts
+  // at is the shore that island's coast warp actually put there.
+  const strand    = surveyStrand(config, landmasses)
+  const field     = createCompositeField(config, landmasses, strand)
   const paths     = createWorldPaths(landmasses)
   const ports     = projectPorts(config, field, landmasses)
   const waterways = createWaterways(config, field, ports)
@@ -193,6 +225,7 @@ export function surveyArchipelago (config: ScapeConfig): ArchipelagoSurvey {
   return {
     landmasses,
     home,
+    strand,
     field,
     paths,
     ports,

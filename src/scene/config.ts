@@ -26,7 +26,7 @@ export interface Isle {
 }
 
 /** Per-type instance budgets, before the quality tier scales them. */
-export type LandmassProfile = 'home' | 'ridge' | 'meadow'
+export type LandmassProfile = 'home' | 'ridge' | 'meadow' | 'sound' | 'fell'
 
 /**
  * One inhabited island, surveyed in its own local coordinate frame.
@@ -57,6 +57,24 @@ export interface LandmassSpec {
    */
   terrain?: Partial<LandmassTerrain>
   layout?:  Partial<LandmassLayout>
+
+  /**
+   * How closely this island is drawn and dressed, relative to the home island.
+   *
+   * One number for both, because they are one question: an island the camera
+   * rarely reaches does not need the home island's metres-per-quad *or* its
+   * stems-per-hectare, and two knobs for that would be two knobs to keep in
+   * agreement. Terrain segments and every scatter budget scale by it together.
+   *
+   * 1 is the home island's own density. Below about 0.3 the coastline starts to
+   * facet visibly at the near zoom; above 1 an outer island costs more than the
+   * farm does, for ground nobody stands on.
+   *
+   * It is not a *look* knob dressed as a budget — an island at 0.45 reads as
+   * wilder rather than as emptier, because the farm's own props are counted per
+   * holding and only the wild scatter is a density.
+   */
+  detail?: number
 }
 
 /** The part of `terrain` an island is allowed its own answer to. */
@@ -92,6 +110,11 @@ export function landmassTerrain (config: ScapeConfig, spec: LandmassSpec): Scape
 /** One island's composition, resolved the same way. See {@link landmassTerrain}. */
 export function landmassLayout (config: ScapeConfig, spec: LandmassSpec): ScapeConfig['layout'] {
   return { ...config.layout, ...spec.layout }
+}
+
+/** How closely an island is drawn and dressed. See {@link LandmassSpec.detail}. */
+export function landmassDetail (spec: LandmassSpec): number {
+  return Math.max(0.05, spec.detail ?? 1)
 }
 
 export interface DressingBudget {
@@ -287,6 +310,45 @@ export interface ScapeConfig {
      * terrain quad is two metres across.
      */
     mouthFlare: number
+  }
+
+  /**
+   * The bar of sand and shingle joining the two southern islands.
+   *
+   * Build-time geometry, like `creek` and `layout`, and absent from the tuning
+   * overlay for the same reason: the crest is folded into the composite height
+   * field and baked into the bathymetry mask, so nothing here can move without
+   * the scape being generated again.
+   *
+   * It is the one landform in the scape that is *between* islands rather than
+   * on one. Every local survey happens in a patch's own frame and the patches do
+   * not overlap, so a tombolo has to be a world-space term added after the
+   * composite field has dispatched — see `landscape/strand.ts`.
+   */
+  strand: {
+
+    /**
+     * The two landmasses it joins, by id.
+     *
+     * Named rather than searched for, and that is not laziness: the *closest*
+     * two coasts in this archipelago are the home island's and the ridge's, a
+     * hundred metres apart, and a bar found by proximity would join those and
+     * call it a tombolo. Which two islands are one island is a fact about the
+     * place, so the place says it. An id that no landmass answers to leaves the
+     * scape with no strand rather than throwing — see `landscape/strand.ts`.
+     */
+    between: readonly [string, string]
+
+    /** Half-width of the dry crest, in metres. */
+    width: number
+
+    /**
+     * Metres the crest stands above the waterline.
+     *
+     * The switch, and the only one: 0 drowns the bar and the two islands are two
+     * islands again. There is no separate flag, because this is the flag.
+     */
+    crest: number
   }
 
   /**
@@ -1075,7 +1137,7 @@ export const SCAPE_CONFIG = {
   // terrain numbers are deliberately not cosmetic labels: the western island
   // is a compact high ridge, the eastern one a broader low meadow.
   archipelago: {
-    worldSize:  520,
+    worldSize:  1_520,
     landmasses: [
       // No `terrain` and no `layout`: the home island *is* the default, and the
       // sections above are where its eleven numbers live. Restating them here
@@ -1132,6 +1194,70 @@ export const SCAPE_CONFIG = {
           pastureRadius: 5,
         },
       },
+
+      // The southern pair, and the reason the world is three times the span it
+      // was. Each is ten times the *area* of the two outer holdings above —
+      // 455 m across against 144 — which is a different kind of place rather
+      // than a bigger version of the same one: a farm on either of these is a
+      // holding on a landmass, with fell and forest it will never touch.
+      //
+      // Their patches sit 600 m apart on x and their coastlines about 300 m,
+      // which is the water the strand crosses. Both clear `halfWorld` at 760
+      // with 52 m to spare, and neither overlaps anything: `assertSeparate`
+      // checks both rules and `archipelago.test.ts` states them as facts.
+      //
+      // `detail` at 0.45 is the whole affordability of this. Left at 1 the two
+      // of them would take `areaScale` from 2.08 to 12.9 — every scatter budget
+      // sixfold, and a placement solver that is O(claims) per attempt — and the
+      // terrain patches would be 483 segments a side apiece. At 0.45 they are
+      // drawn at about 1.4 m to a quad and dressed at half the farm's density,
+      // which is what an uninhabited fell looks like anyway.
+      {
+        id:         'sound',
+        profile:    'sound',
+        origin:     [ -300, -480 ],
+        seedOffset: 61_403,
+        satellites: 'none',
+        detail:     0.45,
+        terrain:    {
+          size:        455,
+          height:      16.4,
+          shoreBand:   1.2,
+          islandInner: 0.5,
+          islandOuter: 0.66,
+        },
+        layout: {
+          yardRadius:    16,
+          trackWidth:    2.8,
+          plotCount:     2,
+          forestBias:    0.84,
+          harbourSpread: -40,
+          pastureRadius: 7,
+        },
+      },
+      {
+        id:         'fell',
+        profile:    'fell',
+        origin:     [ 300, -480 ],
+        seedOffset: 82_147,
+        satellites: 'none',
+        detail:     0.45,
+        terrain:    {
+          size:        455,
+          height:      21.8,
+          shoreBand:   0.95,
+          islandInner: 0.47,
+          islandOuter: 0.68,
+        },
+        layout: {
+          yardRadius:    15,
+          trackWidth:    2.6,
+          plotCount:     2,
+          forestBias:    0.66,
+          harbourSpread: 42,
+          pastureRadius: 8,
+        },
+      },
     ],
   },
   boats: {
@@ -1163,6 +1289,15 @@ export const SCAPE_CONFIG = {
     incision:   1.35,
     mouthDepth: 2.6,
     mouthFlare: 3.2,
+  },
+  // 11 metres of half-width is a bar you could drive a cart along, against a
+  // crossing of roughly three hundred — narrow enough at that length to read as
+  // a thread rather than as a causeway. 1.1 m of crest is one storm surge above
+  // the water, which is what keeps it dry at the middle and awash at both ends.
+  strand: {
+    between: [ 'sound', 'fell' ],
+    width:   11,
+    crest:   1.1,
   },
   footpath: {
     width:  1.5,
@@ -1274,10 +1409,14 @@ export const SCAPE_CONFIG = {
     iceReach:       0.62,
     iceBreak:       0.5,
   },
+  // The screen-scale class, grown with the world it frames. `maxViewSize` is
+  // what the cloud and aurora tiles are sized against, so a world that tripled
+  // without it would have both of them repeating three times as often across the
+  // archipelago and reading as wallpaper. `viewSize` opens on the whole thing.
   camera: {
-    viewSize:    500,
+    viewSize:    1_400,
     minViewSize: 8,
-    maxViewSize: 560,
+    maxViewSize: 1_600,
     rotation:    45,
     focusX:      0,
     focusZ:      0,
