@@ -145,6 +145,20 @@ export interface AtmosphereQuality {
    */
   detailTaps: number
 
+  /**
+   * Steps in the ground's parallax march. 0 is a tier whose soil is flat.
+   *
+   * A count rather than a switch, and the count is the quality: each step is one
+   * more tap of a map already bound, and it buys one more layer of the height
+   * field the ray is allowed to stop at. Four is enough for grit at this camera
+   * distance; below about three the silhouette of a rut steps visibly.
+   *
+   * How *deep* the march goes is not here — it is `terrain.detailGrain`, because
+   * the relief and the grain are the same field and one number should not be
+   * able to describe a deep surface with no contrast on it.
+   */
+  reliefSteps: number
+
   /** Lake plane subdivisions per side. */
   waterSegments: number
 
@@ -183,6 +197,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     environment:     false,
     frameRate:       20,
     detailTaps:      1,
+    reliefSteps:     0,
     waterSegments:   24,
     waterSpan:       2.2,
   },
@@ -221,6 +236,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     environment:   false,
     frameRate:     30,
     detailTaps:    1,
+    reliefSteps:   0,
     waterSegments: 48,
     waterSpan:     3,
   },
@@ -257,6 +273,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     environment:     true,
     frameRate:       0,
     detailTaps:      6,
+    reliefSteps:     6,
     waterSegments:   96,
     waterSpan:       8,
   },
@@ -286,6 +303,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     environment:     true,
     frameRate:       0,
     detailTaps:      6,
+    reliefSteps:     12,
     waterSegments:   128,
     waterSpan:       8,
   },
@@ -322,6 +340,7 @@ const UNLOCKED_FLOOR = {
   birdCount:      90,
   beaconBlades:   1,
   detailTaps:     6,
+  reliefSteps:    4,
 } as const
 
 /**
@@ -359,6 +378,7 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
     birdCount:      Math.max(quality.birdCount, UNLOCKED_FLOOR.birdCount),
     beaconBlades:   Math.max(quality.beaconBlades, UNLOCKED_FLOOR.beaconBlades),
     detailTaps:     Math.max(quality.detailTaps, UNLOCKED_FLOOR.detailTaps),
+    reliefSteps:    Math.max(quality.reliefSteps, UNLOCKED_FLOOR.reliefSteps),
   }
 }
 

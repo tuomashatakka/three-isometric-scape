@@ -182,7 +182,13 @@ export function createLandscape (
       root = new Group()
       root.name = 'nordic-scape'
 
-      materials = createScapeMaterials(config, skip, quality.detailTaps, textures)
+      materials = createScapeMaterials(
+        config,
+        skip,
+        quality.detailTaps,
+        textures,
+        quality.reliefSteps,
+      )
 
       const terrain = createArchipelagoTerrain(
         config(),

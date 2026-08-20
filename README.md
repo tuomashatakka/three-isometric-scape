@@ -184,6 +184,7 @@ src/
     ├── daylight.ts                 clock one: the solar arc, its year, and the derived sky palette
     ├── season.ts                   clock two: growth, turn, snow, ice, sea smoke
     ├── weather.ts                  clock three: the front, what falls, how long it stays wet
+    ├── wind.ts                     clock four: one bearing, one gust, one travel every scroll shares
     ├── rain.ts                     the fall, as one screen-sized column of streaks
     ├── birds.ts                     the gulls, and the rings they wheel on
     ├── lut.ts                      cached cinematic colour-grade recipes
@@ -199,7 +200,8 @@ src/
     │   ├── survey.ts               the pure composition, before anything is drawn
     │   ├── archipelago.ts          every inhabited island, joined by what faces the world
     │   ├── layout.ts               yard, cart track, field plots, ridges, pasture, mill
-    │   ├── height.ts               authored ground, islets, beck, fbm underneath
+    │   ├── height.ts               authored ground, islets, beck, fbm underneath, and which way it faces
+    │   ├── align.ts                the euler that stands a prop on a slope instead of beside one
     │   ├── steading.ts             where the buildings stand, and which way they face
     │   ├── landing.ts              the shoreline the jetty and the harbour are on
     │   ├── path.ts                 route smoothing and polyline queries
@@ -222,11 +224,12 @@ src/
     │   ├── dressing.ts             placement, hero merge, instanced scatter
     │   └── index.ts                the scene module, and what raycasts
     ├── textures/
-    │   └── catalogue.ts            every texture in the scape, in one list
+    │   ├── catalogue.ts            every texture in the scape, in one list
+    │   └── normals.ts              a height field's gradient, baked once instead of differenced per fragment
     └── props/
         ├── index.ts                the roster, hero vs scattered
         ├── palette.ts              the nordic colour vocabulary
-        ├── material.ts             shared materials, cloud shadow, wind, wetness, snow
+        ├── material.ts             shared materials, cloud shadow, wind, ground relief, wetness, snow
         ├── ploppable.ts            2d placement with a ground-following foundation
         ├── fence.ts / wall.ts      continuous ground-following runs
         ├── timber.ts               cladding, gable and roof vocabulary
@@ -386,6 +389,8 @@ a tier is a bundle of decisions taken from what the device says about itself, an
 
 `?effects=all` is the same switch from a url, which is the only way to photograph a phone tier with the whole chain on it.
 
+**`reliefSteps` is the newest count, and the clearest case of the rule.** the ground's parallax march is a tap per step of a map the one-tap path never binds at all, so the two phone tiers get **zero** — flat soil, which is a surface, rather than a two-step approximation of deep soil, which is a smear. desktop walks six and ultra twelve; unlocking lifts a zeroed tier to four, which is the fewest at which the silhouette of a rut stops stepping visibly.
+
 ## every texture, in one list
 
 [`textures/catalogue.ts`](src/scene/textures/catalogue.ts) is the roster. it exists because maps were being built wherever they happened to be needed — a seamless noise in `material.ts`, two more in `water.ts`, a baked field in each of `mist`, `clouds` and `aurora` — with the size, frequency and wrap mode written out again each time, and no way to answer *what does this scape sample, and how much of it is there* short of grepping for `Texture`.
@@ -394,6 +399,8 @@ a tier is a bundle of decisions taken from what the device says about itself, an
 
 the rule is that a texture anywhere in `src/scene` has an entry. `catalogue.test.ts` is what makes that keepable rather than aspirational: it walks the scene source for texture constructors and fails on a module the roster has never heard of.
 
+**`ground.normal` is the one map derived from another.** [`textures/normals.ts`](src/scene/textures/normals.ts) is pure — bytes in, bytes out, no `three` and no DOM — and the `DataTexture` around its result is built here, which is what keeps the roster's rule intact without exempting anything. it is also the only entry that carries two things at once: `rgb` is the grit's tangent normal and `a` is the height that normal was taken from, because the parallax march needs a height and a map already bound is a cheaper place to keep one than a second fetch. the grain field it comes from is generated twice with the same seed and thrown away once — two calls agree byte for byte, which is what lets the normal builder take its source without reaching into the catalogue's own cache.
+
 ## the ground, and everything upright on it
 
 the terrain's grain has always been one texture read six ways, weighted by `scapeFlat` — how horizontal the face is — because a world-space projection smears streaks down anything vertical. two things were wrong with that.
@@ -401,6 +408,46 @@ the terrain's grain has always been one texture read six ways, weighted by `scap
 **the broad octave was the fine one read slowly.** a single field sampled at two frequencies is self-similar by construction, so the metre-wide patches landed exactly where the centimetre-wide grit was already darkest and the two reinforced into a lumpy weave instead of reading as two different histories. `ground.wear` is now its own noise — few octaves, because wear is smooth — and it also *dulls* the roughness where it is damp, which is most of what tells wet ground from dry at this distance. the albedo barely moves.
 
 **and the `1 - flat` case had never been written.** every wall, gable, hull, jetty timber and granite face in the scape had no surface at all: flat-shaded colour, and nothing at the scale of a plank or a grain of stone. two materials carry the whole place, so "the props have no texture" was really "the injection only ever handled the ground". `prop.bark` is the other half, with the projection turned on its side to match — the horizontal coordinate wraps several times around a stem or along a wall while the vertical one crawls, which is what makes the read run *along* a board rather than across it. one fetch, weighted to nothing on ground the soil terms already own, so the two never argue over the same fragment. `terrain.propGrain` at 0 is the scape as it looked before it existed.
+
+**the normal it perturbed by was the inverse of the surface it came from.** the grain reached the lighting as a finite difference — `vec3(grainX - grain, 0.0, grainZ - grain)` — and the normal of a height field is `(-dh/dx, 1, -dh/dz)`. both signs wrong, so every grain of soil in the scape was lit as a pit. it is a baked map now: [`textures/normals.ts`](src/scene/textures/normals.ts) takes the gradient once, at full texel resolution rather than across a seven-texel stride, with the sign the physics has, and the shader reads **one texel where it read six**. `normals.test.ts` measures both formulas over the real grain field and holds them within a fifth of each other, so what changed is the sign and the cost and not the amount of relief.
+
+the macro octave keeps its albedo and its roughness and deliberately loses its normal. a metre-wide patch of wear is *damp* ground, not raised ground — there is nothing there to catch the light on, and the two fetches it took to say so were two fetches spent agreeing with a flat surface.
+
+## the ground stands up
+
+a normal map lies about a surface it cannot move. at the zoom this camera reaches, that shows: a cart rut is a painted stripe you can see straight through, and grit sits on the ground like printing.
+
+the third thing the same map can do is **occlude**. the baked normal carries the height it came from in its alpha, so the ray from a fragment to the eye can be walked down through that height until it first goes under the surface — and wherever it does is the texel that should have been there. the near wall of a rut hides its floor, grit occludes the grit behind it, and the whole read shifts as the camera orbits instead of sliding about like a decal. no vertex, no draw call, no second texture.
+
+**how deep it goes is `terrain.detailGrain`, and there is deliberately no other knob for it.** the relief and the grain are the same field, and a scape with two numbers for it could describe deep grit with no contrast on it — which is not a surface, it is a bug with a slider. 0 is flat, unlit paper, and it is the switch.
+
+**how *finely* it goes is `quality.reliefSteps`,** a count and not a strength: each step is one more tap of a map already bound. `desktop` walks six and `ultra` twelve; both phone tiers walk none, because the march reads a map the one-tap path never binds at all — so a phone gets flat soil rather than a two-step approximation of deep soil. the horizontal step is clamped at about fourteen degrees of incidence, under the camera's own shallowest tilt: at grazing angles the offset goes to infinity and the march walks off across the island.
+
+## every prop stands on the ground rather than beside it
+
+every scattered thing in the scape used to be raised with `rotate: [0, yaw, 0]` — spun about its own axis and otherwise plumb, whatever the hillside under it was doing. on flat ground that is right and invisible. on a fifteen-degree slope it is a boulder standing to attention, a cobble hovering on its downhill edge, and a line of stumps that reads as fence posts because every one of them is vertical in a landscape where nothing else is.
+
+**`HeightField` answers *which way* now, not only *how steep*.** `slopeAt` and the new `normalAt` share one central difference rather than writing it out twice — and the composite field over the archipelago shares it too, where the same four probes had been copied.
+
+**[`align.ts`](src/scene/landscape/align.ts) turns a normal and a yaw into the euler that stands a prop on it.** the composition is `tilt * yaw` and the order is the whole of it: the prop is spun about its *own* axis first and the result is tipped, so a rock turned to a new bearing still sits flush. tipping first and yawing after spins it about the world's vertical and slides it off the slope it was just placed on. level ground short-circuits out of the quaternion entirely, because a round trip that ought to come back as `[0, yaw, 0]` comes back as `[-0, 1.3699999999999999, -0]`, and that is every prop on a flat field moving by a rounding error for nothing.
+
+**how much of the lean a prop takes is a question about what the prop is.** stone was left where it rolled and takes all of it; timber the sea put down takes nearly all; a bale somebody set down takes half; a spruce grows toward the light whatever it is rooted in and takes almost none. the dead spruce sits with the placed things rather than the growing ones on purpose — a trunk that is still alive corrects toward the light every year, and one that is not has stopped.
+
+**and placements read the ground *as drawn*.** `heightAt` is the continuous field the terrain's vertices were sampled *from*, not the chord they were joined into, and the two differ by tens of centimetres wherever the ground curves. that gap is what the `- 0.1` under every scattered prop was quietly paying for: sink everything far enough and nothing floats, at the price of everything on level ground being buried a little. the sink is a quarter of what it was. the *tilt* still comes from the continuous field — a chord's normal is constant across a quad and then jumps at the diagonal, so two cobbles a hand apart would lean at visibly different angles.
+
+## one wind
+
+there were five. `wind.strength`/`wind.speed` drove the foliage sway and the mill; `atmosphere.mistWind` drove the fog banks; `atmosphere.cloudSpeed` drove the deck; a drift vector hard-coded in `props/material.ts` drove the shadow that deck casts; and `rain.ts` integrated a heading of its own. every one of them was a wind, and **no two of them agreed which way it was blowing** — so a gust crossing the grass never reached the mist standing in it, a cloud crossed the sky one way while its own shadow crossed the island another, and the fall leant on a bearing unrelated to either.
+
+[`wind.ts`](src/scene/wind.ts) is the fourth clock, and deliberately the same shape as the three before it: a phase, a speed, and everything else derived. it is mounted **ahead of the landscape**, so the instant every other module reads has already been resolved for the frame in flight — two samples in one frame are two different gusts.
+
+**`travel` is the load-bearing part.** one integrated distance that every scrolling surface multiplies by its own response, rather than each integrating `elapsed × its own rate`. that is what makes a gust *one* wave passing over the whole scape instead of four unrelated scrolls that happen to speed up together. each consumer keeps only a dimensionless factor — `atmosphere.cloudDrag`, `atmosphere.mistDrag`, `mill.spin`, the gulls' wingbeat — and no rate at all.
+
+**it gusts and it veers.** three incommensurate sines rather than one, for the reason the lake's glitter uses two noise fetches: a single sine is a period the eye finds within two cycles, and wind that pulses on a metronome reads as machinery. the veer is its own slower wander rather than the gust curve reused, because a wind that only ever swings when it strengthens has one degree of freedom and every gust then arrives from the same new quarter.
+
+**the front has no rate of its own.** a harder wind brings its squalls through faster, so `wind.speed` carries the gust clock as well as the travel — which is one knob instead of two saying the same thing, and which is why `wind.speed=0` freezes the front along with everything else it stops.
+
+**the aurora is the one deliberate exception** and keeps `atmosphere.auroraSpeed`. an aurora is a current in the ionosphere eighty kilometres up. it does not blow on a coastal wind, and giving it one would be a tidier config that lied.
 
 ## the camera, between sessions
 

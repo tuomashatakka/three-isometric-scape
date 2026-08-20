@@ -126,6 +126,7 @@ describe('reduceAtmosphereQuality', () => {
       expect(next!.scatterScale).toBeLessThan(quality.scatterScale)
       expect(next!.shadowMapSize).toBeLessThanOrEqual(quality.shadowMapSize)
       expect(next!.detailTaps).toBeLessThanOrEqual(quality.detailTaps)
+      expect(next!.reliefSteps).toBeLessThanOrEqual(quality.reliefSteps)
       quality = next!
     }
   })
@@ -148,6 +149,18 @@ describe('reduceAtmosphereQuality', () => {
   test('keeps the optical chain off mobile and minimal', () => {
     expect(atmosphereQuality('mobile').post).toBe(false)
     expect(atmosphereQuality('minimal').post).toBe(false)
+  })
+
+  test('gives the ground no relief to march on a tier that cannot afford the taps', () => {
+    // Graceful absence rather than a poor version: the march is a tap per step
+    // of a map the lite path never binds, so a phone gets flat soil and not a
+    // two-step approximation of deep soil.
+    for (const tier of LADDER) {
+      const quality = atmosphereQuality(tier)
+
+      if (quality.detailTaps < 6)
+        expect(quality.reliefSteps).toBe(0)
+    }
   })
 })
 
@@ -179,6 +192,7 @@ describe('unlocking every effect', () => {
       expect(all.mistLayers).toBeGreaterThan(0)
       expect(all.tiltShiftPairs).toBeGreaterThan(0)
       expect(all.detailTaps).toBeGreaterThanOrEqual(6)
+      expect(all.reliefSteps).toBeGreaterThan(0)
     }
   })
 

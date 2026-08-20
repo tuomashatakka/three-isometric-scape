@@ -173,14 +173,79 @@ const WIND_VERTEX = /* glsl */`
  */
 const DETAIL_PARS_FRAGMENT = /* glsl */`
   uniform sampler2D uDetailMap;
-  uniform sampler2D uGroundNormalMap;
-  uniform sampler2D uWearMap;
   uniform sampler2D uBarkMap;
   uniform float uDetailScale;
   uniform float uDetailStrength;
-  uniform float uDetailMacro;
   uniform float uPropGrain;
 `
+
+/**
+ * What only the six-tap path reads, declared only where it is read.
+ *
+ * A sampler that is declared and never sampled still occupies a binding in some
+ * drivers' accounting, and the tier that would pay for it is the one with the
+ * least to spend — the phone path samples neither of these and used to declare
+ * both. Keeping the declarations with the fetches also makes the claim testable:
+ * `material.test.ts` asserts the lite program contains no mention of the normal
+ * map at all, which is a fact about the shader rather than a promise about it.
+ */
+const DETAIL_FULL_PARS_FRAGMENT = /* glsl */`
+  uniform sampler2D uGroundNormalMap;
+  uniform sampler2D uWearMap;
+  uniform float uDetailMacro;
+`
+
+/**
+ * Relief, in uv rather than in metres.
+ *
+ * How deep the grit stands is *how much grit there is*, so the march reads
+ * `terrain.detailGrain` and there is no second knob saying the same thing in
+ * different units. A fiftieth of a tile is about three centimetres at the
+ * authored 7.5 m grain scale, which is soil; past a tenth the ground starts to
+ * read as gravel, and past that as rubble.
+ *
+ * Expressed as a fraction of the *tile* rather than of the world, which is what
+ * makes it independent of `detailScale` — a coarser grain is bigger grit, not
+ * deeper grit, and the shift on screen grows with the tile on its own.
+ */
+const RELIEF_DEPTH = 0.02
+
+/**
+ * Parallax occlusion, on the ground only.
+ *
+ * Extrusion without a vertex. The ray from the fragment to the eye is walked
+ * down through the height the normal map is already carrying in its alpha, and
+ * wherever it first goes under the surface is the texel that should have been
+ * there — so a rut has a near wall that hides its floor, grit occludes the
+ * grit behind it, and the whole read shifts as the camera moves rather than
+ * sliding about like a decal.
+ *
+ * `vViewPosition` points from the fragment to the camera in *view* space, and
+ * `mat3(viewMatrix)` is a rotation, so its transpose is its inverse — which in
+ * GLSL is a right-multiply. No new varying, the same trick the snow line uses.
+ *
+ * The horizontal denominator is clamped: at grazing incidence the offset goes
+ * to infinity and the march walks off across the island. 0.25 is about
+ * fourteen degrees, which is under the camera's own shallowest tilt.
+ */
+function reliefFragment (steps: number): string {
+  return /* glsl */`
+    vec3 scapeToEye = normalize(normalize(vViewPosition) * mat3(viewMatrix));
+    vec2 scapeWalk  = -scapeToEye.xz / max(0.25, scapeToEye.y) *
+      (${RELIEF_DEPTH} * uDetailStrength) / float(${steps});
+    float scapeLayer = 1.0;
+    float scapeFound = texture2D(uGroundNormalMap, scapeUv).a;
+
+    for (int scapeStep = 0; scapeStep < ${steps}; scapeStep++) {
+      if (scapeFound >= scapeLayer)
+        break;
+
+      scapeUv    += scapeWalk;
+      scapeLayer -= 1.0 / float(${steps});
+      scapeFound  = texture2D(uGroundNormalMap, scapeUv).a;
+    }
+  `
+}
 
 /**
  * The half of the scape the ground grain never reached.
@@ -255,11 +320,13 @@ const DETAIL_FRAGMENT_LITE = /* glsl */`
 ${PROP_GRAIN_FRAGMENT}
 `
 
-const DETAIL_FRAGMENT = /* glsl */`
+function detailFragment (steps: number): string {
+  return /* glsl */`
   #include <normal_fragment_begin>
   float scapeFlat = smoothstep(0.3, 0.9, vScapeUp);
   float scapeAmt  = uDetailStrength * scapeFlat;
   vec2 scapeUv    = vScapeGround * uDetailScale;
+${steps > 0 ? `  if (scapeAmt > 0.001) {${reliefFragment(steps)}  }\n` : ''}
 
   // The broad octave is its own map, not this one read slowly. A single field
   // sampled at two frequencies is self-similar by construction, so the patches
@@ -300,6 +367,7 @@ const DETAIL_FRAGMENT = /* glsl */`
   normal = normalize(normal + mat3(viewMatrix) * scapeBump * scapeAmt);
 ${PROP_GRAIN_FRAGMENT}
 `
+}
 
 const SEASON_PARS_FRAGMENT = /* glsl */`
   uniform vec3 uSeasonTint;
@@ -409,8 +477,13 @@ export function createScapeMaterials (
   skip: ScapeSkips = NOTHING_SKIPPED,
   detailTaps = 6,
   textures: TextureCatalogue = createTextureCatalogue(config().seed),
+  reliefSteps = 0,
 ): ScapeMaterials {
-  const detailFragment = detailTaps >= 6 ? DETAIL_FRAGMENT : DETAIL_FRAGMENT_LITE
+  // The lite path has one fetch to spend and no relief to march through, so a
+  // tier below the full tap budget is a tier with flat soil whatever its relief
+  // count says.
+  const relief   = detailTaps >= 6 ? Math.max(0, Math.round(reliefSteps)) : 0
+  const injected = detailTaps >= 6 ? detailFragment(relief) : DETAIL_FRAGMENT_LITE
 
   // Asked for by name rather than built here. Every map in the scape is in
   // `textures/catalogue.ts`, which is also what makes the lake's ripple and this
@@ -482,10 +555,18 @@ export function createScapeMaterials (
     // and still declares nothing.
     const up             = Boolean(extra.detail) || extra.lie === GROUND_LIE
     const normalFragment = [
-      extra.detail ? detailFragment : '#include <normal_fragment_begin>',
+      extra.detail ? injected : '#include <normal_fragment_begin>',
       extra.lie ? wetFragment(extra.lie) : '',
       extra.lie ? seasonFragment(extra.lie) : '',
     ].join('\n')
+
+    // Resolved out here rather than inside the closure. Which uniforms the
+    // fragment declares is decided once, when the material is built, and a
+    // decision taken per compile is a branch in a function three already
+    // considers long enough.
+    const detailPars = extra.detail
+      ? DETAIL_PARS_FRAGMENT + (detailTaps >= 6 ? DETAIL_FULL_PARS_FRAGMENT : '')
+      : ''
 
     // `?skip=inject` leaves the mesh, the geometry and the vertex colours exactly
     // as they are and takes only the shader patch away — so what draws is the
@@ -524,7 +605,7 @@ export function createScapeMaterials (
             '#include <common>',
             CLOUD_PARS_FRAGMENT,
             up ? UP_PARS_FRAGMENT : '',
-            extra.detail ? DETAIL_PARS_FRAGMENT : '',
+            detailPars,
             extra.lie ? WET_PARS_FRAGMENT : '',
             extra.lie ? SEASON_PARS_FRAGMENT : '',
           ].join('\n'))
@@ -537,7 +618,7 @@ export function createScapeMaterials (
     // The taps belong in the key: two materials that differ only by an injected
     // shader are identical as far as three's own cache is concerned, and it
     // would hand the second one the first one's program.
-    material.customProgramCacheKey = () => `${key}:${detailTaps}`
+    material.customProgramCacheKey = () => `${key}:${detailTaps}:${relief}`
 
     // The same key doubles as the material's name, because a name is the only
     // thing three prints when a program fails to link — `Material Name:` on an

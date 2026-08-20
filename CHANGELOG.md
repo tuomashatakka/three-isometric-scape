@@ -2,6 +2,49 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the ground stands up, and one wind blows over it
+
+three systems, because the second needed the first's texture and the third needed the second's map. the run's own
+rule is one theme per branch; this one carries three on the reader's instruction, in ordered commits so the picture
+evidence stays attributable.
+
+- **one wind, where there were five.** `wind.strength`/`speed` drove the foliage and the mill, `atmosphere.mistWind`
+  the fog banks, `atmosphere.cloudSpeed` the deck, a drift vector hard-coded in `props/material.ts` the shadow that
+  deck casts, and `rain.ts` integrated a heading of its own. **no two of them agreed which way it was blowing.**
+  [`wind.ts`](src/scene/wind.ts) is the fourth clock, mounted ahead of the landscape, publishing a bearing, a gust
+  and one integrated `travel` that every scrolling surface multiplies by its own dimensionless response. a gust is
+  one wave crossing the grass, the mist, the sea and the sky together instead of four scrolls that coincide
+- **the aurora is the deliberate exception** and keeps `atmosphere.auroraSpeed`. it is a current in the ionosphere
+  eighty kilometres up; a tidier config that gave it a coastal wind would be a config that lied
+- **the ground's normal was the inverse of its own surface.** the grain reached the lighting as
+  `vec3(grainX - grain, 0.0, grainZ - grain)`, and a height field's normal is `(-dh/dx, 1, -dh/dz)` — both signs
+  wrong, so every grain of soil in the scape was lit as a pit. [`textures/normals.ts`](src/scene/textures/normals.ts)
+  bakes the gradient once at full texel resolution instead, and the shader reads **one texel where it read six**.
+  `normals.test.ts` measures both formulas over the real grain field and holds them within a fifth of each other,
+  so what moved is the sign and the cost, not the amount of relief
+- **and then the ground stands up.** the baked map carries its height in alpha, so the ray to the eye is walked down
+  through it until it goes under the surface: the near wall of a rut hides its floor, grit occludes the grit behind
+  it, and the read shifts as the camera orbits rather than sliding like a decal. no vertex, no draw, no new texture.
+  how deep it goes is `terrain.detailGrain`, because the relief and the grain are the same field and a second knob
+  could describe deep grit with no contrast on it. how finely is `quality.reliefSteps` — 6 on desktop, 12 on ultra,
+  **0 on both phone tiers**, which read the map's one-tap path and get flat soil rather than bad soil
+- **every scattered prop stands on the ground rather than beside it.** `rotate: [0, yaw, 0]` was right on the flat
+  and a boulder standing to attention on a fifteen-degree slope. `HeightField.normalAt` answers *which way* now
+  (sharing one central difference with `slopeAt`, which the composite field had copied),
+  [`align.ts`](src/scene/landscape/align.ts) turns that into the euler, and each family takes the share of the lean
+  its own nature allows — stone all of it, a spruce almost none. placements read the terrain **as drawn** rather
+  than the field it was sampled from, which is what the `- 0.1` sink under every prop was quietly paying for; the
+  sink is a quarter of what it was
+- **twelve config keys go, and no feature with them.** a `LandmassSpec` carries only what its island does
+  *differently*, so the home landmass stops restating the eleven `terrain` and `layout` numbers it shares with the
+  defaults — eleven values that existed twice, were read by different code, and were kept in agreement by hand.
+  `wind.gustSpeed` folds into `wind.speed`: a harder wind brings its squalls through faster, and two rates for that
+  were two rates to keep in step
+- **cost: no draw calls, no vertices, and three fewer fragment taps on the ground before the march.** the normal map
+  is one 512² RGBA with mips; the relief is `reliefSteps` taps of a map already bound, inside a branch most
+  fragments skip, on the two tiers that already spend six. `scape:map --stats` is byte-identical across the whole
+  run — nothing about the world model moved
+
 ## the birds the coast never had
 
 four flocks of gulls, wheeling over the harbour mouths and over the rock the light stands on. the first living thing in the scape that is not rooted to the ground.

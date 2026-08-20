@@ -325,7 +325,11 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       group:    'ground & water',
       title:    'ground',
       controls: [
-        range('terrain.detailGrain', 'soil grain', 0, 1, 0.01),
+        // Contrast *and* depth: the grain and the relief the ground is marched
+        // through are the same field, so one number says how much grit there is
+        // and there is no second one able to describe deep grit with no
+        // contrast on it. 0 is flat, unlit paper — and it is the switch.
+        range('terrain.detailGrain', 'soil grain & relief', 0, 1, 0.01),
         range('terrain.detailMacro', 'soil patches', 0, 1.5, 0.01),
         range('terrain.detailScale', 'grain scale', 1, 24, 0.5),
         // The other half of the same injection: everything upright, which the

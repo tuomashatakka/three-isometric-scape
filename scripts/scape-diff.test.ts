@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { structuralLine } from './scape-diff.ts'
+import { parseArgs } from './args.ts'
+import { captureShape, structuralLine } from './scape-diff.ts'
 
 
 const legacy: Record<string, unknown> = {
@@ -100,5 +101,49 @@ describe('the structural diff', () => {
     expect(line).toContain('waterways 3/809.7m/OK/wet/0.67m->3/809.7m/BROKEN/DRY/0.2m')
     expect(line).toContain('boats 3/103.41m/0->3/4.5m/1')
     expect(line).toContain('STRUCTURE MOVED')
+  })
+})
+
+
+/**
+ * The reference cache's key, as a fact rather than as an assumption.
+ *
+ * A prewarm keyed on the commit alone is reusable across `--tier`, and the tiers
+ * do not merely look different — they build different programs. A `mobile`
+ * reference against a `desktop` head reported a third of the frame changed for
+ * a change whose subject moved a few pixels, and every number in that table was
+ * wrong in a way nothing in it admitted.
+ */
+describe('what a cached reference is a reference *of*', () => {
+  test('two tiers are two different references', () => {
+    expect(captureShape(parseArgs([ '--tier', 'desktop' ])))
+      .not.toBe(captureShape(parseArgs([ '--tier', 'mobile' ])))
+  })
+
+  test('the default is stated, so an unflagged run and an explicit one agree', () => {
+    expect(captureShape(parseArgs([]))).toBe(captureShape(parseArgs([ '--tier', 'mobile' ])))
+  })
+
+  test('every flag that changes the picture changes the key', () => {
+    const plain = captureShape(parseArgs([]))
+
+    for (const flag of [
+      [ '--ratio', '2' ],
+      [ '--skip', 'water' ],
+      [ '--aa', 'off' ],
+      [ '--post', 'off' ],
+      [ '--size', '400x250' ],
+      [ '--no-still' ],
+      [ '--gpu' ],
+    ])
+      expect(captureShape(parseArgs(flag))).not.toBe(plain)
+  })
+
+  test('a flag that changes nothing about the picture does not', () => {
+    // The poses are checked by whether their files are on disk, and the port is
+    // not a property of the image. A key that moved on either would throw the
+    // prewarm away for no reason, which costs the whole head start.
+    expect(captureShape(parseArgs([ '--port', '5000' ]))).toBe(captureShape(parseArgs([])))
+    expect(captureShape(parseArgs([ '--poses', 'near' ]))).toBe(captureShape(parseArgs([])))
   })
 })

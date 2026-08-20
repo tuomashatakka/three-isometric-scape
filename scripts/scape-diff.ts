@@ -245,24 +245,59 @@ async function resolveRef (ref: string): Promise<string> {
 }
 
 /**
- * Where the reference side's stills live, and which commit they are of.
+ * Where the reference side's stills live, and what they are stills *of*.
  *
  * The sentinel is the whole reason the prewarm is safe. Shots on disk say
- * nothing about what they are shots *of*, so reusing them because they exist is
+ * nothing about what they are shots of, so reusing them because they exist is
  * how a run ends up diffing against whatever the last one happened to leave
  * behind. With the commit written next to them, a stale set is a mismatch
  * rather than a silent wrong answer.
+ *
+ * The commit is not enough on its own, and that cost a run. Everything in
+ * {@link captureShape} changes what the camera sees without changing the code
+ * it is pointed at — and `--tier` is the dangerous one, because the tiers do
+ * not merely look different, they *build different programs*. A reference
+ * warmed at the default `mobile` and reused for a `--tier desktop` head side
+ * compares the one-tap ground against the six-tap ground and reports a third of
+ * the frame changed, for a diff whose actual subject moved a few pixels. Stamp
+ * the shape as well as the sha, and a mismatch rebuilds instead of lying.
  */
 const REF_SHOTS    = '.scape/ref-shots'
 const REF_SENTINEL = join(REF_SHOTS, '.ref-sha')
 
-async function refShotsMatch (rev: string, poses: readonly Pose[]): Promise<boolean> {
+/**
+ * Everything that changes the picture without changing the commit.
+ *
+ * Deliberately the same list `optionsFrom` reads, minus the pose — the poses are
+ * checked separately, by whether their files are there.
+ */
+export function captureShape (args: ReturnType<typeof parseArgs>): string {
+  return [
+    args.str('tier', 'mobile'),
+    args.num('ratio', 1),
+    args.str('skip') ?? '',
+    args.str('aa') ?? '',
+    args.str('post') ?? '',
+    args.str('size', '800x500'),
+    args.has('no-still') ? 'live' : 'still',
+    args.has('gpu') ? 'gpu' : 'swiftshader',
+  ].join('|')
+}
+
+async function refShotsMatch (
+  rev:   string,
+  poses: readonly Pose[],
+  shape: string,
+): Promise<boolean> {
   if (!existsSync(REF_SENTINEL))
     return false
 
-  const stamped = (await Bun.file(REF_SENTINEL).text()).trim()
+  const [ stamped, stampedShape ] = (await Bun.file(REF_SENTINEL).text()).trim()
+    .split('\n')
 
-  return stamped === rev && poses.every(pose => existsSync(join(REF_SHOTS, `${pose.name}.png`)))
+  return stamped === rev &&
+    (stampedShape ?? '') === shape &&
+    poses.every(pose => existsSync(join(REF_SHOTS, `${pose.name}.png`)))
 }
 
 async function prepareRef (rev: string): Promise<string> {
@@ -302,14 +337,15 @@ async function prepareReference (
   poses:  readonly Pose[],
   args:   ReturnType<typeof parseArgs>,
 ): Promise<{ tree: string; reused: boolean }> {
-  const rev  = await resolveRef(target)
-  const tree = await prepareRef(rev)
+  const rev   = await resolveRef(target)
+  const tree  = await prepareRef(rev)
+  const shape = captureShape(args)
 
-  if (await refShotsMatch(rev, poses))
+  if (await refShotsMatch(rev, poses, shape))
     return { tree, reused: true }
 
   await capture(tree, args.num('port', 4186), REF_SHOTS, poses, args)
-  await Bun.write(REF_SENTINEL, `${rev}\n`)
+  await Bun.write(REF_SENTINEL, `${rev}\n${shape}\n`)
 
   return { tree, reused: false }
 }
