@@ -146,6 +146,8 @@ keeping generation in `build`, animation in `update`, resize work in `resize` an
 ```text
 src/
 ├── main.ts                         browser entry and accessible status
+├── context-recovery.ts             the scape's status store, and the fallback ladder
+├── url-overrides.ts                every knob the query string may overrule
 ├── style.css                       full-viewport responsive shell
 ├── prop-preview/                   /props.html — contact sheet and quad view
 │   ├── main.ts                     two-mode routing off the query string
@@ -370,7 +372,7 @@ a tier is a bundle of decisions taken from what the device says about itself, an
 
 **it rebuilds the scape, and says so.** almost nothing in this config needs that; the modules re-read it every frame. what does are the decisions taken once, when the renderer and its programs are made — whether there is an `EffectComposer` at all, whether shadow maps compile, how many drops are in the rain's one static buffer. so this is the one control in the panel marked `rebuild`, and it unmounts and remounts on the same canvas rather than pretending to work until the next reload. the canvas is deliberately *not* renewed: its context is alive, and asking for another one is what the loss recovery is careful not to do lightly.
 
-**a context loss takes it back.** the mobile preset drops the optical chain because a PowerVR handset loses its context to it, and this switch is what puts that back. if the device answers by dropping the context, `loseContext` puts `runtime.effects` to `tier` along with everything else it walks down — the reader's answer is respected right up until the hardware disagrees with it.
+**a context loss takes it back.** the mobile preset drops the optical chain because a PowerVR handset loses its context to it, and this switch is what puts that back. if the device answers by dropping the context, [`context-recovery.ts`](src/context-recovery.ts) puts `runtime.effects` to `tier` along with everything else it walks down — the reader's answer is respected right up until the hardware disagrees with it.
 
 `?effects=all` is the same switch from a url, which is the only way to photograph a phone tier with the whole chain on it.
 

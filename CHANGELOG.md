@@ -2,6 +2,23 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## three state machines, one store
+
+`main.ts` was 633 lines holding three unrelated machines in one closure scope: a query-string parser, the mount, and the webgl context-loss ladder. they shared
+`params`, `diagnostics` and eight `let` bindings, so none of the three could be read — or tested — without the other two.
+
+- **the ladder is a reducer now.** [`context-recovery.ts`](src/context-recovery.ts) keeps the scape's condition in the runtime's own `createStore` —
+`{ scape, quality, losses }`, serializable, one writer. every decision a lost context forces (spend another or stop, drop a tier or admit there is none left) is
+`reduce(status, action)`: a pure function, argued with in **six tests** that need no gpu, no dom and no timers
+- **`announce` is gone.** `data-scape-state` is a *subscriber* rather than a fifth place the state was kept, so the attribute cannot disagree with the store.
+`onVitals` dispatches `drawn` and the reducer decides whether it still means anything — a stray frame no longer talks a failed scape back into `ready`
+- **three `try`/`catch` blocks became one.** the first load, a rebuild and a recovery timer all failed the same way in three copies. `attempt(what)` is the only one
+left; the "this origin has lost too many contexts" hint stays on the first load, where it is the only place it helps
+- **the parser moved out whole.** [`url-overrides.ts`](src/url-overrides.ts) — `?tier= ?post= ?ratio= ?aa= ?effects= ?set=` — takes its query string and its log as
+arguments instead of reaching into module scope, so **eight more tests** pin the `?set=` coercion rules and what happens when tier memory and the url disagree
+- **`fence.ts` stopped hand-rolling a cylinder**, the last prop builder bypassing the runtime's primitives
+- **cost: `same` on all six tour poses**, structural unchanged — this moves no pixels. `main.ts` 633 → 323 lines, and the ladder gained fourteen tests it never had
+
 ## the lamp the bloom never saw
 
 the lighthouse landed with a comment saying the glow around its lamp was "the bloom's business, not the mesh's". it was the right intent. the bloom was never handed

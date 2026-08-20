@@ -380,7 +380,7 @@ state flows down (`store → module.update → scene`), input flows back through
 
 | entry | used for |
 | --- | --- |
-| `threejs-scene` | `createApp`, `defineModule`, `createSeededRng`, `createRenderer`, `createIsoCamera`/`resizeIsoCamera`, `createLUT`, `createSeamlessNoiseTexture`, `smoothstep`, `hash2`, `valueNoise1d`, `readPath`/`writePath`/`readNumberPath`/`readTextPath` |
+| `threejs-scene` | `createApp`, `defineModule`, `createSeededRng`, `createRenderer`, `createIsoCamera`/`resizeIsoCamera`, `createStore`, `createLUT`, `createSeamlessNoiseTexture`, `smoothstep`, `hash2`, `valueNoise1d`, `readPath`/`writePath`/`readNumberPath`/`readTextPath` |
 | `threejs-scene/modules/lighting` | `standardLighting()` |
 | `threejs-scene/modules/post` | `postProcessing()`, `createAo`, `createSsr`, `createTraa` |
 | `threejs-scene/modules/post/webgl` | the individual effect passes |

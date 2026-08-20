@@ -7,11 +7,11 @@ Every symbol the runtime exports, and whether this scape uses it. **Read this be
 writing a helper** — the reinvention this file exists to stop was never a discipline
 problem, it was that nothing here said what was already available.
 
-**60 of 390 exports used.** Everything marked `—` is available and unused.
+**62 of 390 exports used.** Everything marked `—` is available and unused.
 
 ## `threejs-scene`
 
-19 of 57 used.
+21 of 57 used.
 
 | symbol | kind | used by |
 | --- | --- | --- |
@@ -32,9 +32,9 @@ problem, it was that nothing here said what was already available.
 | `createFollowCamera` | function | — |
 | `createFrameLoop` | function | — |
 | `createIsoCamera` | function | src/scene/create-isometric-scape.ts |
-| `createRenderer` | function | src/scene/create-isometric-scape.ts |
+| `createRenderer` | function | src/prop-preview/quad-view.ts, src/scene/create-isometric-scape.ts |
 | `createSeededRng` | function | src/prop-preview/main.ts, src/prop-preview/contact-sheet.ts, src/scene/rain.ts +18 |
-| `createStore` | function | — |
+| `createStore` | function | src/context-recovery.ts |
 | `defineModule` | function | src/scene/clouds.ts, src/scene/vitals.ts, src/scene/rain.ts +8 |
 | `Disposable` | interface | — |
 | `disposeMaterial` | function | — |
@@ -67,7 +67,7 @@ problem, it was that nothing here said what was already available.
 | `SeededRng` | interface | src/scene/props/vegetation.ts, src/scene/props/stone.ts, src/scene/props/buildings.ts +14 |
 | `Size` | interface | — |
 | `smoothstep` | function | src/scene/clouds.ts, src/scene/season.ts, src/scene/noise.ts +14 |
-| `Store` | interface | — |
+| `Store` | interface | src/context-recovery.ts |
 | `StoreListener` | type | — |
 | `valueNoise1d` | function | src/scene/landscape/cart-ruts.ts |
 | `Vec3` | type | — |
@@ -273,7 +273,7 @@ problem, it was that nothing here said what was already available.
 | `createTriplanarMaterial` | function | — |
 | `CrystalOptions` | interface | — |
 | `crystalProp` | function | — |
-| `cyl` | const | src/scene/props/vegetation.ts, src/scene/props/buildings.ts, src/scene/props/objects.ts +6 |
+| `cyl` | const | src/scene/props/vegetation.ts, src/scene/props/buildings.ts, src/scene/props/objects.ts +7 |
 | `defineProp` | function | — |
 | `deg` | const | src/scene/props/vegetation.ts, src/scene/props/buildings.ts, src/scene/props/objects.ts +5 |
 | `displaceByNoise` | function | — |

@@ -1,7 +1,7 @@
-import { CylinderGeometry, Matrix4, Quaternion, Vector3 } from 'three'
+import { Matrix4, Quaternion, Vector3 } from 'three'
 import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
-import { mergeParts, part } from 'threejs-scene/modules/assets'
+import { cyl, mergeParts, part } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
 
 
@@ -74,7 +74,7 @@ function strut (
   if (length < 1e-4)
     return
 
-  const geometry = part(new CylinderGeometry(radius, radius, length, 5), { color, jitter, rng })
+  const geometry = part(cyl(radius, radius, length, 5), { color, jitter, rng })
 
   rotation.setFromUnitVectors(UP, direction.divideScalar(length))
   placement.compose(midpoint.addVectors(from, to).multiplyScalar(0.5), rotation, ONE)
