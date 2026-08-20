@@ -376,6 +376,13 @@ const module = defineModule<State>({
 
 state flows down (`store → module.update → scene`), input flows back through `setState`/`dispatch` — never straight into scene objects. same seed + same tick sequence reproduces the same world, headless included.
 
+**in this repo the state *is* `SCAPE_CONFIG`.** `createApp<ScapeConfig>(canvas, { state: config })`, so the scape's tuning surface and the store's state are the same object, and there is exactly one of it. two rules follow, and both are enforced by the compiler rather than by remembering them:
+
+- **anything that outlives a tick takes `LiveConfig`, never a `ScapeConfig`.** `LiveConfig` is `() => ScapeConfig`. the store commits a *new* object on every write, so a section destructured at build time and read every frame is a section frozen at whatever it held before the reader touched a slider. a factory that reads per frame takes the reader and calls it; a pure builder called once takes the config and is handed `config()`. getting this backwards is a type error, not a bug.
+- **every write goes through [`config-access.ts`](src/scene/config-access.ts).** it knows whether the scape has mounted — before that a write is the next version of a plain object, after it the app's store is the single writer. [`state-path.ts`](src/scene/state-path.ts)'s `withPath` is `writePath` with structural sharing, so setting `look.bloom` copies two objects and keeps the other eighteen.
+
+**a capture cannot check either of these.** `?set=` is applied before the scape mounts and nothing in the harness drives the overlay, so a module that stopped answering after build would photograph identically at every pose. the liveness tests in [`config-access.test.ts`](src/scene/config-access.test.ts) are what actually check it: move a knob *after* the thing was built, and assert the thing noticed.
+
 ### what this repo imports
 
 | entry | used for |

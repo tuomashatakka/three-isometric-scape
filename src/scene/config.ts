@@ -1,3 +1,4 @@
+import type { AppModule } from 'threejs-scene'
 import type { QualityEffects } from './quality.ts'
 
 
@@ -803,6 +804,21 @@ export interface ScapeConfig {
     effects: QualityEffects
   }
 }
+
+/**
+ * The config as of the tick being drawn.
+ *
+ * Call it on every read, and never hold what it hands back. The app's store is
+ * the config's owner once the scape has mounted, and it commits a *new* object
+ * on every write — so a section destructured at build time and read every frame
+ * is a section frozen at whatever it held before the reader touched a slider.
+ * Anything that outlives a single tick takes this instead of a `ScapeConfig`,
+ * which is a distinction the compiler enforces rather than a rule to remember.
+ */
+export type LiveConfig = () => ScapeConfig
+
+/** Every module in this scape projects the same state: the config itself. */
+export type ScapeModule = AppModule<ScapeConfig>
 
 export const SCAPE_CONFIG = {
   seed:    7_319,

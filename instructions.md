@@ -100,6 +100,8 @@ the house rules. each is load-bearing for either performance or determinism, and
 
 **moving state has one authority.** cameras, wakes and diagnostics consume stable pose records from the simulation; they do not resample the route or derive a second turn clock. a selectable moving thing also needs an explicit way back to manual control — escape plus the direct-manipulation gestures that would otherwise fight the follow target.
 
+**the config is the app's state, and it moves.** anything read every frame takes `LiveConfig` (`() => ScapeConfig`) and calls it; anything called once at build takes a `ScapeConfig`. never destructure a section at build time and read it per frame — the store commits a new object on every write and the capture harness cannot see the difference. every write goes through the access in `scene/config-access.ts`, never into `SCAPE_CONFIG`. a knob that only takes effect on reload is not a knob.
+
 **every tier still has to run.** gate new cost on `AtmosphereQuality`; defend `mobile`. a system that cannot be made cheap gets a tier gate and a graceful *absence*, not a broken-looking cheap version.
 
 **lifecycle discipline.** generation in `build`, animation in `update`, viewport work in `resize`, teardown in `dispose`. `createApp` owns the only render loop. everything allocated on the gpu is released in `dispose`, including what a new system allocates on behalf of an old one.

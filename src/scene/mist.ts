@@ -12,8 +12,7 @@ import {
 } from 'three'
 import type { OrthographicCamera, Texture } from 'three'
 import { defineModule, smoothstep } from 'threejs-scene'
-import type { AppModule } from 'threejs-scene'
-import type { ScapeConfig } from './config.ts'
+import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import type { DaylightState } from './daylight.ts'
 import { sampleHeight } from './noise.ts'
 import type { AtmosphereQuality } from './quality.ts'
@@ -22,7 +21,7 @@ import type { SeasonState } from './season.ts'
 
 export interface MistOptions {
   camera:  OrthographicCamera
-  config:  ScapeConfig
+  config:  LiveConfig
   quality: AtmosphereQuality
 
   /** Live sky state — mist is the fog colour, and the fog colour has a clock now. */
@@ -283,18 +282,18 @@ export function createMistLayer ({
   quality,
   daylight,
   season,
-}: MistOptions): AppModule<Record<string, never>> {
+}: MistOptions): ScapeModule {
   const count      = Math.max(1, quality.mistLayers)
   const sliceCount = Math.max(1, Math.round(count / 2))
   const smokeCount = Math.max(1, Math.round(count / 2))
-  const sheetSize  = mistSheetSize(config.archipelago.worldSize)
-  const waterLine  = config.terrain.waterLevel
-  const amount     = config.atmosphere.mistAmount
-  const geometry   = sheetGeometry(sheetSize, config)
+  const sheetSize  = mistSheetSize(config().archipelago.worldSize)
+  const waterLine  = config().terrain.waterLevel
+  const amount     = config().atmosphere.mistAmount
+  const geometry   = sheetGeometry(sheetSize, config())
   const upright    = sliceGeometry(sheetSize, MIST_HEIGHT)
-  const offshore   = smokeGeometry(sheetSize, config)
+  const offshore   = smokeGeometry(sheetSize, config())
   const field      = new Uint8Array(TEXTURE_SIZE * TEXTURE_SIZE * 4)
-  bakeMist(field, config.seed ^ 0x53a9)
+  bakeMist(field, config().seed ^ 0x53a9)
 
   const texture       = new DataTexture(field, TEXTURE_SIZE, TEXTURE_SIZE, RGBAFormat)
   texture.wrapS       = MirroredRepeatWrapping
@@ -303,13 +302,13 @@ export function createMistLayer ({
   texture.minFilter   = LinearFilter
   texture.needsUpdate = true
 
-  const mistColor = new Color(config.palette.fog).lerp(WHITE, 0.32)
+  const mistColor = new Color(config().palette.fog).lerp(WHITE, 0.32)
 
   // Whiter than the mist, and not as a matter of taste: sea smoke is water that
   // has just condensed out of the air standing on it, where ground mist is haze
   // the sky is lighting through. The one is nearly opaque white in the small and
   // the other never is.
-  const smokeColor = new Color(config.palette.fog).lerp(WHITE, 0.62)
+  const smokeColor = new Color(config().palette.fog).lerp(WHITE, 0.62)
   const visible    = amount > 0.01
 
   function tile (index: number, scale: number): Texture {
@@ -320,7 +319,7 @@ export function createMistLayer ({
   }
 
   function drift (index: number, weight: number, color: Color): Omit<MistSheet, 'mesh'> {
-    const heading = config.seed * 0.001 + index * 0.7
+    const heading = config().seed * 0.001 + index * 0.7
 
     return {
       driftX: Math.cos(heading),
@@ -380,7 +379,7 @@ export function createMistLayer ({
     const travel = delta *
       DRIFT_SPEED *
       sheet.speed *
-      config.atmosphere.mistWind /
+      config().atmosphere.mistWind /
       sheetSize *
       map.repeat.x
 
@@ -456,7 +455,7 @@ export function createMistLayer ({
   const drifting = [ ...sheets, ...slices ]
   const all      = [ ...drifting, ...smoke ]
 
-  return defineModule<Record<string, never>>({
+  return defineModule<ScapeConfig>({
     name: 'ground-mist',
 
     build (ctx) {
@@ -465,8 +464,8 @@ export function createMistLayer ({
     },
 
     update (_state, frame) {
-      const density  = config.atmosphere.mistAmount
-      const viewSize = camera.userData.viewSize as number ?? config.camera.viewSize
+      const density  = config().atmosphere.mistAmount
+      const viewSize = camera.userData.viewSize as number ?? config().camera.viewSize
 
       // Mist is unlit, so nothing else would carry the time of day onto it. Take
       // the horizon straight from the clock and it stays the same substance as

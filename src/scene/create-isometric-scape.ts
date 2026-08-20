@@ -1,10 +1,10 @@
 import { Vector2, Vector3 } from 'three'
 import type { Mesh, WebGLRenderer } from 'three'
 import { createApp, createIsoCamera, createRenderer } from 'threejs-scene'
-import type { AppModule } from 'threejs-scene'
+import type { Store } from 'threejs-scene'
 import { NOTHING_SKIPPED, reportPrograms } from './audit.ts'
 import type { ScapeFamily, ScapeSkips } from './audit.ts'
-import type { ScapeConfig } from './config.ts'
+import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import { createAtmosphereLayer } from './atmosphere.ts'
 import { createAuroraLayer } from './aurora.ts'
 import { createBeaconLight } from './beacon.ts'
@@ -23,6 +23,17 @@ import type { VitalsSample } from './vitals.ts'
 
 
 export interface IsometricScape {
+
+  /**
+   * Where the config lives once the scape has mounted.
+   *
+   * `createApp` puts it in the store, and from that moment the store is its
+   * single writer — the overlay, the settings snapshot and anything else that
+   * moves a knob go through here rather than reaching for the module singleton,
+   * which is one write out of date the moment the first slider moves.
+   */
+  store: Store<ScapeConfig>
+
   dispose(): void
 }
 
@@ -218,14 +229,24 @@ export function createIsometricScape (
   const { quality } = options
   const skip        = options.skip ?? NOTHING_SKIPPED
 
+  // Which config object is current.
+  //
+  // The store commits a *new* one on every write, so anything that outlives a
+  // single tick reads through `readConfig` rather than holding what it was
+  // built with. This is the only place that knows, and the subscription below —
+  // the store telling us it has committed — is the only thing that writes it.
+  let live = config
+
+  const readConfig: LiveConfig = () => live
+
   // Built before anything that asks it a question. It owns the shadow map's
   // refresh rate, and the atmosphere has to know the answer before it decides
   // whether fitting a frustum is worth doing this frame.
-  const runtime    = createRuntime(config)
-  const landscape  = createLandscape(config, quality, skip)
+  const runtime    = createRuntime(readConfig)
+  const landscape  = createLandscape(readConfig, quality, skip)
   const atmosphere = createAtmosphereLayer({
     camera,
-    config,
+    config:       readConfig,
     quality,
     groundRadius: config.archipelago.worldSize * 0.8,
     shadowDue:    runtime.shadowDue,
@@ -236,14 +257,14 @@ export function createIsometricScape (
   // resolved for this frame by the time they are asked for.
   const mist = unless(skip, 'mist', () => createMistLayer({
     camera,
-    config,
+    config:   readConfig,
     quality,
     daylight: atmosphere.daylight,
     season:   landscape.season,
   }))
 
   const clouds = unless(skip, 'clouds', () =>
-    createCloudLayer({ camera, config, quality, daylight: atmosphere.daylight }))
+    createCloudLayer({ camera, config: readConfig, quality, daylight: atmosphere.daylight }))
 
   // One clock, because there is only one question: how much sky the sun has
   // left. The arc it is on already knows what week of the year it is, so the
@@ -252,7 +273,7 @@ export function createIsometricScape (
   // a dimmer one.
   const aurora = unless(skip, 'aurora', () => createAuroraLayer({
     camera,
-    config,
+    config:   readConfig,
     quality,
     daylight: atmosphere.daylight,
   }))
@@ -263,7 +284,7 @@ export function createIsometricScape (
   // beneath it is wet from. Returns null on the tier with no drops to give.
   const rain = unless(skip, 'rain', () => createRainLayer({
     camera,
-    config,
+    config:  readConfig,
     quality,
     weather: landscape.weather,
     season:  landscape.season,
@@ -274,7 +295,7 @@ export function createIsometricScape (
   // because where the lamp *is* comes out of the survey. Returns null when no
   // island in the archipelago had a rock far enough out to build a tower on.
   const beacon = unless(skip, 'beacon', () => createBeaconLight({
-    config,
+    config:   readConfig,
     quality,
     hubs:     landscape.lanternHubs,
     daylight: atmosphere.daylight,
@@ -287,7 +308,7 @@ export function createIsometricScape (
   const post = quality.post && !skip.has('post')
     ? createAtmospherePost({
       camera,
-      config,
+      config:      readConfig,
       quality,
       sunPosition: atmosphere.sunPosition,
       // Resolved lazily: post builds last, so the lake already exists by the
@@ -301,7 +322,7 @@ export function createIsometricScape (
     canvas,
     landscape,
     boatFleet:       landscape.boatFleet,
-    limits:          config.camera,
+    limits:          () => readConfig().camera,
     maxFocus:        config.archipelago.worldSize * 0.48,
     reducedMotion:   options.reducedMotion,
     onFocus:         options.onFocus,
@@ -324,10 +345,10 @@ export function createIsometricScape (
     rain,
     beacon,
     post,
-  ].filter((module): module is AppModule<Record<string, never>> => module !== null)
+  ].filter((module): module is ScapeModule => module !== null)
 
-  const app = createApp<Record<string, never>>(canvas, {
-    state: {},
+  const app = createApp<ScapeConfig>(canvas, {
+    state: config,
     seed:  config.seed,
     camera,
 
@@ -337,6 +358,12 @@ export function createIsometricScape (
     loop:     { fps: quality.frameRate },
     renderer: buildRenderer(canvas, quality, quality.shadows && !skip.has('shadows')),
     use:      modules,
+  })
+
+  // From here the store is the config's owner, and every module that reads a
+  // knob per frame is reading whatever this hands back.
+  const forget = app.store.subscribe(next => {
+    live = next
   })
 
   // Mounted after everything it measures, and last of all so that nothing it
@@ -424,11 +451,14 @@ export function createIsometricScape (
   settle()
 
   return {
+    store: app.store,
+
     dispose () {
       canvas.removeEventListener('webglcontextlost', handleContextLost)
       canvas.removeEventListener('webglcontextrestored', handleContextRestored)
       canvas.removeEventListener('webglcontextcreationerror', handleCreationError)
       document.removeEventListener('visibilitychange', handleVisibility)
+      forget()
       app.dispose()
     },
   }

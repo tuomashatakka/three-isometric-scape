@@ -3,7 +3,7 @@ import type { IUniform, MeshStandardMaterial, WebGLProgramParametersWithUniforms
 import { kitMaterial, markShared } from 'threejs-scene/modules/assets'
 import { NOTHING_SKIPPED } from '../audit.ts'
 import type { ScapeSkips } from '../audit.ts'
-import type { ScapeConfig } from '../config.ts'
+import type { LiveConfig } from '../config.ts'
 import type { SeasonState } from '../season.ts'
 import { createTextureCatalogue } from '../textures/catalogue.ts'
 import type { TextureCatalogue } from '../textures/catalogue.ts'
@@ -372,10 +372,10 @@ const GROUND_LIE = 'smoothstep(0.22, 0.72, vScapeUp)'
 const FOLIAGE_LIE = '0.55'
 
 export function createScapeMaterials (
-  config: ScapeConfig,
+  config: LiveConfig,
   skip: ScapeSkips = NOTHING_SKIPPED,
   detailTaps = 6,
-  textures: TextureCatalogue = createTextureCatalogue(config.seed),
+  textures: TextureCatalogue = createTextureCatalogue(config().seed),
 ): ScapeMaterials {
   const detailFragment = detailTaps >= 6 ? DETAIL_FRAGMENT : DETAIL_FRAGMENT_LITE
 
@@ -391,22 +391,22 @@ export function createScapeMaterials (
   const shared: Record<string, IUniform> = {
     uCloudMap:      { value: cloudMap },
     uCloudOffset:   cloudOffset,
-    uCloudScale:    { value: 1 / Math.max(1, config.atmosphere.cloudScale) },
-    uCloudStrength: { value: config.atmosphere.cloudShadow },
+    uCloudScale:    { value: 1 / Math.max(1, config().atmosphere.cloudScale) },
+    uCloudStrength: { value: config().atmosphere.cloudShadow },
   }
   const wind: Record<string, IUniform> = {
     uWindTime:     { value: 0 },
-    uWindSpeed:    { value: config.wind.speed },
-    uWindStrength: { value: config.wind.strength },
+    uWindSpeed:    { value: config().wind.speed },
+    uWindStrength: { value: config().wind.strength },
   }
   const detail: Record<string, IUniform> = {
     uDetailMap:      { value: detailMap },
     uWearMap:        { value: wearMap },
     uBarkMap:        { value: barkMap },
-    uDetailScale:    { value: 1 / Math.max(0.5, config.terrain.detailScale) },
-    uDetailStrength: { value: config.terrain.detailGrain },
-    uDetailMacro:    { value: config.terrain.detailMacro },
-    uPropGrain:      { value: config.terrain.propGrain },
+    uDetailScale:    { value: 1 / Math.max(0.5, config().terrain.detailScale) },
+    uDetailStrength: { value: config().terrain.detailGrain },
+    uDetailMacro:    { value: config().terrain.detailMacro },
+    uPropGrain:      { value: config().terrain.propGrain },
   }
 
   // Both materials share these instances, so the year is written once a frame
@@ -419,7 +419,7 @@ export function createScapeMaterials (
     uSeasonTintAmount: { value: 0 },
     uSeasonSnow:       seasonSnow,
     uSeasonSnowAmount: { value: 0 },
-    uSeasonSnowLine:   { value: config.terrain.waterLevel },
+    uSeasonSnowLine:   { value: config().terrain.waterLevel },
   }
 
   // Its own record rather than a field of `season`, because it is its own clock.
@@ -527,18 +527,18 @@ export function createScapeMaterials (
     // at build. The scape's tuning surface is the config object, and a knob
     // that only takes effect on reload is not a knob.
     update (elapsed, year, sky) {
-      const drift = config.atmosphere.cloudSpeed
+      const drift = config().atmosphere.cloudSpeed
 
       cloudOffset.value.set(elapsed * drift * 0.06, elapsed * drift * 0.021)
       wind.uWindTime.value         = elapsed
-      wind.uWindSpeed.value        = config.wind.speed
-      wind.uWindStrength.value     = config.wind.strength
-      shared.uCloudStrength.value  = config.atmosphere.cloudShadow
-      shared.uCloudScale.value     = 1 / Math.max(1, config.atmosphere.cloudScale)
-      detail.uDetailStrength.value = config.terrain.detailGrain
-      detail.uDetailScale.value    = 1 / Math.max(0.5, config.terrain.detailScale)
-      detail.uDetailMacro.value    = config.terrain.detailMacro
-      detail.uPropGrain.value      = config.terrain.propGrain
+      wind.uWindSpeed.value        = config().wind.speed
+      wind.uWindStrength.value     = config().wind.strength
+      shared.uCloudStrength.value  = config().atmosphere.cloudShadow
+      shared.uCloudScale.value     = 1 / Math.max(1, config().atmosphere.cloudScale)
+      detail.uDetailStrength.value = config().terrain.detailGrain
+      detail.uDetailScale.value    = 1 / Math.max(0.5, config().terrain.detailScale)
+      detail.uDetailMacro.value    = config().terrain.detailMacro
+      detail.uPropGrain.value      = config().terrain.propGrain
 
       seasonTint.value.copy(year.tint)
       seasonSnow.value.copy(year.snowColor)

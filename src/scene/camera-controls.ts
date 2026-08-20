@@ -1,11 +1,11 @@
 import { MathUtils, Raycaster, Vector2, Vector3 } from 'three'
 import type { OrthographicCamera } from 'three'
 import { aimIsoCamera, attachPointerGesture, defineModule, resizeIsoCamera, smoothstep } from 'threejs-scene'
-import type { AppModule, FrameContext } from 'threejs-scene'
+import type { FrameContext } from 'threejs-scene'
 import { BOAT_FOLLOW_VIEW_SIZE, createBoatFollowController } from './camera-follow.ts'
 import type { BoatFollowSource } from './camera-follow.ts'
 import type { CameraPath } from './camera-path.ts'
-import type { ScapeConfig } from './config.ts'
+import type { ScapeConfig, ScapeModule } from './config.ts'
 import type { Landscape } from './landscape/index.ts'
 
 
@@ -24,7 +24,15 @@ export interface CameraControlsOptions {
   boatFleet?: () => BoatFollowSource | null
 
   /** Read live, so the tuning overlay can reshape the zoom and tilt range. */
-  limits: ScapeConfig['camera']
+  /**
+   * The camera section, as of the tick asking.
+   *
+   * A reader rather than the section itself: `tiltNear` and `tiltFar` are both
+   * on the overlay, and the store commits a new config object every time one of
+   * them moves — so a section captured when the rig was built is a section that
+   * stops answering the moment the reader drags a tilt slider.
+   */
+  limits: () => ScapeConfig['camera']
 
   maxFocus:      number
   reducedMotion: boolean
@@ -161,28 +169,28 @@ export function clientPointToNdc (
  * arrives, not where it has to stay.
  */
 function openingPose (
-  limits:    ScapeConfig['camera'],
+  limits:    () => ScapeConfig['camera'],
   maxFocus:  number,
   landscape: Landscape,
   viewSize:  number,
   stored:    CameraOpening | null | undefined,
 ): CameraPose {
   const { x, z } = clampFocus(
-    stored?.x ?? limits.focusX,
-    stored?.z ?? limits.focusZ,
+    stored?.x ?? limits().focusX,
+    stored?.z ?? limits().focusZ,
     maxFocus,
   )
 
   return {
     focus:    new Vector3(x, landscape.heightAt(x, z), z),
-    viewSize: clamp(stored?.viewSize ?? viewSize, limits.minViewSize, limits.maxViewSize),
+    viewSize: clamp(stored?.viewSize ?? viewSize, limits().minViewSize, limits().maxViewSize),
     heading:  wrapHeading(stored?.heading ?? 0),
   }
 }
 
 export function createCameraControls (
   options: CameraControlsOptions,
-): AppModule<Record<string, never>> {
+): ScapeModule {
   const {
     camera,
     canvas,
@@ -240,7 +248,7 @@ export function createCameraControls (
 
   const aspect = (): number => canvas.clientWidth / canvas.clientHeight || 1
   const tiltOf = (viewSize: number): number =>
-    tiltForViewSize(viewSize, limits.minViewSize, limits.maxViewSize, limits.tiltNear, limits.tiltFar)
+    tiltForViewSize(viewSize, limits().minViewSize, limits().maxViewSize, limits().tiltNear, limits().tiltFar)
 
   /**
    * How far back to sit the camera.
@@ -327,7 +335,7 @@ export function createCameraControls (
       return false
 
     target.focus.set(at.x, landscape.heightAt(at.x, at.z), at.z)
-    target.viewSize = clamp(at.viewSize, limits.minViewSize, limits.maxViewSize)
+    target.viewSize = clamp(at.viewSize, limits().minViewSize, limits().maxViewSize)
     target.heading  = at.heading
     settling        = true
     return true
@@ -393,7 +401,7 @@ export function createCameraControls (
 
   function zoomTo (scale: number): void {
     leavePath()
-    target.viewSize = zoomViewSize(target.viewSize, scale, limits.minViewSize, limits.maxViewSize)
+    target.viewSize = zoomViewSize(target.viewSize, scale, limits().minViewSize, limits().maxViewSize)
     retarget()
   }
 
@@ -416,7 +424,7 @@ export function createCameraControls (
       (!surfaceHit || boatHit.distance <= surfaceHit.distance)
     ) {
       if (boatFollow.select(fleet, boatHit.instanceId)) {
-        target.viewSize = clamp(BOAT_FOLLOW_VIEW_SIZE, limits.minViewSize, limits.maxViewSize)
+        target.viewSize = clamp(BOAT_FOLLOW_VIEW_SIZE, limits().minViewSize, limits().maxViewSize)
         stopRevolving()
         syncBoatFollow()
         onFocus(target.focus)
@@ -606,7 +614,7 @@ export function createCameraControls (
     }
   }
 
-  return defineModule<Record<string, never>>({
+  return defineModule<ScapeConfig>({
     name: 'camera-controls',
 
     build () {

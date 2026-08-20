@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'bun:test'
+import { createConfigAccess } from './scene/config-access.ts'
 import { createUrlOverrides, withPostOverride, withSurfaceOverrides } from './url-overrides.ts'
 import type { UrlReader } from './url-overrides.ts'
 import { SCAPE_CONFIG } from './scene/config.ts'
+import type { ScapeConfig } from './scene/config.ts'
 import { atmosphereQuality } from './scene/quality.ts'
 import type { AtmosphereQualityTier, QualitySignals } from './scene/quality.ts'
 import type { TierMemory } from './scene/tier-memory.ts'
@@ -79,7 +81,7 @@ describe('the opening tier', () => {
   test('what the device has proven holds down what the signals asked for', () => {
     const url     = reader('')
     const memory  = memoryHolding('mobile')
-    const quality = createUrlOverrides({ ...url, signals: CAPABLE, memory }).startingQuality()
+    const quality = createUrlOverrides({ ...url, signals: CAPABLE, memory, config: createConfigAccess<ScapeConfig>(SCAPE_CONFIG) }).startingQuality()
 
     expect(quality.tier).toBe('mobile')
     expect(url.said.join(' ')).toContain('held down')
@@ -88,7 +90,7 @@ describe('the opening tier', () => {
   test('an explicit ?tier= clears the stored verdict rather than arguing with it', () => {
     const url     = reader('tier=ultra')
     const memory  = memoryHolding('minimal')
-    const quality = createUrlOverrides({ ...url, signals: CAPABLE, memory }).startingQuality()
+    const quality = createUrlOverrides({ ...url, signals: CAPABLE, memory, config: createConfigAccess<ScapeConfig>(SCAPE_CONFIG) }).startingQuality()
 
     expect(quality.tier).toBe('ultra')
     expect(memory.forgotten).toBe(true)
@@ -96,7 +98,7 @@ describe('the opening tier', () => {
 
   test('the surface overrides still land on top of a forced tier', () => {
     const url     = reader('tier=minimal&ratio=2&post=1')
-    const quality = createUrlOverrides({ ...url, signals: CAPABLE, memory: memoryHolding(null) }).startingQuality()
+    const quality = createUrlOverrides({ ...url, signals: CAPABLE, memory: memoryHolding(null), config: createConfigAccess<ScapeConfig>(SCAPE_CONFIG) }).startingQuality()
 
     expect(quality.tier).toBe('minimal')
     expect(quality.pixelRatioMax).toBe(2)
@@ -106,25 +108,20 @@ describe('the opening tier', () => {
 
 describe('?set=', () => {
   test('reads numbers as numbers, booleans as booleans and the rest as text', () => {
-    const authored = {
-      rotation: SCAPE_CONFIG.camera.rotation,
-      time:     SCAPE_CONFIG.daylight.time,
-    }
+    const url    = reader('set=camera.rotation=30,daylight.time=0.85,nothing.here')
+    const config = createConfigAccess<ScapeConfig>(SCAPE_CONFIG)
 
-    const url = reader('set=camera.rotation=30,daylight.time=0.85,nothing.here')
+    createUrlOverrides({ ...url, signals: CAPABLE, memory: memoryHolding(null), config }).applyToConfig()
 
-    createUrlOverrides({ ...url, signals: CAPABLE, memory: memoryHolding(null) }).applyToConfig()
+    expect(config.read().camera.rotation).toBe(30)
+    expect(config.read().daylight.time).toBe(0.85)
 
-    try {
-      expect(SCAPE_CONFIG.camera.rotation).toBe(30)
-      expect(SCAPE_CONFIG.daylight.time).toBe(0.85)
+    // An entry with no `=` is reported and skipped, not guessed at.
+    expect(url.said.join(' ')).toContain('wants path=value')
 
-      // An entry with no `=` is reported and skipped, not guessed at.
-      expect(url.said.join(' ')).toContain('wants path=value')
-    }
-    finally {
-      SCAPE_CONFIG.camera.rotation = authored.rotation
-      SCAPE_CONFIG.daylight.time   = authored.time
-    }
+    // And the authored config is untouched: the write went to the access, which
+    // is a new object, which is the whole reason a rebuild can be handed what
+    // the reader last asked for rather than what shipped.
+    expect(SCAPE_CONFIG.camera.rotation).not.toBe(30)
   })
 })

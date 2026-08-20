@@ -10,7 +10,7 @@ import {
   Vector4,
 } from 'three'
 import type { IUniform, Texture, WebGLProgramParametersWithUniforms } from 'three'
-import type { ScapeConfig } from '../config.ts'
+import type { LiveConfig, ScapeConfig } from '../config.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import type { SeasonState } from '../season.ts'
 import type { TextureCatalogue } from '../textures/catalogue.ts'
@@ -387,7 +387,7 @@ function bakeShoreMask (config: ScapeConfig, field: HeightField, span: number): 
 }
 
 export function createWater (
-  config:   ScapeConfig,
+  config:   LiveConfig,
   field:    HeightField,
   quality:  AtmosphereQuality,
   textures: TextureCatalogue,
@@ -406,16 +406,16 @@ export function createWater (
   // and the fog closes within `groundRadius * 2` of the camera — so the cheap
   // tiers can carry a third of the surface for the same horizon, which is a
   // third of the vertices in the one mesh that is guaranteed to fill the frame.
-  const maskSpan = config.archipelago.worldSize * 1.02
+  const maskSpan = config().archipelago.worldSize * 1.02
   const surface  = Math.max(
-    config.archipelago.worldSize * 4,
-    config.terrain.size * quality.waterSpan,
+    config().archipelago.worldSize * 4,
+    config().terrain.size * quality.waterSpan,
   )
   const segments = quality.waterSegments
   const geometry = new PlaneGeometry(surface, surface, segments, segments)
   geometry.rotateX(-Math.PI / 2)
 
-  const shoreMap: Texture = bakeShoreMask(config, field, maskSpan)
+  const shoreMap: Texture = bakeShoreMask(config(), field, maskSpan)
 
   // Both from the shared catalogue, mipmapping and wrap modes included. The
   // speckled one only ever tints; the fractal one drives the shading, because
@@ -425,7 +425,7 @@ export function createWater (
 
   const rippleOffset: IUniform<Vector2> = { value: new Vector2() }
   const waveTime: IUniform<number>      = { value: 0 }
-  const iceColor: IUniform<Color>       = { value: new Color(config.palette.ice) }
+  const iceColor: IUniform<Color>       = { value: new Color(config().palette.ice) }
   const boatWakes                       = Array.from(
     { length: MAX_BOAT_WAKES },
     () => new Vector4(),
@@ -436,24 +436,24 @@ export function createWater (
     uRippleMap:        { value: rippleMap },
     uWaveMap:          { value: waveMap },
     uRippleOffset:     rippleOffset,
-    uDeep:             { value: new Color(config.palette.deepWater) },
-    uShallow:          { value: new Color(config.palette.shallowWater) },
-    uFoam:             { value: new Color(config.palette.foam) },
+    uDeep:             { value: new Color(config().palette.deepWater) },
+    uShallow:          { value: new Color(config().palette.shallowWater) },
+    uFoam:             { value: new Color(config().palette.foam) },
     uIce:              iceColor,
     uShoreScale:       { value: 1 / maskSpan },
     uFreeze:           { value: 0 },
-    uIceReach:         { value: config.water.iceReach },
-    uIceBreak:         { value: config.water.iceBreak },
-    uFloeScale:        { value: config.terrain.size / config.archipelago.worldSize },
+    uIceReach:         { value: config().water.iceReach },
+    uIceBreak:         { value: config().water.iceBreak },
+    uFloeScale:        { value: config().terrain.size / config().archipelago.worldSize },
     uRippleScale:      { value: 1 / 34 },
-    uRippleStrength:   { value: config.water.rippleStrength },
+    uRippleStrength:   { value: config().water.rippleStrength },
     uBoatWakes:        { value: boatWakes },
     uBoatWakePhases:   { value: boatWakePhases },
-    uBoatWakeStrength: { value: config.water.wakeStrength },
+    uBoatWakeStrength: { value: config().water.wakeStrength },
     uSparkleScale:     { value: 1 / 14 },
-    uSparkle:          { value: config.water.sparkle },
+    uSparkle:          { value: config().water.sparkle },
     uWaveTime:         waveTime,
-    uWaveHeight:       { value: config.water.waveHeight },
+    uWaveHeight:       { value: config().water.waveHeight },
   }
 
   // Opaque at the material level, and let the shader's alpha ramp do the
@@ -478,7 +478,7 @@ export function createWater (
     color:           0xffffff,
     transparent:     true,
     opacity:         1,
-    roughness:       config.water.roughness,
+    roughness:       config().water.roughness,
     metalness:       0.02,
     envMapIntensity: 0.3,
     depthWrite:      false,
@@ -502,7 +502,7 @@ export function createWater (
 
   const mesh         = new Mesh(geometry, material)
   mesh.name          = 'water'
-  mesh.position.y    = config.terrain.waterLevel
+  mesh.position.y    = config().terrain.waterLevel
   mesh.receiveShadow = true
 
   // The swell is entirely in the shader — the plane itself sits at the
@@ -549,18 +549,18 @@ export function createWater (
       syncBoatWakes(wakes)
       rippleOffset.value.set(elapsed * 0.014, elapsed * 0.0092)
       waveTime.value                   = elapsed
-      uniforms.uBoatWakeStrength.value = config.water.wakeStrength
-      uniforms.uSparkle.value          = config.water.sparkle * (1 - 0.85 * fall)
-      uniforms.uWaveHeight.value       = config.water.waveHeight
-      uniforms.uRippleStrength.value   = config.water.rippleStrength * (1 + 0.7 * fall)
+      uniforms.uBoatWakeStrength.value = config().water.wakeStrength
+      uniforms.uSparkle.value          = config().water.sparkle * (1 - 0.85 * fall)
+      uniforms.uWaveHeight.value       = config().water.waveHeight
+      uniforms.uRippleStrength.value   = config().water.rippleStrength * (1 + 0.7 * fall)
       uniforms.uFreeze.value           = season.freeze
-      uniforms.uIceReach.value         = config.water.iceReach
-      uniforms.uIceBreak.value         = config.water.iceBreak
+      uniforms.uIceReach.value         = config().water.iceReach
+      uniforms.uIceBreak.value         = config().water.iceBreak
 
       iceColor.value.copy(season.iceColor)
 
-      if (material.roughness !== config.water.roughness)
-        material.roughness = config.water.roughness
+      if (material.roughness !== config().water.roughness)
+        material.roughness = config().water.roughness
     },
 
     dispose () {

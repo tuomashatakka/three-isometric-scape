@@ -1,7 +1,7 @@
 import { DynamicDrawUsage, InstancedMesh, Object3D, Sphere, Vector3 } from 'three'
 import type { MeshStandardMaterial } from 'three'
 import { createSeededRng } from 'threejs-scene'
-import type { ScapeConfig } from '../config.ts'
+import type { LiveConfig } from '../config.ts'
 import { buildMillSails } from '../props/mill.ts'
 import { resolvePalette } from '../props/index.ts'
 
@@ -28,7 +28,7 @@ export interface MillSails {
 }
 
 export interface MillSailsOptions {
-  config:   ScapeConfig
+  config:   LiveConfig
   hubs:     readonly MillHub[]
   material: MeshStandardMaterial
 }
@@ -57,9 +57,9 @@ export function createMillSails (options: MillSailsOptions): MillSails | null {
     return null
 
   const geometry = buildMillSails(
-    createSeededRng(config.seed).fork('mill-sails'),
+    createSeededRng(config().seed).fork('mill-sails'),
     resolvePalette(),
-    config.mill.sailSpan,
+    config().mill.sailSpan,
   )
   const mesh = new InstancedMesh(geometry, material, hubs.length)
 
@@ -70,7 +70,7 @@ export function createMillSails (options: MillSailsOptions): MillSails | null {
   mesh.updateMatrix()
   mesh.matrixAutoUpdate       = false
   mesh.userData.instanceFleet = 'mill'
-  mesh.boundingSphere         = hubBounds(hubs, config.mill.sailSpan)
+  mesh.boundingSphere         = hubBounds(hubs, config().mill.sailSpan)
 
   // 'YXZ' so the composed rotation is yaw *then* spin: the wheel turns in its
   // own plane, and that plane is set by the mill it hangs off. Under the default
@@ -107,7 +107,7 @@ export function createMillSails (options: MillSailsOptions): MillSails | null {
       if (disposed)
         return
 
-      const rate = Math.max(0, config.mill.spin) * Math.max(0, config.wind.strength)
+      const rate = Math.max(0, config().mill.spin) * Math.max(0, config().wind.strength)
 
       if (rate === 0)
         return

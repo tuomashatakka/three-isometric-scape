@@ -2,6 +2,30 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the config the app was never given
+
+`createApp` was handed `state: {}`. an empty store, and the whole tuning surface passed down beside it as a plain object every module captured — which is not the
+unidirectional flow [`agents.md`](agents.md) has documented since it was written. the flow was right in spirit and absent in fact.
+
+- **the state *is* the config now.** `createApp<ScapeConfig>(canvas, { state: config })`. one object, one owner, and `SCAPE_CONFIG` demoted to what it always
+should have been: the authored defaults, read once and never written again
+- **the store commits a new object on every write, which is the whole difficulty.** a section destructured at build time and read every frame stops answering the
+moment a slider moves. `createDaylight`, `createSeason` and `createAtmosphereLayer` all had exactly that shape — the solar arc's latitude, the year's ice, both light
+strengths — and none of it would have shown up in a capture
+- **so the distinction became a type.** `LiveConfig` is `() => ScapeConfig`: anything that outlives a tick takes the reader and calls it, anything called once at
+build takes the config. **fifteen modules** changed, and every read site was found by `tsc` rather than by reading — a factory that reads per frame and captures its
+section is now a compile error
+- **`withPath` is `writePath` with structural sharing.** setting `look.bloom` copies two objects and keeps the other eighteen by reference, and hands back the *same*
+object when the knob was already there — so a slider dragged across a value it is already on wakes nobody
+- **`config-access.ts` is the one thing that knows who owns it.** before the mount a write is the next version of a plain object; after it the app's store is the
+single writer; on teardown the last committed state comes back out, which is what lets a rebuild after a context loss open on what the reader dragged rather than on
+what shipped
+- **a capture cannot verify any of this**, and that is worth saying plainly: `?set=` lands before the mount and nothing drives the overlay, so a module that went
+deaf after build would photograph identically at all six poses. the liveness tests are what check it — move a knob *after* the thing was built and assert it noticed.
+proven the way the `STILL` test was: put the build-time capture back into `daylight.ts` by hand, watch `reaches the solar arc` fail, put it back
+- **cost: `same` on all six tour poses**, structural unchanged, and **594 tests** — seven of them new and three of them the only thing standing between this design
+and a silent one
+
 ## three state machines, one store
 
 `main.ts` was 633 lines holding three unrelated machines in one closure scope: a query-string parser, the mount, and the webgl context-loss ladder. they shared

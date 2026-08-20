@@ -1,6 +1,6 @@
 import { Color } from 'three'
 import { smoothstep } from 'threejs-scene'
-import type { ScapeConfig } from './config.ts'
+import type { LiveConfig } from './config.ts'
 
 
 /** Everything the ground and the growing things need for one instant of the year. */
@@ -158,8 +158,12 @@ export function seaSmokeAmount (phase: number): number {
  * what keeps a whole seasonal cycle free of a rebuild, and it is why the clock
  * can run live while the scape is being looked at.
  */
-export function createSeason (config: ScapeConfig): Season {
-  const { palette, season, terrain } = config
+export function createSeason (config: LiveConfig): Season {
+  // The two tint anchors are read once. No control on the overlay writes a
+  // palette entry, so a rebuild is what changes them, and allocating a pair of
+  // Colors per frame to re-read a constant nobody can move is a cost with no
+  // knob behind it.
+  const { palette, season, terrain } = config()
 
   const sere   = new Color(palette.dryGrass)
   const autumn = new Color(palette.autumn)
@@ -182,6 +186,10 @@ export function createSeason (config: ScapeConfig): Season {
     state,
 
     sample (phase) {
+      // Every knob below is on the overlay, so the year comes from the store as
+      // of this tick rather than from the object this closure was built with.
+      const { season, terrain } = config()
+
       const wrapped = phase - Math.floor(phase)
       const growth  = growthAmount(wrapped)
       const turn    = turnAmount(wrapped)

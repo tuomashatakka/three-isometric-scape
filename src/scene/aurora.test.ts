@@ -62,7 +62,7 @@ describe('auroraBrightness', () => {
   })
 
   test('reads the same sky the lighting rig reads', () => {
-    const daylight = createDaylight(SCAPE_CONFIG)
+    const daylight = createDaylight(() => SCAPE_CONFIG)
     const winter   = daylight.sample(0, 0.02)
 
     expect(auroraBrightness(winter.dark, STRENGTH))

@@ -15,9 +15,9 @@ import type {
   Scene,
 } from 'three'
 import { defineModule } from 'threejs-scene'
-import type { AppModule, SceneContext } from 'threejs-scene'
+import type { SceneContext } from 'threejs-scene'
 import { standardLighting } from 'threejs-scene/modules/lighting'
-import type { ScapeConfig } from './config.ts'
+import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import { createDaylight } from './daylight.ts'
 import type { DaylightState } from './daylight.ts'
 import type { AtmosphereQuality } from './quality.ts'
@@ -25,7 +25,7 @@ import type { AtmosphereQuality } from './quality.ts'
 
 /** The atmosphere module, plus the sun position the post chain needs for god rays. */
 export interface Atmosphere {
-  module: AppModule<Record<string, never>>
+  module: ScapeModule
 
   /** Sun position in world space, refreshed every frame. Read it, never write it. */
   sunPosition: Vector3
@@ -36,7 +36,7 @@ export interface Atmosphere {
 
 export interface AtmosphereOptions {
   camera:       OrthographicCamera
-  config:       ScapeConfig
+  config:       LiveConfig
   groundRadius: number
   quality:      AtmosphereQuality
 
@@ -135,7 +135,7 @@ function isHemisphereLight (object: Object3D): object is HemisphereLight {
 
 function mountLighting (
   ctx: SceneContext,
-  lighting: AppModule<Record<string, never>>,
+  lighting: ScapeModule,
 ): LightingRig | null {
   const before = ctx.scene.children.length
   lighting.build(ctx)
@@ -248,43 +248,47 @@ export function createAtmosphereLayer ({
   quality,
   shadowDue = () => true,
 }: AtmosphereOptions): Atmosphere {
-  const { atmosphere, palette } = config
-  const daylight                = createDaylight(config)
+  // Read once, for the things built once: the lights' colours, the fog's, and
+  // the bounce anchor. Nothing on the overlay writes a palette entry, and a
+  // light's colour is set at construction — the per-frame reads below all go
+  // back to the store instead.
+  const authored = config()
+  const daylight = createDaylight(config)
 
   // `sky` is the live state object, and `direction` is its vector — both are
   // mutated in place by `sample`, never reassigned, so everything downstream can
   // hold the reference instead of being pushed a new one every frame.
-  const sky         = daylight.sample(config.daylight.time, config.season.time)
+  const sky         = daylight.sample(config().daylight.time, config().season.time)
   const direction   = sky.direction
   const sunPosition = new Vector3()
   const horizon     = new Color()
-  const bounceBase  = new Color(palette.meadow)
+  const bounceBase  = new Color(authored.palette.meadow)
   const tallest     = Math.max(
-    ...config.archipelago.landmasses.map(landmass => landmass.terrain.height),
+    ...authored.archipelago.landmasses.map(landmass => landmass.terrain.height),
   ) + CANOPY
   const hemiGain    = quality.environment ? 1 : AMBIENT_TAKEOVER
 
-  const lighting = standardLighting<Record<string, never>>({
+  const lighting = standardLighting<ScapeConfig>({
     env: quality.environment ? { intensity: sky.environment } : false,
     sun: {
-      color:         atmosphere.sunColor,
-      intensity:     atmosphere.sunStrength,
+      color:         authored.atmosphere.sunColor,
+      intensity:     authored.atmosphere.sunStrength,
       position:      [ direction.x, direction.y, direction.z ],
       shadowMapSize: quality.shadowMapSize,
       shadowFrustum: 64,
       shadowFar:     400,
     },
     hemi: {
-      skyColor:    atmosphere.hemiSky,
-      groundColor: atmosphere.hemiGround,
-      intensity:   atmosphere.hemiStrength,
+      skyColor:    authored.atmosphere.hemiSky,
+      groundColor: authored.atmosphere.hemiGround,
+      intensity:   authored.atmosphere.hemiStrength,
     },
   })
 
-  const bounce      = new DirectionalLight(bounceBase, atmosphere.sunStrength * 0.25)
+  const bounce      = new DirectionalLight(bounceBase, authored.atmosphere.sunStrength * 0.25)
   bounce.castShadow = false
 
-  const fog             = new Fog(palette.fog, 1, 2)
+  const fog             = new Fog(authored.palette.fog, 1, 2)
   const skyData         = new Uint8Array(SKY_STEPS * 4)
   const skyTexture      = new DataTexture(skyData, 1, SKY_STEPS, RGBAFormat)
   skyTexture.colorSpace = SRGBColorSpace
@@ -376,7 +380,7 @@ export function createAtmosphereLayer ({
       const facing = viewFlat.normalize().dot(sunFlat.normalize())
       const toward = Math.max(0, facing) ** 2
       const away   = Math.max(0, -facing)
-      const amount = Math.min(1, atmosphere.fogDensity * 1.4)
+      const amount = Math.min(1, config().atmosphere.fogDensity * 1.4)
 
       horizon.lerp(sky.sun, toward * SUN_SCATTER * amount)
       horizon.lerp(sky.skyTop, away * AWAY_SCATTER * amount)
@@ -391,25 +395,25 @@ export function createAtmosphereLayer ({
 
     // The clock lives in the config, so scrubbing the overlay's time slider and
     // letting the cycle run are the same operation on the same number.
-    const clock = config.daylight
+    const clock = config().daylight
     clock.time  = (clock.time + delta * clock.speed / 60) % 1
     // The year is the other clock's number in the same config, so the arc the
     // sun is on this week is read rather than tracked — one authority for the
     // year, whichever module happens to be advancing it.
-    daylight.sample(clock.time, config.season.time)
+    daylight.sample(clock.time, config().season.time)
 
     const target         = readCameraFocus(camera)
-    const viewSize       = camera.userData.viewSize as number ?? config.camera.viewSize
+    const viewSize       = camera.userData.viewSize as number ?? config().camera.viewSize
     const cameraDistance = camera.userData.radius as number ?? camera.position.distanceTo(target)
     const breath         = 1 + (
       Math.sin(elapsed * 0.041) * 0.6 +
       Math.sin(elapsed * 0.017) * 0.4
-    ) * atmosphere.fogBreath
+    ) * config().atmosphere.fogBreath
     const range = calculateFogRange(
       cameraDistance,
       viewSize,
       groundRadius,
-      atmosphere.fogDensity,
+      config().atmosphere.fogDensity,
       breath,
     )
 
@@ -439,14 +443,14 @@ export function createAtmosphereLayer ({
     // through golden hour and goes cold at night instead of staying a fixed
     // green fill that no longer belongs to any of the skies above it.
     bounce.color.copy(bounceBase).lerp(sky.sun, 0.3)
-    bounce.intensity = atmosphere.sunStrength * 0.25 * (0.12 + 0.88 * sky.day)
+    bounce.intensity = config().atmosphere.sunStrength * 0.25 * (0.12 + 0.88 * sky.day)
     bounce.position.copy(target).addScaledVector(direction, -SUN_DISTANCE)
     bounce.position.y = target.y + SUN_DISTANCE * 0.28
     bounce.target.position.copy(target)
     bounce.target.updateMatrixWorld()
   }
 
-  const module = defineModule<Record<string, never>>({
+  const module = defineModule<ScapeConfig>({
     name: 'atmosphere',
 
     build (ctx) {

@@ -1,6 +1,7 @@
-import { readPath, writePath } from 'threejs-scene'
+import { readPath } from 'threejs-scene'
 import { controlPaths } from './scape-controls.ts'
 import type { ControlSection } from './scape-controls.ts'
+import type { ConfigAccess, ConfigValue } from '../scene/config-access.ts'
 
 
 export interface SettingsStore {
@@ -71,12 +72,12 @@ function parse (raw: string | null): Record<string, unknown> {
  * applied over the config. `reset` is what gives them back.
  */
 export function createSettingsStore (
-  config:   object,
+  config:   ConfigAccess<object>,
   sections: readonly ControlSection[],
   storage:  Storage | null = openStorage(KEY),
 ): SettingsStore {
   const paths    = controlPaths(sections)
-  const authored = paths.map(path => readPath(config, path))
+  const authored = paths.map(path => readPath(config.read(), path) as ConfigValue)
   let pending: ReturnType<typeof setTimeout> | null = null
 
   function flush (): void {
@@ -87,7 +88,7 @@ export function createSettingsStore (
     const snapshot: Record<string, unknown> = {}
 
     for (const path of paths)
-      snapshot[path] = readPath(config, path)
+      snapshot[path] = readPath(config.read(), path)
 
     try {
       storage.setItem(KEY, JSON.stringify(snapshot))
@@ -107,8 +108,8 @@ export function createSettingsStore (
       for (const path of paths) {
         const value = stored[path]
 
-        if (value !== undefined && typeof value === typeof readPath(config, path))
-          writePath(config, path, value)
+        if (value !== undefined && typeof value === typeof readPath(config.read(), path))
+          config.write(path, value as ConfigValue)
       }
     },
 
@@ -124,7 +125,7 @@ export function createSettingsStore (
       pending = null
 
       for (const [ index, path ] of paths.entries())
-        writePath(config, path, authored[index])
+        config.write(path, authored[index])
 
       try {
         // Removed rather than overwritten with the defaults. Re-authoring a

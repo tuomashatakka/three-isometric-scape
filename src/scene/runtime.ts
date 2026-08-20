@@ -2,13 +2,12 @@ import { Vector2 } from 'three'
 import type { WebGLRenderer } from 'three'
 import { frameLoopManager } from '@tuomashatakka/canvas-loop-framecapper'
 import { defineModule } from 'threejs-scene'
-import type { AppModule } from 'threejs-scene'
-import type { ScapeConfig } from './config.ts'
+import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 
 
 /** The knobs that cost frames, and the one answer anyone else needs from them. */
 export interface Runtime {
-  module: AppModule<Record<string, never>>
+  module: ScapeModule
 
   /**
    * Whether the shadow map is being rebuilt on the frame currently in flight.
@@ -33,7 +32,7 @@ export interface Runtime {
  * every scattered instance — on every single frame it draws, at up to 4096².
  * Nothing here moves fast enough to need that.
  */
-export function createRuntime (config: ScapeConfig): Runtime {
+export function createRuntime (config: LiveConfig): Runtime {
   const surface = new Vector2()
 
   let renderer: WebGLRenderer | null = null
@@ -76,7 +75,7 @@ export function createRuntime (config: ScapeConfig): Runtime {
     frameLoopManager.setFixedFrameRate(next)
   }
 
-  const module = defineModule<Record<string, never>>({
+  const module = defineModule<ScapeConfig>({
     name: 'runtime',
 
     build (ctx) {
@@ -85,13 +84,16 @@ export function createRuntime (config: ScapeConfig): Runtime {
       renderer.shadowMap.autoUpdate  = false
       renderer.shadowMap.needsUpdate = true
 
-      resurface(config.runtime.pixelRatio)
-      pace(config.runtime.frameCap)
+      resurface(config().runtime.pixelRatio)
+      pace(config().runtime.frameCap)
     },
 
-    update () {
-      resurface(config.runtime.pixelRatio)
-      pace(config.runtime.frameCap)
+    // Every read is off `state`, which is the store's config as of this tick —
+    // the object this closure was built with is one write out of date the first
+    // time the reader touches the performance section.
+    update (state) {
+      resurface(state.runtime.pixelRatio)
+      pace(state.runtime.frameCap)
 
       if (!renderer?.shadowMap.enabled)
         return
@@ -100,7 +102,7 @@ export function createRuntime (config: ScapeConfig): Runtime {
 
       // Rounded and floored at one, because the knob is a slider and a cadence
       // of zero would be a scape whose shadows never arrive at all.
-      due = waited >= Math.max(1, Math.round(config.runtime.shadowCadence))
+      due = waited >= Math.max(1, Math.round(state.runtime.shadowCadence))
 
       if (!due)
         return

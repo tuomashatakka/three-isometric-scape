@@ -1,6 +1,6 @@
 import type { Camera, WebGLRenderer } from 'three'
 import { defineModule } from 'threejs-scene'
-import type { AppModule } from 'threejs-scene'
+import type { ScapeConfig, ScapeModule } from './config.ts'
 
 
 /**
@@ -44,7 +44,7 @@ export interface VitalsSample {
 
 /** What the scape reports about itself while it is running. */
 export interface Vitals {
-  module: AppModule<Record<string, never>>
+  module: ScapeModule
 
   /** Everything worth knowing about the last few seconds, on one line. */
   snapshot(): string
@@ -239,7 +239,7 @@ export function createVitals ({ renderer, camera, verbose, report, notice, sampl
   return {
     snapshot: line,
 
-    module: defineModule<Record<string, never>>({
+    module: defineModule<ScapeConfig>({
       name: 'vitals',
 
       build () {

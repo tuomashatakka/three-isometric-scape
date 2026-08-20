@@ -1,10 +1,9 @@
 import { Group } from 'three'
 import type { Object3D } from 'three'
 import { defineModule } from 'threejs-scene'
-import type { AppModule } from 'threejs-scene'
 import { NOTHING_SKIPPED } from '../audit.ts'
 import type { ScapeSkips } from '../audit.ts'
-import type { ScapeConfig } from '../config.ts'
+import type { LiveConfig, ScapeConfig, ScapeModule } from '../config.ts'
 import { BEACON_SINK, LANTERN_HEIGHT } from '../props/beacon.ts'
 import { createScapeMaterials } from '../props/material.ts'
 import { MILL_HUB_HEIGHT, MILL_HUB_REACH, MILL_SINK } from '../props/mill.ts'
@@ -32,7 +31,7 @@ import type { Water } from './water.ts'
 
 
 export interface Landscape {
-  module: AppModule<Record<string, never>>
+  module: ScapeModule
 
   /** What click-to-focus raycasts against: terrain and water, nothing else. */
   surfaces:    Object3D[]
@@ -69,7 +68,7 @@ export interface Landscape {
 }
 
 export function createLandscape (
-  config: ScapeConfig,
+  config: LiveConfig,
   quality: AtmosphereQuality,
   skip: ScapeSkips = NOTHING_SKIPPED,
 ): Landscape {
@@ -77,7 +76,7 @@ export function createLandscape (
 
   // Each island resolves in the original local survey, then their fields, paths
   // and ports are projected into one deterministic world.
-  const archipelago = surveyArchipelago(config)
+  const archipelago = surveyArchipelago(config())
   const { field }   = archipelago
   const { layout }  = archipelago.home.survey
 
@@ -96,7 +95,7 @@ export function createLandscape (
   // One catalogue for the whole landscape: the ground grain, the cloud shadow
   // and the lake's two maps are one set of uploads shared by two materials and a
   // custom surface, and they are freed together in `dispose`.
-  const textures = createTextureCatalogue(config.seed)
+  const textures = createTextureCatalogue(config().seed)
 
   let root: Group | null               = null
   let materials: ScapeMaterials | null = null
@@ -154,7 +153,7 @@ export function createLandscape (
     }]
   })
 
-  const module = defineModule<Record<string, never>>({
+  const module = defineModule<ScapeConfig>({
     name: 'nordic-landscape',
 
     build (ctx) {
@@ -164,7 +163,7 @@ export function createLandscape (
       materials = createScapeMaterials(config, skip, quality.detailTaps, textures)
 
       const terrain = createArchipelagoTerrain(
-        config,
+        config(),
         archipelago,
         materials.ground,
         quality.terrainSegments,
@@ -186,15 +185,15 @@ export function createLandscape (
       }
 
       if (!skip.has('dressing')) {
-        dressing = createDressing(config, archipelago, materials, quality)
+        dressing = createDressing(config(), archipelago, materials, quality)
         fleet = createBoatFleet({
           config,
           network:  archipelago.waterways,
           material: materials.ground,
           motion:   {
-            dwellSeconds:  config.boats.dwellSeconds,
-            turnRate:      config.boats.turnRate,
-            turnLookAhead: config.boats.turnLookAhead,
+            dwellSeconds:  config().boats.dwellSeconds,
+            turnRate:      config().boats.turnRate,
+            turnLookAhead: config().boats.turnLookAhead,
           },
         })
         sails = createMillSails({ config, hubs: millHubs, material: materials.ground })
@@ -211,8 +210,8 @@ export function createLandscape (
       // The year is a number in the config, the same way the time of day is, so
       // scrubbing the overlay's season slider and letting the clock run are the
       // same operation on the same field.
-      const year = config.season
-      const sky  = config.weather
+      const year = config().season
+      const sky  = config().weather
 
       year.time = (year.time + frame.delta * year.speed / 60) % 1
       sky.time  = (sky.time + frame.delta * sky.speed / 60) % 1

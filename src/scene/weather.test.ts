@@ -6,7 +6,7 @@ import { createWeather, showerAmount, wetAmount } from './weather.ts'
 
 /** A week of the year, resolved the way the landscape module resolves it. */
 function week (phase: number): ReturnType<ReturnType<typeof createSeason>['sample']> {
-  return createSeason(SCAPE_CONFIG).sample(phase)
+  return createSeason(() => SCAPE_CONFIG).sample(phase)
 }
 
 describe('showerAmount', () => {
@@ -78,14 +78,14 @@ describe('wetAmount', () => {
 
 describe('createWeather', () => {
   test('falls as rain over a green year and as snow over a white one', () => {
-    const weather = createWeather(SCAPE_CONFIG)
+    const weather = createWeather(() => SCAPE_CONFIG)
 
     expect(weather.sample(0.3, week(0.5)).sleet).toBe(0)
     expect(weather.sample(0.3, week(0)).sleet).toBeGreaterThan(0.8)
   })
 
   test('takes the wet off the ground as the year freezes it', () => {
-    const weather = createWeather(SCAPE_CONFIG)
+    const weather = createWeather(() => SCAPE_CONFIG)
     const summer  = weather.sample(0.3, week(0.5)).wet
     const winter  = weather.sample(0.3, week(0)).wet
 
@@ -98,7 +98,7 @@ describe('createWeather', () => {
 
   test('takes its strength from the config, and is off at zero', () => {
     const dry     = { ...SCAPE_CONFIG, weather: { ...SCAPE_CONFIG.weather, rain: 0 }}
-    const weather = createWeather(dry)
+    const weather = createWeather(() => dry)
     const state   = weather.sample(0.3, week(0.5))
 
     expect(state.fall).toBe(0)
@@ -106,14 +106,14 @@ describe('createWeather', () => {
   })
 
   test('reuses one state object rather than allocating per frame', () => {
-    const weather = createWeather(SCAPE_CONFIG)
+    const weather = createWeather(() => SCAPE_CONFIG)
 
     expect(weather.sample(0.2, week(0.5))).toBe(weather.state)
     expect(weather.sample(0.7, week(0.5))).toBe(weather.state)
   })
 
   test('wraps a phase the clock has run past the end of', () => {
-    const weather = createWeather(SCAPE_CONFIG)
+    const weather = createWeather(() => SCAPE_CONFIG)
 
     expect(weather.sample(2.3, week(0.5)).phase).toBeCloseTo(0.3, 12)
   })

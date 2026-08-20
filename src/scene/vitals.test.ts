@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { OrthographicCamera } from 'three'
 import type { WebGLRenderer } from 'three'
 import type { FrameContext, SceneContext } from 'threejs-scene'
+import { SCAPE_CONFIG } from './config.ts'
 import { createVitals } from './vitals.ts'
 import type { VitalsSample } from './vitals.ts'
 
@@ -60,7 +61,7 @@ describe('createVitals', () => {
     const ctx = { renderer } as unknown as SceneContext
 
     vitals.module.build(ctx)
-    vitals.module.update?.({}, frameAt(0), ctx)
+    vitals.module.update?.(SCAPE_CONFIG, frameAt(0), ctx)
 
     // The first frame carries every shader compile and every texture upload in
     // the scene, so counting it as a frame would put a number in `worst` that
@@ -109,7 +110,7 @@ describe('createVitals', () => {
     // rather more than the quarter-second sample window.
     for (let index = 0; index < 6; index += 1) {
       await Bun.sleep(50)
-      vitals.module.update?.({}, frameAt(index), ctx)
+      vitals.module.update?.(SCAPE_CONFIG, frameAt(index), ctx)
     }
 
     expect(samples.length).toBeGreaterThan(0)
