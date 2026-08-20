@@ -2,6 +2,31 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## one read to orient, and a map of the runtime
+
+a run starts with no memory and was pointed at four prose documents totalling well over a thousand lines. most of that reading was *searching* — for the section
+about the thing being changed, for whether a pull request was still open, for what the last run did. all of that is mechanically derivable, so it is now derived.
+
+- **added** `bun run brief` — inventory with effective line counts against the enforced 666, the last eight run themes, open pull requests via `gh`, the api digest's
+freshness, and the full `scape:map --stats` block. **1.7 seconds.** `--sections readme` prints the design record's index with the line each heading starts on, which
+turns "read the relevant readme section" from a skim of seven hundred lines into one offset
+- **added** `bun run api:digest` and the committed [`threejs-scene-api.md`](threejs-scene-api.md) — every symbol the runtime exports, which subpath it is on, and
+which of our files import it. **59 of 390 exports are used.** the reinvention this stops was never a discipline problem: nothing here said what was already
+available, so each run rebuilt what it could not see. now one read answers it
+- **the digest is the only generated file that is committed**, and the exception is the point. everything `brief` prints derives from the working tree and would
+churn on every commit, so committing it would add a second thing for every branch to conflict on — the same reasoning that gitignores `.scape/`. the digest moves
+only when the dependency's version does, so its diff is a review event worth having
+- **`--check` warns and never rewrites.** bumping the dependency is a reviewed decision, and silently regenerating a committed file as a side effect would hide
+exactly the diff worth reading. a test fails if the stamp and the installed version disagree; `brief` reports the same drift without failing, which is the right
+split between orienting and verifying
+- **found while building it: nothing in the repository is over the line limit.** the largest file is `dressing.ts` at 609 effective lines against a ceiling of 666.
+`config.ts` reads 1122 in an editor and **535** here, because the count skips comments the way the lint rule does — it is mostly documentation, and it is not the
+file that wanted splitting. the brief now prints this rather than leaving it to be guessed at
+- **the parse is a regex over the shipped `.d.ts` files**, not a trip through the typescript compiler. same bargain every instrument here makes: a barrel of
+`export { a, b } from './c.js'` is not a language, it is a list, and these tools have to keep working when the dependency tree is what is under suspicion
+
+**cost: nothing at runtime.** no `src/` file changed. two scripts, one committed generated document, one test file.
+
 ## the rules the tools now enforce
 
 four house rules were prose, which means they were checked by whoever remembered to check them. they are now checked by the gate, and writing the checks found two things prose had missed.

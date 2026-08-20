@@ -35,17 +35,26 @@ branch from `origin/main`, always freshly fetched. never stack a run on a previo
 before touching anything:
 
 ```sh
-bun run scape:map --stats      # ~1.5 s cold. this is the "before" stage 5 judges against
+bun run brief      # ~2 s. inventory, recent themes, open pull requests, scape:map --stats
 ```
 
-then read, in this order:
+that is the "before" stage 5 judges against, and it answers in one read most of what used to take four documents: what is here and how big it is, what the last
+eight runs were about, whether a pull request is still open, and the full structural survey. `--sections readme` prints the design record's index — every heading
+with the line it starts on, so the section you are about to change is one offset rather than seven hundred lines of skimming.
 
-- **[`agents.md`](agents.md)** — the tool reference. it is short, and it is what stops a run reaching for a screenshot when a roughly 1.5-second ascii survey would have answered the question.
+it is advisory and never fails. orienting is not verifying.
+
+then read, and only these:
+
 - **[`src/scene/config.ts`](src/scene/config.ts)** — the public tuning surface and the fastest map of what the scene currently has.
 - **[`src/scene/quality.ts`](src/scene/quality.ts)** — every new cost needs an answer for the mobile tier.
-- **the [readme](README.md)** section for whatever you are about to touch.
+- **[`threejs-scene-api.md`](threejs-scene-api.md)** — every symbol the runtime exports and whether this scape uses it. **read it before writing a helper.** most
+of what a run is tempted to build by hand already exists there, and this file is the only thing that says so.
+- **the [readme](README.md)** section `brief --sections readme` pointed you at.
+- **[`agents.md`](agents.md)** when you need the tool reference in full.
 
-then: list open pull requests. if one is open from a previous run, drive *that* to green and merged before opening another — two enhancement branches racing on the same scene is how the merge conflicts start. check the recently merged runs and do not repeat the last one's theme.
+if `brief` reports an open pull request from a previous run, drive *that* to green and merged before opening another — two enhancement branches racing on the same
+scene is how the merge conflicts start. do not repeat a theme it lists.
 
 ## 3. pick one thing
 

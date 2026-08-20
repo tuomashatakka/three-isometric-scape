@@ -6,6 +6,8 @@ the tool reference for anything working on this repository without a pair of eye
 
 | you want to know | reach for | costs |
 | --- | --- | --- |
+| where am i starting from | `bun run brief` | ~2 s, no browser |
+| what does the runtime already do | [`threejs-scene-api.md`](threejs-scene-api.md) | one read |
 | did the composition survive | `bun run scape:map --stats` | ~1.5 s cold, no browser |
 | where is everything | `bun run scape:map` | ~1.5 s cold, no browser |
 | what does this one prop look like | `bun run prop:map <name>` | ~40 ms, no browser |
@@ -14,6 +16,56 @@ the tool reference for anything working on this repository without a pair of eye
 | how does one prop measure up | `/props.html?prop=<name>` | one gpu context |
 | does it still draw at all | `bun run scape:shot` | ~20 s per pose |
 | did my change move the picture | `bun run scape:diff --ref origin/main` | minutes, builds a ref |
+
+---
+
+## `bun run brief` — where a run starts
+
+```sh
+bun run brief                          # inventory, themes, open prs, scape:map --stats
+bun run brief --sections readme        # the design record's index, heading by line
+bun run brief --sections inventory,api # a subset
+bun run brief --themes 12              # more history
+bun run brief --out .scape/brief.txt   # keep a copy to quote into the pull request
+```
+
+```text
+brief · 1.7s
+
+inventory   134 files · 19582 lines · 86 code, 48 test · none over 666
+            largest: scene/landscape/dressing.ts 609 · scene/config.ts 535 · ...
+themes      the rules the tools now enforce
+            the machinery that was never about this island
+            ...
+api digest  matches threejs-scene@0.5.0 · 59/390 exports used
+open prs    none open — clear to branch
+scape:map   seed 7319  world 520m  home 196m  ...
+```
+
+everything it prints is derived from this working tree, and none of it is committed — a generated file that churns on every commit is just a second thing for every
+branch to conflict on, which is the same reason `.scape/` is gitignored.
+
+**it never fails.** step 2 orients, step 6 verifies, and a `brief` that could go red would collapse that distinction.
+
+the line counts are *effective* lines — comments and blanks skipped, the way the lint rule counts them. that is why `config.ts` reads 535 here and 1122 in an
+editor: it is mostly documentation, and it is not the file that needs splitting.
+
+## `threejs-scene-api.md` — what the runtime already does
+
+```sh
+bun run api:digest           # regenerate after a version bump
+bun run api:digest --check   # say whether it is stale, change nothing
+```
+
+every symbol the runtime exports, which subpath it comes from, and which of our files import it. **read it before writing a helper.**
+
+it is the one generated file that *is* committed, and the exception has a reason: everything else the brief prints changes on every commit, and this changes only
+when the dependency's version does — so its diff is a review event worth having rather than noise. `--check` warns and never rewrites, because bumping the
+dependency is a reviewed decision and regenerating a committed file as a side effect would hide exactly the diff worth reading. a test fails if the stamp and the
+installed version disagree.
+
+the reinvention it exists to stop was never a discipline problem. nothing in this repository said what was already available, so each run rebuilt what it could
+not see — a gesture rig, a renderer bootstrap, three copies of one ribbon builder. 59 of 390 exports are used; the rest are one read away.
 
 ---
 

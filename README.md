@@ -231,6 +231,9 @@ src/
 scripts/
 ├── args.ts                         the shared command line, and dotted-path overrides
 ├── browser.ts                      finding a chromium, and serving what it looks at
+├── brief.ts                        where a run starts: inventory, themes, prs, survey
+├── gate.ts                         lint, typecheck, test and build as one answer
+├── api-digest.ts                   what the runtime exports, and what we use of it
 ├── prop-map.ts                     one prop as ascii, from six angles
 ├── scape-map.ts                    the whole composition as ascii
 ├── scape-shot.ts                   headless stills, posed and pinned

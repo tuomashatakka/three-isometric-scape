@@ -11,6 +11,8 @@
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "gate": "bun scripts/gate.ts",
+    "brief": "bun scripts/brief.ts",
+    "api:digest": "bun scripts/api-digest.ts",
     "scape:map": "bun scripts/scape-map.ts",
     "scape:shot": "bun scripts/scape-shot.ts",
     "scape:diff": "bun scripts/scape-diff.ts",
