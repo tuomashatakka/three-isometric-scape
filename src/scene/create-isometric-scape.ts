@@ -8,6 +8,7 @@ import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import { createAtmosphereLayer } from './atmosphere.ts'
 import { createAuroraLayer } from './aurora.ts'
 import { createBeaconLight } from './beacon.ts'
+import { createBirdFlocks } from './birds.ts'
 import { createCameraControls } from './camera-controls.ts'
 import type { CameraOpening } from './camera-controls.ts'
 import type { CameraPath } from './camera-path.ts'
@@ -320,6 +321,21 @@ export function createIsometricScape (
     wind:    wind.state,
   }))
 
+  // The gulls, mounted after both clocks they answer to: the day decides
+  // whether they are up and the weather decides how many a squall keeps down.
+  // Where the flocks hang comes out of the survey, so this returns null when no
+  // coast in the archipelago had open water to fit a ring over — and on the tier
+  // with no birds to give.
+  const birds = unless(skip, 'birds', () => createBirdFlocks({
+    camera,
+    config:   readConfig,
+    quality,
+    colonies: landscape.colonies,
+    daylight: atmosphere.daylight,
+    weather:  landscape.weather,
+    wind:     wind.state,
+  }))
+
   // The coastal light, mounted after the atmosphere because what decides whether
   // a lamp is burning is how far the sun is down — and after the landscape,
   // because where the lamp *is* comes out of the survey. Returns null when no
@@ -377,6 +393,7 @@ export function createIsometricScape (
     atmosphere.module,
     ...skies,
     rain,
+    birds,
     beacon,
     post,
   ].filter((module): module is ScapeModule => module !== null)

@@ -9,6 +9,7 @@ const ORDER = [
   'seaSmoke',
   'beacon',
   'mist',
+  'birds',
   'rain',
   'clouds',
   'aurora',

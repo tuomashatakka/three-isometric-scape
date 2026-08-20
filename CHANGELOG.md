@@ -2,6 +2,34 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the birds the coast never had
+
+four flocks of gulls, wheeling over the harbour mouths and over the rock the light stands on. the first living thing in the scape that is not rooted to the ground.
+
+- **a colony is sited by a whole ring, not by a point.** [`landscape/colony.ts`](src/scene/landscape/colony.ts) walks seaward from each landing and each beacon
+  rock and tests every bearing around the candidate circle before accepting it — a centre over deep water is a different claim from a *ring* clear of the land, and
+  the first version put half of every wheel over the beach. the bearings are spaced (one every 1.5 m) rather than counted, because sixteen samples around a
+  28-metre ring is four metres between them, which steps clean over a skerry
+- **widest, not nearest.** keeping the first candidate that fit anything squeezed every harbour ring to 9.7 m and sixty birds flew through each other; searching on
+  and keeping the best gives three colonies the full 28 m and the enclosed home harbour 24.1 m, with distance only breaking a tie
+- **one draw call for every bird in the archipelago.** eight vertices and four triangles each — two wing quads meeting at a shoulder, and no body, because from
+  this camera the shoulder *is* the body. bearing, bank, sweep and wingbeat all happen in the vertex stage off two accumulating scalars, so nothing is uploaded per
+  frame. the rates are quantised to five steps for the reason the rain's are: the sweep has to wrap, and wrapping is only invisible if every bird lands back where
+  it started
+- **down at night, and mostly down in a squall.** `birdsAloft(flight, day, fall)` is the whole rule and neither threshold is a knob — `birds.flight` is the one
+  strength, and zero is the switch
+- **one place they are sized against the frame, said out loud.** a capture is 500 px tall and the default pose is 500 m of sea, so an honest 1.6 m wingspan is a
+  pixel and a half of grain. the wingspan carries a floor at 1.8% of the live `viewSize`; below about 90 m of view the floor stops binding and a gull is exactly as
+  wide as the config says. the ceiling, the ring and the bob stay in metres
+- **cost: one transparent draw, one program, one static buffer.** 260 gulls on desktop is 2,080 vertices — less geometry than a single spruce; mobile takes 90,
+  `minimal` takes none and the module is absent rather than cheap. `?skip=birds` drops the family
+- **`scape:map --stats` gained a `gulls n/m colonies` line**, because a flock is four pixels wide at the default pose and a colony that lost its ring is invisible
+  in a still
+- **cost against the picture: the four daylight poses moved and the two dark ones did not.** `default` 0.12% / 6.4% max-block, `near` 0.16% / 18.8%, `far` 0.11% /
+  6.3%, `noon` 0.13% / 7.6%, `night` and `winter` exactly 0.00% — the midwinter pose at 68°N is a polar night, and there are no birds up in it. structural
+  unchanged. at the default 0.5% threshold every pose still reads `same`: a scatter of small bright marks is precisely the case `changed` cannot register and
+  `maxBlock` exists for, so the run above was taken at `--threshold 0.1`
+
 ## the lens looks where you are looking
 
 two pointer features, and the whole difficulty is that **no capture ever moves a pointer** — so both had to change nothing at all when there is not one.

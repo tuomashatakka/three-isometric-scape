@@ -45,6 +45,16 @@ export const LAYER = {
   /** Ground fog. Sheets index up from here; the upright slices sit above those. */
   mist: 30,
 
+  /**
+   * The gulls.
+   *
+   * Over the ground fog they fly above and under the rain that falls past them.
+   * A flock cruises at twenty-odd metres, which is well over the highest ground
+   * in the archipelago — so a wing is never behind a hill, and the depth write
+   * it gives up costs nothing.
+   */
+  birds: 40,
+
   /** Falling weather, over the fog and under the deck it falls from. */
   rain: 50,
 

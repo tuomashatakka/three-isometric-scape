@@ -456,12 +456,59 @@ export interface ScapeConfig {
   dressing: DressingBudget
 
   /**
+   * The gulls, and the water they wheel over.
+   *
+   * Split the way `mill` and `beacon` are, and along the same seam: `spread` is
+   * what the colony search is allowed to fit over open water, read once when the
+   * archipelago is surveyed, so it stays out of the overlay. Everything else is
+   * a uniform read every frame.
+   *
+   * Every length here is **metres** and stays metres. A gull is the same bird
+   * over a bigger archipelago and at any zoom, so none of this is scaled by
+   * `archipelago.worldSize` or by the live view — which is exactly the audit the
+   * scale rule asks for, written down at the knob rather than discovered later.
+   */
+  birds: {
+
+    /**
+     * How much of the colony is up, 0..1. 0 is a coast whose gulls never fly.
+     *
+     * It is also the switch, and the only one: how many are up on any given hour
+     * is the daylight's business and how many a squall keeps down is the
+     * weather's. See `birdsAloft` in `birds.ts`.
+     */
+    flight: number
+
+    /** Radians a bird sweeps around its colony every second. 0 hangs the flock where it is. */
+    speed: number
+
+    /** Wingbeats a second. 0 sets the wings where they are and holds them. */
+    flap: number
+
+    /** Metres from tip to tip. */
+    wingspan: number
+
+    /** Metres above the waterline the highest ring cruises at. */
+    ceiling: number
+
+    /**
+     * Metres from a colony's centre to its outermost ring.
+     *
+     * What the siting search *asks* for rather than what it gets: a ring is
+     * shrunk until no bearing around it crosses dry land, and a harbour with no
+     * room for even a reduced ring carries no flock at all. Build-time, because
+     * the colonies are surveyed once — see `landscape/colony.ts`.
+     */
+    spread: number
+  }
+
+  /**
    * The wind, and the only one in the scape.
    *
    * Every system that answers to it keeps a dimensionless *response* rather than
    * a rate of its own — `atmosphere.cloudDrag`, `atmosphere.mistDrag`,
-   * `mill.spin`, `water.chop` — so one gust is one wave crossing the grass, the
-   * mist, the sea and the sky together. See `scene/wind.ts`.
+   * `mill.spin`, the gulls' wingbeat — so one gust is one wave crossing the
+   * grass, the mist, the sea and the sky together. See `scene/wind.ts`.
    */
   wind: {
 
@@ -863,6 +910,17 @@ export interface ScapeConfig {
     /** The lit face of the moon. Paler and cooler than lying snow — it is a light, not a surface. */
     moon: number
 
+    /**
+     * A gull, at its brightest.
+     *
+     * One colour rather than three, the way the star field carries one: a gull
+     * is a white bird with a grey back and black tips, and both of those are
+     * this white seen at a fraction of it. Three entries would be three things
+     * to keep in one family by hand, and the first retune is when they stop
+     * being in one.
+     */
+    gull: number
+
     /** The dense heart of an auroral curtain, where it is thick enough to be green. */
     aurora: number
 
@@ -1182,6 +1240,20 @@ export const SCAPE_CONFIG = {
     mooringPost: 22,
     hayPole:     7,
   },
+  // A 1.6 m wingspan is a great black-backed gull, the largest bird on this
+  // coast, and it is the largest on purpose: pulled fully out a metre is three
+  // pixels, and a herring gull's 1.2 m is a speck the grain eats. 26 m of
+  // ceiling keeps the flocks well over the 9 m peak and under the 34 m cloud
+  // deck. 28 m of spread is a ring the width of the harbour mouth — wide enough to
+  // read as a wheel, tight enough that every bank in the archipelago fits one.
+  birds: {
+    flight:   0.85,
+    speed:    0.34,
+    flap:     1.6,
+    wingspan: 1.6,
+    ceiling:  26,
+    spread:   28,
+  },
   // A steady onshore breeze with a real gust in it. The bearing is the same
   // quarter the mill's search assumes the weather comes from — see
   // `landscape/mill.ts` — so the sails are turned into a wind that is now
@@ -1319,6 +1391,7 @@ export const SCAPE_CONFIG = {
     rain:         0xc6d2d8,
     star:         0xdce8ff,
     moon:         0xe4e9e0,
+    gull:         0xf2f4f1,
     aurora:       0x6df2a8,
     auroraCrown:  0x7a5bd6,
   },
