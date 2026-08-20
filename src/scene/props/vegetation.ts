@@ -1,6 +1,6 @@
 import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
-import { applyBend, applyTaper, ball, blade, box, cone, cyl, deg, hedron, mergeParts, part, spread } from 'threejs-scene/modules/assets'
+import { applyBend, applyTaper, applyTwist, ball, blade, box, cone, cyl, deg, displaceByNoise, hedron, mergeParts, part, spread } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
 
 
@@ -32,14 +32,24 @@ export function buildSpruce (rng: SeededRng, palette: NordicPalette): BufferGeom
     { y: 0.87, radius: 0.32, height: 0.9 },
   ]
 
-  for (const [ index, tier ] of tiers.entries())
-    parts.push(part(cone(tier.radius, tier.height, 7), {
+  for (const [ index, tier ] of tiers.entries()) {
+    // A perfect cone reads as a traffic cone at close zoom. Noise pushed along
+    // each rim vertex's own normal breaks the tier into a ragged, needle-like
+    // silhouette instead — the same trick `createRockGeometry` uses on stone,
+    // scaled down to a tenth of the tier's own radius so it roughens the edge
+    // without folding it inside out.
+    const needled = displaceByNoise(cone(tier.radius, tier.height, 7), {
+      amp: tier.radius * 0.1, freq: 4, rng,
+    })
+
+    parts.push(part(needled, {
       at:     [ 0, height * tier.y + tier.height * 0.32, 0 ],
       rotate: [ 0, deg(index * 37), 0 ],
       color:  index % 2 === 0 ? palette.spruce : palette.spruceDeep,
       jitter: 0.13,
       rng,
     }))
+  }
 
   return mergeParts(parts, { grime: 1.6, grimeFloor: 0.42 })
 }
@@ -62,7 +72,7 @@ export function buildPine (rng: SeededRng, palette: NordicPalette): BufferGeomet
     { y: 0.86, radius: 0.92, height: 0.65 },
     { y: 0.96, radius: 0.55, height: 0.5 },
   ].entries())
-    parts.push(part(cone(spec.radius, spec.height, 7), {
+    parts.push(part(displaceByNoise(cone(spec.radius, spec.height, 7), { amp: spec.radius * 0.1, freq: 4, rng }), {
       at:     [ rng.range(-0.1, 0.1), height * spec.y, rng.range(-0.1, 0.1) ],
       rotate: [ 0, deg(index * 43), 0 ],
       color:  index === 0 ? palette.pine : palette.spruceLight,
@@ -110,7 +120,7 @@ export function buildBirch (rng: SeededRng, palette: NordicPalette): BufferGeome
     { at: [ -0.38, 0.75, -0.24 ], radius: 0.52 },
     { at: [ 0.05, 0.95, -0.1 ], radius: 0.5 },
   ].entries())
-    parts.push(part(ball(puff.radius, 5), {
+    parts.push(part(displaceByNoise(ball(puff.radius, 5), { amp: puff.radius * 0.12, freq: 4.5, rng }), {
       at:     [ puff.at[0], height * puff.at[1], puff.at[2] ],
       scale:  [ 1, 0.78, 1 ],
       color:  index % 2 === 0 ? palette.grass : palette.spruceLight,
@@ -200,7 +210,12 @@ export function buildGrassTuft (rng: SeededRng, palette: NordicPalette): BufferG
   for (let stem = 0; stem < 4; stem += 1) {
     const height = 0.3 + rng.range(0, 0.34)
     const curve  = deg(rng.range(26, 72)) * (rng.next() > 0.5 ? 1 : -1)
-    const leaf   = applyBend(applyTaper(blade(0.055, height), 0.1, 'y'), curve, 'y')
+    const twist  = deg(rng.range(-20, 20))
+
+    // The bend puts a lean into the blade; the twist puts a fold into it, so
+    // the flat face catches light along a curve rather than as one plank-flat
+    // facet — the same reason four blades never look like four copies of one.
+    const leaf = applyTwist(applyBend(applyTaper(blade(0.055, height), 0.1, 'y'), curve, 'y'), twist, 'y')
 
     parts.push(part(leaf, {
       at:     [ rng.range(-0.08, 0.08), height * 0.5, rng.range(-0.08, 0.08) ],

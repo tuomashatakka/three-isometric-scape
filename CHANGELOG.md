@@ -2,6 +2,26 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the cone that stopped reading as a traffic cone
+
+`vegetation.ts` already used two of the runtime's four vertex deformers — `applyBend` and `applyTaper`, on grass blades. The other two were sitting there unused, and
+the conifers were the reason to care: a `cone(radius, height, 7)` is a *perfect* cone, and at the near pose that is what it looks like.
+
+- **`displaceByNoise` on every canopy tier.** Spruce and pine push each rim vertex along its own normal by a tenth of that tier's own radius, so the silhouette goes
+ragged and needle-like instead of geometric. Birch puffs get the same at 0.12 of their radius, for lumpy foliage rather than smooth spheres. This is the trick
+`createRockGeometry` already uses on stone, borrowed at a tenth of the amplitude
+- **`applyTwist` on the grass.** The bend puts a lean into a blade; the twist puts a *fold* into it, so its flat face catches light along a curve rather than as one
+plank-flat facet. That is also why four blades stop reading as four copies of one
+- **determinism was never at risk, by construction.** `NoiseDisplaceOptions` takes an `rng?: SeededRng` — the same fork the builder already holds — so the noise is
+part of the seeded stream rather than beside it. Byte-for-byte stable per seed, and `vegetation.test.ts` (new, 7 tests) now asserts exactly that, plus that the noise
+*reached* the geometry rather than being a silent no-op, and that the twist pivots from the blade's base so the root stays planted
+- **it costs nothing.** **Triangle counts are identical** — 80 spruce, 106 pine, 140 birch, 112 grass, before and after — because these modifiers move vertices and
+never add one. All four are `SCATTER_PROPS`, so each is built once into one canonical geometry and stamped through a single `InstancedMesh`: the per-vertex loop runs
+at build, not per instance and not per frame. Nothing to tier-gate, and `mobile` is unaffected
+- **cost: `near` moved 0.97% and nothing else did.** Predicted before running — `near` is the close pose where canopies and grass fill the frame; `far` is 540m out
+where sub-metre detail is sub-pixel. `default`/`noon`/`far` came in at 0.02%, `night`/`winter` at 0.00%, all `same`, structural unchanged. The diff image puts every
+changed pixel on a canopy rim or a grass tuft — the fences, barrels and buildings in the same frame are untouched
+
 ## one texture constructor, and nine passes that will not be asked again
 
 two jobs off the queue, one of them by deleting the queue entry.
