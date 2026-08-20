@@ -1,6 +1,6 @@
 import { MathUtils, Raycaster, Vector2, Vector3 } from 'three'
 import type { OrthographicCamera } from 'three'
-import { aimIsoCamera, defineModule, resizeIsoCamera, smoothstep } from 'threejs-scene'
+import { aimIsoCamera, attachPointerGesture, defineModule, resizeIsoCamera, smoothstep } from 'threejs-scene'
 import type { AppModule, FrameContext } from 'threejs-scene'
 import { BOAT_FOLLOW_VIEW_SIZE, createBoatFollowController } from './camera-follow.ts'
 import type { BoatFollowSource } from './camera-follow.ts'
@@ -16,21 +16,6 @@ interface CameraPose {
 }
 
 type DragAction = 'pan' | 'rotate'
-
-interface PointerState {
-  action:    DragAction
-  x:         number
-  y:         number
-  startedX:  number
-  startedY:  number
-  startedAt: number
-}
-
-interface TouchFrame {
-  centerX:  number
-  centerY:  number
-  distance: number
-}
 
 export interface CameraControlsOptions {
   camera:     OrthographicCamera
@@ -239,14 +224,19 @@ export function createCameraControls (
   }
 
   const { right, forward, raycaster, pointerNdc, aim: aimTarget } = scratch
-  const pointers                                                  = new Map<number, PointerState>()
   const boatFollow                                                = createBoatFollowController(baseRotation)
-  let lastTouch: TouchFrame | null = null
-  let multiTouch                   = false
-  let revolving                    = false
-  let settling                     = true
-  let lastViewSize                 = Number.NaN
-  let detach: (() => void) | null  = null
+
+  /**
+   * What a drag means, decided when the press starts and held for the gesture.
+   *
+   * Re-reading the modifiers per move would let releasing shift halfway through
+   * an orbit turn it into a pan under the reader's hand.
+   */
+  let dragAction: DragAction      = 'pan'
+  let revolving                   = false
+  let settling                    = true
+  let lastViewSize                = Number.NaN
+  let detach: (() => void) | null = null
 
   const aspect = (): number => canvas.clientWidth / canvas.clientHeight || 1
   const tiltOf = (viewSize: number): number =>
@@ -448,28 +438,17 @@ export function createCameraControls (
     onFocus(target.focus)
   }
 
-  function touchFrame (): TouchFrame | null {
-    if (pointers.size !== 2)
-      return null
-
-    const values = pointers.values()
-    const first  = values.next().value as PointerState | undefined
-    const second = values.next().value as PointerState | undefined
-    if (!first || !second)
-      return null
-
-    return {
-      centerX:  (first.x + second.x) / 2,
-      centerY:  (first.y + second.y) / 2,
-      distance: Math.hypot(first.x - second.x, first.y - second.y),
-    }
-  }
-
-  function onPointerDown (event: PointerEvent): void {
-    event.preventDefault()
+  /**
+   * What the press that just started means, and that it happened at all.
+   *
+   * A press is an act of intent before it is a drag: it leaves the boat chase,
+   * the tour and the idle orbit whether or not it ever moves, and it focuses
+   * the canvas so the arrow keys work afterwards. Both are why this hangs off
+   * the press rather than the first move.
+   */
+  function onPressStart (_x: number, _y: number, event: PointerEvent): void {
     onManualControl()
     canvas.focus({ preventScroll: true })
-    canvas.setPointerCapture(event.pointerId)
 
     // Pan is the default gesture. On a map, dragging means "move the map" to
     // everyone who has ever used one; orbiting is the specialist verb and gets
@@ -477,84 +456,44 @@ export function createCameraControls (
     const rotates = event.pointerType === 'mouse' &&
       (event.button === 1 || event.button === 2 || event.shiftKey || event.ctrlKey || event.metaKey)
 
-    pointers.set(event.pointerId, {
-      action:    rotates ? 'rotate' : 'pan',
-      x:         event.clientX,
-      y:         event.clientY,
-      startedX:  event.clientX,
-      startedY:  event.clientY,
-      startedAt: event.timeStamp,
-    })
-    multiTouch ||= pointers.size > 1
-    lastTouch = touchFrame()
+    dragAction = rotates ? 'rotate' : 'pan'
   }
 
-  function onPointerMove (event: PointerEvent): void {
-    const pointer = pointers.get(event.pointerId)
-    if (!pointer)
-      return
-
-    event.preventDefault()
-
-    const previousX = pointer.x
-    const previousY = pointer.y
-    pointer.x       = event.clientX
-    pointer.y       = event.clientY
-
-    if (pointers.size === 1) {
-      if (pointer.action === 'pan')
-        panTo(pointer.x - previousX, pointer.y - previousY)
-      else
-        rotateTo(pointer.x - previousX)
-      return
-    }
-
-    const nextTouch = touchFrame()
-    if (!nextTouch || !lastTouch)
-      return
-
-    panTo(nextTouch.centerX - lastTouch.centerX, nextTouch.centerY - lastTouch.centerY)
-    if (lastTouch.distance > 0)
-      zoomTo(nextTouch.distance / lastTouch.distance)
-    lastTouch = nextTouch
+  function onDrag (dx: number, dy: number): void {
+    if (dragAction === 'pan')
+      panTo(dx, dy)
+    else
+      rotateTo(dx)
   }
 
-  function onPointerEnd (event: PointerEvent): void {
-    const pointer = pointers.get(event.pointerId)
-    if (pointer && event.type === 'pointerup') {
-      const travelled = Math.hypot(
-        event.clientX - pointer.startedX,
-        event.clientY - pointer.startedY,
-      )
-      const elapsed = event.timeStamp - pointer.startedAt
-      if (
-        !multiTouch &&
-        pointers.size === 1 &&
-        pointer.action === 'pan' &&
-        travelled <= TAP_MOVE_PX &&
-        elapsed <= TAP_MAX_MS
-      )
-        focusAt(event.clientX, event.clientY)
-    }
+  /**
+   * Two fingers pan and zoom at once, because on a map they always have.
+   *
+   * The pinch carries how far its own centre travelled, so the pan is the same
+   * gesture rather than a second one derived from it.
+   */
+  function onPinch (scale: number, _centerX: number, _centerY: number, panX: number, panY: number): void {
+    panTo(panX, panY)
 
-    pointers.delete(event.pointerId)
-    lastTouch = touchFrame()
-    if (!pointers.size)
-      multiTouch = false
+    if (scale > 0)
+      zoomTo(scale)
   }
 
-  function onWheel (event: WheelEvent): void {
-    event.preventDefault()
+  function onTap (x: number, y: number): void {
+    // Only a pan-mode tap opens somewhere: a modifier-held click is the start of
+    // an orbit that happened not to travel, not a request to go there.
+    if (dragAction === 'pan')
+      focusAt(x, y)
+  }
+
+  function onWheel (delta: number, event: WheelEvent): void {
     onManualControl()
 
     const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE
       ? 16
       : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? canvas.clientHeight : 1
-    zoomTo(Math.exp(-event.deltaY * unit * WHEEL_SPEED))
-  }
 
-  function onContextMenu (event: MouseEvent): void {
-    event.preventDefault()
+    zoomTo(Math.exp(-delta * unit * WHEEL_SPEED))
   }
 
   function onKeyDown (event: KeyboardEvent): void {
@@ -650,26 +589,20 @@ export function createCameraControls (
   }
 
   function attach (): () => void {
-    canvas.style.touchAction = 'none'
-    canvas.addEventListener('pointerdown', onPointerDown)
-    canvas.addEventListener('pointermove', onPointerMove)
-    canvas.addEventListener('pointerup', onPointerEnd)
-    canvas.addEventListener('pointercancel', onPointerEnd)
-    canvas.addEventListener('lostpointercapture', onPointerEnd)
-    canvas.addEventListener('wheel', onWheel, { passive: false })
+    // The pointer bookkeeping — capture, the map of live pointers, the pinch
+    // frame, tap detection — is the runtime's. What is left here is only what
+    // this scape means by a gesture.
+    const detachGesture = attachPointerGesture(
+      canvas,
+      { onPressStart, onDrag, onPinch, onTap, onWheel },
+      { tapMovePx: TAP_MOVE_PX, tapThresholdMs: TAP_MAX_MS },
+    )
+
     canvas.addEventListener('keydown', onKeyDown)
-    canvas.addEventListener('contextmenu', onContextMenu)
 
     return () => {
-      canvas.removeEventListener('pointerdown', onPointerDown)
-      canvas.removeEventListener('pointermove', onPointerMove)
-      canvas.removeEventListener('pointerup', onPointerEnd)
-      canvas.removeEventListener('pointercancel', onPointerEnd)
-      canvas.removeEventListener('lostpointercapture', onPointerEnd)
-      canvas.removeEventListener('wheel', onWheel)
+      detachGesture()
       canvas.removeEventListener('keydown', onKeyDown)
-      canvas.removeEventListener('contextmenu', onContextMenu)
-      pointers.clear()
     }
   }
 

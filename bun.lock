@@ -7,7 +7,7 @@
       "dependencies": {
         "@tuomashatakka/canvas-loop-framecapper": "^1.0.0",
         "three": "^0.185.1",
-        "threejs-scene": "^0.5.0",
+        "threejs-scene": "^0.5.1",
       },
       "devDependencies": {
         "@tuomashatakka/eslint-config": "^4.0.1",
@@ -394,7 +394,7 @@
 
     "three": ["three@0.185.1", "", {}, "sha512-5aojFCXKwnjBRZvUnt3WFfEcvUJgkN5LlijRFN95hMy8WVkG4I0QNcJE+OuWvuJ0bOdStrbfXn0pkd6/QyiAlg=="],
 
-    "threejs-scene": ["threejs-scene@0.5.0", "", { "dependencies": { "@tuomashatakka/canvas-loop-framecapper": "^1.0.0" }, "peerDependencies": { "cannon-es": ">=0.20.0", "three": ">=0.160.0" }, "optionalPeers": ["cannon-es"] }, "sha512-vQJcbfGi7qGvgQNtT9kdUHqvbUjFwHvJ64xjzVB/Bdill3QK+FkEkPePcJhYwROCwWIpnAtCIdfWh1BkYGh1gA=="],
+    "threejs-scene": ["threejs-scene@0.5.1", "", { "dependencies": { "@tuomashatakka/canvas-loop-framecapper": "^1.0.0" }, "peerDependencies": { "cannon-es": ">=0.20.0", "three": ">=0.160.0" }, "optionalPeers": ["cannon-es"] }, "sha512-3YOJTlTKypRwtBvm1475csj+dTwR7eDCxgHtF488OxAuHnznWJsEloVrmCyEriE1ZB+rmdMB9xDVYz5cOAu6XQ=="],
 
     "tinyglobby": ["tinyglobby@0.2.17", "", { "dependencies": { "fdir": "^6.5.0", "picomatch": "^4.0.4" } }, "sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g=="],
 

@@ -2,6 +2,29 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the gesture rig we already had
+
+the camera's pointer handling was a hand-rolled multi-touch state machine: a map of live pointers, a two-finger frame, tap detection, capture. the runtime ships
+`attachPointerGesture`, which is the same machine. **it did not fit** — and finding out exactly why is most of what this run was.
+
+- **the runtime's gesture layer was missing a lifecycle.** it described a gesture but never said when one *began*, which is where this scape does two things that
+cannot wait for the first move: leaving the boat chase, the tour and the idle orbit, and focusing the canvas so the arrow keys work afterwards. a press is an act
+of intent even when it never becomes a drag
+- **it also could not carry a latched modifier.** shift decides orbit-versus-pan at the press and holds it for the gesture; re-reading the modifier per move would
+let releasing shift halfway through an orbit turn it into a pan under the reader's hand
+- **and it had a bug this scape was already guarding against.** the tap check runs when the *last* pointer leaves but measures against the press the *first* one
+recorded, so a pinch ending near where it began, quickly enough, fires a tap nobody made — which here means the camera jumping to a point the reader never chose
+- **so the runtime was fixed rather than the fit forced.** `threejs-scene` 0.5.1 adds `onPressStart`/`onPressEnd`, suppresses the phantom tap, gives `onPinch` the
+distance its centre travelled (a pinch is almost always a two-finger *drag* as well), and ends a pointer on `lostpointercapture`. six new tests there
+- **then the swap: 123 lines out, 56 in.** what is left in [`camera-controls.ts`](src/scene/camera-controls.ts) is only what this scape *means* by a gesture — pan,
+orbit, pinch-to-zoom-and-pan, tap-to-open — with none of the bookkeeping under it. the file is 415 effective lines, down from 500
+- **verified by hand, because no capture can.** this is input code: `scape:diff` reads `same` on all six poses precisely because it cannot see any of it. so every
+gesture was driven in a real browser and the camera's own readout checked — drag pans, shift-drag orbits *and keeps orbiting when shift is released mid-drag*,
+wheel zooms, a pinch zooms and pans together, two fingers lifted together produce no jump, one finger taps to re-centre, and the arrow keys work after a press
+because the press focused the canvas
+
+**cost: nothing.** `scape:diff --ref origin/main --poses tour` reads `same` on all six poses with no structural change.
+
 ## the slow half, moved off the clock
 
 `scape:diff` is the one instrument that costs minutes, and almost all of it is the reference side: checking out another commit, building it, and photographing six

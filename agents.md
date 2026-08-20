@@ -321,6 +321,8 @@ the runtime fleet does not use the survey's old fixed offsets as an animation cl
 
 ### interaction and live diagnostics
 
+the pointer bookkeeping — capture, live pointers, the pinch frame, tap detection — is `attachPointerGesture` from the runtime. what stays here is only what this scape *means* by a gesture: pan, orbit on a modifier latched at the press, pinch to zoom and pan at once, tap to open somewhere. the press is where the latch is taken and where the canvas takes focus, because a press is intent before it is a drag.
+
 `camera-controls.ts` raycasts the fleet before the terrain. selecting an instance hands its stable pose to `camera-follow.ts`, which resolves one allocation-free orthographic third-person target at a 22-metre view; escape, terrain or empty-space selection, and pan or rotation drags clear it. **do not put a second boat simulation in the camera.** manual direct manipulation must also remain an explicit exit from any future follow mode.
 
 `vitals.ts` is the only frame measurement. `ui/fps-meter.ts` shows fps, milliseconds, camera xyz and orthographic `viewSize` in metres on every sample; `?debug` adds calls and triangles. extend that sample if another always-visible diagnostic is needed rather than adding another timer or polling the camera elsewhere.

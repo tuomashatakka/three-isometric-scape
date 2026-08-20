@@ -52,10 +52,12 @@ describe('the api digest', () => {
     // "used" means "here".
     expect(row('createSurfaceRibbon')).toContain('cart-ruts.ts')
     expect(row('createApp')).toContain('create-isometric-scape.ts')
+    expect(row('attachPointerGesture')).toContain('camera-controls.ts')
 
-    // Unused, and this one is load-bearing: it is the next thing to adopt, and
-    // a digest that quietly called it used would hide that.
-    expect(row('attachPointerGesture')).toMatch(/\|\s*—\s*\|$/)
+    // Available and unused, which is the digest's other job: this is the next
+    // renderer bootstrap to adopt, in the prop viewer. A digest that quietly
+    // called it used would hide the one thing it exists to show.
+    expect(row('attachResizeObserver')).toMatch(/\|\s*—\s*\|$/)
   })
 
   test('counts something', () => {
