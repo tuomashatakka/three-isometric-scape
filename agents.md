@@ -421,9 +421,11 @@ this list.
 | `createFXAA` / `createSMAA` / `createSsaa` | antialiasing is chosen per tier and overridden by `?aa=` |
 | the hand-built props, `kitProp`, `defineProp` | this scene builds from primitives on purpose |
 
-**the one that is still worth doing:** `createSelectiveBloom` / `createEmissiveBloom`. this scape's bloom is whole-frame; a selective pass would let the beacon's
-lamp and lit windows glow *without* lifting the whole night sky with them. that is a themed run of its own — emissive materials on named meshes, a bloom layer, a
-tier gate and a mobile cost — not a line to slip into another change.
+| `createSelectiveBloom` / `createEmissiveBloom` | a two-composer technique that renders the scene **twice** per frame, and its bloom buffer is not reachable without its own final composer. the whole-frame bloom here already has a **0.94 threshold** tuned above the fog, so a light only has to be bright enough to cross it — see `beacon.glow`, which is that idea and costs no extra draw |
+
+**the threshold is the instrument.** `look.bloom` blooms whatever exceeds 0.94 in linear luminance and nothing else, which is why the night sky stays dark while
+the beacon's lamp glows. anything that should glow should be *made bright enough to cross it*, not given a pass of its own. a vertex colour cannot do that —
+`bakeFacetColors` clamps to 0..1 — so overdrive the material colour, as `scene/beacon.ts` does.
 
 ---
 

@@ -496,6 +496,17 @@ on the furthest skerry the ring has, there is a lighthouse: a battered stone tow
 
 **brightness is most of whether it reads as light at all.** the same geometry at `beacon.lamp` 0.62 is a solid shape and at 0.34 is a glow, because additive fill over near-black water saturates long before it looks bright. that is why the default is low and the slider goes to 2.
 
+**the bloom was never handed the lamp.** the material carries a note saying the haze around the light is the bloom's business rather than the mesh's, which was the
+right intent and did not happen: measured at the same pose with `look.bloom` on and off, **not one pixel of three hundred thousand differed by more than two levels**.
+the arithmetic says why. the optic's warm white is `#ffdca8`, about 0.76 in linear luminance, and `beacon.lamp` opens it at 0.34 — so the frame saw about 0.26
+against a bloom threshold of 0.94, a quarter of what it needed, and no combination of the existing knobs could get it there.
+
+**so the lamp is overdriven above white, and the threshold does the rest.** `beacon.glow` scales the optic's *material* colour, because `bakeFacetColors` clamps a
+vertex colour to 0..1 — right for an albedo, wrong for a light. scaling multiplies through the grade the geometry already bakes, so the core crosses the threshold
+first and only the base of each blade follows it over; the far end stays under and dies into the night as before. after: 855 pixels change with the bloom on, by up
+to 45 levels. it is gated on a tier that *has* a bloom, so on mobile the lamp is left exactly as it was rather than clipped to a white dot — which is why the tour,
+which pins mobile, still reads `same` on all six poses. no new pass, no new geometry, the same 158 draw calls.
+
 **the lamp answers to `1 - day`, not to `dark`.** `dark` is the deeper threshold, the one the stars come out at — and a light is lit long before that, from the moment the sun is off the water. it also means a midsummer midnight at this latitude, which has no day in it and no dark either, has the lamp burning. squared, so it comes up through dusk rather than switching on.
 
 **it is mounted after the atmosphere, because that is where the day is resolved.** the landscape publishes `lanternHubs` — where every lamp is, in world space, lifted by `LANTERN_HEIGHT` and sunk by `BEACON_SINK`, both read from the prop rather than defaulted — and the light layer consumes them. a module mounted before the atmosphere reads the hour it was on the previous frame.

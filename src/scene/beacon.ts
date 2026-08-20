@@ -56,6 +56,29 @@ export function lampBrightness (config: ScapeConfig, day: number): number {
 }
 
 /**
+ * How far above white the lamp burns, so the bloom can find it.
+ *
+ * The material colour carries this rather than the baked one, because
+ * `bakeFacetColors` clamps a vertex colour to 0..1 — which is right for an
+ * albedo and wrong for a light. The optic's warm white is about 0.76 in linear
+ * luminance and the lamp opens at a third of full brightness, so it reached the
+ * frame at roughly a quarter of the bloom's 0.94 threshold and never crossed
+ * it. The intent was always that the glow is the bloom's business; the bloom
+ * was simply never handed anything bright enough to work with.
+ *
+ * A multiplier keeps the relative shape the geometry already bakes — the core
+ * is brightest, each blade falls off along its length — so the core crosses
+ * first and only the base of a beam follows it over.
+ *
+ * Gated on the tier that has a bloom to catch it. Without one this would be a
+ * clipped white dot where a warm one used to be, which is the broken cheap
+ * version rather than the graceful absence.
+ */
+export function lampGlow (config: ScapeConfig, quality: AtmosphereQuality): number {
+  return quality.bloom ? Math.max(1, config.beacon.glow) : 1
+}
+
+/**
  * Where the optic has turned to after `delta` seconds, in radians.
  *
  * The rate is turns per *minute*, because that is the unit a light's character
@@ -125,6 +148,12 @@ export function createBeaconLight (options: BeaconLightOptions): AppModule<Recor
     opacity: 0,
   })
 
+  function applyGlow (): void {
+    material.color.setScalar(lampGlow(config, quality))
+  }
+
+  applyGlow()
+
   const mesh = new InstancedMesh(geometry, material, hubs.length)
 
   mesh.name = 'beacon-light'
@@ -165,6 +194,10 @@ export function createBeaconLight (options: BeaconLightOptions): AppModule<Recor
       const lamp = lampBrightness(config, daylight.day)
 
       material.opacity = lamp
+
+      // Read every frame, because it is a knob in the panel and a slider that
+      // only takes effect on a rebuild is a slider that lies.
+      applyGlow()
 
       // A lamp that is out is not drawn at all, rather than drawn at zero
       // opacity: a transparent mesh still costs a sorted draw and the beams are

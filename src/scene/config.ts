@@ -404,6 +404,16 @@ export interface ScapeConfig {
      */
     lamp: number
 
+    /**
+     * How far above white the lamp burns, so the bloom can find it.
+     *
+     * A multiplier, not a brightness: 1 leaves the lamp exactly as bright as it
+     * is drawn, and anything above pushes it past the bloom's threshold so it
+     * blooms instead of merely being pale. Only does anything on a tier that
+     * has a bloom — see `scene/beacon.ts`.
+     */
+    glow: number
+
     /** How far a beam reaches out over the water, in metres. */
     beamReach: number
 
@@ -1008,10 +1018,16 @@ export const SCAPE_CONFIG = {
   // furthest rock in the ring with ground to spare. 1.2 metres of freeboard is
   // one storm surge, and the smallest rise the plinth reads as standing on.
   beacon: {
-    minRock:    6,
-    freeboard:  1.2,
-    turn:       4,
-    lamp:       0.34,
+    minRock:   6,
+    freeboard: 1.2,
+    turn:      4,
+    lamp:      0.34,
+
+    // Measured rather than chosen: the optic's warm white is ~0.76 linear and
+    // the lamp opens at 0.34 of it, so the frame saw ~0.26 against a threshold
+    // of 0.94. Five puts the core comfortably over and leaves the far end of
+    // each blade under, which is the lamp glowing and not the whole beam.
+    glow:       5,
     beamReach:  88,
     beamSpread: 11,
   },

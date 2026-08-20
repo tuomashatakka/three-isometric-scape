@@ -2,6 +2,28 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the lamp the bloom never saw
+
+the lighthouse landed with a comment saying the glow around its lamp was "the bloom's business, not the mesh's". it was the right intent. the bloom was never handed
+anything bright enough to do it with, and nobody could tell, because a lamp that does not bloom looks like a lamp.
+
+- **measured first.** the beacon at night, at the same pose, with `look.bloom` on and off: **0 pixels of 308,000 differed by more than two levels**, and the largest
+single-pixel delta was 1.0 — the noise floor. the bloom was doing *nothing* to the light
+- **the arithmetic says why.** the optic's warm white is `#ffdca8`, about **0.76** in linear luminance, and `beacon.lamp` opens it at **0.34** — so the frame saw
+about **0.26** against a bloom threshold of **0.94**. it was at a quarter of what it needed, and no amount of the existing knobs would get it there
+- **the fix is the material colour, not the baked one.** `bakeFacetColors` clamps a vertex colour to 0..1, which is correct for an albedo and wrong for a light.
+`MeshBasicMaterial.color` is not clamped and multiplies through, so `beacon.glow` scales the whole optic and keeps the shape the geometry already bakes — the core
+brightest, each blade falling off along its length. the core crosses the threshold first and only the base of a beam follows it over
+- **measured after.** same pose, same comparison: **855 pixels** now differ with the bloom on, by up to **44.8 levels**. brightest pixel went **174 → 229**. the
+lamp glows, and the glow is the bloom's, exactly as the comment always claimed
+- **gated on having a bloom to catch it.** on `minimal` and `mobile` there is none, so `lampGlow` returns 1 and the lamp is left exactly as it was — a warm dot
+rather than a clipped white one. that is the graceful absence, and the tour proves it: **`same` on all six poses**, because every tour capture pins the mobile tier
+- **cost: nothing.** no new pass, no new geometry, no new material. **158 draw calls before and after.** one `setScalar` per frame, read live so the knob in the
+panel does not lie about when it applies
+
+the default of 5 is derived rather than dialled, and [`beacon.test.ts`](src/scene/beacon.test.ts) states that derivation as a fact about the numbers — so changing
+the lamp's brightness or the palette's warm white fails a test rather than quietly un-blooming the light.
+
 ## what the runtime already does, and what it should not be asked to do
 
 no new capability. this is the run that checked the remaining migration candidates against the code instead of against a summary, and three of them turned out to be

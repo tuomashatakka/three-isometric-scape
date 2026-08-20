@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import { Vector3 } from 'three'
-import { advanceOptic, lampBrightness, lanternBounds } from './beacon.ts'
+import { advanceOptic, lampBrightness, lampGlow, lanternBounds } from './beacon.ts'
 import type { LanternHub } from './beacon.ts'
 import { SCAPE_CONFIG } from './config.ts'
+import { atmosphereQuality } from './quality.ts'
 
 
 const HUBS: LanternHub[] = [
@@ -74,5 +75,44 @@ describe('the bound', () => {
 
     expect(bound.center.x).toBeCloseTo(HUBS[0].x, 6)
     expect(bound.radius).toBeCloseTo(40, 6)
+  })
+})
+
+describe('the glow the bloom has to catch', () => {
+  const config = structuredClone(SCAPE_CONFIG)
+
+  test('the lamp is overdriven only where there is a bloom', () => {
+    // Desktop and ultra bloom; minimal and mobile do not, and there the lamp is
+    // left exactly as bright as it is drawn rather than clipped to a white dot.
+    expect(lampGlow(config, atmosphereQuality('ultra'))).toBe(config.beacon.glow)
+    expect(lampGlow(config, atmosphereQuality('desktop'))).toBe(config.beacon.glow)
+    expect(lampGlow(config, atmosphereQuality('mobile'))).toBe(1)
+    expect(lampGlow(config, atmosphereQuality('minimal'))).toBe(1)
+  })
+
+  test('it never dims the lamp, whatever the knob says', () => {
+    // A multiplier under one would darken the optic instead of leaving it be,
+    // which is not what a *glow* knob at its minimum should mean.
+    for (const glow of [ 0, 0.5, 1 ])
+      expect(lampGlow({ ...config, beacon: { ...config.beacon, glow }}, atmosphereQuality('ultra'))).toBe(1)
+  })
+
+  /**
+   * The measurement the default is derived from. The optic's warm white is
+   * `#ffdca8`, about 0.76 in linear luminance, and the lamp opens at
+   * `beacon.lamp` of it — so the frame saw roughly a quarter of the bloom's
+   * 0.94 threshold and the lamp never crossed it. Stated here as a fact about
+   * the numbers, so that changing either one fails rather than quietly
+   * un-blooming the light.
+   */
+  test('the default carries the lamp over the bloom threshold', () => {
+    const LAMP_LUMINANCE  = 0.76
+    const BLOOM_THRESHOLD = 0.94
+
+    const unlit = LAMP_LUMINANCE * config.beacon.lamp
+    const lit   = unlit * lampGlow(config, atmosphereQuality('desktop'))
+
+    expect(unlit).toBeLessThan(BLOOM_THRESHOLD)
+    expect(lit).toBeGreaterThan(BLOOM_THRESHOLD)
   })
 })

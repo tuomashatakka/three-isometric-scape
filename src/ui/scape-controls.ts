@@ -316,7 +316,14 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           'coastal light',
           range('beacon.lamp', 'lamp', 0, 2, 0.01, quality.beaconBlades > 0),
           0.85,
-          [ range('beacon.turn', 'turns per minute', 0, 12, 0.1) ],
+          [
+            range('beacon.turn', 'turns per minute', 0, 12, 0.1),
+
+            // Only does anything where there is a bloom to catch it, so it is
+            // greyed rather than hidden on the tiers without one — the knob is
+            // still the reason the lamp looks different between them.
+            range('beacon.glow', 'glow', 1, 12, 0.1, quality.bloom),
+          ],
         ),
       ],
     },
