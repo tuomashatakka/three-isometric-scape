@@ -180,8 +180,19 @@ reach for the focus knobs whenever the change is a *ground-level* one — a rut,
 
 ```sh
 bun run scape:diff --ref origin/main --poses tour
+bun run scape:diff --ref-only       # build and photograph only the reference side
 bun run scape:diff --clean          # drop the cached ref worktree
 ```
+
+`--ref-only` is the head start, and `bun run setup` fires it in the background at the start of a run. the reference half — checking out another commit, building it,
+and photographing six poses through a software rasteriser — depends on nothing the run is about to write, so it can finish while the change is still being authored.
+a later `--ref` run reuses it and does only the half that depends on the change: **40 s against several minutes.**
+
+it warms the **tour** by default rather than the single default pose, because that is what stage 5 asks for; a cache of the wrong six pictures is correctly rejected
+and rebuilt, which is a head start that costs exactly as much as no head start.
+
+the reuse is keyed on the commit, written to `.scape/ref-shots/.ref-sha` beside the images. shots on disk say nothing about what they are shots *of*, so without
+that a run reuses whatever the last one happened to leave behind. a mismatched sha, or any missing pose, rebuilds.
 
 builds the reference in a detached git worktree, serves both, captures the same poses through both, prints a table. an image is written **only** for a pose that moved past `--threshold`. the `structural:` line runs `scape:map --json` on both sides, tolerates the older single-island json shape, and compares landmasses, jetties, waterways and fleet safety when present.
 
@@ -215,7 +226,7 @@ nothing in the gate contends with anything else in it — no test opens a port, 
 the four underneath are still there, still in this order, and still all clean before anything is pushed:
 
 ```sh
-bun run lint        # eslint, warnings included — the repo is warning-clean
+bun run lint        # eslint --max-warnings 0; a warning is a failure
 bun run typecheck   # tsc --noEmit
 bun test            # bun test
 bun run build       # tsc --noEmit && vite build

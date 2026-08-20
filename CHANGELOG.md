@@ -2,6 +2,33 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the slow half, moved off the clock
+
+`scape:diff` is the one instrument that costs minutes, and almost all of it is the reference side: checking out another commit, building it, and photographing six
+poses through a software rasteriser. none of that depends on what the run is about to write. so it no longer waits for it.
+
+- **added** `bun run setup` — install, **a chromium check before anything depends on one**, the api digest's freshness, `brief`, and the reference build started
+detached in the background. one command at stage 1
+- **added** `scape:diff --ref-only`, which builds and photographs only the reference side and stops. a later `--ref` run reuses it: **40 seconds against several
+minutes**, measured on the same commit
+- **the reuse is keyed on the commit**, written to `.scape/ref-shots/.ref-sha` beside the images. shots on disk say nothing about what they are shots *of*, so
+without a sentinel a run reuses whatever the last one happened to leave behind — a wrong answer that looks exactly like a right one. a mismatched sha or any
+missing pose rebuilds; both paths were tested by breaking them
+- **found while testing it: the prewarm was warming the wrong pictures.** `--ref-only` inherited the default single-pose behaviour, so it cached one `shot.png`
+while stage 5 asks for the six-pose tour. the reuse check correctly rejected it and rebuilt the lot — a head start that cost exactly as much as no head start. it
+now warms the tour by default, because a prewarm exists to serve stage 5 and should default to what stage 5 asks for
+- **chromium is now discovered at minute one rather than at stage 5.** it used to surface at the moment a run wanted a picture, which is *after* the budget was
+spent building the thing it wanted a picture of. knowing early changes what a run picks: a theme the ascii instruments can judge, and an honest note in the pull
+request, rather than finishing blind
+- **the prewarm cannot fail a run.** detached so nothing cancels it, best-effort so nothing waits on it, and `scape:diff` remains the source of truth — it does the
+work itself if the prewarm never finished or was of the wrong commit
+
+- **found while shipping it: `bun run lint` never enforced the rule it documents.** three documents say lint must be clean *warnings included*, and the repo has
+been warning-clean by habit — but `eslint .` exits 0 on warnings, so the gate passed a file carrying one. `--max-warnings 0` makes the stated rule the actual rule.
+the warning that exposed it was mine: this change pushed one function a single branch over the complexity limit, and the gate said `ok`
+
+**cost: nothing at runtime.** no `src/` file changed. `scape:diff --ref origin/main --poses tour` reads `same` on all six poses.
+
 ## one read to orient, and a map of the runtime
 
 a run starts with no memory and was pointed at four prose documents totalling well over a thousand lines. most of that reading was *searching* — for the section

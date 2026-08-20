@@ -25,10 +25,18 @@ what a run may **not** do is ship something that does not lint, does not typeche
 ```sh
 git fetch origin main
 git checkout -B claude/scene-enhancement-<slug> origin/main
-bun install --frozen-lockfile
+bun run setup
 ```
 
 branch from `origin/main`, always freshly fetched. never stack a run on a previous run's unmerged branch — if the last pull request is still open, that is a signal to *finish* it, not to build on it.
+
+`bun run setup` installs from the lockfile, **checks for a chromium before anything depends on one**, reports whether the api digest is current, and starts building
+the reference side of `scape:diff` in the background. that last one is the important one: the reference half depends on nothing this run is about to write, so it
+builds and photographs itself while the change is being authored, and stage 5 costs seconds instead of minutes. it is best-effort — it cannot fail, it cannot block,
+and `scape:diff` still does the work itself if the prewarm did not finish.
+
+if setup says chromium is **NOT FOUND**, decide now: either `bunx playwright install chromium`, or pick a theme the ascii instruments can judge and say plainly in
+the pull request that no picture was taken. discovering it at stage 5 means discovering it after the budget is spent.
 
 ## 2. orient
 
@@ -118,6 +126,13 @@ bun run prop:map <name> --view front,right           # only if you touched a pro
 bun run scape:diff --ref origin/main --poses tour    # what did it do to the picture?
 ```
 
+if `bun run setup` ran at stage 1, the reference side is already built and photographed, and this prints `ref side reused from a prewarm` before doing only the half
+that depends on your change — **about forty seconds rather than several minutes.** the reuse is keyed on the commit, so a reference of the wrong commit is rebuilt
+rather than trusted.
+
+```sh
+```
+
 **`scape:map --stats`** is the structural check and it catches what a still cannot. a beck that stopped tracing, an island that drowned under its own falloff, a pasture that no longer fits, footpaths that collapsed to zero — every one is a single field in that block and every one is invisible in a screenshot at the default pose. if a number moved that the run did not mean to move, that is the finding, and it comes first.
 
 **`prop:map`** is the same instrument for a mesh. a building forty metres off, at one fixed angle, under a colour grade is exactly the viewing condition that let a gable end poke through its own roof for months. if the run touched a prop builder, look at the prop — from `right`, where you can measure, not only from `iso`.
@@ -144,7 +159,7 @@ bun run gate
 
 it runs lint, typecheck, test and build at once and prints one four-line summary, dumping the full output only of whatever failed. the wall clock is the slowest check rather than the sum. `--sequential` if the box is small; the four scripts underneath still work on their own.
 
-`bun run lint` must be clean **warnings included** — the repository is warning-clean and a new warning is a new problem.
+`bun run lint` runs with `--max-warnings 0`, so a warning *is* a failure rather than a thing to notice. that is the rule these documents always stated; until recently it was not the rule the command enforced.
 
 ## 7. commit and push
 

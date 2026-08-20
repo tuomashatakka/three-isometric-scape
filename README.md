@@ -33,7 +33,7 @@ the gate, all four clean before anything ships:
 
 ```sh
 bun run gate        # all four at once, one summary
-bun run lint        # warnings included — the repo is warning-clean
+bun run lint        # eslint --max-warnings 0; a warning is a failure
 bun run typecheck
 bun test
 bun run build
@@ -237,7 +237,8 @@ scripts/
 ├── prop-map.ts                     one prop as ascii, from six angles
 ├── scape-map.ts                    the whole composition as ascii
 ├── scape-shot.ts                   headless stills, posed and pinned
-└── scape-diff.ts                   what a change did to the picture, in numbers
+├── scape-diff.ts                   what a change did to the picture, in numbers
+└── setup.ts                        what a run has before it starts thinking
 ```
 
 ## budget

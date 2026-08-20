@@ -5,7 +5,7 @@ import pixelmatch from 'pixelmatch'
 import { PNG } from 'pngjs'
 import { serveStatic } from './browser.ts'
 import { parseArgs } from './args.ts'
-import { optionsFrom, posesFrom, shoot, withBrowser } from './scape-shot.ts'
+import { TOURS, optionsFrom, posesFrom, shoot, withBrowser } from './scape-shot.ts'
 import type { Pose } from './scape-shot.ts'
 
 
@@ -237,11 +237,35 @@ export function structuralLine (
  * rather than installed — the dependency set is the lockfile's, and the
  * lockfile is what both sides are being compared under anyway.
  */
-async function prepareRef (ref: string): Promise<string> {
-  const rev = (await new Response(
+/** What commit a ref names right now. */
+async function resolveRef (ref: string): Promise<string> {
+  return (await new Response(
     Bun.spawn([ 'git', 'rev-parse', ref ], { stdout: 'pipe' }).stdout,
   ).text()).trim()
+}
 
+/**
+ * Where the reference side's stills live, and which commit they are of.
+ *
+ * The sentinel is the whole reason the prewarm is safe. Shots on disk say
+ * nothing about what they are shots *of*, so reusing them because they exist is
+ * how a run ends up diffing against whatever the last one happened to leave
+ * behind. With the commit written next to them, a stale set is a mismatch
+ * rather than a silent wrong answer.
+ */
+const REF_SHOTS    = '.scape/ref-shots'
+const REF_SENTINEL = join(REF_SHOTS, '.ref-sha')
+
+async function refShotsMatch (rev: string, poses: readonly Pose[]): Promise<boolean> {
+  if (!existsSync(REF_SENTINEL))
+    return false
+
+  const stamped = (await Bun.file(REF_SENTINEL).text()).trim()
+
+  return stamped === rev && poses.every(pose => existsSync(join(REF_SHOTS, `${pose.name}.png`)))
+}
+
+async function prepareRef (rev: string): Promise<string> {
   const tree = resolve('.scape/ref', rev.slice(0, 12))
 
   if (!existsSync(join(tree, 'dist', 'index.html'))) {
@@ -251,17 +275,43 @@ async function prepareRef (ref: string): Promise<string> {
     const add = Bun.spawn([ 'git', 'worktree', 'add', '--detach', '--force', tree, rev ], { stdout: 'ignore', stderr: 'pipe' })
 
     if (await add.exited !== 0)
-      throw new Error(`git worktree add ${ref} failed · ${await new Response(add.stderr).text()}`)
+      throw new Error(`git worktree add ${rev} failed · ${await new Response(add.stderr).text()}`)
 
     await Bun.spawn([ 'ln', '-s', resolve('node_modules'), join(tree, 'node_modules') ]).exited
 
     const built = Bun.spawn([ 'bun', 'x', 'vite', 'build' ], { cwd: tree, stdout: 'ignore', stderr: 'pipe' })
 
     if (await built.exited !== 0)
-      throw new Error(`building ${ref} failed · ${await new Response(built.stderr).text()}`)
+      throw new Error(`building ${rev.slice(0, 12)} failed · ${await new Response(built.stderr).text()}`)
   }
 
   return tree
+}
+
+/**
+ * Build and photograph the reference side, unless that is already done.
+ *
+ * Nothing about this half depends on the working tree, which is what makes it
+ * worth doing early: it is the slowest thing either tool does, and it can be
+ * finished while the change it will be compared against is still being written.
+ * `--ref-only` is that head start; the normal path picks up whatever it left,
+ * or does the work itself if it was never run.
+ */
+async function prepareReference (
+  target: string,
+  poses:  readonly Pose[],
+  args:   ReturnType<typeof parseArgs>,
+): Promise<{ tree: string; reused: boolean }> {
+  const rev  = await resolveRef(target)
+  const tree = await prepareRef(rev)
+
+  if (await refShotsMatch(rev, poses))
+    return { tree, reused: true }
+
+  await capture(tree, args.num('port', 4186), REF_SHOTS, poses, args)
+  await Bun.write(REF_SENTINEL, `${rev}\n`)
+
+  return { tree, reused: false }
 }
 
 async function buildHere (): Promise<string> {
@@ -347,31 +397,31 @@ async function weigh (
   }
 }
 
-async function main (): Promise<void> {
-  const args = parseArgs(Bun.argv.slice(2))
+const HELP = [
+  'scape:diff — what the change did to the picture, in numbers first',
+  '',
+  '  --ref origin/main     build that ref in a worktree and compare against it',
+  '  --ref-only            build and photograph only the reference side, then stop',
+  '  --poses tour          which poses to compare',
+  '  --threshold 0.5       percent of the frame that counts as changed',
+  '  --tolerance 0.1       per-pixel colour tolerance, 0..1',
+  '  --accept              promote the current shots to .scape/baseline',
+  '  --clean               remove the cached reference worktrees',
+  '  --size 800x500        viewport',
+  '',
+  'with no --ref, compares .scape/shots against .scape/baseline',
+  '',
+  '--ref-only is the head start: the reference half depends on nothing in the',
+  'working tree, so it can be built while the change is still being written.',
+  'a later --ref run reuses it when the commit still matches.',
+].join('\n')
 
-  if (args.has('help')) {
-    console.log([
-      'scape:diff — what the change did to the picture, in numbers first',
-      '',
-      '  --ref origin/main     build that ref in a worktree and compare against it',
-      '  --poses tour          which poses to compare',
-      '  --threshold 0.5       percent of the frame that counts as changed',
-      '  --tolerance 0.1       per-pixel colour tolerance, 0..1',
-      '  --accept              promote the current shots to .scape/baseline',
-      '  --clean               remove the cached reference worktrees',
-      '  --size 800x500        viewport',
-      '',
-      'with no --ref, compares .scape/shots against .scape/baseline',
-    ].join('\n'))
-    return
-  }
-
-  const threshold = args.num('threshold', 0.5)
-  const tolerance = args.num('tolerance', 0.1)
-  const shots     = '.scape/shots'
-  const baseline  = '.scape/baseline'
-
+/** `--clean` and `--accept`: the two modes that do something and stop. */
+async function housekeeping (
+  args:     ReturnType<typeof parseArgs>,
+  shots:    string,
+  baseline: string,
+): Promise<boolean> {
   // The reference worktrees are kept on purpose — building one is the slowest
   // thing either tool does, and a run that compares against `origin/main` twice
   // in an afternoon should pay for it once. This is how they are given back.
@@ -379,7 +429,8 @@ async function main (): Promise<void> {
     await rm('.scape/ref', { recursive: true, force: true })
     await Bun.spawn([ 'git', 'worktree', 'prune' ]).exited
     console.log('reference worktrees removed')
-    return
+
+    return true
   }
 
   if (args.has('accept')) {
@@ -389,21 +440,60 @@ async function main (): Promise<void> {
       await Bun.write(join(baseline, name), Bun.file(join(shots, name)))
 
     console.log(`baseline updated from ${shots}`)
+
+    return true
+  }
+
+  return false
+}
+
+async function main (): Promise<void> {
+  const args = parseArgs(Bun.argv.slice(2))
+
+  if (args.has('help')) {
+    console.log(HELP)
     return
   }
 
-  const poses = posesFrom(args)
-  const ref   = args.str('ref')
+  const threshold = args.num('threshold', 0.5)
+  const tolerance = args.num('tolerance', 0.1)
+  const shots     = '.scape/shots'
+  const baseline  = '.scape/baseline'
+
+  if (await housekeeping(args, shots, baseline))
+    return
+
+  // A prewarm exists to serve stage 5, and stage 5 asks for the tour — so that
+  // is what it warms unless told otherwise. Defaulting to the single `shot`
+  // pose the way every other entry point does would leave a cache that is
+  // present, valid, and of the wrong six pictures: the reuse check would
+  // correctly reject it and rebuild the lot, which is a head start that costs
+  // exactly as much as no head start.
+  const poses = args.has('ref-only') && !args.str('poses')
+    ? TOURS.tour ?? []
+    : posesFrom(args)
+
+  const ref = args.str('ref')
   let before         = baseline
   let structuralNote = ''
 
+  if (args.has('ref-only')) {
+    const target     = ref ?? 'origin/main'
+    const { reused } = await prepareReference(target, poses, args)
+
+    console.log(`ref side ${reused ? 'already warm' : 'ready'} · ${target} · ${REF_SHOTS}`)
+    return
+  }
+
   if (ref) {
-    const tree = await prepareRef(ref)
-    const here = await buildHere()
+    const { tree, reused } = await prepareReference(ref, poses, args)
+    const here             = await buildHere()
 
-    before = '.scape/ref-shots'
+    before = REF_SHOTS
 
-    await capture(tree, args.num('port', 4186), before, poses, args)
+    if (reused)
+      console.log(`ref side reused from a prewarm · ${ref}`)
+
     await capture(here, args.num('port', 4186) + 1, shots, poses, args)
 
     structuralNote = structuralLine(await structure(tree), await structure(here))
