@@ -12,8 +12,7 @@ import {
 } from 'three'
 import type { OrthographicCamera, Texture } from 'three'
 import { defineModule, smoothstep } from 'threejs-scene'
-import type { AppModule } from 'threejs-scene'
-import type { ScapeConfig } from './config.ts'
+import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import type { DaylightState } from './daylight.ts'
 import { sampleHeight } from './noise.ts'
 import type { AtmosphereQuality } from './quality.ts'
@@ -21,7 +20,7 @@ import type { AtmosphereQuality } from './quality.ts'
 
 export interface CloudOptions {
   camera:  OrthographicCamera
-  config:  ScapeConfig
+  config:  LiveConfig
   quality: AtmosphereQuality
 
   /** Live sky state, so the deck is lit by the same clock as everything else. */
@@ -121,14 +120,14 @@ export function createCloudLayer ({
   config,
   quality,
   daylight,
-}: CloudOptions): AppModule<Record<string, never>> {
+}: CloudOptions): ScapeModule {
   const count    = Math.max(2, quality.mistLayers)
-  const deckSize = config.archipelago.worldSize * 4.4
-  const base     = config.terrain.waterLevel + config.atmosphere.cloudHeight
+  const deckSize = config().archipelago.worldSize * 4.4
+  const base     = config().terrain.waterLevel + config().atmosphere.cloudHeight
   const geometry = deckGeometry(deckSize)
   const field    = new Uint8Array(TEXTURE_SIZE * TEXTURE_SIZE * 4)
   const tint     = new Color()
-  bakeClouds(field, config.seed ^ 0x2c17)
+  bakeClouds(field, config().seed ^ 0x2c17)
 
   const texture       = new DataTexture(field, TEXTURE_SIZE, TEXTURE_SIZE, RGBAFormat)
   texture.wrapS       = MirroredRepeatWrapping
@@ -139,14 +138,14 @@ export function createCloudLayer ({
 
   function tile (index: number): Texture {
     const map = texture.clone()
-    map.repeat.setScalar(deckSize / cloudTileSize(config.camera.maxViewSize) * (1 + index * 0.29))
+    map.repeat.setScalar(deckSize / cloudTileSize(config().camera.maxViewSize) * (1 + index * 0.29))
     map.offset.set(index * 0.37, index * 0.19)
     map.needsUpdate = true
     return map
   }
 
   const decks = Array.from({ length: count }, (_unused, index): CloudDeck => {
-    const heading  = config.seed * 0.0013 + index * 1.1
+    const heading  = config().seed * 0.0013 + index * 1.1
     const weight   = (1 - index / (count + 1)) * DECK_ALPHA
     const material = new MeshBasicMaterial({
       name:         `cloud-deck-${index + 1}`,
@@ -182,7 +181,7 @@ export function createCloudLayer ({
     }
   })
 
-  return defineModule<Record<string, never>>({
+  return defineModule<ScapeConfig>({
     name: 'sky-clouds',
 
     build (ctx) {
@@ -191,14 +190,14 @@ export function createCloudLayer ({
     },
 
     update (_state, frame) {
-      const { minViewSize, maxViewSize } = config.camera
-      const viewSize                     = camera.userData.viewSize as number ?? config.camera.viewSize
+      const { minViewSize, maxViewSize } = config().camera
+      const viewSize                     = camera.userData.viewSize as number ?? config().camera.viewSize
       const zoom                         = smoothstep(
         minViewSize + (maxViewSize - minViewSize) * 0.45,
         minViewSize + (maxViewSize - minViewSize) * 0.9,
         viewSize,
       )
-      const cover = config.atmosphere.cloudCover * zoom
+      const cover = config().atmosphere.cloudCover * zoom
 
       // Lit by the same sky the fog and the sun are. Cloud is the one surface in
       // the frame with nothing but ambient on it, so if it does not follow the
@@ -219,7 +218,7 @@ export function createCloudLayer ({
         const travel = frame.delta *
           DRIFT_SPEED *
           deck.speed *
-          config.atmosphere.cloudSpeed /
+          config().atmosphere.cloudSpeed /
           deckSize *
           map.repeat.x
 

@@ -14,8 +14,7 @@ import {
 } from 'three'
 import type { OrthographicCamera, Texture } from 'three'
 import { defineModule, smoothstep } from 'threejs-scene'
-import type { AppModule } from 'threejs-scene'
-import type { ScapeConfig } from './config.ts'
+import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import type { DaylightState } from './daylight.ts'
 import { sampleHeight } from './noise.ts'
 import type { AtmosphereQuality } from './quality.ts'
@@ -24,7 +23,7 @@ import { deckReveal, deckViewSize } from './sky-deck.ts'
 
 export interface AuroraOptions {
   camera:  OrthographicCamera
-  config:  ScapeConfig
+  config:  LiveConfig
   quality: AtmosphereQuality
 
   /** Live sky state. The aurora only exists in the part of it the sun has left. */
@@ -210,15 +209,15 @@ export function createAuroraLayer ({
   config,
   quality,
   daylight,
-}: AuroraOptions): AppModule<Record<string, never>> | null {
+}: AuroraOptions): ScapeModule | null {
   if (quality.auroraLayers < 1)
     return null
 
   const count    = quality.auroraLayers
-  const deckSize = config.archipelago.worldSize * 4.4
+  const deckSize = config().archipelago.worldSize * 4.4
   const geometry = veilGeometry(deckSize)
   const field    = new Uint8Array(TEXTURE_SIZE * TEXTURE_SIZE * 4)
-  bakeVeil(field, config.seed ^ 0x6b19, new Color(config.palette.aurora), new Color(config.palette.auroraCrown))
+  bakeVeil(field, config().seed ^ 0x6b19, new Color(config().palette.aurora), new Color(config().palette.auroraCrown))
 
   const texture       = new DataTexture(field, TEXTURE_SIZE, TEXTURE_SIZE, RGBAFormat)
   texture.wrapS       = RepeatWrapping
@@ -230,14 +229,14 @@ export function createAuroraLayer ({
 
   function tile (index: number): Texture {
     const map = texture.clone()
-    map.repeat.setScalar(deckSize / auroraTileSize(config.camera.maxViewSize) * (1 + index * 0.21))
+    map.repeat.setScalar(deckSize / auroraTileSize(config().camera.maxViewSize) * (1 + index * 0.21))
     map.offset.set(index * 0.41, index * 0.27)
     map.needsUpdate = true
     return map
   }
 
   const veils = Array.from({ length: count }, (_unused, index): Veil => {
-    const heading  = config.seed * 0.0007 + index * 0.83
+    const heading  = config().seed * 0.0007 + index * 0.83
     const weight   = (1 - index / (count + 1)) * VEIL_ALPHA
     const material = new MeshBasicMaterial({
       name:         `aurora-${index + 1}`,
@@ -287,7 +286,7 @@ export function createAuroraLayer ({
     }
   })
 
-  return defineModule<Record<string, never>>({
+  return defineModule<ScapeConfig>({
     name: 'aurora',
 
     build (ctx) {
@@ -296,15 +295,15 @@ export function createAuroraLayer ({
     },
 
     update (_state, frame) {
-      const { aurora, auroraHeight, cloudHeight } = config.atmosphere
-      const zoom                                  = deckReveal(deckViewSize(camera, config), config.camera)
+      const { aurora, auroraHeight, cloudHeight } = config().atmosphere
+      const zoom                                  = deckReveal(deckViewSize(camera, config), config().camera)
 
       // Both clocks and the zoom, in one number. The veils are made invisible
       // rather than transparent below it, because a map-wide additive quad
       // contributing nothing still costs every pixel it covers — and for most of
       // the year, and most of every day, it contributes nothing.
       const light = auroraBrightness(daylight.dark, aurora) * zoom
-      const base  = config.terrain.waterLevel + Math.max(auroraHeight, cloudHeight + CLEARANCE)
+      const base  = config().terrain.waterLevel + Math.max(auroraHeight, cloudHeight + CLEARANCE)
 
       for (const [ index, veil ] of veils.entries()) {
         const material = veil.mesh.material as MeshBasicMaterial
@@ -321,7 +320,7 @@ export function createAuroraLayer ({
         const travel = frame.delta *
           DRIFT_SPEED *
           veil.speed *
-          config.atmosphere.auroraSpeed /
+          config().atmosphere.auroraSpeed /
           deckSize *
           map.repeat.x
 

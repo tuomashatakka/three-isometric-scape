@@ -1,6 +1,6 @@
 import { smoothstep } from 'threejs-scene'
 import type { OrthographicCamera } from 'three'
-import type { ScapeConfig } from './config.ts'
+import type { LiveConfig, ScapeConfig } from './config.ts'
 
 
 /**
@@ -43,8 +43,8 @@ export function deckReveal (viewSize: number, limits: ScapeConfig['camera']): nu
  * frame; reading it back off the camera rather than off the config is what
  * makes a deck follow the zoom instead of the opening pose.
  */
-export function deckViewSize (camera: OrthographicCamera, config: ScapeConfig): number {
-  return camera.userData.viewSize as number ?? config.camera.viewSize
+export function deckViewSize (camera: OrthographicCamera, config: LiveConfig): number {
+  return camera.userData.viewSize as number ?? config().camera.viewSize
 }
 
 /** Where the camera is looking, in world metres. The origin before the controls have aimed. */

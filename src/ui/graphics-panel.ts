@@ -1,6 +1,7 @@
 import { readSectionOpen, writeSectionOpen } from './overlay-state.ts'
-import { readNumberPath, readTextPath, writePath } from 'threejs-scene'
+import { readNumberPath, readTextPath } from 'threejs-scene'
 import type { ControlSection, RangeControl, ScapeControl, SelectControl } from './scape-controls.ts'
+import type { ConfigAccess } from '../scene/config-access.ts'
 
 
 export interface GraphicsPanel {
@@ -33,7 +34,7 @@ export interface GraphicsPanelOptions {
   root: HTMLElement
 
   /** The live config every control addresses by path. */
-  config:   object
+  config:   ConfigAccess<object>
   sections: ControlSection[]
 
   /** Bespoke sections — the waypoint tour — filed into the groups by name. */
@@ -157,14 +158,14 @@ export function createGraphicsPanel (options: GraphicsPanelOptions): GraphicsPan
     }
 
     listen(input, 'input', () => {
-      writePath(config, control.path, input.valueAsNumber)
+      config.write(control.path, input.valueAsNumber)
       value.value = format(input.valueAsNumber, control.step)
       after?.()
       onChange?.()
     })
 
     const update = (): void => {
-      input.valueAsNumber = readNumberPath(config, control.path)
+      input.valueAsNumber = readNumberPath(config.read(), control.path)
       value.value         = format(input.valueAsNumber, control.step)
     }
 
@@ -198,7 +199,7 @@ export function createGraphicsPanel (options: GraphicsPanelOptions): GraphicsPan
     }
 
     listen(select, 'change', () => {
-      writePath(config, control.path, select.value)
+      config.write(control.path, select.value)
       onChange?.()
 
       // After the change is written and saved, never before: a rebuild tears
@@ -209,7 +210,7 @@ export function createGraphicsPanel (options: GraphicsPanelOptions): GraphicsPan
     })
 
     refresh.push(() => {
-      select.value = readTextPath(config, control.path)
+      select.value = readTextPath(config.read(), control.path)
     })
 
     row.append(label, select)
@@ -228,7 +229,7 @@ export function createGraphicsPanel (options: GraphicsPanelOptions): GraphicsPan
     const box      = element('input')
     const name     = element('span', undefined, control.label)
     const nested   = element('div', 'gfx-nested')
-    let remembered = readNumberPath(config, strength.path) || control.restore
+    let remembered = readNumberPath(config.read(), strength.path) || control.restore
 
     box.type         = 'checkbox'
     box.autocomplete = 'off'
@@ -244,7 +245,7 @@ export function createGraphicsPanel (options: GraphicsPanelOptions): GraphicsPan
     // is no other flag for it to disagree with — so the switch follows its own
     // knob rather than waiting for the next full sync to notice.
     const track = (): void => {
-      const on = readNumberPath(config, strength.path) > 0
+      const on = readNumberPath(config.read(), strength.path) > 0
 
       box.checked      = on
       group.dataset.on = String(on)
@@ -255,10 +256,10 @@ export function createGraphicsPanel (options: GraphicsPanelOptions): GraphicsPan
 
     listen(box, 'change', () => {
       if (box.checked)
-        writePath(config, strength.path, remembered || control.restore)
+        config.write(strength.path, remembered || control.restore)
       else {
-        remembered = readNumberPath(config, strength.path) || remembered
-        writePath(config, strength.path, 0)
+        remembered = readNumberPath(config.read(), strength.path) || remembered
+        config.write(strength.path, 0)
       }
 
       group.dataset.on = String(box.checked)

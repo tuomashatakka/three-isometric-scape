@@ -175,6 +175,8 @@ src/
     ├── beacon.ts                   the coastal light: the lamp, and the beams it sweeps
     ├── clouds.ts                   sky deck, faded in as the view pulls back
     ├── config.ts                   the public tuning surface
+    ├── config-access.ts            who owns the config, before and after the mount
+    ├── state-path.ts               writePath with structural sharing
     ├── create-isometric-scape.ts   app/module composition root
     ├── daylight.ts                 clock one: the solar arc, its year, and the derived sky palette
     ├── season.ts                   clock two: growth, turn, snow, ice, sea smoke

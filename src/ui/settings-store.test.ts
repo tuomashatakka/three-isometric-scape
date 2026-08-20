@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { readPath, writePath } from 'threejs-scene'
+import { createConfigAccess } from '../scene/config-access.ts'
 import { controlPaths } from './scape-controls.ts'
 import type { ControlSection } from './scape-controls.ts'
 import { createSettingsStore } from './settings-store.ts'
@@ -93,83 +94,83 @@ describe('paths', () => {
 describe('createSettingsStore', () => {
   test('round-trips the exposed paths', async () => {
     const storage = memoryStorage()
-    const first   = config()
+    const first   = createConfigAccess(config())
     const store   = createSettingsStore(first, SECTIONS, storage)
 
-    first.look.bloom = 1
-    first.look.grade = 'noir'
+    first.write('look.bloom', 1)
+    first.write('look.grade', 'noir')
     store.save()
     await Bun.sleep(300)
 
-    const second = config()
+    const second = createConfigAccess(config())
     createSettingsStore(second, SECTIONS, storage).load()
 
-    expect(second.look.bloom).toBe(1)
-    expect(second.look.grade).toBe('noir')
+    expect(second.read().look.bloom).toBe(1)
+    expect(second.read().look.grade).toBe('noir')
   })
 
   test('refuses stored values whose type no longer matches', () => {
     const storage = memoryStorage()
     storage.setItem('three-iso.graphics.v1', JSON.stringify({ 'look.bloom': 'loud' }))
 
-    const scape = config()
+    const scape = createConfigAccess(config())
     createSettingsStore(scape, SECTIONS, storage).load()
 
-    expect(scape.look.bloom).toBe(0.34)
+    expect(scape.read().look.bloom).toBe(0.34)
   })
 
   test('survives unparseable storage', () => {
     const storage = memoryStorage()
     storage.setItem('three-iso.graphics.v1', '{ not json')
 
-    const scape = config()
+    const scape = createConfigAccess(config())
     createSettingsStore(scape, SECTIONS, storage).load()
 
-    expect(scape.look.bloom).toBe(0.34)
+    expect(scape.read().look.bloom).toBe(0.34)
   })
 
   test('reset restores the authored values and forgets the snapshot', async () => {
     const storage = memoryStorage()
-    const scape   = config()
+    const scape   = createConfigAccess(config())
     const store   = createSettingsStore(scape, SECTIONS, storage)
 
-    scape.look.bloom = 1.2
+    scape.write('look.bloom', 1.2)
     store.save()
     await Bun.sleep(300)
     store.reset()
 
-    expect(scape.look.bloom).toBe(0.34)
+    expect(scape.read().look.bloom).toBe(0.34)
     expect(storage.getItem('three-iso.graphics.v1')).toBeNull()
   })
 
   test('never saves or restores a section that opted out', async () => {
     const storage = memoryStorage()
-    const first   = configWithRuntime()
+    const first   = createConfigAccess(configWithRuntime())
     const store   = createSettingsStore(first, WITH_RUNTIME, storage)
 
-    first.look.bloom         = 1
-    first.runtime.pixelRatio = 2
+    first.write('look.bloom', 1)
+    first.write('runtime.pixelRatio', 2)
     store.save()
     await Bun.sleep(300)
 
     expect(storage.getItem('three-iso.graphics.v1')).not.toContain('runtime.pixelRatio')
 
-    const second = configWithRuntime()
+    const second = createConfigAccess(configWithRuntime())
     createSettingsStore(second, WITH_RUNTIME, storage).load()
 
     // The knob the reader dragged is gone; everything beside it came back.
-    expect(second.look.bloom).toBe(1)
-    expect(second.runtime.pixelRatio).toBe(1)
+    expect(second.read().look.bloom).toBe(1)
+    expect(second.read().runtime.pixelRatio).toBe(1)
   })
 
   test('degrades quietly when there is no storage at all', () => {
-    const scape = config()
+    const scape = createConfigAccess(config())
     const store = createSettingsStore(scape, SECTIONS, null)
 
     store.load()
     store.save()
     store.reset()
 
-    expect(scape.look.bloom).toBe(0.34)
+    expect(scape.read().look.bloom).toBe(0.34)
   })
 })

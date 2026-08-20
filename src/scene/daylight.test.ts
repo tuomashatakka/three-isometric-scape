@@ -198,7 +198,7 @@ describe('goldenAmount', () => {
 })
 
 describe('createDaylight', () => {
-  const daylight = createDaylight(SCAPE_CONFIG)
+  const daylight = createDaylight(() => SCAPE_CONFIG)
 
   test('never points the key light below the horizon, on any week of the year', () => {
     for (let week = 0; week < 52; week += 1)
@@ -237,10 +237,10 @@ describe('createDaylight', () => {
   })
 
   test('takes the year back out when the axis is straightened', () => {
-    const level  = createDaylight({
+    const level  = createDaylight(() => ({
       ...SCAPE_CONFIG,
       daylight: { ...SCAPE_CONFIG.daylight, axialTilt: 0 },
-    })
+    }))
     const summer = level.sample(0.3, MIDSUMMER).direction.clone()
     const winter = level.sample(0.3, MIDWINTER).direction.clone()
 

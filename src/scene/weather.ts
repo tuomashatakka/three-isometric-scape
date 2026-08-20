@@ -1,5 +1,5 @@
 import { smoothstep } from 'threejs-scene'
-import type { ScapeConfig } from './config.ts'
+import type { LiveConfig } from './config.ts'
 import type { SeasonState } from './season.ts'
 
 
@@ -136,7 +136,7 @@ export function wetAmount (phase: number): number {
  * of 0.85 is a winter with bare ground in it, and bare ground in a squall is
  * wet.
  */
-export function createWeather (config: ScapeConfig): Weather {
+export function createWeather (config: LiveConfig): Weather {
   const state: WeatherState = { phase: 0, fall: 0, sleet: 0, wet: 0 }
 
   return {
@@ -148,8 +148,14 @@ export function createWeather (config: ScapeConfig): Weather {
 
       state.phase = wrapped
       state.sleet = sleet
-      state.fall  = showerAmount(wrapped) * config.weather.rain
-      state.wet   = wetAmount(wrapped) * config.weather.rain * config.weather.wet * (1 - sleet)
+
+      // Read here rather than captured above: `weather.rain` and `weather.wet`
+      // are both on the overlay, and the store hands back a new config object
+      // every time one of them moves.
+      const { weather } = config()
+
+      state.fall = showerAmount(wrapped) * weather.rain
+      state.wet  = wetAmount(wrapped) * weather.rain * weather.wet * (1 - sleet)
 
       return state
     },

@@ -126,7 +126,7 @@ describe('seaSmokeAmount', () => {
 })
 
 describe('createSeason', () => {
-  const season = createSeason(SCAPE_CONFIG)
+  const season = createSeason(() => SCAPE_CONFIG)
 
   test('leaves the authored palette alone at midsummer', () => {
     const summer = season.sample(0.5)
@@ -145,14 +145,14 @@ describe('createSeason', () => {
   })
 
   test('scales the freeze by how hard the winter is configured to be', () => {
-    const mild = createSeason({ ...SCAPE_CONFIG, season: { ...SCAPE_CONFIG.season, ice: 0 }})
+    const mild = createSeason(() => ({ ...SCAPE_CONFIG, season: { ...SCAPE_CONFIG.season, ice: 0 }}))
 
     expect(season.sample(0.06).freeze).toBeCloseTo(SCAPE_CONFIG.season.ice, 6)
     expect(mild.sample(0.06).freeze).toBe(0)
   })
 
   test('scales the sea smoke by how hard the coast is configured to steam', () => {
-    const still = createSeason({ ...SCAPE_CONFIG, season: { ...SCAPE_CONFIG.season, seaSmoke: 0 }})
+    const still = createSeason(() => ({ ...SCAPE_CONFIG, season: { ...SCAPE_CONFIG.season, seaSmoke: 0 }}))
 
     expect(season.sample(0.87).smoke).toBeGreaterThan(0)
     expect(still.sample(0.87).smoke).toBe(0)

@@ -1,7 +1,6 @@
 import { AdditiveBlending, DynamicDrawUsage, InstancedMesh, MeshBasicMaterial, Object3D, Sphere, Vector3 } from 'three'
 import { createSeededRng, defineModule } from 'threejs-scene'
-import type { AppModule } from 'threejs-scene'
-import type { ScapeConfig } from './config.ts'
+import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import type { DaylightState } from './daylight.ts'
 import { buildBeaconOptic } from './props/beacon.ts'
 import { resolvePalette } from './props/index.ts'
@@ -32,7 +31,7 @@ export interface LanternHub {
 }
 
 export interface BeaconLightOptions {
-  config:  ScapeConfig
+  config:  LiveConfig
   quality: AtmosphereQuality
   hubs:    readonly LanternHub[]
 
@@ -119,14 +118,14 @@ export function lanternBounds (hubs: readonly LanternHub[], reach: number): Sphe
  * @returns `null` when the archipelago has no lantern to light — an island with
  *   no rock far enough out gets no beam rather than a beam from nowhere.
  */
-export function createBeaconLight (options: BeaconLightOptions): AppModule<Record<string, never>> | null {
+export function createBeaconLight (options: BeaconLightOptions): ScapeModule | null {
   const { config, quality, hubs, daylight } = options
 
   if (hubs.length === 0)
     return null
 
-  const { beamReach, beamSpread } = config.beacon
-  const geometry                  = buildBeaconOptic(createSeededRng(config.seed).fork('beacon-optic'), resolvePalette(), {
+  const { beamReach, beamSpread } = config().beacon
+  const geometry                  = buildBeaconOptic(createSeededRng(config().seed).fork('beacon-optic'), resolvePalette(), {
     // The tier's answer, and a graceful absence rather than a poor version: at
     // zero panels the lantern still glows, it simply throws nothing. That is a
     // real light — a fixed harbour lamp — and not a broken sweeping one.
@@ -149,7 +148,7 @@ export function createBeaconLight (options: BeaconLightOptions): AppModule<Recor
   })
 
   function applyGlow (): void {
-    material.color.setScalar(lampGlow(config, quality))
+    material.color.setScalar(lampGlow(config(), quality))
   }
 
   applyGlow()
@@ -183,7 +182,7 @@ export function createBeaconLight (options: BeaconLightOptions): AppModule<Recor
 
   writeMatrices()
 
-  return defineModule<Record<string, never>>({
+  return defineModule<ScapeConfig>({
     name: 'scape-beacon',
 
     build (ctx) {
@@ -191,7 +190,7 @@ export function createBeaconLight (options: BeaconLightOptions): AppModule<Recor
     },
 
     update (_state, frame) {
-      const lamp = lampBrightness(config, daylight.day)
+      const lamp = lampBrightness(config(), daylight.day)
 
       material.opacity = lamp
 
@@ -207,7 +206,7 @@ export function createBeaconLight (options: BeaconLightOptions): AppModule<Recor
       if (!mesh.visible)
         return
 
-      const turned = advanceOptic(phase, config.beacon.turn, frame.delta)
+      const turned = advanceOptic(phase, config().beacon.turn, frame.delta)
 
       if (turned === phase)
         return

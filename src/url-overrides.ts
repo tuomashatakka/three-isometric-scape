@@ -1,5 +1,3 @@
-import { writePath } from 'threejs-scene'
-import { SCAPE_CONFIG } from './scene/config.ts'
 import type { AtmosphereQuality, QualitySignals } from './scene/quality.ts'
 import {
   atmosphereQuality,
@@ -7,6 +5,7 @@ import {
   isQualityEffects,
   selectAtmosphereQuality,
 } from './scene/quality.ts'
+import type { ConfigAccess, ConfigValue } from './scene/config-access.ts'
 import type { TierMemory } from './scene/tier-memory.ts'
 
 
@@ -32,6 +31,10 @@ export interface UrlReader {
  * ladder, which is three state machines sharing one set of names.
  */
 export interface UrlOverrideOptions extends UrlReader {
+
+  /** Where the config lives before the scape has mounted and taken it. */
+  config: ConfigAccess
+
 
   /** What the device broadcasts about itself, before the url argues with it. */
   signals: QualitySignals
@@ -122,7 +125,7 @@ export function withSurfaceOverrides (quality: AtmosphereQuality, { params, say 
 }
 
 export function createUrlOverrides (options: UrlOverrideOptions): UrlOverrides {
-  const { params, say, signals, memory } = options
+  const { params, say, signals, memory, config } = options
 
   function startingQuality (): AtmosphereQuality {
     const forced = params.get('tier')
@@ -149,7 +152,7 @@ export function createUrlOverrides (options: UrlOverrideOptions): UrlOverrides {
     const forced = params.get('effects')
 
     if (forced && isQualityEffects(forced)) {
-      SCAPE_CONFIG.runtime.effects = forced
+      config.write('runtime.effects', forced)
       say(`effects forced to ${forced} by the url`)
     }
   }
@@ -174,7 +177,7 @@ export function createUrlOverrides (options: UrlOverrideOptions): UrlOverrides {
         ? text === 'true'
         : Number.isFinite(Number(text)) && text !== '' ? Number(text) : text
 
-      writePath(SCAPE_CONFIG, path, value)
+      config.write(path, value as ConfigValue)
       say(`${path} set to ${String(value)} by the url`)
     }
   }

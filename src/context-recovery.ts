@@ -1,9 +1,9 @@
 import { createStore } from 'threejs-scene'
 import type { Store } from 'threejs-scene'
-import { SCAPE_CONFIG } from './scene/config.ts'
 import type { AtmosphereQuality } from './scene/quality.ts'
 import { reduceAtmosphereQuality } from './scene/quality.ts'
 import type { TierMemory } from './scene/tier-memory.ts'
+import type { ConfigAccess } from './scene/config-access.ts'
 import type { Diagnostics } from './ui/diagnostics.ts'
 
 
@@ -157,6 +157,9 @@ export interface ContextRecoveryOptions {
   canvas: HTMLCanvasElement
 
   diagnostics: Diagnostics
+
+  /** Where the config lives, whether or not a scape is currently mounted. */
+  config: ConfigAccess
 
   /** What this device has already proven, and where a surviving tier is filed. */
   memory: TierMemory
@@ -344,8 +347,8 @@ export function createContextRecovery (options: ContextRecoveryOptions): Context
     // their answer to the effects switch. A device that has just given up its
     // context does not get to keep the budget it gave it up on — and unlocking
     // every effect is the most expensive answer there is to give.
-    if (SCAPE_CONFIG.runtime.effects !== 'tier') {
-      SCAPE_CONFIG.runtime.effects = 'tier'
+    if (options.config.read().runtime.effects !== 'tier') {
+      options.config.write('runtime.effects', 'tier')
       options.save()
       diagnostics.say('effects put back to the tier default · the device has just refused the unlocked budget')
     }

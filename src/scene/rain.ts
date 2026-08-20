@@ -10,8 +10,7 @@ import {
 } from 'three'
 import type { OrthographicCamera } from 'three'
 import { createSeededRng, defineModule } from 'threejs-scene'
-import type { AppModule } from 'threejs-scene'
-import type { ScapeConfig } from './config.ts'
+import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import type { AtmosphereQuality } from './quality.ts'
 import type { SeasonState } from './season.ts'
 import type { WeatherState } from './weather.ts'
@@ -19,7 +18,7 @@ import type { WeatherState } from './weather.ts'
 
 export interface RainOptions {
   camera:  OrthographicCamera
-  config:  ScapeConfig
+  config:  LiveConfig
   quality: AtmosphereQuality
 
   /** Live weather — how hard it is falling, and how much of it is frozen. */
@@ -216,12 +215,12 @@ export function createRainLayer ({
   quality,
   weather,
   season,
-}: RainOptions): AppModule<Record<string, never>> | null {
+}: RainOptions): ScapeModule | null {
   if (quality.rainDrops < 1)
     return null
 
-  const geometry = rainGeometry(quality.rainDrops, config.seed ^ 0x3a91)
-  const rainTone = new Color(config.palette.rain)
+  const geometry = rainGeometry(quality.rainDrops, config().seed ^ 0x3a91)
+  const rainTone = new Color(config().palette.rain)
   const material = new ShaderMaterial({
     name:           'rain',
     vertexShader:   RAIN_VERTEX,
@@ -265,7 +264,7 @@ export function createRainLayer ({
   let fallen  = 0
   let heading = 0
 
-  return defineModule<Record<string, never>>({
+  return defineModule<ScapeConfig>({
     name: 'rain',
 
     build (ctx) {
@@ -282,7 +281,7 @@ export function createRainLayer ({
       if (!mesh.visible)
         return
 
-      const viewSize = camera.userData.viewSize as number ?? config.camera.viewSize
+      const viewSize = camera.userData.viewSize as number ?? config().camera.viewSize
       const focus    = camera.userData.target as readonly [number, number, number] | undefined
       const rise     = viewSize * RISE
 
@@ -295,10 +294,10 @@ export function createRainLayer ({
       // The wind the grass already leans on, resolved into the same bearing the
       // foliage sway uses. A shower falling straight down through bent grass is
       // two systems that have not been introduced to each other.
-      heading += frame.delta * config.wind.speed * 0.21
+      heading += frame.delta * config().wind.speed * 0.21
       slant.set(
-        Math.sin(heading) * config.wind.strength * SLANT,
-        Math.cos(heading * 0.77 + 1.3) * config.wind.strength * SLANT * 0.62,
+        Math.sin(heading) * config().wind.strength * SLANT,
+        Math.cos(heading * 0.77 + 1.3) * config().wind.strength * SLANT * 0.62,
       )
 
       // The same white the ground is going, taken live from the year rather than
@@ -306,7 +305,7 @@ export function createRainLayer ({
       // with it and the two can never be two different whites.
       tone.copy(rainTone).lerp(season.snowColor, sleet * 0.85)
 
-      fallen += frame.delta * config.weather.fall * (1 - (1 - FLAKE_SPEED) * sleet)
+      fallen += frame.delta * config().weather.fall * (1 - (1 - FLAKE_SPEED) * sleet)
 
       // Wrapped so the number a still is taken at never grows large enough to
       // lose precision, however long the page has been open — and wrapped at

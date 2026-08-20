@@ -1,6 +1,6 @@
 import { Color, Vector3 } from 'three'
 import { smoothstep } from 'threejs-scene'
-import type { ScapeConfig } from './config.ts'
+import type { LiveConfig } from './config.ts'
 
 
 /** Everything the lighting rig, the sky and the haze need for one instant of the day. */
@@ -214,17 +214,21 @@ export function goldenAmount (height: number): number {
  * same geometry — which is what gives this coast a midwinter with no daylight
  * in it and a midsummer with no night.
  */
-export function createDaylight (config: ScapeConfig): Daylight {
-  const { atmosphere, palette, daylight } = config
+export function createDaylight (config: LiveConfig): Daylight {
+  const authored = config()
 
-  const noonSun    = new Color(atmosphere.sunColor)
-  const noonTop    = new Color(atmosphere.skyTop)
-  const noonSky    = new Color(palette.sky)
-  const noonHemi   = new Color(atmosphere.hemiSky)
-  const noonGround = new Color(atmosphere.hemiGround)
-  const dusk       = new Color(daylight.dusk)
-  const night      = new Color(daylight.night)
-  const deepNight  = new Color(daylight.night).multiplyScalar(0.32)
+  // The eight colours the arc lerps between are read once. Nothing on the
+  // overlay writes a palette entry, so a rebuild is what changes them — and
+  // eight fresh Colors a frame to re-read a constant nobody can move is a cost
+  // with no knob behind it.
+  const noonSun    = new Color(authored.atmosphere.sunColor)
+  const noonTop    = new Color(authored.atmosphere.skyTop)
+  const noonSky    = new Color(authored.palette.sky)
+  const noonHemi   = new Color(authored.atmosphere.hemiSky)
+  const noonGround = new Color(authored.atmosphere.hemiGround)
+  const dusk       = new Color(authored.daylight.dusk)
+  const night      = new Color(authored.daylight.night)
+  const deepNight  = new Color(authored.daylight.night).multiplyScalar(0.32)
 
   const state: DaylightState = {
     direction:    new Vector3(),
@@ -233,8 +237,8 @@ export function createDaylight (config: ScapeConfig): Daylight {
     skyTop:       new Color(),
     hemiSky:      new Color(),
     hemiGround:   new Color(),
-    sunStrength:  atmosphere.sunStrength,
-    hemiStrength: atmosphere.hemiStrength,
+    sunStrength:  authored.atmosphere.sunStrength,
+    hemiStrength: authored.atmosphere.hemiStrength,
     environment:  0.34,
     day:          1,
     dark:         0,
@@ -244,10 +248,14 @@ export function createDaylight (config: ScapeConfig): Daylight {
     state,
 
     sample (time, year) {
-      const { latitude, axialTilt } = daylight
-      const phase                   = time - Math.floor(time)
-      const height                  = sunHeight(phase, year, latitude, axialTilt)
-      const bearing                 = daylight.azimuth * DEGREES +
+      // Latitude, tilt, azimuth, the night lift and both light strengths are
+      // sliders. They come from the store as of this tick, never from the object
+      // this closure was built with.
+      const { atmosphere, daylight } = config()
+      const { latitude, axialTilt }  = daylight
+      const phase                    = time - Math.floor(time)
+      const height                   = sunHeight(phase, year, latitude, axialTilt)
+      const bearing                  = daylight.azimuth * DEGREES +
         sunSwing(phase, year, latitude, axialTilt)
       const flat                    = Math.sqrt(Math.max(0, 1 - height * height))
 

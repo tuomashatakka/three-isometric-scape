@@ -8,7 +8,6 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js'
 import { HorizontalTiltShiftShader } from 'three/addons/shaders/HorizontalTiltShiftShader.js'
 import { VerticalTiltShiftShader } from 'three/addons/shaders/VerticalTiltShiftShader.js'
 import { defineModule, smoothstep } from 'threejs-scene'
-import type { AppModule } from 'threejs-scene'
 import {
   createFilmGrainPass,
   createGodRaysPass,
@@ -17,14 +16,14 @@ import {
 } from 'threejs-scene/modules/post'
 import type { EffectContext, GodRaysPass, GradePass } from 'threejs-scene/modules/post'
 import { createAnamorphic, createAo, createLUT, createSsr, createTraa } from 'threejs-scene/modules/post/webgl'
-import type { ScapeConfig } from './config.ts'
+import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import { createGradeLUTs } from './lut.ts'
 import type { AtmosphereQuality } from './quality.ts'
 
 
 export interface PostOptions {
   camera:  OrthographicCamera
-  config:  ScapeConfig
+  config:  LiveConfig
   quality: AtmosphereQuality
 
   /** Sun position in world space, owned by the atmosphere module. */
@@ -87,7 +86,7 @@ export function createAtmospherePost ({
   quality,
   sunPosition,
   water,
-}: PostOptions): AppModule<Record<string, never>> {
+}: PostOptions): ScapeModule {
   const luts = createGradeLUTs()
 
   let pairs: TiltShiftPair[]          = []
@@ -99,7 +98,7 @@ export function createAtmospherePost ({
   let godRays: GodRaysPass | null     = null
   let extras: Pass[]                  = []
   let size                            = { width: 1, height: 1 }
-  let amount                          = config.look.tiltShift
+  let amount                          = config().look.tiltShift
 
   // The chain's own copy of the surface. An `EffectComposer` snapshots the
   // renderer's pixel ratio when it is built and never looks again, so a live
@@ -127,9 +126,9 @@ export function createAtmospherePost ({
       pair.vertical.uniforms.r.value   = focusLine
     }
 
-    const viewSize = camera.userData.viewSize as number ?? config.camera.viewSize
+    const viewSize = camera.userData.viewSize as number ?? config().camera.viewSize
     const zoom     = Math.min(BLUR_MAX, Math.max(BLUR_MIN, BLUR_REFERENCE / Math.max(1, viewSize)))
-    amount         = config.look.tiltShift * zoom
+    amount         = config().look.tiltShift * zoom
     applyBlur()
   }
 
@@ -152,7 +151,7 @@ export function createAtmospherePost ({
     if (!godRays)
       return
 
-    const viewSize = camera.userData.viewSize as number ?? config.camera.viewSize
+    const viewSize = camera.userData.viewSize as number ?? config().camera.viewSize
 
     // Direction is taken live from the atmosphere's sun rather than from config,
     // so the shafts track the rig if the light is ever moved at runtime.
@@ -184,7 +183,7 @@ export function createAtmospherePost ({
       sunNdc.x * rein * 0.5 + 0.5,
       sunNdc.y * rein * 0.5 + 0.5,
     )
-    godRays.uniforms.uExposure.value = 0.16 * config.look.godRays * fade
+    godRays.uniforms.uExposure.value = 0.16 * config().look.godRays * fade
   }
 
   /**
@@ -196,7 +195,7 @@ export function createAtmospherePost ({
     const built: Pass[] = []
     const lake          = water()
 
-    if (quality.ao && config.look.ao > 0)
+    if (quality.ao && config().look.ao > 0)
       built.push(createAo(ctx))
 
     // `selects` and no `groundReflector`, which is not a simplification.
@@ -220,10 +219,10 @@ export function createAtmospherePost ({
         thickness:   0.4,
       }))
 
-    if (quality.anamorphic && config.look.anamorphic > 0)
-      built.push(createAnamorphic({ threshold: 0.86, scale: config.look.anamorphic * 3 }))
+    if (quality.anamorphic && config().look.anamorphic > 0)
+      built.push(createAnamorphic({ threshold: 0.86, scale: config().look.anamorphic * 3 }))
 
-    if (quality.godRays && config.look.godRays > 0) {
+    if (quality.godRays && config().look.godRays > 0) {
       godRays = createGodRaysPass({ threshold: 0.94 })
       godRays.uniforms.uDensity.value = 0.55
       godRays.uniforms.uWeight.value  = 0.26
@@ -237,7 +236,7 @@ export function createAtmospherePost ({
   }
 
   /**
-   * Push `config.look` into the passes that are already built.
+   * Push `config().look` into the passes that are already built.
    *
    * The chain's *shape* is a tier decision made once — which passes exist at
    * all is not something a slider gets to change without rebuilding the
@@ -253,7 +252,7 @@ export function createAtmospherePost ({
    * the pixel ratio still has to work there.
    */
   function syncSurface (): void {
-    const next = config.runtime.pixelRatio
+    const next = config().runtime.pixelRatio
 
     if (!composer || next === surfaceRatio)
       return
@@ -267,15 +266,15 @@ export function createAtmospherePost ({
 
   function syncLook (): void {
     if (grade)
-      grade.uniforms.uVignette.value = config.look.vignette
+      grade.uniforms.uVignette.value = config().look.vignette
 
     if (lut) {
-      lut.intensity = config.look.intensity
-      lut.lut       = luts.get(config.look.grade)
+      lut.intensity = config().look.intensity
+      lut.lut       = luts.get(config().look.grade)
     }
 
     if (film)
-      film.uniforms.uIntensity.value = config.look.grain * GRAIN_SCALE
+      film.uniforms.uIntensity.value = config().look.grain * GRAIN_SCALE
 
     // The bloom pass belongs to the composer rather than to `effects`, so it is
     // found once by the one property no other pass in the chain carries.
@@ -284,15 +283,15 @@ export function createAtmospherePost ({
     ) ?? null
 
     if (bloom)
-      bloom.strength = config.look.bloom
+      bloom.strength = config().look.bloom
   }
 
-  const inner = postProcessing<Record<string, never>>({
+  const inner = postProcessing<ScapeConfig>({
     depth: quality.ao || quality.ssr || quality.godRays,
 
     bloom: quality.bloom
       ? {
-        strength: config.look.bloom,
+        strength: config().look.bloom,
         radius:   0.7,
 
         // Above the fog, deliberately. Bloom is for highlights, and the fog
@@ -311,7 +310,7 @@ export function createAtmospherePost ({
 
       size         = { width: ctx.width, height: ctx.height }
       composer     = ctx.composer
-      surfaceRatio = config.runtime.pixelRatio
+      surfaceRatio = config().runtime.pixelRatio
 
       const chain: Pass[] = []
       extras = []
@@ -334,19 +333,19 @@ export function createAtmospherePost ({
       grade = createGradePass({
         contrast:   1.04,
         saturation: 1.06,
-        vignette:   config.look.vignette,
+        vignette:   config().look.vignette,
       })
       chain.push(grade)
 
       lut = createLUT({
-        lut:       luts.get(config.look.grade),
-        intensity: config.look.intensity,
+        lut:       luts.get(config().look.grade),
+        intensity: config().look.intensity,
       }) as LUTPass
       chain.push(lut)
 
-      if (quality.grain && config.look.grain > 0) {
+      if (quality.grain && config().look.grain > 0) {
         film = createFilmGrainPass({
-          intensity: config.look.grain * GRAIN_SCALE,
+          intensity: config().look.grain * GRAIN_SCALE,
           luma:      0.65,
         })
         chain.push(film)
@@ -368,7 +367,7 @@ export function createAtmospherePost ({
     },
   })
 
-  return defineModule<Record<string, never>>({
+  return defineModule<ScapeConfig>({
     name: 'atmosphere-post',
 
     build (ctx) {

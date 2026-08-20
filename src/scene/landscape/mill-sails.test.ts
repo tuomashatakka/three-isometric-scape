@@ -17,7 +17,7 @@ function withConfig (mill: Partial<typeof SCAPE_CONFIG.mill>, wind = SCAPE_CONFI
 describe('the turning sails', () => {
   test('every mill in the archipelago is one draw', () => {
     const sails = createMillSails({
-      config:   SCAPE_CONFIG,
+      config:   () => SCAPE_CONFIG,
       hubs:     HUBS,
       material: new MeshStandardMaterial(),
     })!
@@ -28,7 +28,7 @@ describe('the turning sails', () => {
 
   test('no mill is no mesh', () => {
     expect(createMillSails({
-      config:   SCAPE_CONFIG,
+      config:   () => SCAPE_CONFIG,
       hubs:     [],
       material: new MeshStandardMaterial(),
     })).toBeNull()
@@ -36,7 +36,7 @@ describe('the turning sails', () => {
 
   test('the bound holds every wheel, so none of them is culled', () => {
     const sails = createMillSails({
-      config:   SCAPE_CONFIG,
+      config:   () => SCAPE_CONFIG,
       hubs:     HUBS,
       material: new MeshStandardMaterial(),
     })!
@@ -52,7 +52,7 @@ describe('the turning sails', () => {
 
   test('turns with the wind', () => {
     const sails = createMillSails({
-      config:   withConfig({ spin: 1.15 }, { strength: 0.9, speed: 1.35 }),
+      config:   () => withConfig({ spin: 1.15 }, { strength: 0.9, speed: 1.35 }),
       hubs:     HUBS,
       material: new MeshStandardMaterial(),
     })!
@@ -68,7 +68,7 @@ describe('the turning sails', () => {
       withConfig({ spin: 0 }, { strength: 0.9, speed: 1.35 }),
     ]) {
       const sails = createMillSails({
-        config,
+        config:   () => config,
         hubs:     HUBS,
         material: new MeshStandardMaterial(),
       })!
@@ -85,7 +85,7 @@ describe('the turning sails', () => {
 
   test('stays inside one turn however long it runs', () => {
     const sails = createMillSails({
-      config:   withConfig({ spin: 2 }, { strength: 1, speed: 1 }),
+      config:   () => withConfig({ spin: 2 }, { strength: 1, speed: 1 }),
       hubs:     HUBS,
       material: new MeshStandardMaterial(),
     })!
@@ -100,7 +100,7 @@ describe('the turning sails', () => {
 
   test('disposing twice is not an error, and stops the wheel', () => {
     const sails = createMillSails({
-      config:   withConfig({ spin: 1.15 }, { strength: 1, speed: 1 }),
+      config:   () => withConfig({ spin: 1.15 }, { strength: 1, speed: 1 }),
       hubs:     HUBS,
       material: new MeshStandardMaterial(),
     })!

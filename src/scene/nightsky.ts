@@ -10,8 +10,8 @@ import {
 } from 'three'
 import type { OrthographicCamera } from 'three'
 import { createSeededRng, defineModule } from 'threejs-scene'
-import type { AppModule, SeededRng } from 'threejs-scene'
-import type { ScapeConfig } from './config.ts'
+import type { SeededRng } from 'threejs-scene'
+import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import { bodyHeight, bodySwing, declination } from './daylight.ts'
 import type { DaylightState } from './daylight.ts'
 import type { AtmosphereQuality } from './quality.ts'
@@ -20,7 +20,7 @@ import { deckFocus, deckReveal, deckViewSize } from './sky-deck.ts'
 
 export interface NightSkyOptions {
   camera:  OrthographicCamera
-  config:  ScapeConfig
+  config:  LiveConfig
   quality: AtmosphereQuality
 
   /** Live sky state. The stars are only ever in the part of it the sun has left. */
@@ -347,7 +347,7 @@ export function createNightSky ({
   config,
   quality,
   daylight,
-}: NightSkyOptions): AppModule<Record<string, never>> | null {
+}: NightSkyOptions): ScapeModule | null {
   if (quality.starCount < 1)
     return null
 
@@ -356,10 +356,10 @@ export function createNightSky ({
   // zoom. Baking at any particular radius would be baking one zoom level in.
   const field = bakeField(
     quality.starCount,
-    config.seed ^ 0x51a7,
+    config().seed ^ 0x51a7,
     1,
-    new Color(config.palette.star),
-    new Color(config.daylight.dusk),
+    new Color(config().palette.star),
+    new Color(config().daylight.dusk),
   )
 
   const stars = new BufferGeometry()
@@ -402,7 +402,7 @@ export function createNightSky ({
     uniforms:       {
       uOpacity: { value: 0 },
       uPhase:   { value: 0 },
-      uTone:    { value: new Color(config.palette.moon) },
+      uTone:    { value: new Color(config().palette.moon) },
     },
     transparent: true,
     depthWrite:  false,
@@ -416,7 +416,7 @@ export function createNightSky ({
   moon.frustumCulled = false
   moon.visible       = false
 
-  return defineModule<Record<string, never>>({
+  return defineModule<ScapeConfig>({
     name: 'nightsky',
 
     build (ctx) {
@@ -433,13 +433,13 @@ export function createNightSky ({
     },
 
     update () {
-      const { starlight, moonlight, auroraHeight, cloudHeight } = config.atmosphere
-      const { latitude, axialTilt, time }                       = config.daylight
-      const year                                                = config.season.time
+      const { starlight, moonlight, auroraHeight, cloudHeight } = config().atmosphere
+      const { latitude, axialTilt, time }                       = config().daylight
+      const year                                                = config().season.time
       const span                                                = deckViewSize(camera, config)
-      const reveal                                              = deckReveal(span, config.camera)
+      const reveal                                              = deckReveal(span, config().camera)
       const focus                                               = deckFocus(camera)
-      const base                                                = config.terrain.waterLevel +
+      const base                                                = config().terrain.waterLevel +
         Math.max(auroraHeight, cloudHeight + CLEARANCE) + CLEARANCE
 
       // Made invisible rather than transparent below the threshold: a deck of
@@ -473,7 +473,7 @@ export function createNightSky ({
       if (!moon.visible)
         return
 
-      const bearing = config.daylight.azimuth * DEGREES + place.swing
+      const bearing = config().daylight.azimuth * DEGREES + place.swing
       const zenith  = Math.acos(Math.min(1, Math.max(-1, place.height))) / (Math.PI / 2)
       const reach   = span * HORIZON_FRACTION * zenith
 

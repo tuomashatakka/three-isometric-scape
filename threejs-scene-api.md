@@ -19,7 +19,7 @@ problem, it was that nothing here said what was already available.
 | `App` | interface | — |
 | `AppCameraOptions` | interface | — |
 | `AppLoopOptions` | interface | — |
-| `AppModule` | interface | src/scene/mist.ts, src/scene/camera-controls.ts, src/scene/aurora.ts +10 |
+| `AppModule` | interface | src/scene/config.ts |
 | `AppOptions` | interface | — |
 | `AppSceneOptions` | interface | — |
 | `attachPointerGesture` | function | src/scene/camera-controls.ts |
@@ -34,7 +34,7 @@ problem, it was that nothing here said what was already available.
 | `createIsoCamera` | function | src/scene/create-isometric-scape.ts |
 | `createRenderer` | function | src/scene/create-isometric-scape.ts, src/prop-preview/quad-view.ts |
 | `createSeededRng` | function | src/scene/beacon.ts, src/scene/landscape/survey.ts, src/scene/landscape/dressing.ts +19 |
-| `createStore` | function | src/context-recovery.ts |
+| `createStore` | function | src/scene/config-access.test.ts, src/context-recovery.ts |
 | `defineModule` | function | src/scene/mist.ts, src/scene/camera-controls.ts, src/scene/aurora.ts +9 |
 | `Disposable` | interface | — |
 | `disposeMaterial` | function | — |
@@ -57,7 +57,7 @@ problem, it was that nothing here said what was already available.
 | `PointerGestureCallbacks` | interface | — |
 | `PointerGestureOptions` | interface | — |
 | `readNumberPath` | function | src/ui/graphics-panel.ts |
-| `readPath` | function | src/ui/settings-store.test.ts, src/ui/settings-store.ts, scripts/scape-shot.test.ts |
+| `readPath` | function | src/ui/settings-store.test.ts, src/ui/settings-store.ts, src/scene/state-path.test.ts +1 |
 | `readTextPath` | function | src/ui/graphics-panel.ts |
 | `Reducer` | type | — |
 | `RendererOptions` | interface | — |
@@ -67,11 +67,11 @@ problem, it was that nothing here said what was already available.
 | `SeededRng` | interface | src/scene/landscape/dressing.ts, src/scene/landscape/samplers.ts, src/scene/landscape/dressing-zones.ts +15 |
 | `Size` | interface | — |
 | `smoothstep` | function | src/scene/mist.ts, src/scene/daylight.ts, src/scene/camera-controls.ts +15 |
-| `Store` | interface | src/context-recovery.ts |
+| `Store` | interface | src/scene/config-access.ts, src/scene/create-isometric-scape.ts, src/context-recovery.ts |
 | `StoreListener` | type | — |
 | `valueNoise1d` | function | src/scene/landscape/cart-ruts.ts |
 | `Vec3` | type | — |
-| `writePath` | function | src/ui/settings-store.test.ts, src/ui/graphics-panel.ts, src/ui/settings-store.ts +2 |
+| `writePath` | function | src/ui/settings-store.test.ts, src/scene/state-path.test.ts, scripts/args.ts |
 
 ## `threejs-scene/modules/lighting`
 

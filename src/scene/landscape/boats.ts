@@ -7,7 +7,7 @@ import {
 } from 'three'
 import type { MeshStandardMaterial } from 'three'
 import { createSeededRng } from 'threejs-scene'
-import type { ScapeConfig } from '../config.ts'
+import type { LiveConfig } from '../config.ts'
 import { buildProp, resolvePalette } from '../props/index.ts'
 import {
   advanceFleetSchedule,
@@ -61,7 +61,7 @@ export interface BoatFleet {
 }
 
 export interface BoatFleetOptions {
-  config:   ScapeConfig
+  config:   LiveConfig
   network:  WaterwayNetwork
   material: MeshStandardMaterial
   motion?:  Partial<BoatMotionConfig>
@@ -175,7 +175,7 @@ export function createBoatFleet (options: BoatFleetOptions): BoatFleet {
   const motion                        = { ...DEFAULT_BOAT_MOTION, ...options.motion }
   const geometry                      = buildProp(
     'rowboat',
-    createSeededRng(config.seed).fork('boat-fleet'),
+    createSeededRng(config().seed).fork('boat-fleet'),
     resolvePalette(),
   )
   const mesh = new InstancedMesh(geometry, material, network.boatOffsets.length)
@@ -188,7 +188,7 @@ export function createBoatFleet (options: BoatFleetOptions): BoatFleet {
   mesh.updateMatrix()
   mesh.matrixAutoUpdate       = false
   mesh.userData.instanceFleet = 'boat'
-  mesh.boundingSphere         = routeBounds(network.route, config.terrain.waterLevel)
+  mesh.boundingSphere         = routeBounds(network.route, config().terrain.waterLevel)
 
   const carrier             = new Object3D()
   const before: RouteSample = { x: 0, z: 0, angle: 0 }
@@ -196,22 +196,22 @@ export function createBoatFleet (options: BoatFleetOptions): BoatFleet {
   const poses               = network.boatOffsets.map((_offset, index) => createPose(index))
   const wakeEmitters        = network.boatOffsets.map((_offset, index) => createWake(index))
   const schedule            = createFleetSchedule()
-  const water               = config.terrain.waterLevel
+  const water               = config().terrain.waterLevel
   const minimumSeparation   = scheduledFleetMinimumSeparation(
     network.route,
     network.boatOffsets.length,
   )
   let disposed  = false
-  let lastSpeed = Math.max(0, config.boats.speed)
+  let lastSpeed = Math.max(0, config().boats.speed)
 
-  if (minimumSeparation < config.boats.separation)
+  if (minimumSeparation < config().boats.separation)
     throw new Error(`scheduled fleet separation fell to ${minimumSeparation.toFixed(2)}m`)
 
   function syncMatrices (delta: number, snap: boolean): void {
     for (const [ index, pose ] of poses.entries()) {
       const previousAngle = pose.angle
 
-      sampleScheduledBoat(network.route, index, schedule, config.boats.speed, pose)
+      sampleScheduledBoat(network.route, index, schedule, config().boats.speed, pose)
       sampleWaterway(network.route, pose.routeDistance - motion.turnLookAhead, before)
       sampleWaterway(network.route, pose.routeDistance + motion.turnLookAhead, after)
 
@@ -227,7 +227,7 @@ export function createBoatFleet (options: BoatFleetOptions): BoatFleet {
       pose.y       = water - DRAFT
       pose.bearing = pose.angle
       pose.speed01 = pose.speed > 0
-        ? Math.min(1, pose.speed / Math.max(1e-6, config.boats.speed))
+        ? Math.min(1, pose.speed / Math.max(1e-6, config().boats.speed))
         : 0
       pose.moving = pose.speed01 > 0
 
@@ -293,7 +293,7 @@ export function createBoatFleet (options: BoatFleetOptions): BoatFleet {
       if (disposed)
         return
 
-      const speed = Math.max(0, config.boats.speed)
+      const speed = Math.max(0, config().boats.speed)
       if (speed === 0) {
         if (lastSpeed !== 0)
           silenceWakes()

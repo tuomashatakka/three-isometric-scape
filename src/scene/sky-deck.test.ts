@@ -50,10 +50,10 @@ describe('deckViewSize', () => {
     const camera             = new OrthographicCamera()
     camera.userData.viewSize = 123
 
-    expect(deckViewSize(camera, SCAPE_CONFIG)).toBe(123)
+    expect(deckViewSize(camera, () => SCAPE_CONFIG)).toBe(123)
   })
 
   test('falls back to the authored opening before they have', () => {
-    expect(deckViewSize(new OrthographicCamera(), SCAPE_CONFIG)).toBe(LIMITS.viewSize)
+    expect(deckViewSize(new OrthographicCamera(), () => SCAPE_CONFIG)).toBe(LIMITS.viewSize)
   })
 })

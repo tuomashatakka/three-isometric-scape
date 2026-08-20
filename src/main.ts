@@ -1,5 +1,7 @@
 import './style.css'
 import { SCAPE_CONFIG } from './scene/config.ts'
+import type { ScapeConfig } from './scene/config.ts'
+import { createConfigAccess } from './scene/config-access.ts'
 import { createIsometricScape } from './scene/create-isometric-scape.ts'
 import type { AtmosphereQuality } from './scene/quality.ts'
 import {
@@ -65,11 +67,17 @@ const memory  = createTierMemory()
 diagnostics.say(describeQualitySignals(signals))
 diagnostics.say(navigator.userAgent)
 
+// From here `SCAPE_CONFIG` is the authored defaults and nothing else. Every
+// read and every write in this file goes through the access, which knows
+// whether the scape has mounted and taken the config into its store yet.
+const scape = createConfigAccess<ScapeConfig>(SCAPE_CONFIG)
+
 const urls = createUrlOverrides({
   params,
   signals,
   memory,
-  say: message => diagnostics.say(message),
+  config: scape,
+  say:    message => diagnostics.say(message),
 })
 
 /**
@@ -102,9 +110,9 @@ function seedRuntime (from: AtmosphereQuality): void {
   // The tier's number is a *ceiling* on the display's, and the knob is applied
   // straight to the renderer — so seeding the ceiling on a device below it would
   // hand the scape more pixels than it has ever drawn.
-  SCAPE_CONFIG.runtime.pixelRatio    = Math.min(globalThis.devicePixelRatio || 1, from.pixelRatioMax)
-  SCAPE_CONFIG.runtime.frameCap      = from.frameRate
-  SCAPE_CONFIG.runtime.shadowCadence = from.shadows ? SHADOW_CADENCE : 1
+  scape.write('runtime.pixelRatio', Math.min(globalThis.devicePixelRatio || 1, from.pixelRatioMax))
+  scape.write('runtime.frameCap', from.frameRate)
+  scape.write('runtime.shadowCadence', from.shadows ? SHADOW_CADENCE : 1)
 }
 
 // Built once, before anything has been loaded over the config: the store keeps
@@ -116,7 +124,7 @@ const initialQuality = urls.startingQuality()
 seedRuntime(initialQuality)
 
 const status   = createScapeStatus(initialQuality)
-const settings = createSettingsStore(SCAPE_CONFIG, createScapeControls(initialQuality))
+const settings = createSettingsStore(scape, createScapeControls(initialQuality))
 
 settings.load()
 urls.startingEffects()
@@ -191,9 +199,9 @@ function mount (canvas: HTMLCanvasElement, quality: AtmosphereQuality): void {
   // stays the tier as detected — folding the reader's answer to the effects
   // switch into it would make a device that survived `mobile` with everything
   // turned on look like a device that survived `desktop`.
-  const active = withEffects(quality, SCAPE_CONFIG.runtime.effects)
+  const active = withEffects(quality, scape.read().runtime.effects)
 
-  const scape = createIsometricScape(canvas, SCAPE_CONFIG, {
+  const built = createIsometricScape(canvas, scape.read(), {
     quality: active,
     reducedMotion,
     path:    cameraPath,
@@ -242,12 +250,13 @@ function mount (canvas: HTMLCanvasElement, quality: AtmosphereQuality): void {
     },
   })
 
-  // The overlay writes straight into `SCAPE_CONFIG`, which every scene module
-  // already reads per frame — so it is a view of the scene's settings rather
-  // than a copy that has to be pushed anywhere.
+  // The overlay writes through the access, which after this mount is the app's
+  // own store — and every scene module reads that store's state per frame. So
+  // the panel is a view of the scene's settings rather than a copy that has to
+  // be pushed anywhere, and there is still exactly one of them.
   const tour = createCameraPathPanel({
     path:     cameraPath,
-    poseNow:  () => opening ?? { x: 0, z: 0, viewSize: SCAPE_CONFIG.camera.viewSize, heading: 0 },
+    poseNow:  () => opening ?? { x: 0, z: 0, viewSize: scape.read().camera.viewSize, heading: 0 },
     onChange: saveCameraSession,
   })
 
@@ -255,7 +264,7 @@ function mount (canvas: HTMLCanvasElement, quality: AtmosphereQuality): void {
   // effect is now present stops rendering as unavailable the moment it is.
   const panel = createGraphicsPanel({
     root:      drawerSlot!,
-    config:    SCAPE_CONFIG,
+    config:    scape,
     sections:  createScapeControls(active),
     extras:    [{ group: 'camera', title: 'waypoint tour', content: tour.content, dispose: tour.dispose }],
     tier:      active === quality ? `${quality.tier} tier` : `${quality.tier} tier · all effects`,
@@ -274,13 +283,18 @@ function mount (canvas: HTMLCanvasElement, quality: AtmosphereQuality): void {
     onRebuild: () => recovery.rebuild(),
   })
 
+  // The store the app just built is the config's owner until this mount comes
+  // down again, so every knob the reader moves from here lands in it.
+  const release = scape.adopt(built.store)
+
   canvas.parentElement?.append(meter.element)
 
   mounted = {
     dispose () {
       meter.dispose()
       panel.dispose()
-      scape.dispose()
+      release()
+      built.dispose()
     },
   }
 }
@@ -295,6 +309,7 @@ const recovery = createContextRecovery({
   canvas: firstCanvas,
   diagnostics,
   memory,
+  config: scape,
   mount,
   unmount,
   seed:   seedRuntime,
