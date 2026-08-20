@@ -9,6 +9,17 @@ import { STEADING_BUILDINGS } from './steading.ts'
 const config = structuredClone(SCAPE_CONFIG) as ScapeConfig
 const world  = surveyArchipelago(config)
 
+/**
+ * How many islands there are supposed to be — asked, not asserted.
+ *
+ * The count was written out as `3` here, and adding the sound and the fell to
+ * `archipelago.landmasses` turned four correct assertions into four failures
+ * about a number rather than about the world. What these actually claim is that
+ * every spec becomes exactly one island and no two of them come out alike, and
+ * that claim is true at any count.
+ */
+const ISLANDS = config.archipelago.landmasses.length
+
 function terrainSignature (landmass: ArchipelagoSurvey['landmasses'][number]): string {
   const half   = landmass.config.terrain.size * 0.5
   const probes = [
@@ -39,11 +50,11 @@ function structuralSignature (survey: ArchipelagoSurvey): unknown {
 }
 
 describe('the inhabited archipelago', () => {
-  test('has three deterministic landmasses with genuinely different ground', () => {
-    expect(world.landmasses).toHaveLength(3)
-    expect(new Set(world.landmasses.map(landmass => landmass.id)).size).toBe(3)
-    expect(new Set(world.landmasses.map(landmass => landmass.profile)).size).toBe(3)
-    expect(new Set(world.landmasses.map(terrainSignature)).size).toBe(3)
+  test('has one deterministic landmass per spec, each with genuinely different ground', () => {
+    expect(world.landmasses).toHaveLength(ISLANDS)
+    expect(new Set(world.landmasses.map(landmass => landmass.id)).size).toBe(ISLANDS)
+    expect(new Set(world.landmasses.map(landmass => landmass.profile)).size).toBe(ISLANDS)
+    expect(new Set(world.landmasses.map(terrainSignature)).size).toBe(ISLANDS)
 
     const againConfig = structuredClone(SCAPE_CONFIG) as ScapeConfig
     const again       = surveyArchipelago(againConfig)

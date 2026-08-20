@@ -11,6 +11,20 @@ const clone       = (): ScapeConfig => structuredClone(SCAPE_CONFIG) as ScapeCon
 const config      = clone()
 const archipelago = surveyArchipelago(config)
 const WINDOW      = { x: 0, z: 0, size: archipelago.size }
+const ISLANDS     = config.archipelago.landmasses.length
+
+/**
+ * A grid fine enough that every port gets a cell of its own.
+ *
+ * Not a resolution, a *cell size*: about three metres across. The jetty and the
+ * harbour on one island are tens of metres apart, so a coarser cell merges them
+ * and the map silently draws one glyph where there are two — which is how a
+ * fixed 160x80 went from showing all the ports to showing one of five when the
+ * world went from 520 m to 1520 m. Rows are half the columns because the glyphs
+ * are twice as tall as they are wide.
+ */
+const DETAIL_W = Math.round(archipelago.size / 3.2)
+const DETAIL_H = Math.round(DETAIL_W / 2)
 
 
 describe('the height ramp', () => {
@@ -86,7 +100,7 @@ describe('the map', () => {
   })
 
   test('shows all jetties, the waterways and the dispatched boats', () => {
-    const mapped = renderGrid(config, archipelago, WINDOW, 160, 80, ALL_LAYERS)
+    const mapped = renderGrid(config, archipelago, WINDOW, DETAIL_W, DETAIL_H, ALL_LAYERS)
 
     expect(mapped.match(/J/gu)).toHaveLength(archipelago.ports.length)
     expect(mapped).toContain('·')
@@ -135,10 +149,10 @@ describe('the stats', () => {
     expect(stats.landing).not.toBeNull()
   })
 
-  test('reports all three distinct inhabited landmasses', () => {
-    expect(stats.landmasses).toHaveLength(3)
-    expect(new Set(stats.landmasses.map(landmass => landmass.id)).size).toBe(3)
-    expect(new Set(stats.landmasses.map(landmass => landmass.profile)).size).toBe(3)
+  test('reports every inhabited landmass, all distinct', () => {
+    expect(stats.landmasses).toHaveLength(ISLANDS)
+    expect(new Set(stats.landmasses.map(landmass => landmass.id)).size).toBe(ISLANDS)
+    expect(new Set(stats.landmasses.map(landmass => landmass.profile)).size).toBe(ISLANDS)
 
     for (const landmass of stats.landmasses) {
       expect(landmass.land).toBeGreaterThan(5)
