@@ -60,6 +60,28 @@ export const TOURS: Record<string, Pose[]> = {
     set:    [ 'camera.focusX=60.9', 'camera.focusZ=39.3' ],
   })),
 
+  /**
+   * The farmstead after dark, from two ranges and two sides.
+   *
+   * Here for the reason the `beacon` set is: the tour aims at nothing in
+   * particular, and the home yard is a twenty-metre circle inside a world 1520 m
+   * across, so no pose in the tour has ever had a window in frame at a size a
+   * window can be judged at. The lamps are a wall-aligned glow, so half of them
+   * are behind their own building at any heading — which is correct, and exactly
+   * the kind of correct that needs two headings to confirm rather than assert.
+   *
+   * Late autumn at 68°N puts the sun well under at this hour, so every one of
+   * these is a frame the lamps are actually burning in.
+   */
+  lamps: [ 34, 34, 214, 214 ].map((rot, index) => ({
+    name:   `lamps-${rot}-${index % 2 === 0 ? 'near' : 'yard'}`,
+    rot,
+    zoom:   index % 2 === 0 ? 26 : 74,
+    time:   0.02,
+    season: 0.78,
+    set:    [ 'camera.focusX=-14', 'camera.focusZ=1' ],
+  })),
+
   // The cheap pass: is there a scape at all, and does it survive being drawn.
   quick: [{ name: 'default' }],
 }
@@ -100,6 +122,13 @@ export const STILL = [
   // every frame of a tour, and the lamp is at its brightest in exactly the two
   // poses — night and winter — a diff is most sensitive at.
   'beacon.turn=0',
+
+  // The wicks behind the settlements' windows. Fourteen flickers a minute is
+  // slow, which makes it worse rather than better for a capture: two frames a
+  // second apart catch different parts of the same wobble, so the night and
+  // winter poses — the two a diff is most sensitive at, and the two the lamps
+  // are brightest in — would never agree with themselves twice.
+  'lamplight.flicker=0',
 
   // Both of the flock's rates. The sweep is what carries a gull round its ring
   // and the beat is what its wings are doing while it goes — two integrals, two
@@ -375,7 +404,7 @@ async function main (): Promise<void> {
     console.log([
       'scape:shot — the scape, from a pose, without anybody watching',
       '',
-      '  --poses tour          named set: tour (6) | beacon (4, the light) | quick (1)',
+      '  --poses tour          named set: tour (6) | beacon (4, the light) | lamps (4, lit windows) | quick (1)',
       '  --rot 45 --zoom 70    camera yaw, and view size (tilt is derived from zoom)',
       '  --time 0.42           the day, 0..1',
       '  --season 0.5          the year, 0..1',

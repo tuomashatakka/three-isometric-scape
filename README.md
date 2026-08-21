@@ -85,6 +85,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a working boat harbour: a boathouse on piles with a slipway, a net rack, and stakes in the shallows
 - a walled upland hay meadow with a barn, a gate and drying poles
 - a lighthouse on the outermost rock of the ring, throwing beams that sweep the water from dusk until dawn
+- lit windows in every farmhouse, barn and sauna in the archipelago, coming up through dusk with the sun and flickering like the wicks they are
 - gull colonies wheeling over every harbour mouth and over the outer rock, banking into the turn, down at night and mostly down in a squall
 - a beck traced downhill from a spring, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself
 - **three clocks** — a day, a year, and a weather front — each a phase and a speed, each deriving everything else from that phase
@@ -176,6 +177,7 @@ src/
     ├── camera-controls.ts          pointer, touch, keyboard, focus, orbit
     ├── camera-follow.ts            riding a moving fleet instance instead of the map
     ├── beacon.ts                   the coastal light: the lamp, and the beams it sweeps
+    ├── lamplight.ts                 the lamps behind the settlements' windows, lit by how far the sun is down
     ├── clouds.ts                   sky deck, faded in as the view pulls back
     ├── config.ts                   the public tuning surface
     ├── config-access.ts            who owns the config, before and after the mount
@@ -233,6 +235,7 @@ src/
         ├── ploppable.ts            2d placement with a ground-following foundation
         ├── fence.ts / wall.ts      continuous ground-following runs
         ├── timber.ts               cladding, gable and roof vocabulary
+        ├── glazing.ts              where every building's glass is, read by the walls and by the lamps
         ├── buildings.ts            barn, farmhouse, sauna, aitta, woodshed
         ├── structures.ts           jetty, well, hay rack, gate, bridge, cart
         ├── vegetation.ts           spruce, pine, birch, grass, reeds, crops
@@ -573,6 +576,38 @@ which pins mobile, still reads `same` on all six poses. no new pass, no new geom
 **the plinth is a zone as well as a claim.** the placement solver keeps trees, saplings, erratics and cairns off the light's footing, but ground cover never asks the solver anything — measured, the first version had grass and heather growing up through the masonry, one tuft 0.4 m from the tower's centre. `onBeacon` joins the yard, the track, the paths, the plots and the pasture in the `clear` test, which is the one place that question is asked.
 
 **while the sun is up the system is not drawn at all**, rather than drawn at zero opacity: a transparent mesh still costs a sorted draw, and the beams are most of a hundred metres of fill. `quality.beaconBlades` is the tier's answer and 0 is a graceful absence — the lantern still glows, it simply throws nothing, which is a fixed harbour lamp rather than a broken sweeping one. `beacon.turn` is turns per minute and 0 stops the sweep where it stands, which is what puts it in `STILL` and lets a capture be taken twice the same way.
+
+## the windows come on
+
+after dark the settlements light up. every farmhouse, barn and sauna in the archipelago carries a warm glow behind its glass, coming up through dusk with the sun and going out again at dawn — forty-five panes across five holdings, thirty of them lit, in one instanced draw. where the glass is is [`props/glazing.ts`](src/scene/props/glazing.ts); the light is [`scene/lamplight.ts`](src/scene/lamplight.ts).
+
+**the pane positions are one table, read twice.** they used to be literals inside `buildFarmhouse`, `buildBarn` and `buildSauna`, which is fine for exactly as long as nothing else needs to know them. the moment something does, a second copy is a lamp burning half a metre to the left of its own glazing on some seeds and none of them on others. so `GLAZING` is the single answer: the builders set the glass in from it and the lamps are hung from it, and `glazing.test.ts` states the claim as a fact about the buffer — there is geometry within a frame's half-diagonal of every position the table names.
+
+**three of the five farmstead buildings, and it is the three that would have a lamp.** the house is lived in, the barn is worked in after dark, the sauna is lit for as long as it is being used. the woodshed is an open lean-to and the aitta is a grain store on staddle stones, so neither has glass to put light behind — an absence, not an omission.
+
+**the lamps could not be a shader on the glass, and that is worth writing down because it is the obvious first idea.** an emissive term keyed off the baked vertex colour cannot work: `mergeParts` jitters every part's colour, so there is no exact value left in the buffer to test against. and the five buildings are `Ploppable`s sharing the ground material with the terrain itself, so an injection for the glass would run on every quad of every island. one additive quad per pane is cheaper than either.
+
+**the sills are reported by the thing that stood the buildings up, not by the survey.** the lantern hubs and the mills' wheels are resolved in `landscape/index.ts` from the survey, because where a tower is sited is a fact about the ground. a sill is not: a `Ploppable` levels its floor against the *highest* corner of its own footprint, so sampling the height field a second time here would hang every glow a few centimetres off the wall it belongs to. `dressing.ts` collects `litPanes` as it plops, and the landscape publishes them through an accessor rather than a field — they do not exist until the module has built.
+
+**a glow is a unit disc with its falloff in its vertex colours.** additive blending makes black transparent, so a rim at zero *is* a soft edge — for no texture upload and no fetch. radius 1 is the halo's own half-extent, which leaves the instance's scale as the only thing that decides how big a window's light is.
+
+**the halo is metre-sized until it would be sub-pixel, and then it is held.** the same decision `birds.ts` makes for a gull's wingspan, and for the same reason: the default pose is 1520 m of archipelago in a 500 px frame, so three metres of lamplight is a pixel, and a pixel of warm grey under the grade and the grain pass is noise rather than a lit window. below `SCREEN_FLOOR` of the frame the glow is held at a mark, the way a chart holds a symbol at a legible size however far out the map is drawn.
+
+**holding it and dimming it for the stretch is where the first version of this went wrong.** a lamp spread over eighty times its own area is not eighty times as much light, so the glow is dimmed by exactly the factor it was stretched by — and that, on its own, turned every lit window in the archipelago into **four hundredths of a per cent of a night frame**, which is the same as absent. measured: `night` and `winter` both came back `0.00% / 0.0%`. the stretch is a *legibility* device rather than a claim about flux, so the dimming has a floor at `FADE_FLOOR`, past which the symbol stays visible. after: 3.7% and 4.2% of the frame's worst block. the floor is also what keeps three overlapping halos over one farmyard reading as a lit holding rather than as a white disc.
+
+**which windows are lit comes from a golden-ratio sequence, not from the rng.** `lamplight.occupancy` is how *many*, not whether — `brightness` is the switch. a low-discrepancy fraction of the pane's index is deterministic without a stream, tracks the share to within a pane or two at any count, and — the property that matters — a pane added to the end of a building's table does not move any pane before it. a run that glazes one more gable should not relight the whole archipelago, and `lamplight.test.ts` states that as a fact.
+
+**every pane is an instance, and a dark room is one at zero.** the tempting version builds a shorter instance list of only the lit panes, which makes `occupancy` a slider that needs the scape rebuilt to be seen — and a slider that lies about what a slider does is the one thing this config is written not to have. an unlit pane costs a matrix and a colour, not a draw.
+
+**the lamp answers to `1 - day` squared, which is the beacon's own curve.** deliberately the same: a coast whose lighthouse and whose farmhouse come on at different dusks is two answers to one question. and it is not `dark`, the deeper threshold the stars come out at — a kitchen light is on long before then.
+
+**it is overdriven above white for the bloom, and gated on having one.** the warm white is about 0.79 in linear luminance and a pane opens at the whole of it, so `lamplight.glow` at 3.4 carries the core over the bloom's 0.94 threshold and leaves the spill around it under — a window that glows rather than a white patch. on a tier with no bloom the multiplier is 1, which is a warm pane instead of a clipped one: the graceful absence rather than the broken cheap version.
+
+**the flicker is a rate, so it can be stopped.** fourteen flickers a minute is a wick rather than a fault, each pane offset by its own fraction so a settlement reads as several lamps and not one dimmer switch. a slow wobble is *worse* for a capture than a fast one — two frames a second apart catch different parts of it — which is why `lamplight.flicker=0` is in `STILL`.
+
+**the tour never had a window in frame, so there is a `lamps` set.** exactly the reason the `beacon` set exists. every pose in `tour` is at the archipelago's own scale, and the home yard is a twenty-metre circle in a world 1520 m across. `--poses lamps` sits on the farmstead at two ranges and two opposite headings, after dark: the glow is wall-aligned, so half of it is behind its own building at any heading, and that is the kind of correct that needs two headings to confirm rather than assert.
+
+**while the sun is up the system is not drawn at all**, rather than drawn black — an additive mesh still costs a sorted draw, and the middle of the day is the common case. it draws under the mist and over the beams, because a bank of fog between a lamp and the eye should dilute it.
 
 ## the boat harbour
 

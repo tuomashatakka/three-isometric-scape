@@ -384,6 +384,31 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       ],
     },
     {
+      group:    'ground & water',
+      title:    'lamplight',
+      // Under the ground rather than under the sky, for the same reason the
+      // coastal light is under the water: what these lamps are for is the
+      // settlement they are in. When they come on is the day's answer, so there
+      // is no hour knob here either.
+      controls: [
+        toggled(
+          'lit windows',
+          range('lamplight.brightness', 'brightness', 0, 2, 0.01),
+          0.78,
+          [
+            range('lamplight.occupancy', 'windows lit', 0, 1, 0.01),
+            range('lamplight.spill', 'spill', 1, 6, 0.05),
+            range('lamplight.flicker', 'flickers per minute', 0, 60, 1),
+
+            // Greyed rather than hidden on the tiers with no bloom, the way the
+            // beacon's is: the knob is still why a lit pane looks different
+            // between them.
+            range('lamplight.glow', 'glow', 1, 8, 0.1, quality.bloom),
+          ],
+        ),
+      ],
+    },
+    {
       group:    'camera',
       title:    'framing',
       controls: [

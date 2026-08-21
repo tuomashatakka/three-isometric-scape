@@ -1,8 +1,9 @@
 import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
 import { box, cyl, deg, mergeParts, part } from 'threejs-scene/modules/assets'
+import { GLAZING, glazeWindows } from './glazing.ts'
 import type { NordicPalette } from './palette.ts'
-import { claddingPlanks, dormer, gableEnd, gabledRoof, monoRoof, window } from './timber.ts'
+import { claddingPlanks, dormer, gableEnd, gabledRoof, monoRoof } from './timber.ts'
 
 
 /**
@@ -93,8 +94,7 @@ export function buildBarn (rng: SeededRng, palette: NordicPalette): BufferGeomet
     rng,
   }))
 
-  window(parts, rng, palette.trimWhite, palette.glass, [ 3, 2.5, halfDepth + 0.05 ], 0.7, 0.7, 1)
-  window(parts, rng, palette.trimWhite, palette.glass, [ -3.2, 2.5, -halfDepth - 0.05 ], 0.7, 0.7, -1)
+  glazeWindows(parts, rng, palette.trimWhite, palette.glass, GLAZING.barn)
 
   return mergeParts(parts, { grime: 2.4, grimeFloor: 0.55 })
 }
@@ -135,11 +135,9 @@ export function buildFarmhouse (rng: SeededRng, palette: NordicPalette): BufferG
 
   // Front windows stand clear of the porch canopy on either side. The inner
   // pair used to sit at x = ±1, which the 2.6 m canopy cut straight through.
-  for (const x of [ -3.6, -2.1, 2.1, 3.6 ])
-    window(parts, rng, palette.trimWhite, palette.glass, [ x, 2.4, halfDepth + 0.06 ], 0.8, 1.1, 1)
-
-  for (const x of [ -2.4, 2.4 ])
-    window(parts, rng, palette.trimWhite, palette.glass, [ x, 2.4, -halfDepth - 0.06 ], 0.8, 1.1, -1)
+  // Where each pane goes is `glazing.ts`, because the lamps behind them are
+  // placed from the same table.
+  glazeWindows(parts, rng, palette.trimWhite, palette.glass, GLAZING.farmhouse)
 
   // The attic window, as an actual dormer. Flat on the pitch it read as a
   // picture of a window rather than an opening — there was no depth anywhere.
@@ -238,7 +236,7 @@ export function buildSauna (rng: SeededRng, palette: NordicPalette): BufferGeome
   parts.push(part(box(0.9, 1.6, 0.14), {
     at: [ 0, plinthY + 0.8, halfDepth + 0.08 ], color: palette.woodLight, jitter: 0.08, rng,
   }))
-  window(parts, rng, palette.tarWood, palette.glass, [ 1.3, 1.9, halfDepth + 0.06 ], 0.45, 0.4, 1)
+  glazeWindows(parts, rng, palette.tarWood, palette.glass, GLAZING.sauna)
 
   parts.push(part(cyl(0.16, 0.18, 1.9, 6), {
     at: [ -1.2, peakY - 0.1, 0 ], color: palette.iron, jitter: 0.09, rng,

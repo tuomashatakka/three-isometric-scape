@@ -2,6 +2,36 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the windows come on
+
+after dark the archipelago lights up. every farmhouse, barn and sauna carries a warm glow behind its glass — **45 panes across five holdings, 30 of them lit** —
+coming up through dusk with the sun on the beacon's own curve and going out again at dawn, in **one instanced draw**.
+
+- **the pane positions are one table read twice, and that is the whole design.** they were literals inside three builders, which is fine until something else needs
+  to know them; then a second copy is a lamp burning half a metre to the left of its own glazing. [`props/glazing.ts`](src/scene/props/glazing.ts) is the single
+  answer — the walls are set from it and the lamps are hung from it — and the rng is drawn from in the same order, so the geometry is byte-for-byte what it was
+- **not a shader on the glass**, which is the obvious first idea and cannot work: `mergeParts` jitters every part's colour, so there is no exact value left in the
+  buffer to test against, and the five buildings share the ground material with the terrain, so an injection for the glass would run on every quad of every island
+- **the sills are reported by the dressing, not resolved by the survey.** the lantern hubs and the mills' wheels come out of the survey because siting is a fact
+  about the ground; a sill is not — a `Ploppable` levels its floor against the *highest* corner of its footprint, so sampling the height field again would hang
+  every glow a few centimetres off its wall. `litPanes` is collected as the buildings are plopped and published through an accessor, because it does not exist until
+  the module has built
+- **the halo is metre-sized until it would be sub-pixel, then held** — the same call `birds.ts` makes for a gull's wingspan, and for the same reason
+- **holding it *and* dimming it for the stretch is where the first version went wrong, and the measurement is the entry.** a lamp spread over eighty times its area
+  is not eighty times the light, so the glow was dimmed by exactly the factor it was stretched by — and `scape:diff` came back **`0.00% / 0.0%` at every one of the
+  six poses**, including `night`. that is the inverse square winning an argument it should not be in: the stretch is a legibility device, not a claim about flux.
+  a floor on the dimming took `night` and `winter` to **3.7% and 4.2%** of the worst block
+- **`occupancy` is live, and every pane is an instance.** the shorter instance list of only-the-lit-panes is cheaper and makes the slider need a rebuild, which is
+  the one thing this config is written not to have. an unlit pane costs a matrix and a colour, not a draw. which panes are lit is a golden-ratio fraction of the
+  index rather than a draw from the rng, so glazing one more gable does not relight the archipelago — stated as a fact in `lamplight.test.ts`
+- **a new capture set, `--poses lamps`**, for the reason `beacon` exists: every pose in `tour` is at the archipelago's scale, and the home yard is a twenty-metre
+  circle in a world 1520 m across, so no frame in `tour` has ever had a lit window in it at a size a window can be judged at. two ranges, two opposite headings,
+  after dark — the glow is wall-aligned, so half of it is behind its own building at any heading
+- **cost.** one `InstancedMesh`, 45 instances, 36 triangles each — **1620 triangles and one draw call**, and the mesh is not drawn at all while the sun is up. no
+  texture: the falloff is baked into the disc's vertex colours, because additive blending makes black transparent. no new geometry on the buildings — the panes were
+  always there. no tier gate, because there is nothing here a phone cannot afford; `lamplight.glow` is gated on having a bloom to spend it on, and without one the
+  lamp is a warm pane rather than a clipped white one. before/after frame time was not measured
+
 ## two great islands, and the strand that makes them one
 
 the world goes from 520 m to **1520 m** and gains two landmasses of 455 m across — ten times the area of the outer holdings, which is a different kind of

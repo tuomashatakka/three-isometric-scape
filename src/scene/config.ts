@@ -515,6 +515,73 @@ export interface ScapeConfig {
     /** Half-width of a beam where it dies, in metres. */
     beamSpread: number
   }
+
+  /**
+   * The lamps behind the settlements' windows.
+   *
+   * All five live, and every one of them belongs on the overlay: nothing here
+   * moves a pane, so nothing here needs a rebuild to be seen. Where the glass
+   * *is* comes out of `props/glazing.ts`, which is geometry and deliberately not
+   * a knob.
+   *
+   * `spill` is the one length, and it is a *ratio* rather than metres on purpose:
+   * a farmhouse window and a sauna's little pane throw light in proportion to
+   * their own size, so one number covers both and neither has to be retuned when
+   * the other is reglazed. See `SCREEN_FLOOR` in `lamplight.ts` for the floor
+   * that holds a glow legible when the whole archipelago is in frame.
+   */
+  lamplight: {
+
+    /**
+     * How brightly a lit pane burns, 0..1 and up. 0 is a coast nobody is home on.
+     *
+     * The switch, and the only one — how bright any given evening gets is the
+     * daylight clock's business, the same way the beacon's lamp answers to how
+     * far the sun is down. See `paneBrightness` in `lamplight.ts`.
+     */
+    brightness: number
+
+    /**
+     * How far above white a pane burns, so the bloom can find it.
+     *
+     * A multiplier, not a brightness, and the same trade `beacon.glow` is
+     * written down for: 1 leaves the glow exactly as bright as it is drawn, and
+     * anything above pushes its core past the bloom's threshold. Only does
+     * anything on a tier that has a bloom.
+     */
+    glow: number
+
+    /**
+     * How much of the glazing has a lamp behind it, 0..1.
+     *
+     * How *many*, not whether — `brightness` is the switch. A settlement with
+     * every pane lit reads as a hotel; the point of a fraction is that some
+     * rooms are dark. Which panes are the lit ones is decided from a pane's
+     * index rather than drawn from the rng, so adding a window to one gable does
+     * not relight every other building in the archipelago.
+     */
+    occupancy: number
+
+    /**
+     * How far the light spills past the glass, as a multiple of the pane's own
+     * half-extent.
+     *
+     * 1 is a glow exactly the size of the window, which reads as a lit
+     * rectangle; the useful range is two to four, where the boards around the
+     * frame catch some of it. Past about six the spill is wider than the wall it
+     * is on.
+     */
+    spill: number
+
+    /**
+     * Flickers per minute. 0 holds every wick where it stands.
+     *
+     * A rate rather than a period, and for the reason `beacon.turn` is: zero is
+     * the still a capture needs, and a rate that cannot be zeroed is a lamp at a
+     * different brightness in every frame of a tour.
+     */
+    flicker: number
+  }
   dressing: DressingBudget
 
   /**
@@ -973,6 +1040,17 @@ export interface ScapeConfig {
     moon: number
 
     /**
+     * A lamp behind a window.
+     *
+     * Warmer and yellower than every other light in the scape, and that is the
+     * whole reading: the sky at that hour is blue, the optic on the rock is a
+     * cold white, and a paraffin lamp in a kitchen is neither. One colour rather
+     * than one per building — a wick is a wick, and three entries would be three
+     * things to keep in one family by hand.
+     */
+    lamplight: number
+
+    /**
      * A gull, at its brightest.
      *
      * One colour rather than three, the way the star field carries one: a gull
@@ -1344,6 +1422,23 @@ export const SCAPE_CONFIG = {
     beamReach:  88,
     beamSpread: 11,
   },
+  // A spill of 2.8 puts the glow a little over a metre out from an 0.8 m pane,
+  // which is about as far as a paraffin lamp actually carries onto falu-red
+  // boards. Two thirds occupancy leaves three of the farmhouse's six windows
+  // dark, which is what a house with people in some of its rooms looks like.
+  // 14 flickers a minute is a wick, not a fault.
+  lamplight: {
+    brightness: 0.78,
+
+    // Measured the way the beacon's glow and the moon's were. The warm white is
+    // about 0.79 in linear luminance and the disc's core opens at the whole of
+    // it, so 3.4 carries the core over the bloom's 0.94 threshold and leaves the
+    // spill around it under — a window that glows rather than a white patch.
+    glow:      3.4,
+    occupancy: 0.66,
+    spill:     2.8,
+    flicker:   14,
+  },
   // Roughly doubled against the run before this one, because the island is
   // roughly twice the ground. A budget is a *count*, not a density, so leaving
   // these alone would have grown the island and thinned everything standing on
@@ -1531,6 +1626,7 @@ export const SCAPE_CONFIG = {
     rain:         0xc6d2d8,
     star:         0xdce8ff,
     moon:         0xe4e9e0,
+    lamplight:    0xffc477,
     gull:         0xf2f4f1,
     aurora:       0x6df2a8,
     auroraCrown:  0x7a5bd6,

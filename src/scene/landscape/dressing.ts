@@ -7,6 +7,8 @@ import { createPlacementField, mergeGeometryList, scatterInstances } from 'three
 import type { ScapeConfig } from '../config.ts'
 import { buildFenceRun } from '../props/fence.ts'
 import type { FencePoint } from '../props/fence.ts'
+import { GLAZING, isGlazed, paneToWorld } from '../props/glazing.ts'
+import type { LitPane } from '../props/glazing.ts'
 import { buildProp, resolvePalette } from '../props/index.ts'
 import type { PropName } from '../props/index.ts'
 import type { ScapeMaterials } from '../props/material.ts'
@@ -29,6 +31,15 @@ import { createDiscSampler, createSpotSampler, createTreadSampler } from './samp
 
 export interface Dressing {
   object: Group
+
+  /**
+   * Every pane of glass a lamp burns behind, in world metres.
+   *
+   * Reported rather than drawn, the way the survey reports the lantern hubs: what
+   * is lit is the day's business and the day belongs to the atmosphere — see
+   * `scene/lamplight.ts`.
+   */
+  litPanes: readonly LitPane[]
   dispose(): void
 }
 
@@ -184,7 +195,22 @@ export function createDressing (
     geometries: [] as BufferGeometry[],
     instances:  [] as InstancedMesh[],
   }
-  const plopped: Ploppable[] = []
+
+  /**
+   * What the dressing stood up, and what it has to say about it afterwards.
+   *
+   * `litPanes` is collected here rather than surveyed alongside the lantern hubs
+   * and the mills, and that is the one place this system breaks the pattern:
+   * those are facts about *where a thing is sited*, which the survey answers,
+   * while a sill's height is a fact about the building that was stood up — a
+   * `Ploppable` levels its floor against the highest corner of its own footprint,
+   * so the only thing that knows where a window ended up is the thing that
+   * plopped it.
+   */
+  const raised = {
+    plopped:  [] as Ploppable[],
+    litPanes: [] as LitPane[],
+  }
   const {
     sampleSpot,
     samplePasture,
@@ -351,7 +377,14 @@ export function createDressing (
     })
 
     root.add(prop)
-    plopped.push(prop)
+    raised.plopped.push(prop)
+
+    // The lamps, taken from the same table the walls were glazed from. `plop`
+    // has just resolved the floor, so `position.y` is the one height the sills
+    // and the glow can both be measured from.
+    if (isGlazed(name))
+      for (const pane of GLAZING[name])
+        raised.litPanes.push(paneToWorld(pane, x, prop.position.y, z, angle))
 
     // The claim still answers to the whole prop, roof included — two barns that
     // do not overlap at the sill can still overlap at the eaves.
@@ -931,12 +964,13 @@ export function createDressing (
   }
 
   return {
-    object: root,
+    object:   root,
+    litPanes: raised.litPanes,
 
     dispose () {
-      for (const prop of plopped)
+      for (const prop of raised.plopped)
         prop.dispose()
-      plopped.length = 0
+      raised.plopped.length = 0
 
       for (const mesh of owned.instances)
         mesh.dispose()

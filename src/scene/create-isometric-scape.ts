@@ -8,6 +8,7 @@ import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import { createAtmosphereLayer } from './atmosphere.ts'
 import { createAuroraLayer } from './aurora.ts'
 import { createBeaconLight } from './beacon.ts'
+import { createLampLight } from './lamplight.ts'
 import { createBirdFlocks } from './birds.ts'
 import { createCameraControls } from './camera-controls.ts'
 import type { CameraOpening } from './camera-controls.ts'
@@ -347,6 +348,7 @@ export function createIsometricScape (
     daylight: atmosphere.daylight,
   }))
 
+
   // The whole optical chain is one module, and on the cheapest tier it is simply
   // absent — with nothing claiming the `render` hook the app falls back to
   // drawing the scene straight to the canvas, which is two HDR ping-pong targets
@@ -395,6 +397,18 @@ export function createIsometricScape (
     rain,
     birds,
     beacon,
+
+    // The settlements' own lamps, after the atmosphere for the reason the beacon
+    // is — a lamp is lit by how far the sun is down — and composed inline because
+    // its panes are resolved lazily anyway: they only exist once the dressing has
+    // plopped the buildings, which is when the landscape module above it builds.
+    unless(skip, 'lamplight', () => createLampLight({
+      camera,
+      config:   readConfig,
+      quality,
+      panes:    landscape.litPanes,
+      daylight: atmosphere.daylight,
+    })),
     post,
   ].filter((module): module is ScapeModule => module !== null)
 

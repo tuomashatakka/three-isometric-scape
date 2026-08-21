@@ -9,6 +9,7 @@ import { createScapeMaterials } from '../props/material.ts'
 import { MILL_HUB_HEIGHT, MILL_HUB_REACH, MILL_SINK } from '../props/mill.ts'
 import type { ScapeMaterials } from '../props/material.ts'
 import type { LanternHub } from '../beacon.ts'
+import type { LitPane } from '../props/glazing.ts'
 import { createTextureCatalogue } from '../textures/catalogue.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import { createSeason } from '../season.ts'
@@ -53,6 +54,17 @@ export interface Landscape {
 
   /** Live fleet accessor; null until the landscape module has built. */
   boatFleet(): BoatFleet | null
+
+  /**
+   * Every window with a lamp behind it, in world metres.
+   *
+   * An accessor rather than a field, unlike the lantern hubs beside it, and the
+   * difference is real: a tower's lamp is sited by the survey, while a sill's
+   * height is only known once the dressing has stood the building on ground-
+   * following footings. Empty until this module has built, and empty for good
+   * when `?skip=dressing` took the buildings out.
+   */
+  litPanes(): readonly LitPane[]
 
   /**
    * Every lamp in the archipelago, in world space.
@@ -296,6 +308,7 @@ export function createLandscape (
     layout,
     archipelago,
     boatFleet: () => fleet,
+    litPanes:  () => dressing?.litPanes ?? [],
     colonies,
     lanternHubs,
     season:    season.state,

@@ -42,6 +42,15 @@ export const LAYER = {
    */
   beacon: 20,
 
+  /**
+   * The lamps behind the settlements' windows.
+   *
+   * Over the beams, because a lit window is on the land the beams sweep past and
+   * both are additive — and under the mist for the same reason the beams are: a
+   * bank of fog between a lamp and the eye should dilute it.
+   */
+  lamplight: 25,
+
   /** Ground fog. Sheets index up from here; the upright slices sit above those. */
   mist: 30,
 

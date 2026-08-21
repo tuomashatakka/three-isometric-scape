@@ -1,4 +1,6 @@
 import { SCAPE_CONFIG } from '../src/scene/config.ts'
+import { paneLit } from '../src/scene/lamplight.ts'
+import { GLAZING } from '../src/scene/props/glazing.ts'
 import { surveyArchipelago } from '../src/scene/landscape/archipelago.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from '../src/scene/landscape/archipelago.ts'
 import { scheduledFleetMinimumSeparation } from '../src/scene/landscape/boat-motion.ts'
@@ -160,6 +162,26 @@ export interface MapStats extends CompositionStats {
     count: number
     asked: number
     sited: { id: string, kind: string, x: number, z: number, radius: number }[]
+  }
+
+  /**
+   * The glazing, and how much of it has a lamp behind it.
+   *
+   * Counted here rather than looked for in a still, and for the reason the
+   * colonies are: a lit pane is a metre of warm light on a coast a kilometre and
+   * a half across, so a building that lost its glass — or a table that got
+   * reordered and relit every window in the archipelago — is one number here and
+   * nothing at all in a screenshot taken at the default pose.
+   *
+   * `panes` is what the buildings carry; `lit` is what the configured occupancy
+   * leaves burning. The sills' world heights are deliberately absent: they are
+   * resolved when a `Ploppable` levels itself on the ground, which is a thing the
+   * headless survey does not do.
+   */
+  glazing: {
+    panes:     number
+    lit:       number
+    buildings: { name: string, panes: number }[]
   }
 }
 
@@ -375,7 +397,31 @@ export function surveyStats (
         radius: round(colony.radius),
       })),
     },
+    glazing: glazingStats(survey, config),
   }
+}
+
+/**
+ * Every pane in the archipelago, and the ones with a lamp behind them.
+ *
+ * Every landmass raises the same steading, so the count is the table's total
+ * times the number of holdings — and `paneLit` is asked the same question
+ * `lamplight.ts` asks it, so a run that changed the occupancy sees the change
+ * here rather than only in a night still.
+ */
+function glazingStats (survey: ArchipelagoSurvey, config: ScapeConfig): MapStats['glazing'] {
+  const buildings = Object.entries(GLAZING).map(([ name, panes ]) => ({
+    name,
+    panes: panes.length * survey.landmasses.length,
+  }))
+  const panes = buildings.reduce((sum, building) => sum + building.panes, 0)
+  let lit     = 0
+
+  for (let index = 0; index < panes; index += 1)
+    if (paneLit(index, config.lamplight.occupancy))
+      lit += 1
+
+  return { panes, lit, buildings }
 }
 
 /**
@@ -620,6 +666,10 @@ export function formatStats (stats: MapStats): string {
       (stats.colonies.sited
         .map(colony => `${colony.id}/${colony.kind} (${colony.x},${colony.z}) r${colony.radius}`)
         .join('  ') || '<- no coast had open water to fit a ring over'),
+    `glazing ${stats.glazing.lit}/${stats.glazing.panes} panes lit  ` +
+      (stats.glazing.buildings
+        .map(building => `${building.name} ${building.panes}`)
+        .join('  ') || '<- no building in the kit carries glass'),
   ]
 
   return lines.join('\n')
