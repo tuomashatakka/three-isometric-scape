@@ -24,6 +24,7 @@ import {
   buildDeadSpruce,
   buildGrassTuft,
   buildHeather,
+  buildJuniper,
   buildLilyPads,
   buildPine,
   buildReeds,
@@ -79,6 +80,7 @@ export const PROPS = {
   deadSpruce: buildDeadSpruce,
   sapling:    buildSapling,
   stump:      buildStump,
+  juniper:    buildJuniper,
   grass:      buildGrassTuft,
   heather:    buildHeather,
   wildflower: buildWildflower,
@@ -107,7 +109,7 @@ export const HERO_PROPS = [
 
 /** Stamped in quantity through a single `InstancedMesh` each. */
 export const SCATTER_PROPS = [
-  'spruce', 'pine', 'birch', 'deadSpruce', 'sapling', 'stump',
+  'spruce', 'pine', 'birch', 'deadSpruce', 'sapling', 'stump', 'juniper',
   'grass', 'heather', 'wildflower', 'reeds', 'lilyPads', 'crop',
   'erratic', 'fieldStone', 'cobble', 'cairn',
   'hayBale', 'firewood', 'barrel', 'driftwood', 'mooringPost', 'hayPole',

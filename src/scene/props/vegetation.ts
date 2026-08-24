@@ -245,6 +245,61 @@ export function buildHeather (rng: SeededRng, palette: NordicPalette): BufferGeo
   return mergeParts(parts, { grime: 0.4, grimeFloor: 0.46 })
 }
 
+/**
+ * A juniper bush (kataja) — the low, dark evergreen the open heath grows.
+ *
+ * Built to read as *not a small spruce*: a spruce is one axis of stacked cones,
+ * so a juniper is a spreading mound of squashed, noise-roughened balls set off
+ * their own short woody legs. It ends up broader than it is tall — the claim its
+ * test states as a fact — which is the whole silhouette that tells it apart from
+ * the conifers at the mid zoom the heath is seen from. A few frosted berries
+ * ride the crown for close-zoom character, one part rather than a cluster so the
+ * shrub stays under the ten-part scatter budget.
+ */
+export function buildJuniper (rng: SeededRng, palette: NordicPalette): BufferGeometry {
+  const parts: BufferGeometry[] = []
+
+  // Two short legs, splayed, so the mound sits over ground rather than on a
+  // single stalk — a juniper has no trunk to speak of.
+  for (const sx of [ -1, 1 ])
+    parts.push(part(cyl(0.03, 0.05, 0.28, 5), {
+      at:     [ sx * 0.08, 0.13, 0 ],
+      rotate: [ 0, 0, deg(sx * 12) ],
+      color:  palette.barkDark,
+      jitter: 0.16,
+      rng,
+    }))
+
+  // The spreading crown. Five squashed balls on a low ring, each pushed out
+  // along its own normals so the mound is ragged rather than a heap of spheres —
+  // the same trick the spruce tiers take, sized down to a shrub.
+  const puffs = [
+    { at: [ 0, 0.42, 0 ], radius: 0.34 },
+    { at: [ 0.34, 0.3, 0.1 ], radius: 0.27 },
+    { at: [ -0.3, 0.28, -0.14 ], radius: 0.26 },
+    { at: [ 0.12, 0.3, -0.32 ], radius: 0.25 },
+    { at: [ -0.14, 0.26, 0.32 ], radius: 0.24 },
+  ]
+
+  for (const [ index, puff ] of puffs.entries())
+    parts.push(part(displaceByNoise(ball(puff.radius, 5), { amp: puff.radius * 0.16, freq: 4.5, rng }), {
+      at:     [ puff.at[0], puff.at[1], puff.at[2] ],
+      scale:  [ 1.15, 0.72, 1.15 ],
+      color:  index % 2 === 0 ? palette.juniper : palette.spruceDeep,
+      jitter: 0.18,
+      rng,
+    }))
+
+  parts.push(part(ball(0.05, 4), {
+    at:     [ rng.range(-0.12, 0.12), 0.5, rng.range(-0.12, 0.12) ],
+    color:  palette.juniperBerry,
+    jitter: 0.2,
+    rng,
+  }))
+
+  return mergeParts(parts, { grime: 0.9, grimeFloor: 0.44 })
+}
+
 /** A wildflower — a stem and a bright head, read only as a colour speck. */
 export function buildWildflower (rng: SeededRng, palette: NordicPalette): BufferGeometry {
   const parts: BufferGeometry[] = []

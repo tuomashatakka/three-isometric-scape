@@ -124,6 +124,9 @@ export interface DressingBudget {
   deadSpruce: number
   sapling:    number
   stump:      number
+
+  /** Juniper bushes on the open heath, spaced like the other structural shrubs. */
+  juniper:    number
   grass:      number
   heather:    number
   wildflower: number
@@ -1357,6 +1360,7 @@ export const SCAPE_CONFIG = {
     deadSpruce: 48,
     sapling:    250,
     stump:      80,
+    juniper:    140,
     grass:      1_700,
     heather:    500,
     wildflower: 230,

@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { Box3 } from 'three'
 import { createSeededRng } from 'threejs-scene'
 import { resolvePalette } from './palette.ts'
-import { buildBirch, buildGrassTuft, buildPine, buildSpruce } from './vegetation.ts'
+import { buildBirch, buildGrassTuft, buildJuniper, buildPine, buildSpruce } from './vegetation.ts'
 
 
 const palette = resolvePalette()
@@ -113,6 +113,40 @@ describe('vegetation modifiers', () => {
     // already holds every prop to.
     expect(minY).toBeGreaterThan(-0.75)
     expect(minY).toBeLessThan(0.05)
+  })
+
+  test('a juniper spreads wider than it stands tall, which is what tells it from a spruce', () => {
+    // The whole point of the builder: a spruce is one axis of stacked cones and
+    // reads as tall, a juniper is a spreading mound and reads as low and broad.
+    // If the footprint ever stops out-reaching the height the shrub has quietly
+    // turned back into a small conifer, and this states the difference as data.
+    const geometry = buildJuniper(createSeededRng(4_242), palette)
+    const bounds   = boundsOf(geometry)
+    const size     = bounds.getSize(bounds.max.clone())
+
+    expect(bounds.min.y).toBeGreaterThan(-0.1)
+    expect(Math.max(size.x, size.z)).toBeGreaterThan(size.y)
+
+    // A knee-to-waist-high bush, not a tree and not ground cover.
+    expect(size.y).toBeGreaterThan(0.3)
+    expect(size.y).toBeLessThan(1.2)
+
+    geometry.dispose()
+  })
+
+  test('a juniper is byte-for-byte the same bush for one seed, and varies with the seed', () => {
+    const first  = buildJuniper(createSeededRng(77), palette)
+    const second = buildJuniper(createSeededRng(77), palette)
+    const other  = buildJuniper(createSeededRng(78), palette)
+
+    expect(Array.from(first.getAttribute('position').array))
+      .toEqual(Array.from(second.getAttribute('position').array))
+    expect(Array.from(first.getAttribute('position').array))
+      .not.toEqual(Array.from(other.getAttribute('position').array))
+
+    first.dispose()
+    second.dispose()
+    other.dispose()
   })
 
   test('a grass tuft stands on the ground and stays inside a plausible tuft size', () => {
