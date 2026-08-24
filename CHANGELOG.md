@@ -2,6 +2,14 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the juniper the heath grew
+
+the dry, open, rockier upland between the heather and the ridge conifers was bare. it grows juniper now — a low, spreading evergreen bush that reads apart from the trees and fills out the moor at the mid zoom it is seen from.
+
+- **a new scatter prop built to read as *not a small spruce*.** [`buildJuniper`](src/scene/props/vegetation.ts) is a spreading mound of squashed, noise-roughened balls on short splayed legs, broader than it stands (1.19 × 0.65 × 1.09 m from `prop:map`). `vegetation.test.ts` states that as a fact — `max(size.x, size.z) > size.y` — so the moment the silhouette turns back into a conifer the test says so
+- **one pure placement rule, one plant community.** [`juniperRule`](src/scene/landscape/dressing-zones.ts) takes ground clear of the composition, higher than the shore scrub, and up to a steeper slope than the conifers root on (`0.95` vs `0.6`–`0.7`), with a height-weighted roll thinning it toward the open upland the heather already holds
+- **cost is one draw and one wind.** placed through the existing solver as structural scatter — `dressing.juniper` at 140 before the tier scales it, spaced at 0.55 m — so it is one `InstancedMesh` that pays the spacing check the trees already pay. added to the `FOLIAGE` set, so it sways on the same gust as the grass and heather and stills with `wind.speed=0` for a capture. two new palette entries (`juniper`, `juniperBerry`), no new files, no new dependency
+
 ## two great islands, and the strand that makes them one
 
 the world goes from 520 m to **1520 m** and gains two landmasses of 455 m across — ten times the area of the outer holdings, which is a different kind of

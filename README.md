@@ -84,6 +84,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a cobbled network of paths between every place the farm goes — planned as a graph, worn as desire lines, paved with stones sampled along the treads themselves
 - a working boat harbour: a boathouse on piles with a slipway, a net rack, and stakes in the shallows
 - a walled upland hay meadow with a barn, a gate and drying poles
+- juniper bushes out on the dry upland heath — a low, spreading evergreen that reads apart from the conifers and answers to the same one wind
 - a lighthouse on the outermost rock of the ring, throwing beams that sweep the water from dusk until dawn
 - gull colonies wheeling over every harbour mouth and over the outer rock, banking into the turn, down at night and mostly down in a squall
 - a beck traced downhill from a spring, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself
@@ -448,6 +449,16 @@ there were five. `wind.strength`/`wind.speed` drove the foliage sway and the mil
 **the front has no rate of its own.** a harder wind brings its squalls through faster, so `wind.speed` carries the gust clock as well as the travel — which is one knob instead of two saying the same thing, and which is why `wind.speed=0` freezes the front along with everything else it stops.
 
 **the aurora is the one deliberate exception** and keeps `atmosphere.auroraSpeed`. an aurora is a current in the ionosphere eighty kilometres up. it does not blow on a coastal wind, and giving it one would be a tidier config that lied.
+
+## the juniper the heath grew
+
+the uplands had heather over the whole moor and the conifers on the ridges, and nothing of any size in between — the dry, open, rockier ground the trees will not root on was bare. [`buildJuniper`](src/scene/props/vegetation.ts) fills it with the plant that actually grows there: a low, spreading evergreen bush.
+
+**it is built to read as *not a small spruce*.** a spruce is one axis of stacked cones and reads as tall; a juniper is a spreading mound of squashed, noise-roughened balls set off their own short splayed legs, and it ends up broader than it stands. `vegetation.test.ts` states exactly that as a fact about the geometry — `max(size.x, size.z) > size.y` — because the moment the footprint stops out-reaching the height the shrub has quietly turned back into a conifer, and a silhouette bug is invisible in a determinism test.
+
+**where it grows is one pure rule.** [`juniperRule`](src/scene/landscape/dressing-zones.ts) takes ground that is clear of the composition, higher than the shore scrub (`> water + 1.6 m`), and up to a steeper slope than a spruce will take (`0.95` against the conifer's `0.6`–`0.7`) — which is what keeps it out on the moor rather than in among the forest. a height-weighted roll thins it toward the open upland the heather already claims, so the two read as one plant community rather than two scatters that happen to overlap.
+
+**it costs one `InstancedMesh` and answers to the same wind.** placed as a structural scatter through the existing solver — 140 before the tier scales it, spaced at 0.55 m — so it pays the spacing check the trees and boulders do and nothing more. it is in the `FOLIAGE` set, so one gust crosses the grass, the heather and the juniper together, and `wind.speed=0` stills all three for a capture.
 
 ## the camera, between sessions
 

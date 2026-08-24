@@ -106,7 +106,7 @@ export function createGroundContact (
 
 
 const FOLIAGE: ReadonlySet<string> = new Set([
-  'spruce', 'pine', 'birch', 'sapling', 'grass', 'heather', 'wildflower', 'reeds', 'crop', 'lilyPads',
+  'spruce', 'pine', 'birch', 'sapling', 'juniper', 'grass', 'heather', 'wildflower', 'reeds', 'crop', 'lilyPads',
 ])
 
 

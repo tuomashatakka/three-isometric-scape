@@ -141,6 +141,20 @@ export function createScatterRules (
     openGround: (minLift: number, maxSlope: number) => (x: number, z: number): boolean =>
       clear(x, z) && heightAt(x, z) > water + minLift && field.slopeAt(x, z) < maxSlope,
 
+    // Juniper takes the dry upland heath the trees leave open: higher than the
+    // shore scrub, off the composition, and onto rockier, steeper ground than a
+    // spruce will root on — which is what keeps it out on the moor rather than in
+    // among the forest. The roll thins it toward the open ground the heather
+    // already claims, so the two read as one plant community.
+    juniperRule: (x: number, z: number): boolean => {
+      const height = heightAt(x, z)
+
+      if (!clear(x, z) || height < water + 1.6 || field.slopeAt(x, z) > 0.95)
+        return false
+
+      return rng.next() < 0.55 + 0.35 * Math.min(1, (height - water - 1.6) / 4)
+    },
+
     beachRule: (maxSlope: number) => (x: number, z: number): boolean => {
       const height   = heightAt(x, z)
       const landmass = archipelago.field.landmassAt(x, z)

@@ -687,7 +687,7 @@ export function createDressing (
   }
 
   const {
-    conifer, stoneRule, openGround, beachRule, birchRule, plotEdge, inPasture, inYard,
+    conifer, stoneRule, openGround, beachRule, birchRule, juniperRule, plotEdge, inPasture, inYard,
   } = createScatterRules(config, archipelago, field, rng, {
     onYard,
     onTrack,
@@ -718,6 +718,7 @@ export function createDressing (
     scatterStructural('spruce', config.dressing.spruce, 0.6, conifer(1, 1, 0.7), 0.62, 1.5, 40, {}, TILT.rooted)
     scatterStructural('birch', config.dressing.birch, 0.7, birchRule, 0.68, 1.3, 40, {}, TILT.rooted)
     scatterStructural('deadSpruce', config.dressing.deadSpruce, 0.6, conifer(0.5, 0.8, 0.9), 0.6, 1.2, 40, {}, TILT.placed)
+    scatterStructural('juniper', config.dressing.juniper, 0.55, juniperRule, 0.7, 1.35, 34, {}, TILT.rooted)
     scatterStructural('hayBale', config.dressing.hayBale, 1, plotEdge, 0.85, 1.15, 90, {}, TILT.placed)
     scatterStructural(
       'barrel',
