@@ -27,6 +27,49 @@ import { claddingPlanks, dormer, gableEnd, gabledRoof, monoRoof, window } from '
  * the *wall*, and the overhang is measured out from there.
  */
 
+/**
+ * A flue's mouth, in the prop's own frame.
+ *
+ * Base at `y = 0` and the long axis on `x`, the same frame every builder here
+ * works in — so a caller that has raised the building knows where the smoke
+ * comes out without measuring the merged geometry for it.
+ */
+export interface StackMouth {
+  x: number
+  y: number
+  z: number
+}
+
+/** Ridge height of the farmhouse roof, in the prop's own frame. */
+const FARMHOUSE_PEAK = 6.3
+
+/** Thickness of the granite course capping the farmhouse's brick stack. */
+const FARMHOUSE_CAP = 0.24
+
+/**
+ * Where the farmhouse's chimney lets go of its smoke.
+ *
+ * Exported because two things now need the answer and only one of them builds
+ * the geometry: the cap below is placed *from* this rather than beside it, so
+ * the plume in `scene/hearth.ts` and the masonry it leaves cannot drift apart
+ * the way a second copy of `-2.6` eventually would.
+ */
+export const FARMHOUSE_CHIMNEY: StackMouth = { x: -2.6, y: FARMHOUSE_PEAK + 0.87, z: 0 }
+
+/** Courses of log in the sauna's wall, and how thick one is. */
+const SAUNA_COURSES = 6
+const SAUNA_COURSE  = 0.42
+
+/** Top of the sauna's foundation, and the ridge its roof reaches. */
+const SAUNA_PLINTH = 0.42
+const SAUNA_PEAK   = SAUNA_PLINTH + SAUNA_COURSES * SAUNA_COURSE + 1.3
+
+/** How long the sauna's iron flue is, in metres. */
+const SAUNA_FLUE_LENGTH = 1.9
+
+/** The sauna's flue, at the mouth. Placed the way {@link FARMHOUSE_CHIMNEY} is. */
+export const SAUNA_FLUE: StackMouth = { x: -1.2, y: SAUNA_PEAK + 0.85, z: 0 }
+
 /** The barn (lato) — falu-red board walls, sliding door, hay in the opening. */
 export function buildBarn (rng: SeededRng, palette: NordicPalette): BufferGeometry {
   const parts: BufferGeometry[] = []
@@ -106,7 +149,7 @@ export function buildFarmhouse (rng: SeededRng, palette: NordicPalette): BufferG
   const halfDepth               = 3
   const plinthY                 = 0.6
   const wallY                   = 3.9
-  const peakY                   = 6.3
+  const peakY                   = FARMHOUSE_PEAK
   const roof                    = { eaveY: wallY, peakY, halfDepth }
 
   parts.push(part(box(length + 0.6, plinthY, halfDepth * 2 + 0.6), {
@@ -180,10 +223,13 @@ export function buildFarmhouse (rng: SeededRng, palette: NordicPalette): BufferG
     }))
 
   parts.push(part(box(0.9, 2.2, 0.9), {
-    at: [ -2.6, peakY - 0.4, 0 ], color: palette.ironRust, jitter: 0.13, rng,
+    at: [ FARMHOUSE_CHIMNEY.x, peakY - 0.4, 0 ], color: palette.ironRust, jitter: 0.13, rng,
   }))
-  parts.push(part(box(1.1, 0.24, 1.1), {
-    at: [ -2.6, peakY + 0.75, 0 ], color: palette.granite, jitter: 0.08, rng,
+  parts.push(part(box(1.1, FARMHOUSE_CAP, 1.1), {
+    at:     [ FARMHOUSE_CHIMNEY.x, FARMHOUSE_CHIMNEY.y - FARMHOUSE_CAP / 2, 0 ],
+    color:  palette.granite,
+    jitter: 0.08,
+    rng,
   }))
 
   return mergeParts(parts, { grime: 2.8, grimeFloor: 0.58 })
@@ -194,11 +240,11 @@ export function buildSauna (rng: SeededRng, palette: NordicPalette): BufferGeome
   const parts: BufferGeometry[] = []
   const length                  = 4.2
   const halfDepth               = 1.7
-  const courses                 = 6
-  const courseH                 = 0.42
-  const plinthY                 = 0.42
+  const courses                 = SAUNA_COURSES
+  const courseH                 = SAUNA_COURSE
+  const plinthY                 = SAUNA_PLINTH
   const eaveY                   = plinthY + courses * courseH
-  const peakY                   = eaveY + 1.3
+  const peakY                   = SAUNA_PEAK
   const roof                    = { eaveY, peakY, halfDepth }
 
   parts.push(part(box(length + 0.5, plinthY, halfDepth * 2 + 0.5), {
@@ -240,8 +286,11 @@ export function buildSauna (rng: SeededRng, palette: NordicPalette): BufferGeome
   }))
   window(parts, rng, palette.tarWood, palette.glass, [ 1.3, 1.9, halfDepth + 0.06 ], 0.45, 0.4, 1)
 
-  parts.push(part(cyl(0.16, 0.18, 1.9, 6), {
-    at: [ -1.2, peakY - 0.1, 0 ], color: palette.iron, jitter: 0.09, rng,
+  parts.push(part(cyl(0.16, 0.18, SAUNA_FLUE_LENGTH, 6), {
+    at:     [ SAUNA_FLUE.x, SAUNA_FLUE.y - SAUNA_FLUE_LENGTH / 2, 0 ],
+    color:  palette.iron,
+    jitter: 0.09,
+    rng,
   }))
 
   return mergeParts(parts, { grime: 2, grimeFloor: 0.52 })

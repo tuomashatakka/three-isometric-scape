@@ -3,6 +3,7 @@ import { surveyArchipelago } from '../src/scene/landscape/archipelago.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from '../src/scene/landscape/archipelago.ts'
 import { scheduledFleetMinimumSeparation } from '../src/scene/landscape/boat-motion.ts'
 import { planColonies } from '../src/scene/landscape/colony.ts'
+import { surveyHearths } from '../src/scene/landscape/hearths.ts'
 import { distanceToTrack } from '../src/scene/landscape/layout.ts'
 import { createPathQuery, pathLength } from '../src/scene/landscape/path.ts'
 import { STEADING_BUILDINGS } from '../src/scene/landscape/steading.ts'
@@ -161,9 +162,42 @@ export interface MapStats extends CompositionStats {
     asked: number
     sited: { id: string, kind: string, x: number, z: number, radius: number }[]
   }
+
+  /**
+   * The chimneys, and how far each mouth stands over the ground under it.
+   *
+   * Here for the reason the colonies are: a plume is a few pixels at the default
+   * pose, and a stack that came out at the wrong end of a roof — or inside the
+   * hillside a building is cut into — is a single number here and invisible in a
+   * still. `lowest` is the whole check: it is the clearance of the worst stack in
+   * the archipelago, and anything under about three metres means a mouth has
+   * been placed against a floor it does not stand on.
+   */
+  hearths: {
+    count:  number
+    lowest: number
+  }
 }
 
 const round = (value: number, places = 1): number => Number(value.toFixed(places))
+
+type HearthStats = MapStats['hearths']
+
+/**
+ * Every hearth in the archipelago, and the tightest clearance among them.
+ *
+ * The stacks are surveyed rather than drawn — see `landscape/hearths.ts` — so
+ * this asks the same pure function the scape does and reports what it got.
+ */
+function hearthStats (survey: ArchipelagoSurvey): HearthStats {
+  const stacks = surveyHearths(survey)
+  const clear  = stacks.map(stack => stack.y - survey.field.heightAt(stack.x, stack.z))
+
+  return {
+    count:  stacks.length,
+    lowest: round(clear.length ? Math.min(...clear) : 0, 2),
+  }
+}
 
 /**
  * Everything the grid cannot say.
@@ -356,6 +390,7 @@ export function surveyStats (
       conflicts:  scheduleSeparation + 1e-6 < config.boats.separation ? 1 : 0,
     },
     strand,
+    hearths:  hearthStats(survey),
     colonies: {
       count: colonies.length,
 
@@ -616,6 +651,8 @@ export function formatStats (stats: MapStats): string {
         `lowest ${stats.strand.lowest}m  ` +
         `${stats.strand.connected ? 'CONNECTED' : 'DROWNED'}`
       : 'strand NONE  <- no pair of islands is named, or the crest is zero',
+    `hearths ${stats.hearths.count}  lowest mouth ${stats.hearths.lowest}m over the ground` +
+      (stats.hearths.lowest < 3 ? '  <- a stack is standing in its own roof' : ''),
     `gulls ${stats.colonies.count}/${stats.colonies.asked} colonies  ` +
       (stats.colonies.sited
         .map(colony => `${colony.id}/${colony.kind} (${colony.x},${colony.z}) r${colony.radius}`)

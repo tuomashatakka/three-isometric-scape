@@ -13,8 +13,10 @@ import { createCameraControls } from './camera-controls.ts'
 import type { CameraOpening } from './camera-controls.ts'
 import type { CameraPath } from './camera-path.ts'
 import { createCloudLayer } from './clouds.ts'
+import { createHearthSmoke } from './hearth.ts'
 import type { DaylightState } from './daylight.ts'
 import { createLandscape } from './landscape/index.ts'
+import type { Landscape } from './landscape/index.ts'
 import { createMistLayer } from './mist.ts'
 import { createNightSky } from './nightsky.ts'
 import type { SeasonState } from './season.ts'
@@ -244,6 +246,72 @@ function hangSkies ({ camera, config, quality, skip, daylight, season, wind }: S
   ].filter((module): module is ScapeModule => module !== null)
 }
 
+interface GroundLayerOptions {
+  camera:    OrthographicCamera
+  config:    LiveConfig
+  quality:   AtmosphereQuality
+  skip:      ScapeSkips
+  landscape: Landscape
+
+  /** The hour, as the atmosphere resolved it for this frame. */
+  daylight: DaylightState
+
+  /** The one wind. */
+  wind: WindState
+}
+
+/**
+ * Everything that stands over the islands rather than over the world.
+ *
+ * Four layers that differ only in what they answer to, and they are grouped for
+ * the same reason the skies are: each needs the landscape *and* the atmosphere
+ * to exist first, so none of them can be built where the two are being built.
+ * The fall takes the weather for how hard it comes down and the year for what it
+ * comes down as; the gulls take the day for whether they are up; the coastal
+ * light takes the day for whether the lamp is lit; and the hearth smoke takes
+ * the year for how hard the fires are banked. Three of the four are also *sited*
+ * by the survey, and every one of them returns null on a tier — or an
+ * archipelago — with nothing to give, so the cheapest device gets a graceful
+ * absence rather than a poor version.
+ */
+function hangOverTheGround (
+  { camera, config, quality, skip, landscape, daylight, wind }: GroundLayerOptions,
+): ScapeModule[] {
+  return [
+    unless(skip, 'rain', () => createRainLayer({
+      camera,
+      config,
+      quality,
+      weather: landscape.weather,
+      season:  landscape.season,
+      wind,
+    })),
+    unless(skip, 'birds', () => createBirdFlocks({
+      camera,
+      config,
+      quality,
+      colonies: landscape.colonies,
+      daylight,
+      weather:  landscape.weather,
+      wind,
+    })),
+    unless(skip, 'beacon', () => createBeaconLight({
+      config,
+      quality,
+      hubs: landscape.lanternHubs,
+      daylight,
+    })),
+    unless(skip, 'hearth', () => createHearthSmoke({
+      config,
+      quality,
+      stacks: landscape.hearths,
+      daylight,
+      season: landscape.season,
+      wind,
+    })),
+  ].filter((module): module is ScapeModule => module !== null)
+}
+
 export function createIsometricScape (
   canvas: HTMLCanvasElement,
   config: ScapeConfig,
@@ -308,44 +376,18 @@ export function createIsometricScape (
     wind:     wind.state,
   })
 
-  // The second and third clocks — the weather for how hard it is falling, the
-  // year for what it falls as. Mounted after the landscape, which is what
-  // resolves both of them, so the column draws the same instant the ground
-  // beneath it is wet from. Returns null on the tier with no drops to give.
-  const rain = unless(skip, 'rain', () => createRainLayer({
-    camera,
-    config:  readConfig,
-    quality,
-    weather: landscape.weather,
-    season:  landscape.season,
-    wind:    wind.state,
-  }))
-
-  // The gulls, mounted after both clocks they answer to: the day decides
-  // whether they are up and the weather decides how many a squall keeps down.
-  // Where the flocks hang comes out of the survey, so this returns null when no
-  // coast in the archipelago had open water to fit a ring over — and on the tier
-  // with no birds to give.
-  const birds = unless(skip, 'birds', () => createBirdFlocks({
+  // Everything mounted after *both* the landscape and the atmosphere. Each of
+  // these reads a state one of those two resolves, and three of the four are
+  // sited from the survey, so none of them can be built before either exists.
+  const overGround = hangOverTheGround({
     camera,
     config:   readConfig,
     quality,
-    colonies: landscape.colonies,
+    skip,
+    landscape,
     daylight: atmosphere.daylight,
-    weather:  landscape.weather,
     wind:     wind.state,
-  }))
-
-  // The coastal light, mounted after the atmosphere because what decides whether
-  // a lamp is burning is how far the sun is down — and after the landscape,
-  // because where the lamp *is* comes out of the survey. Returns null when no
-  // island in the archipelago had a rock far enough out to build a tower on.
-  const beacon = unless(skip, 'beacon', () => createBeaconLight({
-    config:   readConfig,
-    quality,
-    hubs:     landscape.lanternHubs,
-    daylight: atmosphere.daylight,
-  }))
+  })
 
   // The whole optical chain is one module, and on the cheapest tier it is simply
   // absent — with nothing claiming the `render` hook the app falls back to
@@ -392,9 +434,7 @@ export function createIsometricScape (
     controls,
     atmosphere.module,
     ...skies,
-    rain,
-    birds,
-    beacon,
+    ...overGround,
     post,
   ].filter((module): module is ScapeModule => module !== null)
 

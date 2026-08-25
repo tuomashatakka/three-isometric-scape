@@ -68,6 +68,19 @@ export interface AtmosphereQuality {
   birdCount: number
 
   /**
+   * Puffs in one chimney's plume. 0 is a tier whose hearths do not smoke.
+   *
+   * A count and not a density, and — like `birdCount` and unlike `starCount` —
+   * one sized against the *map*: the stacks are fixed places on the ground, so
+   * pulling back shows every plume in the archipelago at once and zooming in
+   * shows one. What the count buys is continuity rather than reach, because the
+   * puffs share one climb and are spaced evenly along it: four is a plume that
+   * visibly pulses, and a dozen is a column. The cost is four vertices and two
+   * triangles each, in one shared draw.
+   */
+  hearthPuffs: number
+
+  /**
    * Panels in the coastal light's optic — how many beams sweep at once. 0 is a
    * tier that gets a lit lantern and no beams.
    *
@@ -205,6 +218,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     rainDrops:       0,
     birdCount:       0,
     beaconBlades:    0,
+    hearthPuffs:     0,
     terrainSegments: 60,
     scatterScale:    0.16,
     ao:              false,
@@ -236,6 +250,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     rainDrops:       900,
     birdCount:       90,
     beaconBlades:    1,
+    hearthPuffs:     8,
     terrainSegments: 84,
     scatterScale:    0.32,
     ao:              false,
@@ -283,6 +298,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     rainDrops:       2_600,
     birdCount:       260,
     beaconBlades:    2,
+    hearthPuffs:     14,
     terrainSegments: 208,
     scatterScale:    1,
     ao:              false,
@@ -314,6 +330,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     rainDrops:       4_200,
     birdCount:       420,
     beaconBlades:    3,
+    hearthPuffs:     20,
     terrainSegments: 288,
     scatterScale:    1.5,
     ao:              true,
@@ -362,6 +379,7 @@ const UNLOCKED_FLOOR = {
   rainDrops:      700,
   birdCount:      90,
   beaconBlades:   1,
+  hearthPuffs:    8,
   detailTaps:     6,
   reliefSteps:    4,
 } as const
@@ -400,6 +418,7 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
     rainDrops:      Math.max(quality.rainDrops, UNLOCKED_FLOOR.rainDrops),
     birdCount:      Math.max(quality.birdCount, UNLOCKED_FLOOR.birdCount),
     beaconBlades:   Math.max(quality.beaconBlades, UNLOCKED_FLOOR.beaconBlades),
+    hearthPuffs:    Math.max(quality.hearthPuffs, UNLOCKED_FLOOR.hearthPuffs),
     detailTaps:     Math.max(quality.detailTaps, UNLOCKED_FLOOR.detailTaps),
     reliefSteps:    Math.max(quality.reliefSteps, UNLOCKED_FLOOR.reliefSteps),
   }

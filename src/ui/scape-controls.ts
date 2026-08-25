@@ -334,6 +334,29 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       ],
     },
     {
+      group: 'ground & water',
+      title: 'hearth smoke',
+
+      // Filed with the ground because that is where the fires are, the way the
+      // gulls are filed with the water they wheel over. How *many* puffs a plume
+      // is drawn from is the tier's — see `quality.hearthPuffs` — and where the
+      // stacks stand is the survey's, so what is left here is how hard they are
+      // burning and what the wind does about it.
+      controls: [
+        toggled(
+          'chimneys',
+          range('hearth.smoke', 'smoke', 0, 1, 0.01, quality.hearthPuffs > 0),
+          0.52,
+          [
+            range('hearth.rise', 'rise (m)', 2, 30, 0.5),
+            range('hearth.speed', 'climb (m/s)', 0, 6, 0.05),
+            range('hearth.drag', 'lean into the wind', 0, 1, 0.01),
+            range('hearth.winter', 'banked in winter', 0, 2, 0.01),
+          ],
+        ),
+      ],
+    },
+    {
       group:    'ground & water',
       title:    'ground',
       controls: [
