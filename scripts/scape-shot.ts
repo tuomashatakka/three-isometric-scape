@@ -93,6 +93,39 @@ export const TOURS: Record<string, Pose[]> = {
     },
   ],
 
+  /**
+   * The farmyard, from close enough to see what stands in it.
+   *
+   * Added for the reason `beacon` and `coast` were, and it is the same reason
+   * each time: the tour is aimed at the middle of the archipelago, and anything
+   * whose whole scale is a building is a few pixels in five of its six frames.
+   * `near` at ten metres is the exception, and it is focused on the world origin
+   * — which is open yard between the farmhouse and the sauna and takes neither
+   * of them in.
+   *
+   * These three sit on the home island's steading at a view size that holds the
+   * house, the sauna and the ground between them. `yard` is the authored light;
+   * `yard-winter` is the same frame at midwinter, where anything that answers to
+   * the year has to answer differently; and `yard-night` is the frame a light
+   * source or a silhouette shows up in and the graded daytime one hides.
+   */
+  steading: [
+    { name: 'yard', zoom: 48, set: [ 'camera.focusX=-13', 'camera.focusZ=5' ]},
+    {
+      name:   'yard-winter',
+      zoom:   48,
+      season: 0.02,
+      set:    [ 'camera.focusX=-13', 'camera.focusZ=5' ],
+    },
+    {
+      name:   'yard-night',
+      zoom:   48,
+      time:   0.02,
+      season: 0.78,
+      set:    [ 'camera.focusX=-13', 'camera.focusZ=5' ],
+    },
+  ],
+
   // The cheap pass: is there a scape at all, and does it survive being drawn.
   quick: [{ name: 'default' }],
 }
@@ -150,6 +183,12 @@ export const STILL = [
   // scape that moves fast enough to be somewhere else between two frames.
   'weather.speed=0',
   'weather.fall=0',
+
+  // The column's own climb. Its wander is already held by `wind.speed=0` above,
+  // because the sway is carried by the wind's travel — but the rise is heat and
+  // not weather, so it would go on rising through a dead calm and be a different
+  // plume in every frame of a tour.
+  'hearth.speed=0',
 ]
 
 export interface ShotOptions {

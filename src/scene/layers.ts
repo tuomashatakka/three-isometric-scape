@@ -46,6 +46,17 @@ export const LAYER = {
   mist: 30,
 
   /**
+   * Hearth smoke, over the ground fog rather than under it.
+   *
+   * The one ordering decision this layer has to make, and it goes the way the
+   * thing itself does: a plume leaves the chimney *above* where the fog lies and
+   * climbs away from it, so a column painted behind the mist would be a fire
+   * burning under its own valley. Under the gulls, which fly twenty metres over
+   * the highest of it.
+   */
+  hearth: 35,
+
+  /**
    * The gulls.
    *
    * Over the ground fog they fly above and under the rain that falls past them.

@@ -117,6 +117,8 @@ gulls 4/4 colonies  home/harbour (-53,-63) r24.1  home/rock (71,46) r28  ridge/h
 
 `gulls 4/4 colonies` is the flock line, and the two numbers are the finding: the second is what the islands *offered* — one landing each, plus an outer rock where a light was built — and the first is how many of those found open water wide enough to fit a whole ring over. `3/4` on a run that did not touch `birds.spread`, the coastline or the landings means a bank closed up. this is here rather than in a screenshot because a flock is four pixels wide at the default pose.
 
+`hearths 10  lowest mouth 5.5m over the ground` is the chimney line, and `lowest` is the whole check: two stacks a holding, and the tightest clearance between any mouth and the ground under it. a building is levelled onto the *highest* ground beneath its footprint while its chimney stands 2.6 m off the middle of that footprint, so on a slope the two are measured against different heights — anything under about three metres means a stack has been placed against a floor it does not stand on, and the map says so in the line. here rather than in a still because a plume is three pixels at the default pose.
+
 `mill NONE` is a valid answer and not a failure — an island with nowhere level and exposed enough for a trestle does not get one. what would be a finding is a mill *appearing* or *moving* on a run that did not touch the siting rules, because everything the search reads is either the ground or something the farm already claimed.
 
 ### `bun run prop:map` — one prop, as ascii
@@ -157,6 +159,7 @@ bun run scape:shot                                  # one frame, default pose
 bun run scape:shot --poses tour                     # 6 frames, one browser launch
 bun run scape:shot --poses beacon                   # the light, 4 headings, at night
 bun run scape:shot --poses coast                    # the shoreline, 4 frames, weather side and lee
+bun run scape:shot --poses steading                 # the farmyard, 3 frames, summer/winter/night
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain
@@ -165,6 +168,8 @@ bun run scape:shot --skip post                      # drop the optical chain
 `tour` is `default`, `near`, `far`, `noon`, `night`, `winter`. `night` pins a week as well as an hour, because the sun runs a seasonal arc and the config opens at a midsummer that has no night in it. every capture prints a line before anything opens the image, and most runs need only that line:
 
 `coast` is the third set, and it exists for the same reason `beacon` does: four frames on a shoreline — `wash` at one bay, `lee` at the *identical* frame with `wind.bearing` turned right around, `shores` pulled back over the home island's whole coast and its skerries, and `frozen` at midwinter where the ice is meant to take the white water away. reach for it whenever the change touches the water's edge: surf, foam, the ice front, the depth tint or the alpha ramp. every pose in `tour` is aimed at the middle of the home island, so a change that repaints every shore in the archipelago reads as `same` at all six.
+
+`steading` is the fourth set, and the same argument again one scale further down: the farmyard at a 48 m view, in the authored light, at midwinter and at night. every pose in `tour` is aimed at the middle of the archipelago, and `near` — the one exception at ten metres — is focused on the world origin, which is open yard between the farmhouse and the sauna and takes neither of them in. reach for it whenever the change is the size of a building or something standing on one: a roof, a doorstep, a rut, a chimney.
 
 `beacon` is the second set: the light itself, at night, from four headings 90° apart, aimed by `camera.focusX`/`focusZ` rather than by zoom. it exists because the beams' bug was a render-order tie broken by *projected depth*, and that flips with yaw — one heading can only ever photograph one side of the flip, and no pose in `tour` has the tower in frame at all. reach for it whenever the change touches the transparent stack.
 
@@ -320,6 +325,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `creek.ts` | the beck: descent trace, channel, tidal mouth |
 | `beacon.ts` | the outermost rock broad and dry enough to carry a light, and the footing probe that proves it |
 | `colony.ts` | the open water off a harbour or an outer rock that a flock can wheel over without crossing land |
+| `hearths.ts` | every chimney and flue in the archipelago, carried from the prop's own frame out to the mouth |
 | `mill.ts` | the exposed shoulder a windmill stands on, and the doorstep at the foot of its stair |
 | `mill-sails.ts` | every mill's wheel in one dynamic `InstancedMesh`, geared off `wind.strength` |
 | `terrain.ts` | shared archipelago geometry, height/slope banded colour, path wear painted in |
@@ -344,7 +350,7 @@ the pointer bookkeeping — capture, live pointers, the pinch frame, tap detecti
 
 ### an atmospheric system
 
-`src/scene/*.ts` — `atmosphere.ts`, `mist.ts`, `clouds.ts`, `aurora.ts`, `nightsky.ts`, `rain.ts`, `birds.ts`, `beacon.ts`, `post.ts`, and the four clocks `daylight.ts` / `season.ts` / `weather.ts` / `wind.ts`. composed in [`create-isometric-scape.ts`](src/scene/create-isometric-scape.ts). the hung sheets share [`sky-deck.ts`](src/scene/sky-deck.ts) — the zoom reveal and the focus they follow — so two decks cannot fade in at two different zooms.
+`src/scene/*.ts` — `atmosphere.ts`, `mist.ts`, `clouds.ts`, `aurora.ts`, `nightsky.ts`, `rain.ts`, `birds.ts`, `beacon.ts`, `hearth.ts`, `post.ts`, and the four clocks `daylight.ts` / `season.ts` / `weather.ts` / `wind.ts`. composed in [`create-isometric-scape.ts`](src/scene/create-isometric-scape.ts). the hung sheets share [`sky-deck.ts`](src/scene/sky-deck.ts) — the zoom reveal and the focus they follow — so two decks cannot fade in at two different zooms.
 
 anything mounted *after* `atmosphere.module` sees this frame's day; anything before it sees the last one's. that is the whole reason the coastal light is a layer here rather than part of the landscape that surveys it — `beacon.ts` reads `daylight.day` and the landscape publishes `lanternHubs` for it.
 

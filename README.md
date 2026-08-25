@@ -87,6 +87,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - juniper bushes out on the dry upland heath — a low, spreading evergreen that reads apart from the conifers and answers to the same one wind
 - a lighthouse on the outermost rock of the ring, throwing beams that sweep the water from dusk until dawn
 - gull colonies wheeling over every harbour mouth and over the outer rock, banking into the turn, down at night and mostly down in a squall
+- wood smoke standing over every farmhouse chimney and sauna flue in the archipelago, leaning on the same one wind as the grass and banked harder the colder the week
 - a beck traced downhill from a spring, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself
 - **three clocks** — a day, a year, and a weather front — each a phase and a speed, each deriving everything else from that phase
 - a solar arc solved from a latitude — a polar night at midwinter, a midnight sun at midsummer — with dusk and night palettes derived from it, plus seasonal growth, leaf turn, lying snow, sea ice, sea smoke, and rain that leaves the ground wet
@@ -188,6 +189,7 @@ src/
     ├── wind.ts                     clock four: one bearing, one gust, one travel every scroll shares
     ├── rain.ts                     the fall, as one screen-sized column of streaks
     ├── birds.ts                     the gulls, and the rings they wheel on
+    ├── hearth.ts                   the smoke over the farmsteads, and the year that banks it
     ├── lut.ts                      cached cinematic colour-grade recipes
     ├── mist.ts                     ground-mist sheets, and the sea smoke off the coast
     ├── noise.ts                    deterministic height sampler
@@ -212,6 +214,7 @@ src/
     │   ├── creek.ts                the beck: descent trace, channel, tidal mouth
     │   ├── beacon.ts               the outer rock a light would stand on
     │   ├── colony.ts              the open water a flock can wheel over without crossing land
+    │   ├── hearths.ts             every chimney and flue, at the mouth and in world space
     │   ├── mill.ts                 the exposed shoulder a windmill would stand on
     │   ├── mill-sails.ts           every mill's wheel, turning in one instanced draw
     │   ├── waterway.ts             the navigable water between the ports
@@ -615,6 +618,28 @@ over every harbour mouth in the archipelago, and over the rock the light stands 
 **the one place the birds are sized against the frame.** a capture is five hundred pixels tall and the default pose is five hundred metres of sea, so a metre is a pixel and an honest 1.6 m wingspan is a pixel and a half — which is not a bird, it is grain, and the film grain on top of it makes sure of that. so the wingspan has a floor at 1.8% of the view: below about ninety metres of view the floor stops binding and a gull is exactly as wide as the config says, and above it the bird holds a legible mark the way a chart holds a symbol however far out it is drawn. everything else about them — the ceiling, the ring, the bob — stays in metres and stays there when the world or the camera grows.
 
 **they are down at night, and mostly down in a squall.** `birdsAloft` is the whole rule: the daylight fades them in through dusk and out again, and `weather.fall` keeps seven tenths of what is left on the water. neither threshold is a knob — a gull's working day is a fact about the light rather than a thing to tune — and `birds.flight` is the one strength that scales all of it, including to nothing. that is also why the tour's `night` and `winter` poses read `same`: at 68° north the midwinter pose is a polar night, and there are no birds up in it.
+
+## the smoke over the farmsteads
+
+every holding in the archipelago keeps two fires — the farmhouse's brick chimney and the sauna's iron flue — and every one of them smokes. where the stacks stand is [`landscape/hearths.ts`](src/scene/landscape/hearths.ts); the plume that rises out of them is [`scene/hearth.ts`](src/scene/hearth.ts).
+
+**the mouth is the prop's own answer, not a second copy of it.** `FARMHOUSE_CHIMNEY` and `SAUNA_FLUE` are exported from [`props/buildings.ts`](src/scene/props/buildings.ts) and the masonry is placed *from* them — the cap course sits at `mouth.y - thickness/2` rather than beside a repeated `-2.6`. the same seam the lantern hubs and the mill's wheels are on, and for the same reason: two numbers for where a chimney is, is a plume hanging beside its own brick the first time either moves.
+
+**the floor is approximated, and it says so.** a building is levelled onto the *highest* ground under its own footprint, and the footprint does not exist until the geometry has been built — which happens in the dressing, on a tier that may not build it at all. so the four corners of the standing's claim are probed and the high one taken, which is the same rule applied to a square rather than to an outline. on a yard the layout has already flattened the two agree to a few centimetres. `scape:map --stats` prints `hearths 10  lowest mouth 5.5m over the ground`, and anything under about three metres there means a stack has been placed against a floor it does not stand on.
+
+**the rotation sign is the trap.** a chimney stands 2.6 m off the middle of the ridge, so the offset has to be carried through the same `rotateY` the building is raised with — local `+x` to `(cos θ, -sin θ)`, the convention `steading.ts` faces every door by. the mirrored version looks correct on every seed where a farmhouse happens to face square and puts the smoke out of the gable end on the rest, which is why `hearth.test.ts` states it as a fact: every stack is within its own standing's radius plus a metre.
+
+**a column is a queue, not a crowd.** each puff takes a fixed slot along one shared climb — `fract(slot + cycle)` — so the count buys *continuity* rather than reach, and only the character of a puff comes out of the rng. a slot drawn randomly leaves gaps the eye reads as a fire going out and coming back. the whole archipelago's smoke is one draw call off one static buffer, four vertices a puff, with two scalars advancing it and nothing uploaded per frame.
+
+**the billboard is built in view space, not about the vertical axis.** the camera's yaw is a live control, and a puff billboarded about `y` shears visibly as the scape is turned. offsetting the quad in view space faces it squarely at any heading and at any tilt, which is the one thing a puff of smoke has to do to read as round.
+
+**the wind is a response, not a rate.** `hearth.drag` is dimensionless and multiplies the scape's one wind, exactly the way `atmosphere.cloudDrag` and `atmosphere.mistDrag` do, so a gust leans the plumes at the same instant it bends the grass. the lean goes as the *square* of the age, because a puff keeps whatever the wind has already given it and is given more every second; linear drift reads as a rigid tilted stick. the wander across the wind is carried by `wind.travel`, so it stops dead when the wind does.
+
+**the raggedness is shape, not motion.** a fixed lateral offset per puff, carried by nothing and surviving a capture with every speed in the scape at zero. without it a windless still is a perfect cone of evenly growing discs, which is what a plume looks like only in a diagram.
+
+**one winter, not two.** how hard the fires are banked reads `season.growth` — the same instant of the year the grass is withered by — rather than carrying a winter curve of its own. `hearth.smoke × (1 + hearth.winter × cold)`, clamped at a fully opaque plume, and the authored tuning holds midwinter at 0.99 so the clamp is a guard rather than a working range: every week of the year is a different plume.
+
+**it is not visible from the tour, and that is not a bug.** a plume is eleven metres of smoke over a 1520 m world; at the default pose it is three pixels. the `steading` tour was added to `scape-shot.ts` for exactly the reason `beacon` and `coast` were — the instrument has to be pointed at the thing. there it moves `yard` by 0.54% and `yard-winter` by 1.19%, which is the banking claim as a picture, and `yard-night` least of all, because the smoke is dimmed with the day.
 
 ## the clock
 

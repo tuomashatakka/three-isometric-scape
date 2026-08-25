@@ -5,6 +5,7 @@ import { NOTHING_SKIPPED } from '../audit.ts'
 import type { ScapeSkips } from '../audit.ts'
 import type { LiveConfig, ScapeConfig, ScapeModule } from '../config.ts'
 import { BEACON_SINK, LANTERN_HEIGHT } from '../props/beacon.ts'
+import type { HearthStack } from '../hearth.ts'
 import { createScapeMaterials } from '../props/material.ts'
 import { MILL_HUB_HEIGHT, MILL_HUB_REACH, MILL_SINK } from '../props/mill.ts'
 import type { ScapeMaterials } from '../props/material.ts'
@@ -23,6 +24,7 @@ import type { BoatFleet } from './boats.ts'
 import { planColonies } from './colony.ts'
 import type { Colony } from './colony.ts'
 import { createDressing } from './dressing.ts'
+import { surveyHearths } from './hearths.ts'
 import type { Dressing } from './dressing.ts'
 import { yawAlong } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
@@ -62,6 +64,15 @@ export interface Landscape {
    * towers *are*, resolved from the survey the same way the mills' hubs are.
    */
   lanternHubs: readonly LanternHub[]
+
+  /**
+   * Every chimney and flue in the archipelago, at the mouth and in world space.
+   *
+   * Published rather than drawn here for the reason the lantern hubs are: where
+   * a stack *is* is a fact about the survey and the prop's own frame, and what
+   * rises out of it answers to the day and the year — see `scene/hearth.ts`.
+   */
+  hearths: readonly HearthStack[]
 
   /**
    * The live instant of the year, resolved once per frame by this module's
@@ -165,6 +176,15 @@ export function createLandscape (
       z: beacon.z + landmass.origin.z,
     }]
   })
+
+  /**
+   * Every chimney and flue, at the mouth and in world space.
+   *
+   * Surveyed here beside the hubs and the lanterns, and for the same reason: it
+   * is an answer about the ground and the arrangement on it rather than about
+   * geometry. The plume itself is `scene/hearth.ts`.
+   */
+  const hearths = surveyHearths(archipelago)
 
   /**
    * Every flock the coast can carry, sited over open water.
@@ -298,6 +318,7 @@ export function createLandscape (
     boatFleet: () => fleet,
     colonies,
     lanternHubs,
+    hearths,
     season:    season.state,
     weather:   weather.state,
   }

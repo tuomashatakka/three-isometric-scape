@@ -518,6 +518,63 @@ export interface ScapeConfig {
     /** Half-width of a beam where it dies, in metres. */
     beamSpread: number
   }
+
+  /**
+   * The fires in the farmhouse and the sauna, and the smoke standing over them.
+   *
+   * Every one of these is live, and every length here is **metres and stays
+   * metres**. A chimney is the same chimney over a wider archipelago and at any
+   * zoom, so nothing in this section is scaled by `archipelago.worldSize` or by
+   * the live `viewSize` — the audit the scale rule asks for, written down at the
+   * knob rather than discovered by a later run.
+   *
+   * Where the stacks *are* is not here: that comes out of the survey and the
+   * prop's own frame — see `FARMHOUSE_CHIMNEY` in `props/buildings.ts` — the
+   * same way the lantern hubs and the mill's wheels do.
+   */
+  hearth: {
+
+    /**
+     * How thick the smoke stands over the roofs, 0..1.
+     *
+     * 0 is a farm with cold hearths, and it is the switch — there is no plume to
+     * draw when this is zero. How much harder the fires are banked in the cold
+     * is the year's business; see {@link ScapeConfig.hearth.winter}.
+     */
+    smoke: number
+
+    /** Metres a plume climbs before it has thinned into the air. */
+    rise: number
+
+    /**
+     * Metres a plume climbs in a second. 0 hangs the smoke where it stands.
+     *
+     * Its own rate rather than a share of `wind.speed`, because a column rises
+     * on the heat under it and would go on rising on a still day. It is
+     * therefore its own line in `STILL` — see `scripts/scape-shot.ts`.
+     */
+    speed: number
+
+    /**
+     * How hard a plume answers the wind, 0..1.
+     *
+     * A response, not a speed, the way `atmosphere.cloudDrag` and
+     * `atmosphere.mistDrag` are: the bearing and the strength are the scape's
+     * one wind, and this only decides how far downwind the column has been laid
+     * over by the time it has climbed its full {@link ScapeConfig.hearth.rise}.
+     */
+    drag: number
+
+    /**
+     * How much harder the fires are banked in deep winter, as a multiple of
+     * {@link ScapeConfig.hearth.smoke}.
+     *
+     * 0 is a farm that burns the same fire in July it burns in January. There is
+     * no second winter strength, because there is one year in the scape: what
+     * this reads is the same `season.growth` the grass is withered by.
+     */
+    winter: number
+  }
   dressing: DressingBudget
 
   /**
@@ -1009,6 +1066,17 @@ export interface ScapeConfig {
     moon: number
 
     /**
+     * Wood smoke, at the mouth of the flue.
+     *
+     * Neither the fog's grey nor the snow's white, and one colour rather than
+     * two: a plume is dense and warm where it leaves the brick and pale where it
+     * has spread, and the pale end is this same colour seen through less of it.
+     * Browner than `fog` on purpose — birch smoke off a damp autumn fire is not
+     * the sea haze it drifts into.
+     */
+    smoke: number
+
+    /**
      * A gull, at its brightest.
      *
      * One colour rather than three, the way the star field carries one: a gull
@@ -1380,6 +1448,24 @@ export const SCAPE_CONFIG = {
     beamReach:  88,
     beamSpread: 11,
   },
+  // 11 metres of rise against a chimney standing 7 m over its own floor puts the
+  // top of a plume at about 18 m — well clear of the 9 m peak on the home island
+  // and well under the 34 m cloud deck, which is the band a column of smoke
+  // actually occupies. 1.6 m/s is a domestic fire drawing steadily rather than a
+  // bonfire. 0.55 of drag lays the column over by about six metres downwind at
+  // the top of its climb in the authored breeze — a plume leaning hard without
+  // being flattened onto the roof. 0.6 of winter takes midwinter to 0.99 — the
+  // fire that is lit all day in January against the one lit for the sauna in
+  // July, and just under the ceiling `hearthDensity` clamps at, so every week of
+  // the year is a different plume rather than a third of them being the same
+  // fully opaque one.
+  hearth: {
+    smoke:  0.62,
+    rise:   11,
+    speed:  1.6,
+    drag:   0.55,
+    winter: 0.6,
+  },
   // Roughly doubled against the run before this one, because the island is
   // roughly twice the ground. A budget is a *count*, not a density, so leaving
   // these alone would have grown the island and thinned everything standing on
@@ -1579,6 +1665,7 @@ export const SCAPE_CONFIG = {
     rain:         0xc6d2d8,
     star:         0xdce8ff,
     moon:         0xe4e9e0,
+    smoke:        0xb7b1a6,
     gull:         0xf2f4f1,
     aurora:       0x6df2a8,
     auroraCrown:  0x7a5bd6,
