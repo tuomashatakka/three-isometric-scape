@@ -218,7 +218,8 @@ src/
     │   ├── boats.ts                the fleet, and the wake it leaves
     │   ├── boat-motion.ts          one shared departure clock, one leg each
     │   ├── terrain.ts              geometry, banded colour, path wear and cart soil painted in, ruts merged on
-    │   ├── water.ts                bathymetry, swell, foam, glitter, winter ice
+    │   ├── shore-mask.ts           the baked bathymetry, and which way each coast faces
+    │   ├── water.ts                swell, surf, foam, glitter, winter ice
     │   ├── samplers.ts             where the dressing throws its darts
     │   ├── dressing-zones.ts       what the composition already claims the ground for
     │   ├── dressing-helpers.ts     the placement questions that are pure geometry
@@ -848,6 +849,34 @@ two related calibrations came out of the same pass:
 
 - **bloom threshold sits above the fog.** the fog colour scatters toward the sun until its linear luminance is around 0.85, and at the old 0.86 a frame full of lit haze crossed the threshold everywhere at once and bloomed itself into a white-out.
 - **direction tints the light, it does not re-expose the shot.** at the original strength the same island was a washed-out miniature facing one way and a dark, moody one facing the other. the scatter is a third of what it was.
+
+## the shore the wind is on
+
+every coast in this scape used to be drawn the same. a thin foam trim hugged the waterline, the same width and the same white the whole way round every island — on the sheltered side of a headland exactly as much as on the side taking the weather. which is the one thing a coastline never looks like.
+
+**a coast is either in the sea's way or behind it.** the swell runs with the wind, so the question is whether the water is travelling *into* a given piece of shore, and the answer is a dot product between the swell's heading and the direction the sea lies in. the second half of that is a fact about the ground, not about the frame, so it is baked: [`landscape/shore-mask.ts`](src/scene/landscape/shore-mask.ts) writes the seaward bearing into the bathymetry mask's `g` and `b` channels, which until now held two more copies of the depth byte already in `r`. the surf therefore costs no fetch — the tap the lake was making anyway now answers both questions at once.
+
+three things decide how hard it breaks, and none of them was authored per island:
+
+- **exposure** is that dot product, softened by `water.surfExposure` so a lee shore is sheltered rather than glassy. veer `wind.bearing` and the white water walks round the island; it does not fade.
+- **the band** is depth, out to `water.surfDepth` — *metres*, and they stay metres, because a wave feels the bottom at a depth set by the wave rather than by how wide the world is. what it scales with is the ground: a shallow bay foams far out and a rock that falls away sheer wears a narrow collar, and that contrast falls straight out of the bathymetry.
+- **the surge** is a wave train marching in along the swell's own heading, so the white arrives in sets rather than hanging at one contour. its phase is `wind.travel` — the scape's one integrated distance — which is a rate that can reach zero, and that is what makes surf photographable at all. a band running on `elapsed` would be somewhere else in every frame of a capture.
+
+the break also lifts the water's **alpha** and its **roughness**, and both are the same observation: foam is air in water. it is opaque, so you cannot see the bottom through it — which matters most exactly where the plane is fading out against the sand — and it is matte, so it must not take the specular lobe the open sea does, or the band gleams and reads as wet paint laid on the shore.
+
+**the cheap tier gains a coastline rather than losing one.** the foam trim was a second dependent texture read, so the phone never had it. the surf is arithmetic on a fetch it already makes, so mobile gets the same white water desktop gets — for once, the tier gate had nothing to take away.
+
+### the mask had quietly gone coarse
+
+the surf is only ever as good as the bathymetry under it, and sizing the band was what turned up the older problem. the shore mask was fixed at 512 texels a side, chosen when the inhabited world was 196 metres across — a third of a metre to a texel. the world is 1520 metres now, and nothing raised it, so the same map had become *three metres* to a texel and a coast that falls away steeply was one texel of shoreline between dry ground and open sea. everything reading it — the depth tint, the alpha ramp, the ice front, the foam trim — had been working from that.
+
+it is `quality.shoreMask` now, and a tier decision: 384 on `minimal`, 768 on `mobile`, 1024 on `desktop`, 1536 on `ultra`. what the cheap tiers are protected from is the *upload* rather than the bake — the composite survey costs seconds and 512² of it costs about 0.12 s, so resolution was never what made a scape expensive to build.
+
+the test that states this is worth reading for one detail: **it walks the mask bilinearly, because that is the only read there is.** sampled by nearest texel, "the seaward bearing points into deeper water" fails on an eighth of the archipelago's shoreline — not because the bearing is wrong, but because a sheer coast is one texel wide and its neighbours are dry land and open sea. the gpu never sees those bytes in isolation, and neither should the test.
+
+### and the tour could not see any of it
+
+six poses, and every one of them aimed at the middle of the home island: `near` at ten metres is standing in the farmyard, `default` and `far` take in the whole archipelago at better than half a metre to the pixel. a change that repaints every shore in the scape reads as `same` at all six — not because it is invisible, but because the instrument is not pointed at it. `--poses coast` is the fix, and it is the same fix `beacon` was: four frames on a shoreline, one of them the *identical* frame with the wind turned right around, so the exposure claim is a picture rather than an assertion.
 
 ## framing the sea
 

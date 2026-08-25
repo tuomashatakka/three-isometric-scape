@@ -2,6 +2,18 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the shore the wind is on
+
+every coast in the archipelago was drawn the same: a thin foam trim at the waterline, the same width and the same white the whole way round, on the sheltered side of a headland as much as on the side taking the weather. the swell runs with the wind now, and the shore it is running at breaks white.
+
+- **exposure costs no fetch, because it is baked into the map already being read.** the bathymetry mask wrote the same depth byte into `r`, `g` and `b`; the new [`landscape/shore-mask.ts`](src/scene/landscape/shore-mask.ts) puts the *seaward bearing* — a unit vector pointing from the bank out to open water — into the two spare channels, so `-dot(seaward, swell)` answers "is this coast in the sea's way" for one dot product on the tap the lake was making anyway. `shore-mask.test.ts` states the claim as a fact about the bytes, on a cone where the answer is known and on the real archipelago where it is not
+- **the band is the shelf, and the shelf was never authored.** `water.surfDepth` is metres — a wave feels the bottom at a depth set by the wave, not by how wide the world is — so a shallow bay foams far out and a rock that falls away sheer wears a narrow collar, straight out of the bathymetry. `water.surfExposure` decides how much the lee is spared; `water.surf` is the strength and the switch
+- **the sets march in on `wind.travel`.** the surge phase is the scape's one integrated distance, so it stops with `wind.speed=0` — a still can photograph the surf instead of catching it somewhere else in every frame. the gust only *lifts* the break: a swell outlives the wind that raised it, so a dead calm still runs at three quarters
+- **the break lifts alpha and roughness too**, and both are one observation: foam is air in water. it is opaque, which matters where the plane is already fading out against the sand, and it is matte, or the band takes the sea's specular lobe and reads as wet paint
+- **the phone gains a coastline rather than losing one.** the foam trim was a second dependent read, so the cheap tier never had it; the surf is arithmetic on a fetch it already makes. no draw, no texture memory, no tap on any tier
+- **the mask had quietly gone coarse, and is a tier decision now.** fixed at 512 texels since the world was 196 m across, it had become *three metres to a texel* over a 1520 m archipelago — one texel of shoreline on a sheer coast, under everything that reads it. `quality.shoreMask` is 384/768/1024/1536 by tier; 512² of the bake costs ~0.12 s against a survey that costs seconds, so resolution was never the expensive half
+- **`--poses coast`, because `tour` could not see any of this.** all six tour poses aim at the middle of the home island, so a change repainting every shore in the scape reads as `same` at all six. the new set is four frames at the water's edge, one of them the identical frame with the wind turned right around — the exposure claim as a picture rather than an assertion. same fix, and the same reason, as `--poses beacon`
+
 ## the juniper the heath grew
 
 the dry, open, rockier upland between the heather and the ridge conifers was bare. it grows juniper now — a low, spreading evergreen bush that reads apart from the trees and fills out the moor at the mid zoom it is seen from.

@@ -1,16 +1,13 @@
 import {
   Color,
-  DataTexture,
-  LinearFilter,
   Mesh,
   MeshStandardMaterial,
   PlaneGeometry,
-  RGBAFormat,
   Vector2,
   Vector4,
 } from 'three'
 import type { IUniform, Texture, WebGLProgramParametersWithUniforms } from 'three'
-import type { LiveConfig, ScapeConfig } from '../config.ts'
+import type { LiveConfig } from '../config.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import type { SeasonState } from '../season.ts'
 import type { TextureCatalogue } from '../textures/catalogue.ts'
@@ -19,6 +16,7 @@ import type { WindState } from '../wind.ts'
 import type { BoatWakeEmitter } from './boats.ts'
 import type { HeightField } from './height.ts'
 import { LAYER } from '../layers.ts'
+import { MAX_DEPTH, bakeShoreMask } from './shore-mask.ts'
 
 
 /**
@@ -35,6 +33,11 @@ import { LAYER } from '../layers.ts'
  * swell, its ripple, its foam and its glitter — all of which is the same
  * bathymetry the depth tint was already reading, so the freeze costs no fetch
  * the lake was not making anyway.
+ *
+ * The wind reaches it the same way. The swell runs with the wind, so a coast is
+ * in the surf when the sea is travelling *into* it — and which way a coast faces
+ * is baked into the mask's spare channels rather than differenced per fragment.
+ * See `shore-mask.ts` and `WATER_SURF_GLSL`.
  */
 export interface Water {
   mesh: Mesh
@@ -53,9 +56,22 @@ export interface Water {
   dispose(): void
 }
 
-const SHORE_RESOLUTION = 512
-const MAX_DEPTH        = 3.2
-const MAX_BOAT_WAKES   = 3
+const MAX_BOAT_WAKES = 3
+
+/**
+ * How far a wave train advances through its own crest spacing, per metre of
+ * wind travel.
+ *
+ * A rate, and therefore one that has to be able to stop: it is carried by
+ * `wind.travel`, which is the scape's one integrated distance and dies with
+ * either `wind.speed` or `wind.strength`. A surf line running on `elapsed`
+ * would be somewhere else in every frame of a capture, whatever the still put
+ * the rest of the scape into.
+ */
+const SURGE_RATE = 0.22
+
+/** Metres between the crests marching in on a coast. */
+const SURGE_SPACING = 46
 
 /**
  * Ripple-map UV travelled per unit of wind travel.
@@ -107,8 +123,19 @@ const ICE_GLSL = /* glsl */`
   uniform float uIceBreak;
   uniform float uFloeScale;
 
+  /**
+   * The whole mask, in one read: depth in r, the seaward bearing in gb.
+   *
+   * Both stages go through here rather than sampling the channels they happen
+   * to want, because a driver will only collapse two reads of one sampler at
+   * one uv if they are literally the same fetch. See shore-mask.ts.
+   */
+  vec4 scapeShore (vec2 ground) {
+    return texture2D(uShoreMap, ground * uShoreScale + 0.5);
+  }
+
   float scapeDepth (vec2 ground) {
-    return texture2D(uShoreMap, ground * uShoreScale + 0.5).r;
+    return scapeShore(ground).r;
   }
 
   // The floe field. Three sines rather than a noise fetch, because the vertex
@@ -209,6 +236,88 @@ const BOAT_WAKE_GLSL = /* glsl */`
   }
 `
 
+/**
+ * The surf.
+ *
+ * A coast is either in the sea's way or behind it, and until this the scape
+ * drew both the same: a thin foam trim at the waterline, the same width and the
+ * same white the whole way round every island, on the sheltered side of a
+ * headland as much as on the side taking the weather. Which is the one thing a
+ * coastline never looks like.
+ *
+ * Three parts, and none of them costs a fetch:
+ *
+ * **exposure** is the mask's baked seaward bearing against the direction the
+ * swell is travelling. The swell runs with the wind — there is one wind in this
+ * scape and this is a consumer of it, not a second one — so a shore facing into
+ * the wind is white and its lee is calm, and veering the wind moves the surf
+ * round the island rather than fading it.
+ *
+ * **the band** is depth, out to `uSurfDepth`. Breakers are what a swell does
+ * when it feels the bottom, so the width of the white water is the width of the
+ * shelf, which is why a shallow bay wears a broad wash and a rock that falls
+ * away sheer wears a narrow collar. That falls out of the bathymetry for free;
+ * nothing here had to be authored per island.
+ *
+ * **the surge** is a wave train marching in along the swell's own heading, so
+ * the white water arrives in sets rather than hanging at one contour. Its phase
+ * is `wind.travel`, the scape's shared integrated distance — a rate that can
+ * reach zero, which is what makes the surf photographable.
+ */
+const WATER_SURF_GLSL = /* glsl */`
+  uniform vec2 uSwell;
+  uniform float uSurf;
+  uniform float uSurfDepth;
+  uniform float uSurfExposure;
+  uniform float uSurgePhase;
+
+  /**
+   * How hard it is breaking here, 0..1.
+   *
+   * The caller passes in the mask fetch it has already made rather than this
+   * taking one of its own: the surf is meant to be free, and a second texture2D
+   * at the same uv is how free becomes a tap the cheap tier cannot afford.
+   */
+  float scapeSurf (vec2 ground, vec4 shore, float depth) {
+    if (uSurf <= 0.001)
+      return 0.0;
+
+    vec2 seaward = shore.gb * 2.0 - 1.0;
+
+    // Bilinear filtering shortens the decoded vector between texels and open
+    // sea leaves it at zero length, so this is a bearing *and* a weight: the
+    // surf fades out where the mask has no shore to point away from.
+    float facing = clamp(-dot(seaward, uSwell), 0.0, 1.0);
+
+    // Hard against the bank and thinning out to the reach, rather than a ramp
+    // across the whole shelf: broken water piles up where the wave finally
+    // trips, and a linear falloff spreads the same white so evenly that the
+    // band reads as a tinted contour instead of as surf.
+    float shelf = smoothstep(uSurfDepth, 0.0, depth);
+    float surge = 0.5 + 0.5 * sin(dot(ground, uSwell) * ${(Math.PI * 2 / SURGE_SPACING).toFixed(5)} + uSurgePhase);
+
+    // The lip. Nothing is painted on the last few centimetres of water, where
+    // the plane is already fading out against the sand — surf drawn there is a
+    // white fringe on dry ground.
+    return smoothstep(0.0, 0.02, depth) * shelf * sqrt(shelf) *
+      mix(1.0, facing, uSurfExposure) * mix(0.34, 1.0, surge) * uSurf;
+  }
+`
+
+/**
+ * Foam is opaque, and the water it stands on is not.
+ *
+ * The shore end of the plane deliberately fades out — the alpha ramp above is
+ * what stops the lake being painted over dry ground — so a surf band mixed into
+ * the albedo alone arrives at the bank as a wash at half strength, against wet
+ * sand, under the fog. Which is exactly where breaking water is *most* opaque:
+ * it is air in water, and you cannot see the bottom through it. So the break
+ * lifts the alpha back, and only the break does.
+ */
+const WATER_SURF_ALPHA = /* glsl */`
+  diffuseColor.a = max(diffuseColor.a, breakers * 0.94);
+`
+
 const WATER_PARS_FRAGMENT = /* glsl */`
   uniform sampler2D uRippleMap;
   uniform sampler2D uWaveMap;
@@ -224,6 +333,7 @@ const WATER_PARS_FRAGMENT = /* glsl */`
   varying vec2 vWaterGround;
 ${WAVE_GLSL}
 ${ICE_GLSL}
+${WATER_SURF_GLSL}
 ${BOAT_WAKE_GLSL}
 `
 
@@ -258,12 +368,18 @@ const WATER_ICE_FRAGMENT = /* glsl */`
  */
 const WATER_ROUGHNESS_FRAGMENT = /* glsl */`
   #include <roughnessmap_fragment>
+
+  // Broken water is air in water, and air in water is matte. Without this the
+  // surf takes the same specular lobe the open sea does and the white band
+  // gleams — which reads as wet paint laid on the shore rather than as foam.
+  roughnessFactor = mix(roughnessFactor, 0.94, breakers);
   roughnessFactor = mix(roughnessFactor, 0.88, iceCover);
 `
 
 const WATER_COLOR_FRAGMENT = /* glsl */`
   #include <map_fragment>
-  float waterDepth = scapeDepth(vWaterGround);
+  vec4 shore       = scapeShore(vWaterGround);
+  float waterDepth = shore.r;
   float iceCover   = scapeIce(vWaterGround, waterDepth);
   float openWater  = smoothstep(0.04, 0.3, waterDepth);
   float boatWake   = scapeBoatWake(vWaterGround) * openWater * (1.0 - iceCover);
@@ -275,8 +391,17 @@ const WATER_COLOR_FRAGMENT = /* glsl */`
   vec2 foamUv = vWaterGround * uRippleScale * 0.55 + uRippleOffset * 1.6;
   float foam = shoreline * (0.35 + 0.5 * texture2D(uRippleMap, foamUv).r) * (1.0 - iceCover);
 
+  // The breakers stand off the trim rather than replacing it: the trim is the
+  // wash at the waterline, which every coast has, and this is the white water
+  // over the shelf, which only the coast the sea is running at gets.
+  float breakers = scapeSurf(vWaterGround, shore, waterDepth) * (1.0 - iceCover);
+
   diffuseColor.rgb = mix(uShallow, uDeep, smoothstep(0.0, 0.5, waterDepth));
-  diffuseColor.rgb = mix(diffuseColor.rgb, uFoam, clamp(foam + boatWake * 0.72, 0.0, 0.7));
+  diffuseColor.rgb = mix(
+    diffuseColor.rgb,
+    uFoam,
+    clamp(max(foam, breakers) + boatWake * 0.72, 0.0, 0.86)
+  );
 
   // Texture the albedo, not just the normal. A normal-only ripple is invisible
   // wherever the specular lobe does not reach, so the sea reads as flat paint
@@ -302,6 +427,8 @@ ${WATER_ICE_FRAGMENT}
   // The plane spans the whole map, so it has to vanish wherever there is no
   // water under it — otherwise dry land gets painted lake.
   diffuseColor.a *= smoothstep(0.0, 0.03, waterDepth) * clamp(0.5 + waterDepth * 1.7, 0.0, 1.0);
+
+${WATER_SURF_ALPHA}
 `
 
 /**
@@ -315,20 +442,29 @@ ${WATER_ICE_FRAGMENT}
  */
 const WATER_COLOR_FRAGMENT_LITE = /* glsl */`
   #include <map_fragment>
-  float waterDepth = scapeDepth(vWaterGround);
+  vec4 shore       = scapeShore(vWaterGround);
+  float waterDepth = shore.r;
   float iceCover   = scapeIce(vWaterGround, waterDepth);
   float openWater  = smoothstep(0.04, 0.3, waterDepth);
   float boatWake   = scapeBoatWake(vWaterGround) * openWater * (1.0 - iceCover);
+
+  // The one thing the cheap lake gains rather than loses. The trim it cannot
+  // afford was a second dependent read; the surf is arithmetic on the fetch it
+  // is already making, so the phone gets the coastline the desktop gets — and
+  // gets it *instead* of the fetch, not as well as one.
+  float breakers = scapeSurf(vWaterGround, shore, waterDepth) * (1.0 - iceCover);
 
   diffuseColor.rgb = mix(uShallow, uDeep, smoothstep(0.0, 0.5, waterDepth));
 
   float sheen = texture2D(uRippleMap, vWaterGround * uRippleScale + uRippleOffset).r;
   diffuseColor.rgb *= 0.93 + 0.15 * sheen;
-  diffuseColor.rgb = mix(diffuseColor.rgb, uFoam, boatWake * 0.62);
+  diffuseColor.rgb = mix(diffuseColor.rgb, uFoam, clamp(breakers + boatWake * 0.62, 0.0, 0.86));
 
 ${WATER_ICE_FRAGMENT}
 
   diffuseColor.a *= smoothstep(0.0, 0.03, waterDepth) * clamp(0.5 + waterDepth * 1.7, 0.0, 1.0);
+
+${WATER_SURF_ALPHA}
 `
 
 const WATER_NORMAL_FRAGMENT_LITE = /* glsl */`
@@ -372,32 +508,6 @@ const WATER_NORMAL_FRAGMENT = /* glsl */`
   ) * (1.0 - iceCover));
 `
 
-/** Bake how deep the lake is at every point, from the same height field the terrain uses. */
-function bakeShoreMask (config: ScapeConfig, field: HeightField, span: number): DataTexture {
-  const data = new Uint8Array(SHORE_RESOLUTION * SHORE_RESOLUTION * 4)
-  const step = span / (SHORE_RESOLUTION - 1)
-
-  for (let row = 0; row < SHORE_RESOLUTION; row += 1)
-    for (let column = 0; column < SHORE_RESOLUTION; column += 1) {
-      const x     = -span / 2 + column * step
-      const z     = -span / 2 + row * step
-      const depth = Math.min(1, Math.max(0, (config.terrain.waterLevel - field.heightAt(x, z)) / MAX_DEPTH))
-      const index = (row * SHORE_RESOLUTION + column) * 4
-      const value = Math.round(depth * 255)
-
-      data[index]     = value
-      data[index + 1] = value
-      data[index + 2] = value
-      data[index + 3] = 255
-    }
-
-  const texture       = new DataTexture(data, SHORE_RESOLUTION, SHORE_RESOLUTION, RGBAFormat)
-  texture.minFilter   = LinearFilter
-  texture.magFilter   = LinearFilter
-  texture.needsUpdate = true
-  return texture
-}
-
 export function createWater (
   config:   LiveConfig,
   field:    HeightField,
@@ -427,7 +537,7 @@ export function createWater (
   const geometry = new PlaneGeometry(surface, surface, segments, segments)
   geometry.rotateX(-Math.PI / 2)
 
-  const shoreMap: Texture = bakeShoreMask(config(), field, maskSpan)
+  const shoreMap: Texture = bakeShoreMask(config(), field, maskSpan, quality.shoreMask)
 
   // Both from the shared catalogue, mipmapping and wrap modes included. The
   // speckled one only ever tints; the fractal one drives the shading, because
@@ -443,6 +553,7 @@ export function createWater (
     () => new Vector4(),
   )
   const boatWakePhases                     = new Float32Array(MAX_BOAT_WAKES)
+  const swell: IUniform<Vector2>           = { value: new Vector2(1, 0) }
   const uniforms: Record<string, IUniform> = {
     uShoreMap:         { value: shoreMap },
     uRippleMap:        { value: rippleMap },
@@ -466,6 +577,15 @@ export function createWater (
     uSparkle:          { value: config().water.sparkle },
     uWaveTime:         waveTime,
     uWaveHeight:       { value: config().water.waveHeight },
+    uSwell:            swell,
+    uSurf:             { value: config().water.surf },
+
+    // Metres in, fractions of `MAX_DEPTH` out — the mask's depth channel is a
+    // fraction of that, so this is where the one conversion happens rather than
+    // in the shader, where the constant would have to be written down twice.
+    uSurfDepth:    { value: config().water.surfDepth / MAX_DEPTH },
+    uSurfExposure: { value: config().water.surfExposure },
+    uSurgePhase:   { value: 0 },
   }
 
   // Opaque at the material level, and let the shader's alpha ramp do the
@@ -583,6 +703,18 @@ export function createWater (
       uniforms.uIceReach.value         = config().water.iceReach
       uniforms.uIceBreak.value         = config().water.iceBreak
 
+      // The swell runs where the wind is pushing it, and the wave train marches
+      // in on the same integrated travel every scrolling surface in the scape
+      // shares. The gust only *lifts* it: a swell outlives the wind that raised
+      // it, so a dead calm still breaks at three quarters of the authored
+      // strength — which is also what keeps a still, where the wind is zeroed by
+      // definition, a photograph of a coast with a sea running on it.
+      swell.value.set(wind.dirX, wind.dirZ)
+      uniforms.uSurgePhase.value   = wind.travel * SURGE_RATE
+      uniforms.uSurf.value         = config().water.surf * (0.75 + 0.25 * Math.min(1.6, wind.strength))
+      uniforms.uSurfDepth.value    = config().water.surfDepth / MAX_DEPTH
+      uniforms.uSurfExposure.value = config().water.surfExposure
+
       iceColor.value.copy(season.iceColor)
 
       if (material.roughness !== config().water.roughness)
@@ -606,3 +738,8 @@ export function createWater (
 // freeze adds one vertex texture fetch of that same mask and three sines to
 // each stage — no draw, no material, no pass, and no fragment tap, which is why
 // every tier including `minimal` gets the winter.
+//
+// The surf is the same trade taken further: the shore's own bearing rides in
+// the mask's spare channels, so a breaker band costs one dot product, one sine
+// and two smoothsteps on a fetch the lake was making anyway. No draw, no
+// texture memory, no tap — which is why the phone gets it too.

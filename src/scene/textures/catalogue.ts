@@ -124,9 +124,9 @@ export const TEXTURES: readonly TextureEntry[] = [
   {
     id:        'water.shoreMask',
     origin:    'baked',
-    purpose:   'bathymetry and shoreline distance, sampled off the height field',
-    size:      256,
-    module:    'landscape/water.ts',
+    purpose:   'depth in r, the seaward bearing in gb — bathymetry and which way a coast faces',
+    size:      512,
+    module:    'landscape/shore-mask.ts',
     consumers: [ 'uShoreMap' ],
   },
   {
