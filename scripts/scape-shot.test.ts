@@ -3,6 +3,7 @@ import { readPath } from 'threejs-scene'
 import { SCAPE_CONFIG } from '../src/scene/config.ts'
 import { atmosphereQuality } from '../src/scene/quality.ts'
 import { controlPaths, createScapeControls } from '../src/ui/scape-controls.ts'
+import type { Pose } from './scape-shot.ts'
 import { STILL, TOURS } from './scape-shot.ts'
 
 
@@ -131,5 +132,49 @@ describe('the tour poses', () => {
     const names = TOURS.tour?.map(pose => pose.name) ?? []
 
     expect(names).toEqual([ 'default', 'near', 'far', 'noon', 'night', 'winter' ])
+  })
+})
+
+describe('the coast poses', () => {
+  const coast = TOURS.coast ?? []
+
+  /**
+   * The claim the set exists to photograph, as a fact about the poses.
+   *
+   * `wash` and `lee` are only worth a browser launch if they differ by the wind
+   * and by *nothing else* — a pair that also moved the camera, the hour or the
+   * week would show a difference that says nothing about which shore the sea is
+   * running at.
+   */
+  test('the weather side and the lee are the same frame, and differ only by the wind', () => {
+    const wash = coast.find(pose => pose.name === 'wash')
+    const lee  = coast.find(pose => pose.name === 'lee')
+
+    expect(wash?.zoom).toBe(lee?.zoom)
+    expect(wash?.rot).toBe(lee?.rot)
+    expect(wash?.time).toBe(lee?.time)
+    expect(wash?.season).toBe(lee?.season)
+
+    const bearings = (pose?: Pose): string[] =>
+      (pose?.set ?? []).filter(entry => entry.startsWith('wind.bearing='))
+
+    expect(bearings(wash)).toEqual([])
+    expect(bearings(lee)).toHaveLength(1)
+
+    const shared = (pose?: Pose): string[] =>
+      (pose?.set ?? []).filter(entry => !entry.startsWith('wind.bearing='))
+
+    expect(shared(wash)).toEqual(shared(lee))
+  })
+
+  test('every pose in it is aimed at a coast rather than at the middle of the world', () => {
+    // The whole reason the set exists: `tour` looks at (0, 0) from every pose,
+    // and a shoreline effect is a hairline from all six.
+    for (const pose of coast)
+      expect((pose.set ?? []).some(entry => entry.startsWith('camera.focus'))).toBe(true)
+  })
+
+  test('one of them is the winter, where the ice is meant to take the surf away', () => {
+    expect(coast.some(pose => (pose.season ?? 1) < 0.1)).toBe(true)
   })
 })

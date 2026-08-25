@@ -292,6 +292,18 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         toggled('sun glitter', range('water.sparkle', 'strength', 0, 1.5, 0.01), 0.5),
         range('water.waveHeight', 'swell', 0, 0.4, 0.005),
         range('water.rippleStrength', 'ripple', 0, 0.6, 0.01),
+
+        // Which way it breaks is the wind's, and lives under the weather. What
+        // is here is how hard, how far out, and how much the lee is spared.
+        toggled(
+          'surf',
+          range('water.surf', 'break', 0, 1.5, 0.01),
+          0.85,
+          [
+            range('water.surfDepth', 'shelf depth (m)', 0, 4, 0.05),
+            range('water.surfExposure', 'weather side', 0, 1, 0.01),
+          ],
+        ),
         toggled('boat wakes', range('water.wakeStrength', 'wake strength', 0, 1.5, 0.01), 0.78),
         range('water.roughness', 'roughness', 0.05, 1, 0.01),
         range('boats.speed', 'boat speed', 0, 12, 0.1),

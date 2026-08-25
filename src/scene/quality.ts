@@ -164,6 +164,25 @@ export interface AtmosphereQuality {
 
   /** Lake plane baseline extent; the archipelago also enforces a world-sized minimum. */
   waterSpan: number
+
+  /**
+   * Texels a side of the baked bathymetry mask — see `landscape/shore-mask.ts`.
+   *
+   * A tier decision because it stopped being a constant that could be right.
+   * The mask was sized at 512 when the inhabited world was 196 metres across,
+   * which was a third of a metre to a texel; the world is 1520 metres now, and
+   * nothing raised it — so the same map is three metres to a texel, and a coast
+   * that falls away steeply is *one texel* of shoreline between dry and deep.
+   * Everything read off it — the depth tint, the alpha ramp, the ice front, the
+   * foam trim and now the surf — has been working from that.
+   *
+   * The bake is not what makes a scape expensive to build: the composite survey
+   * costs seconds and 512² of it costs ~0.12 s, so the resolution the tiers that
+   * can hold the memory should be at is well above where it was. What the cheap
+   * tiers are protected from is the *upload* — four bytes a texel, resident for
+   * the life of the scape.
+   */
+  shoreMask: number
 }
 
 
@@ -200,6 +219,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     reliefSteps:     0,
     waterSegments:   24,
     waterSpan:       2.2,
+    shoreMask:       384,
   },
   mobile: {
     pixelRatioMax:   1,
@@ -239,6 +259,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     reliefSteps:   0,
     waterSegments: 48,
     waterSpan:     3,
+    shoreMask:     768,
   },
   desktop: {
     // One device pixel per css pixel, the same as every other tier that is
@@ -276,6 +297,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     reliefSteps:     6,
     waterSegments:   96,
     waterSpan:       8,
+    shoreMask:       1_024,
   },
   ultra: {
     pixelRatioMax:   1,
@@ -306,6 +328,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     reliefSteps:     12,
     waterSegments:   128,
     waterSpan:       8,
+    shoreMask:       1_536,
   },
 }
 

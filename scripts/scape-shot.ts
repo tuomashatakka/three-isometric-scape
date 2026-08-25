@@ -60,6 +60,39 @@ export const TOURS: Record<string, Pose[]> = {
     set:    [ 'camera.focusX=60.9', 'camera.focusZ=39.3' ],
   })),
 
+  /**
+   * The shoreline, from the water's side.
+   *
+   * Added for the same reason `beacon` was. Every pose in `tour` is aimed at the
+   * middle of the home island: `near` at ten metres is standing in the farmyard,
+   * `default` and `far` take in the whole archipelago at better than half a
+   * metre to the pixel, and a coastline at that scale is a hairline. So a change
+   * that repaints every shore in the scape reads as `same` at all six — not
+   * because it is invisible, but because the instrument is not pointed at it.
+   *
+   * These four are. `wash` is one bay at a zoom where the water meets the
+   * ground; `lee` is the *same* frame with the wind turned right around, which
+   * is the whole exposure claim as a picture — whatever the surf does, it has to
+   * do it on the other side of the island here; `shores` pulls back far enough
+   * to hold the home island's entire coast plus its skerries; and `frozen` is
+   * the winter, where the ice is supposed to take the white water away.
+   */
+  coast: [
+    { name: 'wash', zoom: 90, set: [ 'camera.focusX=-30', 'camera.focusZ=-30' ]},
+    {
+      name: 'lee',
+      zoom: 90,
+      set:  [ 'camera.focusX=-30', 'camera.focusZ=-30', 'wind.bearing=74' ],
+    },
+    { name: 'shores', zoom: 260, set: [ 'camera.focusX=0', 'camera.focusZ=0' ]},
+    {
+      name:   'frozen',
+      zoom:   90,
+      season: 0.02,
+      set:    [ 'camera.focusX=-30', 'camera.focusZ=-30' ],
+    },
+  ],
+
   // The cheap pass: is there a scape at all, and does it survive being drawn.
   quick: [{ name: 'default' }],
 }
@@ -83,6 +116,11 @@ export const STILL = [
   // but the rain integrates it (`heading += delta * wind.speed`), and a rate
   // that keeps advancing behind a zeroed amplitude is one refactor away from
   // being visible again. Same reasoning as `mill.spin` below.
+  //
+  // It is also what holds the surf. The breakers march in on `wind.travel`, so
+  // these two lines are the only thing stopping the sets — and deliberately not
+  // `water.surf`, because a coastline with the white water switched off is not
+  // the still a run about surf wants to be judged on.
   'wind.speed=0',
 
   'look.grain=0',

@@ -156,12 +156,15 @@ both are real urls. `esc` returns to the sheet, `1`–`4` solo a pane, `0` resto
 bun run scape:shot                                  # one frame, default pose
 bun run scape:shot --poses tour                     # 6 frames, one browser launch
 bun run scape:shot --poses beacon                   # the light, 4 headings, at night
+bun run scape:shot --poses coast                    # the shoreline, 4 frames, weather side and lee
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain
 ```
 
 `tour` is `default`, `near`, `far`, `noon`, `night`, `winter`. `night` pins a week as well as an hour, because the sun runs a seasonal arc and the config opens at a midsummer that has no night in it. every capture prints a line before anything opens the image, and most runs need only that line:
+
+`coast` is the third set, and it exists for the same reason `beacon` does: four frames on a shoreline — `wash` at one bay, `lee` at the *identical* frame with `wind.bearing` turned right around, `shores` pulled back over the home island's whole coast and its skerries, and `frozen` at midwinter where the ice is meant to take the white water away. reach for it whenever the change touches the water's edge: surf, foam, the ice front, the depth tint or the alpha ramp. every pose in `tour` is aimed at the middle of the home island, so a change that repaints every shore in the archipelago reads as `same` at all six.
 
 `beacon` is the second set: the light itself, at night, from four headings 90° apart, aimed by `camera.focusX`/`focusZ` rather than by zoom. it exists because the beams' bug was a render-order tie broken by *projected depth*, and that flips with yaw — one heading can only ever photograph one side of the flip, and no pose in `tour` has the tower in frame at all. reach for it whenever the change touches the transparent stack.
 

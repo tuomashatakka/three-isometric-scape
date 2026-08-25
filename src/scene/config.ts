@@ -622,6 +622,39 @@ export interface ScapeConfig {
     wakeStrength: number
 
     /**
+     * How hard it breaks on the shore the swell is running into, 0..1.
+     *
+     * The switch for the surf, and the only one: 0 leaves every coast with the
+     * thin foam trim it had before there was any weather side to be on. Lifted
+     * by `wind.strength`, so a gust whitens the coast without this being
+     * touched — and a still day leaves a wash rather than nothing, because a
+     * surf that a capture could zero by accident is a surf nobody photographs.
+     */
+    surf: number
+
+    /**
+     * Metres of water depth the breakers reach out over.
+     *
+     * **Metres, and they stay metres.** A wave feels the bottom at a depth set
+     * by the wave, not by how wide the world is or how far the camera is pulled
+     * out — so this is neither world-sized nor frame-sized, and a wider
+     * archipelago must not scale it. What it *does* scale with is the ground:
+     * the white water is as wide as the shelf is, so a shallow bay foams far
+     * out and a rock that falls away sheer barely foams at all, and neither of
+     * those had to be authored.
+     */
+    surfDepth: number
+
+    /**
+     * How strongly the weather shore is favoured over the lee, 0..1.
+     *
+     * 0 breaks the same all the way round an island, which is the coastline the
+     * scape had; 1 gives the lee nothing at all. In between is a coast whose
+     * sheltered side still works, which is what a real one does.
+     */
+    surfExposure: number
+
+    /**
      * Specular spread. Low values concentrate the sun into a lobe narrow
      * enough to flare the whole lake white at the angle that catches it.
      */
@@ -1405,6 +1438,14 @@ export const SCAPE_CONFIG = {
     gust:     0.45,
     time:     0.31,
   },
+  // 2.4 m of surf depth is where a swell of this size actually trips: at this
+  // coast's shore band that is a broad wash off a beach and a narrow collar
+  // round a granite face, which is the contrast the band exists for — the width
+  // of the white water is the width of the shelf, and neither was authored per
+  // island. 0.72 of exposure
+  // leaves the lee about a quarter of the weather side's break — sheltered
+  // rather than glassy, which is what a sound between islands actually looks
+  // like on a day with a sea running.
   water: {
     sparkle:        0.5,
     waveHeight:     0.075,
@@ -1413,6 +1454,9 @@ export const SCAPE_CONFIG = {
     roughness:      0.62,
     iceReach:       0.62,
     iceBreak:       0.5,
+    surf:           1,
+    surfDepth:      2.4,
+    surfExposure:   0.72,
   },
   // The screen-scale class, grown with the world it frames. `maxViewSize` is
   // what the cloud and aurora tiles are sized against, so a world that tripled
