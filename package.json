@@ -18,6 +18,7 @@
     "scape:shot": "bun scripts/scape-shot.ts",
     "scape:diff": "bun scripts/scape-diff.ts",
     "prop:map": "bun scripts/prop-map.ts",
+    "prop:audit": "bun scripts/prop-audit.ts",
     "prop:watch": "bun --watch scripts/prop-map.ts"
   },
   "dependencies": {
