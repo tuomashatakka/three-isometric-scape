@@ -33,4 +33,21 @@ export default [
       ],
     },
   },
+
+  {
+    // `config.ts` is the scape's schema *and* its manual: 1839 lines of which
+    // roughly two thirds is the prose explaining what each knob does and why it
+    // is the number it is. Splitting it at the obvious seam would put a knob and
+    // its reason in two files, which is how the two drift apart — so the ceiling
+    // is raised for this one file rather than the document being broken up.
+    //
+    // `error` rather than `warn` because `lint` runs `--max-warnings 0`, so a
+    // warning here would fail the gate exactly like an error while reading as
+    // though it were advisory. Still a real ceiling, just a higher one.
+    files: [ 'src/scene/config.ts' ],
+
+    rules: {
+      'max-lines': [ 'error', { max: 800, skipComments: true, skipBlankLines: true }],
+    },
+  },
 ]
