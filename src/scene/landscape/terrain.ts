@@ -414,13 +414,20 @@ function strandGeometry (config: ScapeConfig, strand: Strand, field: HeightField
 /**
  * How coarsely a rock is drawn, against the density an island is drawn at.
  *
- * The same argument the outer fells' `detail` makes, and the same number: a
- * skerry is looked at from four hundred metres up with a metre and a half of
- * water breaking over it. Drawn at the island's own two metres to a quad, sixty
- * rocks would cost more triangles than the home island does, for detail no pose
- * in the tour can resolve.
+ * The same argument the outer fells' `detail` makes: a skerry is looked at from
+ * four hundred metres up with a metre of water breaking over it, and drawn at
+ * the island's own two metres to a quad fifty of them would cost more triangles
+ * than the home island does.
+ *
+ * Not the fells' number, though. 0.45 was the first cut and `--poses guard`
+ * refused it: it puts a 45 m patch on eight quads a side — five and a half
+ * metres to a quad, against the home island's two — and at `reef-near` the
+ * crowns are visibly faceted lumps rather than rock. 0.7 is three metres to a
+ * quad, which the whole guard pays for in about 22k triangles against the
+ * scape's 1.84M. The tier still scales it underneath: `mobile` draws the same
+ * rocks at ten quads a side.
  */
-const SKERRY_DETAIL = 0.45
+const SKERRY_DETAIL = 0.7
 
 /**
  * The floor is eight quads a side, not the twenty-four an island patch keeps.
