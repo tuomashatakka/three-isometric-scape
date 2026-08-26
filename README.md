@@ -535,7 +535,7 @@ there are fifteen, grouped rather than evenly spread — a close western pair, a
 
 **the rocks are bare, and that is the sampler rather than a rule.** `createSpotSampler` draws candidates from the landmass discs and their islets only, never from the open sea, so no scatter budget can reach a skerry — no reeds growing in the middle of the ocean, and no cost. a guard with a tuft of lichen on it would want the sampler to be told about the rocks, which is a run of its own.
 
-**they cost no draw call.** each rock is a small patch sampled from the composite field and merged into the same single terrain geometry the islands and the bar are in. `SKERRY_DETAIL` is 0.45, the same number and the same argument as the outer fells': a rock looked at from four hundred metres up with a metre of water breaking over it does not need the island's two metres to a quad, and forty-nine of them drawn at that density would cost more triangles than the home island does.
+**they cost no draw call.** each rock is a small patch sampled from the composite field and merged into the same single terrain geometry the islands and the bar are in. `SKERRY_DETAIL` is the fells' argument at a different number: a rock looked at from four hundred metres up does not need the island's two metres to a quad, and forty-nine of them drawn at that density would cost more triangles than the home island does. 0.45 was the first cut and `--poses guard` refused it — five and a half metres to a quad leaves the crowns visibly faceted at `reef-near` — so it is 0.7, three metres to a quad, which the whole guard pays for in about 22k triangles against 1.84M.
 
 ## the beck, and the inlet it cuts
 
