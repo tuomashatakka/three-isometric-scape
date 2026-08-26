@@ -18,8 +18,8 @@ import type { AtmosphereQuality } from './quality.ts'
  * frame, which for a lamp that comes up at dusk is a light one frame behind its
  * own sky.
  *
- * One `InstancedMesh` carries every pane in the archipelago — nine a holding,
- * forty-five across the five islands — which is one draw for the whole system
+ * One `InstancedMesh` carries every pane in the archipelago — thirteen a holding,
+ * sixty-five across the five islands — which is one draw for the whole system
  * however many farms a later run puts up. The glow is additive and writes no
  * depth, so it lays light over the wall without occluding it, and it is tested
  * against depth, so a window on the far side of a house is hidden by the house.

@@ -270,6 +270,17 @@ export function monoRoof (
   }))
 }
 
+/**
+ * Which wall a window is cut into: the long walls a building's `±z` faces are,
+ * or the gable ends its `±x` faces are.
+ *
+ * A named axis rather than a rotation, because a wall is one of two things in
+ * this kit and an arbitrary angle is a window that no longer sits in any of
+ * them. The lamplight in `scene/windows.ts` reads the same word to turn a glow
+ * to the same wall.
+ */
+export type WallAxis = 'x' | 'z'
+
 /** A window: a dark pane set inside a painted surround. */
 export function window (
   parts:  BufferGeometry[],
@@ -280,21 +291,27 @@ export function window (
   width:  number,
   height: number,
   facing: 1 | -1,
+  axis:   WallAxis = 'z',
 ): void {
   const [ x, y, z ] = at
+  const along       = axis === 'x'
 
-  parts.push(part(box(width + 0.22, height + 0.22, 0.1), {
-    at:     [ x, y, z ],
-    color:  frame,
-    jitter: 0.04,
-    rng,
-  }))
-  parts.push(part(box(width, height, 0.08), {
-    at:     [ x, y, z + facing * 0.05 ],
-    color:  glass,
-    jitter: 0.12,
-    rng,
-  }))
+  // The surround and the glass are the same two boxes either way — what the
+  // axis swaps is which of their horizontal extents is the window's width and
+  // which is its thickness through the wall.
+  parts.push(part(
+    along ? box(0.1, height + 0.22, width + 0.22) : box(width + 0.22, height + 0.22, 0.1),
+    { at: [ x, y, z ], color: frame, jitter: 0.04, rng },
+  ))
+  parts.push(part(
+    along ? box(0.08, height, width) : box(width, height, 0.08),
+    {
+      at:     along ? [ x + facing * 0.05, y, z ] : [ x, y, z + facing * 0.05 ],
+      color:  glass,
+      jitter: 0.12,
+      rng,
+    },
+  ))
 }
 
 export interface DormerOptions {

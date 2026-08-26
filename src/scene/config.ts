@@ -1527,20 +1527,25 @@ export const SCAPE_CONFIG = {
   },
   // A farmhouse keeps roughly two thirds of its windows lit in the evening, and
   // the weights in `landscape/windows.ts` take the sauna and the byre down from
-  // there — so 0.66 is nine panes a holding of which five or six burn, which is
-  // a house with people in it rather than a row of identical lamps.
+  // there — so 0.66 is thirteen panes a holding of which six or seven burn,
+  // which is a house with people in it rather than a row of identical lamps.
   //
   // Up at half past six and turned in at half past ten, which at this latitude
   // means the lamps are wanted for six hours in January and not at all in June —
-  // and that is the daylight doing it, not a second seasonal knob. `banked` at
-  // 0.12 leaves a stove glow through the small hours, which is what keeps a
-  // sleeping farm distinguishable from an empty one at the night pose.
+  // and that is the daylight doing it, not a second seasonal knob.
+  //
+  // `banked` at 0.3 is what keeps a sleeping farm distinguishable from an empty
+  // one, and 0.3 rather than the 0.12 it was first tuned at because the captures
+  // are taken at the `mobile` tier, which has no bloom to spread a dim pane:
+  // a tenth of the evening's brightness photographed as nothing at all at the
+  // `yard-night` pose, which made the claim in the readme false at exactly the
+  // frame that states it.
   windows: {
     glow:      0.95,
     occupancy: 0.66,
     rising:    0.27,
     bedtime:   0.94,
-    banked:    0.12,
+    banked:    0.3,
     flicker:   0.55,
     unsteady:  0.22,
   },
