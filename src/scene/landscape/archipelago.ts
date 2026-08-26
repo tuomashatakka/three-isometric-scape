@@ -4,6 +4,8 @@ import type { Footpath, Footpaths } from './footpath.ts'
 import { surfaceQueries } from './height.ts'
 import type { HeightField } from './height.ts'
 import type { Vec2 } from './path.ts'
+import { surveySkerries } from './skerry.ts'
+import type { SkerryGuard } from './skerry.ts'
 import { surveyScape } from './survey.ts'
 import type { ScapeSurvey } from './survey.ts'
 import { surveyStrand } from './strand.ts'
@@ -44,7 +46,16 @@ export interface ArchipelagoSurvey {
    * *draw* it: the patches stop at their own edges and there is nothing between
    * them but the seabed quad nine metres down. See `landscape/terrain.ts`.
    */
-  strand:     Strand | null
+  strand: Strand | null
+
+  /**
+   * The rocks out in the open water, always present and sometimes empty.
+   *
+   * Published for the same reason the bar is: the terrain has to *draw* them,
+   * because the patches stop at their own edges and between them is one seabed
+   * quad nine metres down. See `landscape/skerry.ts`.
+   */
+  skerries:   SkerryGuard
   field:      ArchipelagoField
   paths:      Footpaths
   ports:      readonly WorldPort[]
@@ -92,6 +103,7 @@ function createCompositeField (
   config:     ScapeConfig,
   landmasses: readonly LandmassSurvey[],
   strand:     Strand | null,
+  skerries:   SkerryGuard,
 ): ArchipelagoField {
   const seabed = config.terrain.waterLevel - config.terrain.seabedDrop
 
@@ -120,7 +132,13 @@ function createCompositeField (
     // runs into — which is also what lets both of its ends simply vanish under
     // the rising shore instead of needing a join. Off the bar `heightAt` returns
     // the seabed, so this is already the no-op a branch would have been.
-    return strand ? Math.max(ground, strand.heightAt(x, z)) : ground
+    //
+    // The guard folds in on exactly the same terms, and after the bar for the
+    // same reason: both are world-space terms over ground that has already been
+    // dispatched, and a rock is not allowed to cut into anything either.
+    const raised = strand ? Math.max(ground, strand.heightAt(x, z)) : ground
+
+    return Math.max(raised, skerries.heightAt(x, z))
   }
 
   return { landmassAt, heightAt, ...surfaceQueries(heightAt) }
@@ -213,11 +231,19 @@ export function surveyArchipelago (config: ScapeConfig): ArchipelagoSurvey {
   if (!home)
     throw new Error('the archipelago has no home landmass')
 
-  // Surveyed before the field, because the field is what it is folded into —
-  // and surveyed from the landmasses' own local fields, so the shore it starts
-  // at is the shore that island's coast warp actually put there.
+  // Surveyed before the field, because the field is what they are folded into —
+  // and surveyed from the landmasses' own local fields, so the shore the bar
+  // starts at is the shore that island's coast warp actually put there.
+  //
+  // The guard comes after the bar and before the field, which settles the one
+  // ordering question the two of them have: a rock may not stand on the bar, so
+  // the bar has to exist to be asked. And both are in the field before the
+  // ferry network is planned over it, which is what makes the boats route round
+  // the rocks by the clearance test they were already running rather than by a
+  // second rule written for skerries.
   const strand    = surveyStrand(config, landmasses)
-  const field     = createCompositeField(config, landmasses, strand)
+  const skerries  = surveySkerries(config, landmasses, strand)
+  const field     = createCompositeField(config, landmasses, strand, skerries)
   const paths     = createWorldPaths(landmasses)
   const ports     = projectPorts(config, field, landmasses)
   const waterways = createWaterways(config, field, ports)
@@ -226,6 +252,7 @@ export function surveyArchipelago (config: ScapeConfig): ArchipelagoSurvey {
     landmasses,
     home,
     strand,
+    skerries,
     field,
     paths,
     ports,

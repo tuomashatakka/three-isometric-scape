@@ -412,8 +412,107 @@ function strandGeometry (config: ScapeConfig, strand: Strand, field: HeightField
 }
 
 /**
- * One seabed, every island's patch, and the bar between two of them, merged into
- * one draw. Each patch keeps its own metres-per-segment density.
+ * How coarsely a rock is drawn, against the density an island is drawn at.
+ *
+ * The same argument the outer fells' `detail` makes, and the same number: a
+ * skerry is looked at from four hundred metres up with a metre and a half of
+ * water breaking over it. Drawn at the island's own two metres to a quad, sixty
+ * rocks would cost more triangles than the home island does, for detail no pose
+ * in the tour can resolve.
+ */
+const SKERRY_DETAIL = 0.45
+
+/**
+ * The floor is eight quads a side, not the twenty-four an island patch keeps.
+ *
+ * That floor exists to stop a small island collapsing into a pyramid; a rock is
+ * a dome forty metres across and eight quads is already finer than the shore
+ * mask that shades the water round it.
+ */
+function skerrySegments (config: ScapeConfig, side: number, baseSegments: number): number {
+  return Math.max(8, Math.round(baseSegments * side / config.terrain.size * SKERRY_DETAIL))
+}
+
+/**
+ * The rocks in the open sea, as geometry.
+ *
+ * Same standing as the bar: the composite field has them — `surveySkerries` is
+ * folded in as a maximum — but nothing *draws* them, because the terrain is one
+ * patch per island and between the patches is the seabed quad. So each rock gets
+ * a small patch of its own, sampled from the composite field and merged into the
+ * same single terrain draw. No draw call, and no material.
+ *
+ * The patch is squared off round the rock's widest possible reach, so its outer
+ * ring is already back on the seabed — which puts the seam under nine metres of
+ * water, three tenths of a metre above the seabed quad, rather than along the
+ * waterline where it would read as a cut edge.
+ *
+ * The colour is the one thing a skerry does not inherit. The island painter
+ * bands by height above *its* waterline and would put meadow on anything with a
+ * metre of freeboard; a rock that the sea washes over has no soil on it at all.
+ * So it is bare stone, wet to the tideline and bleached above it, with the same
+ * hashed grain the bar uses so the two read as the same world.
+ *
+ * All four colours are already in the palette and none of them is new. The
+ * tideline is `streambed`, which the beck's channel already uses and which the
+ * palette documents as wet gravel above and below the waterline alike — a
+ * second name for the same tone is how two rocks in one scape end up different
+ * colours.
+ */
+function skerryGeometry (
+  config:       ScapeConfig,
+  archipelago:  ArchipelagoSurvey,
+  baseSegments: number,
+): BufferGeometry[] {
+  const { waterLevel } = config.terrain
+  const wet            = new Color(config.palette.silt)
+  const tide           = new Color(config.palette.streambed)
+  const dry            = new Color(config.palette.scree)
+  const crown          = new Color(config.palette.lichen)
+  const paint          = new Color()
+
+  return archipelago.skerries.skerries.map(skerry => {
+    const side     = skerry.radius * 2.5
+    const segments = skerrySegments(config, side, baseSegments)
+    const geometry = new PlaneGeometry(side, side, segments, segments)
+
+    geometry.rotateX(-Math.PI / 2)
+    geometry.translate(skerry.x, 0, skerry.z)
+
+    const positions = geometry.getAttribute('position')
+    const colors    = new Float32Array(positions.count * 3)
+
+    for (let index = 0; index < positions.count; index += 1) {
+      const x      = positions.getX(index)
+      const z      = positions.getZ(index)
+      const height = archipelago.field.heightAt(x, z)
+      const over   = height - waterLevel
+
+      positions.setY(index, height)
+
+      // Three metres of water is where the depth mask saturates, so the drowned
+      // skirt fades into the same silt the seabed is, and the join needs no
+      // blend of its own.
+      if (over <= 0)
+        paint.copy(tide).lerp(wet, smoothstep(0, -3, over))
+      else
+        paint.copy(tide).lerp(dry, smoothstep(0, 0.7, over))
+          .lerp(crown, smoothstep(0.9, 2.2, over) * 0.5)
+
+      paint.multiplyScalar(0.9 + hash2(x * 0.11, z * 0.11) * 0.17)
+      paint.toArray(colors, index * 3)
+    }
+
+    geometry.setAttribute('color', new BufferAttribute(colors, 3))
+    geometry.computeVertexNormals()
+    return geometry
+  })
+}
+
+/**
+ * One seabed, every island's patch, the bar between two of them and the rocks in
+ * the water between all of them, merged into one draw. Each patch keeps its own
+ * metres-per-segment density.
  */
 export function createArchipelagoTerrain (
   config:       ScapeConfig,
@@ -491,6 +590,8 @@ export function createArchipelagoTerrain (
     if (bar)
       pieces.push(bar)
   }
+
+  pieces.push(...skerryGeometry(config, archipelago, baseSegments))
 
   const merged = mergeGeometryList(pieces, false)
   for (const piece of pieces)

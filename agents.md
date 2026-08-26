@@ -160,6 +160,7 @@ bun run scape:shot --poses tour                     # 6 frames, one browser laun
 bun run scape:shot --poses beacon                   # the light, 4 headings, at night
 bun run scape:shot --poses coast                    # the shoreline, 4 frames, weather side and lee
 bun run scape:shot --poses steading                 # the farmyard, 3 frames, summer/winter/night
+bun run scape:shot --poses guard                    # the rocks in the open sea, 4 frames
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain
@@ -170,6 +171,8 @@ bun run scape:shot --skip post                      # drop the optical chain
 `coast` is the third set, and it exists for the same reason `beacon` does: four frames on a shoreline — `wash` at one bay, `lee` at the *identical* frame with `wind.bearing` turned right around, `shores` pulled back over the home island's whole coast and its skerries, and `frozen` at midwinter where the ice is meant to take the white water away. reach for it whenever the change touches the water's edge: surf, foam, the ice front, the depth tint or the alpha ramp. every pose in `tour` is aimed at the middle of the home island, so a change that repaints every shore in the archipelago reads as `same` at all six.
 
 `steading` is the fourth set, and the same argument again one scale further down: the farmyard at a 48 m view, in the authored light, at midwinter and at night. every pose in `tour` is aimed at the middle of the archipelago, and `near` — the one exception at ten metres — is focused on the world origin, which is open yard between the farmhouse and the sauna and takes neither of them in. reach for it whenever the change is the size of a building or something standing on one: a roof, a doorstep, a rut, a chimney.
+
+`guard` is the fifth set, and the argument once more in the other direction — out to sea rather than in at the yard. four frames on the chain of rocks at (305, -99): `reef` over the whole 199 m line, `reef-near` on its widest rock at a zoom where the drowned shelf, the break on it and the dry crown are three things rather than one speck, `reef-lee` at the identical frame to `reef` with the wind turned right around, and `reef-winter` where the shallows the guard created are the first water in the archipelago to shut. the tour *can* see the guard — the chains read at `default`, `far` and `noon` — but forty-nine rocks of forty metres in a 1400 m frame move a fraction of one per cent of the pixels, so the whole-frame column says `same` and only `maxblock` is honest. reach for it whenever the change touches the open water between the islands.
 
 `beacon` is the second set: the light itself, at night, from four headings 90° apart, aimed by `camera.focusX`/`focusZ` rather than by zoom. it exists because the beams' bug was a render-order tie broken by *projected depth*, and that flips with yaw — one heading can only ever photograph one side of the flip, and no pose in `tour` has the tower in frame at all. reach for it whenever the change touches the transparent stack.
 

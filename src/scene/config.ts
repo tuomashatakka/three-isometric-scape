@@ -355,6 +355,59 @@ export interface ScapeConfig {
   }
 
   /**
+   * The bare rocks standing out in the open sea.
+   *
+   * Build-time like `strand`, `creek` and `layout`, and out of the tuning
+   * overlay for the same reason: the rocks are folded into the composite height
+   * field, baked into the bathymetry mask and drawn into the one terrain
+   * geometry, so nothing here can move without the scape being generated again.
+   *
+   * The second landform built in world space rather than in a patch's frame —
+   * see `landscape/skerry.ts` for why anything between the islands has to be.
+   *
+   * **Every length here is metres and stays metres.** A rock is the size a rock
+   * is; a world that grew again must spread the guard further, not inflate it.
+   * The only world-sized number involved is the domain the chains are thrown at,
+   * and that is read from `archipelago.worldSize` rather than written here.
+   */
+  skerries: {
+
+    /** How many chains to attempt. A chain that finds no sea is simply not there. */
+    chains: number
+
+    /** The most rocks one chain runs to. */
+    perChain: number
+
+    /** Radius of the first rock of a chain, in metres, out to its drowned foot. */
+    radius: number
+
+    /** How much the radius is allowed to vary rock to rock, 0..1. */
+    radiusSpread: number
+
+    /**
+     * Metres the tallest rock of a chain stands above the waterline.
+     *
+     * The switch, and the only one: 0 drowns the whole guard and the open sea is
+     * open sea again. There is no separate flag, because this is the flag.
+     */
+    crest: number
+
+    /** Metres between rocks along a chain, centre to centre. */
+    spacing: number
+
+    /**
+     * Metres of clear water kept round every island patch.
+     *
+     * Not decoration. The ferry network is planned over the field the rocks are
+     * in, so a guard dropped across a harbour mouth is a route that has to squeeze
+     * — and `createWaterways` throws rather than sail a boat through a rock. This
+     * is the margin that keeps every landing's own water open before the planner
+     * ever runs.
+     */
+    clearance: number
+  }
+
+  /**
    * The paths worn between the places the farm has to be.
    *
    * Build-time like `creek` and `layout`, and absent from the tuning overlay for
@@ -1403,6 +1456,26 @@ export const SCAPE_CONFIG = {
     between: [ 'sound', 'fell' ],
     width:   11,
     crest:   1.1,
+  },
+  // Sixteen chains of up to five, which lands somewhere around sixty rocks in a
+  // 1520 m sea — a guard every couple of hundred metres rather than a reef belt,
+  // because the water between the islands is a place the boats cross and not a
+  // place to fill in. 18 m of radius against 46 m of spacing leaves daylight
+  // between the rocks of a chain and lets their drowned feet touch, which is
+  // what makes a line of five read as one ridge. 1.9 m of freeboard is a rock a
+  // swell washes over in a gale and never covers.
+  //
+  // 70 m of clearance is the number with a reason behind it: it is comfortably
+  // more than `boats.routeCell`, so every harbour keeps a corridor several
+  // navigation cells wide and the planner is never asked to thread one.
+  skerries: {
+    chains:       16,
+    perChain:     5,
+    radius:       18,
+    radiusSpread: 0.34,
+    crest:        1.9,
+    spacing:      46,
+    clearance:    70,
   },
   footpath: {
     width:  1.5,

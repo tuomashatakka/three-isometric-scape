@@ -151,6 +151,27 @@ export interface MapStats extends CompositionStats {
   } | null
 
   /**
+   * The rocks out in the open water, and the two things that can go wrong.
+   *
+   * A guard is placed by rejection rather than by construction, so the count is
+   * an outcome and not a setting — sixteen chains asked for do not have to be
+   * sixteen chains got, and a run that quietly halved the reef would look
+   * identical at every pose but the one nobody takes.
+   *
+   * `lowest` is the claim: a skerry that does not break the surface is a
+   * shoal, and a shoal is a ferry hazard nobody can see. `nearest` is the
+   * other one — metres from the closest rock to the nearest island patch,
+   * which is the clearance the ferry planner is relying on being there.
+   */
+  skerries: {
+    count:   number
+    guards:  number
+    widest:  number
+    lowest:  number
+    nearest: number
+  }
+
+  /**
    * The gull colonies, and the birds dealt across them.
    *
    * Here rather than in a screenshot on purpose: a flock is four pixels wide at
@@ -390,6 +411,7 @@ export function surveyStats (
       conflicts:  scheduleSeparation + 1e-6 < config.boats.separation ? 1 : 0,
     },
     strand,
+    skerries: skerryStats(survey, config),
     hearths:  hearthStats(survey),
     colonies: {
       count: colonies.length,
@@ -550,6 +572,37 @@ export function renderGrid (
 }
 
 /**
+ * The guard, read off the composite field for the same reason the bar is.
+ *
+ * `lowest` asks the field how high each rock actually stands rather than asking
+ * the survey what freeboard it dealt — the two are the same number here and are
+ * only the same number for as long as nothing else ever raises the sea.
+ */
+function skerryStats (survey: ArchipelagoSurvey, config: ScapeConfig): MapStats['skerries'] {
+  const { skerries }   = survey.skerries
+  const { waterLevel } = config.terrain
+
+  if (!skerries.length)
+    return { count: 0, guards: 0, widest: 0, lowest: 0, nearest: 0 }
+
+  const freeboard = skerries.map(rock => survey.field.heightAt(rock.x, rock.z) - waterLevel)
+
+  const nearest = Math.min(...skerries.flatMap(rock => survey.landmasses.map(landmass =>
+    Math.max(
+      Math.abs(rock.x - landmass.origin.x),
+      Math.abs(rock.z - landmass.origin.z),
+    ) - landmass.config.terrain.size * 0.5 - rock.radius)))
+
+  return {
+    count:   skerries.length,
+    guards:  survey.skerries.chains,
+    widest:  round(Math.max(...skerries.map(rock => rock.radius)), 1),
+    lowest:  round(Math.min(...freeboard), 2),
+    nearest: round(nearest),
+  }
+}
+
+/**
  * The bar, walked end to end.
  *
  * Sampling the *composite* field rather than the strand's own profile, and that
@@ -596,6 +649,25 @@ function strandStats (survey: ArchipelagoSurvey, config: ScapeConfig): MapStats[
     lowest:    round(lowest - config.terrain.waterLevel),
     connected: lowest > config.terrain.waterLevel,
   }
+}
+
+/**
+ * The guard's line.
+ *
+ * Its own function rather than a third branch inside `formatStats`, which the
+ * lint config's complexity ceiling is right about: that list is fifteen lines of
+ * report and every one of them that grows a conditional makes the other fourteen
+ * harder to read past.
+ */
+function skerryLine (skerries: MapStats['skerries']): string {
+  if (!skerries.count)
+    return 'skerries NONE  <- the crest is zero, or no chain found open water'
+
+  return `skerries ${skerries.count} in ${skerries.guards} guards  ` +
+    `widest ${skerries.widest}m  ` +
+    `lowest ${skerries.lowest}m over the water  ` +
+    `nearest island ${skerries.nearest}m` +
+    (skerries.lowest <= 0 ? '  <- a rock is a shoal' : '')
 }
 
 /** The stats block, as the run reads it. */
@@ -651,6 +723,7 @@ export function formatStats (stats: MapStats): string {
         `lowest ${stats.strand.lowest}m  ` +
         `${stats.strand.connected ? 'CONNECTED' : 'DROWNED'}`
       : 'strand NONE  <- no pair of islands is named, or the crest is zero',
+    skerryLine(stats.skerries),
     `hearths ${stats.hearths.count}  lowest mouth ${stats.hearths.lowest}m over the ground` +
       (stats.hearths.lowest < 3 ? '  <- a stack is standing in its own roof' : ''),
     `gulls ${stats.colonies.count}/${stats.colonies.asked} colonies  ` +
