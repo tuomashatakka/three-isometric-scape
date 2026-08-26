@@ -146,6 +146,43 @@ export const TOURS: Record<string, Pose[]> = {
     },
   ],
 
+  /**
+   * The rocks in the open sea, from close enough to be measured.
+   *
+   * Added for the reason `beacon`, `coast` and `steading` were, and it is the
+   * same reason a fourth time. The tour *can* see the guard — the chains read
+   * as strings of rock across water that used to be empty at `default`, `far`
+   * and `noon` — but a forty-metre rock in a 1400 m frame is twenty pixels, so
+   * forty-nine of them together move a fraction of one per cent of the pixels
+   * and the whole-frame column reports `same`. `maxblock` is the honest number
+   * there, and a pose that fills the frame with a reef is a better one still.
+   *
+   * `reef` is the chain at (305, -99), a 199 m line of five, at a view that
+   * holds the whole of it and the water either side. `reef-near` is its widest
+   * rock at a zoom where the drowned shelf, the break on it and the dry crown
+   * are three separate things rather than one speck. `reef-lee` is the
+   * *identical* frame to `reef` with the wind turned right around, which is the
+   * whole claim that a rock breaks white on the side the sea is running at,
+   * stated as a picture — same instrument, same argument as `coast/lee`. And
+   * `reef-winter` is midwinter, where the shallows the guard has created are
+   * the first water in the archipelago to shut.
+   */
+  guard: [
+    { name: 'reef', zoom: 230, set: [ 'camera.focusX=305', 'camera.focusZ=-99' ]},
+    { name: 'reef-near', zoom: 70, set: [ 'camera.focusX=405', 'camera.focusZ=-81' ]},
+    {
+      name: 'reef-lee',
+      zoom: 230,
+      set:  [ 'camera.focusX=305', 'camera.focusZ=-99', 'wind.bearing=74' ],
+    },
+    {
+      name:   'reef-winter',
+      zoom:   230,
+      season: 0.02,
+      set:    [ 'camera.focusX=305', 'camera.focusZ=-99' ],
+    },
+  ],
+
   // The cheap pass: is there a scape at all, and does it survive being drawn.
   quick: [{ name: 'default' }],
 }
@@ -478,7 +515,9 @@ async function main (): Promise<void> {
     console.log([
       'scape:shot — the scape, from a pose, without anybody watching',
       '',
-      '  --poses tour          named set: tour (6) | beacon (4, the light) | quick (1)',
+      '  --poses tour          named set: tour (6) | beacon (4, the light)',
+      '                        coast (4, the shoreline) | steading (3, the farmyard)',
+      '                        guard (4, the rocks in the open sea) | quick (1)',
       '  --rot 45 --zoom 70    camera yaw, and view size (tilt is derived from zoom)',
       '  --time 0.42           the day, 0..1',
       '  --season 0.5          the year, 0..1',

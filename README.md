@@ -81,6 +81,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 
 - a deterministic procedural heightfield with editable seed, scale, waterline and palette
 - a mainland farmstead on a warped, non-circular coastline, ringed by fifteen offshore islets
+- chains of bare rock standing out in the open water between the islands, breaking white on whichever side the swell is running at — and the ferries route around them by the clearance test they were already running
 - a cobbled network of paths between every place the farm goes — planned as a graph, worn as desire lines, paved with stones sampled along the treads themselves
 - a working boat harbour: a boathouse on piles with a slipway, a net rack, and stakes in the shallows
 - a walled upland hay meadow with a barn, a gate and drying poles
@@ -132,7 +133,7 @@ url overrides for a device you cannot attach a debugger to: `?debug` adds live v
 
 the intended first edit is [`src/scene/config.ts`](src/scene/config.ts). `SCAPE_CONFIG` owns the seed, terrain extent and waterline, the islets, the beck, the footpaths, the dressing budgets, camera framing and zoom limits, all three clocks, the whole light and atmosphere rig, the optical chain, and the complete palette.
 
-a knob that is **visual and read per frame** also belongs in [`ui/scape-controls.ts`](src/ui/scape-controls.ts) as a dotted path, which makes it persist, reset and become url-addressable for free. a knob that needs a **rebuild** to be seen — `layout.*`, `creek.*`, `footpath.*`, `cartRuts.*`, `dressing.*` — stays out of the overlay, because a slider that lies about what it does is worse than no slider.
+a knob that is **visual and read per frame** also belongs in [`ui/scape-controls.ts`](src/ui/scape-controls.ts) as a dotted path, which makes it persist, reset and become url-addressable for free. a knob that needs a **rebuild** to be seen — `layout.*`, `creek.*`, `footpath.*`, `cartRuts.*`, `dressing.*`, `strand.*`, `skerries.*` — stays out of the overlay, because a slider that lies about what it does is worse than no slider.
 
 `camera.focusX` and `camera.focusZ` are where the camera *opens*, read once when the controls are built and live state from then on. they default to the middle of the world, which is open sea — set them to put the opening view on the farm, and set them from a url to capture anything on the ground at all.
 
@@ -214,6 +215,7 @@ src/
     │   ├── footpath.ts             a planned leg traced into a worn line
     │   ├── cart-ruts.ts            the wheel lines worn down the cart track
     │   ├── creek.ts                the beck: descent trace, channel, tidal mouth
+    │   ├── skerry.ts               the bare rocks standing in the water between the islands
     │   ├── beacon.ts               the outer rock a light would stand on
     │   ├── colony.ts              the open water a flock can wheel over without crossing land
     │   ├── hearths.ts             every chimney and flue, at the mouth and in world space
@@ -510,6 +512,30 @@ every placement search that assumes solid ground uses the first. the pasture sea
 their profile is a **plateau with a skirt, not a dome**, and that decides whether they read as islands at all. the seabed is seven metres down and the crown a couple of metres up, so the blend has to reach roughly 0.7 before the ground breaks the surface — and a smooth dome only gets there near its very centre. an eleven-metre islet surfaced as a one-metre pebble. holding the blend at 1 across the inner 55% puts the waterline out at about 0.72 of the radius, which is an island with a beach on it.
 
 there are fifteen, grouped rather than evenly spread — a close western pair, a southern chain thinning as it runs out, one substantial north-eastern outlier, skerries filling the gaps — because a ring of like-sized islets at even bearings reads as decoration however well each one is modelled. each clears the mainland's *warped* shore and its neighbours' skirts, which is the difference between an archipelago and a reef. they get the same coast warp the mainland does, sampled in each islet's own frame seven times tighter: at world scale the warp is nearly constant across a disc eight metres wide and would only nudge the whole islet sideways.
+
+## the guard out in the open sea
+
+`terrain.isles` belong to an island: they are raised inside one patch's own frame, out of that patch's own falloff, and every one of them is authored as a position and a radius in that island's config. the water *between* the islands had nothing in it at all. the archipelago is fifteen hundred metres across, five patches of it are inhabited, and the rest was one flat seabed quad nine metres down with a lake drawn over it — which at both pulled-out poses is most of the frame and reads as paint.
+
+`config.skerries` is a **guard**: chains of bare rock standing out in that water, in [`landscape/skerry.ts`](src/scene/landscape/skerry.ts).
+
+**it is the second landform built in world space, and the second for the same reason.** the patches deliberately do not overlap — `assertSeparate` is what keeps a height query dispatching to exactly one of them — so anything between them has to be a term added *after* the composite field has dispatched, exactly as the strand is. it folds in as a **maximum**, never a minimum: a rock may raise the seabed it stands on and must never cut into an island it happens to lie off.
+
+**almost none of what a skerry does is written in `skerry.ts`.** the guard is in the one height field, and every reader of that field picks it up for nothing:
+
+- the bathymetry mask bakes off it, so each rock arrives with the depth tint over its shelf and the surf breaking white on whichever side the swell is running at — which is the thing that actually fills the empty water, and not a line of it is authored
+- the ferry navigation grid is baked from it, so the boats route around the guard by the clearance test they were already running. there is no rule anywhere that says "avoid skerries"
+- `scape:map` samples it, so the rocks draw in ascii without the script being told they exist
+
+**the profile is two curves with the waterline as the seam, and the islets are why.** the first cut was one smoothstep dome from the seabed to the crown, which is the mistake the islets section above already records: the seabed is nine metres under the water and a rock carries one or two metres over it, so the waterline crosses that dome at ninety-two per cent of its height. every rock was a two-metre cap on a forty-metre shoal, and `--stats` reported all of them safely above water, because at the centre they were. `SHELF` is where the seam sits — the outer 42% of the radius is drowned shelf and the rest is dry crown. neither half is a smoothstep, because a smoothstep is flat at both ends and two of them either side of the seam put a bench of dead-level ground exactly at sea level all the way round every rock, which is the one height a bench must never be: the water plane is drawn over it.
+
+**where the rocks go is a rejection, not a construction.** a chain picks a head at random, walks a wandering bearing and drops a rock every `spacing` metres; a step that lands on an island patch, on the bar, or on a rock already standing there is *skipped* rather than nudged somewhere legal — a chain that has run out of sea ends there. so the count is an outcome and not a setting, and `--stats` reports the chains that took alongside the ones asked for, because a run that quietly halved the reef would look identical at every pose but the one nobody takes.
+
+**`clearance` is the number the ferries depend on.** the network is planned over the field the rocks are already in, and `createWaterways` throws rather than sail a boat through one — so a guard dropped across a harbour mouth is a failed build, and a guard dropped just outside one is a route that survives by taking the long way round every rock in the world. seventy metres is comfortably more than `boats.routeCell`, which keeps every landing's water several navigation cells wide before the planner ever runs. the five legs, the 2,516 m of route and the 0.55 m of minimum clearance are all unchanged with the guard in the field, and `skerry.test.ts` states that as a fact rather than leaving it to a screenshot.
+
+**the rocks are bare, and that is the sampler rather than a rule.** `createSpotSampler` draws candidates from the landmass discs and their islets only, never from the open sea, so no scatter budget can reach a skerry — no reeds growing in the middle of the ocean, and no cost. a guard with a tuft of lichen on it would want the sampler to be told about the rocks, which is a run of its own.
+
+**they cost no draw call.** each rock is a small patch sampled from the composite field and merged into the same single terrain geometry the islands and the bar are in. `SKERRY_DETAIL` is 0.45, the same number and the same argument as the outer fells': a rock looked at from four hundred metres up with a metre of water breaking over it does not need the island's two metres to a quad, and forty-nine of them drawn at that density would cost more triangles than the home island does.
 
 ## the beck, and the inlet it cuts
 
