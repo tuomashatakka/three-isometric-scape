@@ -28,6 +28,7 @@ const CHECKS: readonly Check[] = [
   { name: 'typecheck', script: 'typecheck' },
   { name: 'test', script: 'test' },
   { name: 'build', script: 'build' },
+  { name: 'prop:audit', script: 'prop:audit' },
 ]
 
 interface Result {

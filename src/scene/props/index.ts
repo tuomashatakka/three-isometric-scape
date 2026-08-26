@@ -121,3 +121,4 @@ export function buildProp (name: PropName, rng: SeededRng, palette: NordicPalett
 }
 
 export { resolvePalette } from './palette.ts'
+export type { NordicPalette } from './palette.ts'
