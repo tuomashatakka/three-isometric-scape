@@ -98,9 +98,10 @@ export interface AtmosphereQuality {
    *
    * A count rather than a switch, for the reason `beaconBlades` is one: the pane
    * itself costs two triangles and every tier can have it, and what scales is
-   * the fan of additive overdraw in front of it. Nine panes a holding across
-   * five holdings is forty-five instances of it, so this is the one number that
-   * decides whether lit windows are two hundred triangles or six thousand.
+   * the fan of additive overdraw in front of it. Thirteen panes a holding across
+   * five holdings is sixty-five instances of it, so this is the one number that
+   * decides whether lit windows are a hundred and thirty triangles or six
+   * thousand.
    */
   lampSpill: number
 

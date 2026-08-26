@@ -3,6 +3,7 @@ import type { SeededRng } from 'threejs-scene'
 import { box, cyl, deg, mergeParts, part } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
 import { claddingPlanks, dormer, gableEnd, gabledRoof, monoRoof, window } from './timber.ts'
+import type { WallAxis } from './timber.ts'
 
 
 /**
@@ -59,8 +60,17 @@ export interface WindowPane {
   width:  number
   height: number
 
-  /** +1 for a pane looking along the prop's own `+z`, -1 for the far wall. */
+  /** +1 for a pane looking along the wall's own positive axis, -1 for the far wall. */
   facing: 1 | -1
+
+  /**
+   * Which wall it is cut into — `z` for the long walls, `x` for a gable end.
+   *
+   * Defaulted rather than required because most of the glass in the kit is in a
+   * long wall, and a list of eight panes reading `axis: 'z'` eight times says
+   * less than one that only names the exceptions.
+   */
+  axis?: WallAxis
 }
 
 /**
@@ -78,7 +88,10 @@ function glaze (
   panes:   readonly WindowPane[],
 ): void {
   for (const pane of panes)
-    window(parts, rng, frame, glass, [ pane.x, pane.y, pane.z ], pane.width, pane.height, pane.facing)
+    window(
+      parts, rng, frame, glass,
+      [ pane.x, pane.y, pane.z ], pane.width, pane.height, pane.facing, pane.axis ?? 'z',
+    )
 }
 
 /** Ridge height of the farmhouse roof, in the prop's own frame. */
@@ -134,12 +147,25 @@ export const FARMHOUSE_WINDOWS: readonly WindowPane[] = [
     ({ x, y: 2.4, z: FARMHOUSE_DEPTH + 0.06, width: 0.8, height: 1.1, facing: 1 })),
   ...[ -2.4, 2.4 ].map((x): WindowPane =>
     ({ x, y: 2.4, z: -FARMHOUSE_DEPTH - 0.06, width: 0.8, height: 1.1, facing: -1 })),
+
+  // One to each gable, and they are not decoration: the camera is a fixed
+  // dimetric heading, so a nine-metre house glazed only on its long walls turns
+  // a blank end to the eye on half the yaws the reader can spin it to — and a
+  // lamp nobody can see from the angle the scape opens at is a lamp that may as
+  // well not be lit. The gable wall's outer face is at `length / 2 + 0.11`.
+  ...([ 1, -1 ] as const).map((side): WindowPane =>
+    ({ x: side * 4.62, y: 2.4, z: 0, width: 0.8, height: 1, facing: side, axis: 'x' })),
 ]
 
 /** The barn's two — one over the ramp, one on the field side. */
 export const BARN_WINDOWS: readonly WindowPane[] = [
   { x: 3, y: 2.5, z: BARN_DEPTH + 0.05, width: 0.7, height: 0.7, facing: 1 },
   { x: -3.2, y: 2.5, z: -BARN_DEPTH - 0.05, width: 0.7, height: 0.7, facing: -1 },
+
+  // A hayloft light in each gable, above the door head, for the same reason the
+  // farmhouse has them. Its wall face is at `length / 2 + 0.1`.
+  ...([ 1, -1 ] as const).map((side): WindowPane =>
+    ({ x: side * 4.12, y: 2.9, z: 0, width: 0.6, height: 0.6, facing: side, axis: 'x' })),
 ]
 
 /** The sauna's one small light, beside the door. */

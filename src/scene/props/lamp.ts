@@ -29,9 +29,13 @@ const SPILL_AROUND = 12
  * How far the spill reaches from the middle of the pane, in pane units.
  *
  * Measured from the centre rather than from the edge, because the fan it builds
- * is radial and a rectangle has no single edge to measure out from.
+ * is radial and a rectangle has no single edge to measure out from. 2.6 is a
+ * pool of light roughly a metre out from a farmhouse window, which is what the
+ * captures are judged on: they are taken at the `mobile` tier, which has no
+ * bloom, so the pane cannot spread by burning past white and the haze around it
+ * is the only thing carrying the lamp at any distance.
  */
-const SPILL_REACH = 1.4
+const SPILL_REACH = 2.6
 
 /**
  * How bright the spill starts, against the pane's own 1.
@@ -40,7 +44,7 @@ const SPILL_REACH = 1.4
  * glass — and at anything near the pane's brightness it stops reading as air and
  * starts reading as a lens flare stuck to the wall.
  */
-const SPILL_PEAK = 0.34
+const SPILL_PEAK = 0.45
 
 /** How steeply the spill dies. Above 1 it hugs the pane; below, it hangs. */
 const SPILL_FALL = 1.8

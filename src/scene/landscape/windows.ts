@@ -53,11 +53,17 @@ export function paneAt (
 ): WindowLight {
   const at = fixtureAt(field, place, pane, origin)
 
+  // The wall's own bearing before the pane's side of it is applied. A gable is
+  // the long wall turned a quarter circle, which falls straight out of the
+  // `rotateY` convention: local `+z` goes to `(sin θ, cos θ)` and local `+x` to
+  // `(cos θ, -sin θ)`, and the second is the first a quarter turn on.
+  const wall = pane.axis === 'x' ? place.angle + Math.PI / 2 : place.angle
+
   return {
     ...at,
     width:  pane.width,
     height: pane.height,
-    angle:  pane.facing > 0 ? place.angle : place.angle + Math.PI,
+    angle:  pane.facing > 0 ? wall : wall + Math.PI,
     dwelling,
     centre: { x: place.x + origin.x, z: place.z + origin.z },
   }

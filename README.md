@@ -88,7 +88,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a lighthouse on the outermost rock of the ring, throwing beams that sweep the water from dusk until dawn
 - gull colonies wheeling over every harbour mouth and over the outer rock, banking into the turn, down at night and mostly down in a squall
 - wood smoke standing over every farmhouse chimney and sauna flue in the archipelago, leaning on the same one wind as the grass and banked harder the colder the week
-- lamplight in the farmstead windows: lit at dusk, banked to a stove glow once the household turns in, and back up before dawn — while the lighthouse burns straight through, because a lighthouse is a machine and a farm is not
+- lamplight in sixty-five farmstead windows: lit at dusk, banked to a stove glow once the household turns in, and back up before dawn — while the lighthouse burns straight through, because a lighthouse is a machine and a farm is not
 - a beck traced downhill from a spring, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself
 - **three clocks** — a day, a year, and a weather front — each a phase and a speed, each deriving everything else from that phase
 - a solar arc solved from a latitude — a polar night at midwinter, a midnight sun at midsummer — with dusk and night palettes derived from it, plus seasonal growth, leaf turn, lying snow, sea ice, sea smoke, and rain that leaves the ground wet
@@ -669,6 +669,8 @@ the dormer is deliberately not in that list. `dormer()` derives its own pane out
 **the edge lives in the vertex colours.** the spill is a radial fan graded to nothing at its rim, the way the lighthouse's beams are graded down their length. an additive surface that ends at any brightness above zero ends in a visible disc, and no amount of opacity fixes that, because the edge is in the geometry rather than in the blend.
 
 **every tier gets lit windows.** what the tier decides is `quality.lampSpill` — rings in the haze, 0 on `minimal` — so the cheapest device gets a lit pane on a clear night rather than a coarse version of the glow. the pane is two triangles; the spill at four rings is ninety-six.
+
+**the gables are glazed because the camera has one heading.** a nine-metre farmhouse with glass only in its two long walls turns a blank end to the eye on half the yaws the reader can spin the scape to, and a lamp nobody can see from the angle the scape opens at is a lamp that may as well not be lit. so `window()` grew a wall axis, and the farmhouse and the barn each gained a pane in either gable — thirteen a holding rather than nine, and the same single draw.
 
 ## the clock
 

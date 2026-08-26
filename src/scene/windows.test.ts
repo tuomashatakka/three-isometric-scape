@@ -21,7 +21,7 @@ function tuned (windows: Partial<ScapeConfig['windows']>): ScapeConfig {
 describe('where the lamps are', () => {
   test('is every glazed pane on every holding', () => {
     expect(panes.length).toBe(SCAPE_CONFIG.archipelago.landmasses.length * A_HOLDING)
-    expect(A_HOLDING).toBe(9)
+    expect(A_HOLDING).toBe(13)
   })
 
   /**
@@ -57,14 +57,20 @@ describe('where the lamps are', () => {
    * A lamp is inside a room, so it stands well over the floor and well under the
    * ridge. Half a metre of clearance over the ground catches a pane placed
    * against one height and standing over another — the slope failure the
-   * chimneys have their own version of — and seven metres is over the tallest
-   * ridge in the kit, so a pane that floated free of its building fails too.
+   * chimneys have their own version of.
+   *
+   * The ceiling is nine metres rather than the farmhouse's 6.3 m ridge, and the
+   * slack is the gables: a gable pane stands 4.6 m out from the middle of a
+   * building that was levelled onto the *highest* ground under its footprint, so
+   * the ground directly beneath it can be a couple of metres lower than the
+   * floor it is set into. Nine still fails a pane that has floated free of its
+   * building, which is what the bound is for.
    */
   test('every pane stands in a wall rather than in the ground or the air', () => {
     const stray = panes.filter(pane => {
       const over = pane.y - survey.field.heightAt(pane.x, pane.z)
 
-      return over < 0.5 || over > 7
+      return over < 0.5 || over > 9
     })
 
     expect(stray).toEqual([])
