@@ -1,16 +1,21 @@
 import { describe, expect, test } from 'bun:test'
 import { SCAPE_CONFIG } from './config.ts'
 import type { ScapeConfig } from './config.ts'
+import { createDaylight } from './daylight.ts'
 import { surveyArchipelago } from './landscape/archipelago.ts'
 import { surveyWindows } from './landscape/windows.ts'
 import { BARN_WINDOWS, FARMHOUSE_WINDOWS, SAUNA_WINDOWS } from './props/buildings.ts'
-import { householdWake, isLit, lampLevel } from './windows.ts'
+import { createWindowLamps, householdWake, isLit, lampLevel } from './windows.ts'
+import { LADDER, atmosphereQuality } from './quality.ts'
 
 
 const survey = surveyArchipelago(SCAPE_CONFIG)
 const panes  = surveyWindows(survey)
 
 const A_HOLDING = FARMHOUSE_WINDOWS.length + SAUNA_WINDOWS.length + BARN_WINDOWS.length
+
+/** Enough of a sky for the one path that never reads it. See the absence test. */
+const DAYLIGHT = createDaylight(() => SCAPE_CONFIG).state
 
 /** The config with one section replaced, so a curve can be probed off its default. */
 function tuned (windows: Partial<ScapeConfig['windows']>): ScapeConfig {
@@ -83,6 +88,27 @@ describe('where the lamps are', () => {
 
   test('the survey is byte-for-byte stable for a seed', () => {
     expect(surveyWindows(survey)).toEqual(panes)
+  })
+})
+
+/**
+ * The graceful absence, stated rather than assumed. A scape dressed without a
+ * steading — a tier that never built one, a survey that placed none — has no
+ * panes, and the answer to that is no module at all rather than an
+ * `InstancedMesh` of zero instances sitting in the render list forever.
+ *
+ * It is also the one path through `createWindowLamps` that can be tested
+ * headless: everything past it wants a gl context.
+ */
+describe('an archipelago with nothing to light', () => {
+  test('gets no module rather than an empty one', () => {
+    for (const tier of LADDER)
+      expect(createWindowLamps({
+        config:   () => SCAPE_CONFIG,
+        quality:  atmosphereQuality(tier),
+        panes:    [],
+        daylight: DAYLIGHT,
+      })).toBeNull()
   })
 })
 
