@@ -88,6 +88,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a lighthouse on the outermost rock of the ring, throwing beams that sweep the water from dusk until dawn
 - gull colonies wheeling over every harbour mouth and over the outer rock, banking into the turn, down at night and mostly down in a squall
 - wood smoke standing over every farmhouse chimney and sauna flue in the archipelago, leaning on the same one wind as the grass and banked harder the colder the week
+- lamplight in the farmstead windows: lit at dusk, banked to a stove glow once the household turns in, and back up before dawn — while the lighthouse burns straight through, because a lighthouse is a machine and a farm is not
 - a beck traced downhill from a spring, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself
 - **three clocks** — a day, a year, and a weather front — each a phase and a speed, each deriving everything else from that phase
 - a solar arc solved from a latitude — a polar night at midwinter, a midnight sun at midsummer — with dusk and night palettes derived from it, plus seasonal growth, leaf turn, lying snow, sea ice, sea smoke, and rain that leaves the ground wet
@@ -190,6 +191,7 @@ src/
     ├── rain.ts                     the fall, as one screen-sized column of streaks
     ├── birds.ts                     the gulls, and the rings they wheel on
     ├── hearth.ts                   the smoke over the farmsteads, and the year that banks it
+    ├── windows.ts                  lamplight in the farmstead windows, and the household that lights it
     ├── lut.ts                      cached cinematic colour-grade recipes
     ├── mist.ts                     ground-mist sheets, and the sea smoke off the coast
     ├── noise.ts                    deterministic height sampler
@@ -215,6 +217,8 @@ src/
     │   ├── beacon.ts               the outer rock a light would stand on
     │   ├── colony.ts              the open water a flock can wheel over without crossing land
     │   ├── hearths.ts             every chimney and flue, at the mouth and in world space
+    │   ├── windows.ts             every glazed pane, in world space and facing out
+    │   ├── fixtures.ts            carrying a point out of a raised building's own frame
     │   ├── mill.ts                 the exposed shoulder a windmill would stand on
     │   ├── mill-sails.ts           every mill's wheel, turning in one instanced draw
     │   ├── waterway.ts             the navigable water between the ports
@@ -237,6 +241,7 @@ src/
         ├── material.ts             shared materials, cloud shadow, wind, ground relief, wetness, snow
         ├── ploppable.ts            2d placement with a ground-following foundation
         ├── fence.ts / wall.ts      continuous ground-following runs
+        ├── lamp.ts                 the pane and the haze a lit window throws
         ├── timber.ts               cladding, gable and roof vocabulary
         ├── buildings.ts            barn, farmhouse, sauna, aitta, woodshed
         ├── structures.ts           jetty, well, hay rack, gate, bridge, cart
@@ -395,6 +400,8 @@ a tier is a bundle of decisions taken from what the device says about itself, an
 `?effects=all` is the same switch from a url, which is the only way to photograph a phone tier with the whole chain on it.
 
 **`reliefSteps` is the newest count, and the clearest case of the rule.** the ground's parallax march is a tap per step of a map the one-tap path never binds at all, so the two phone tiers get **zero** — flat soil, which is a surface, rather than a two-step approximation of deep soil, which is a smear. desktop walks six and ultra twelve; unlocking lifts a zeroed tier to four, which is the fewest at which the silhouette of a rut stops stepping visibly.
+
+**`lampSpill` is the newest, and the same rule from the other side.** every tier gets lit windows — the pane is two triangles and there is no device that cannot afford forty-five of them. what the tier decides is the rings of additive haze in front of the glass: `minimal` gets **zero**, which is a lit window on a clear night rather than a coarse glow, and desktop gets three. unlocking lifts a zeroed tier to two, which is the fewest at which the fan reads as haze rather than as a ring.
 
 ## every texture, in one list
 
@@ -640,6 +647,28 @@ every holding in the archipelago keeps two fires — the farmhouse's brick chimn
 **one winter, not two.** how hard the fires are banked reads `season.growth` — the same instant of the year the grass is withered by — rather than carrying a winter curve of its own. `hearth.smoke × (1 + hearth.winter × cold)`, clamped at a fully opaque plume, and the authored tuning holds midwinter at 0.99 so the clamp is a guard rather than a working range: every week of the year is a different plume.
 
 **it is not visible from the tour, and that is not a bug.** a plume is eleven metres of smoke over a 1520 m world; at the default pose it is three pixels. the `steading` tour was added to `scape-shot.ts` for exactly the reason `beacon` and `coast` were — the instrument has to be pointed at the thing. there it moves `yard` by 0.54% and `yard-winter` by 1.19%, which is the banking claim as a picture, and `yard-night` least of all, because the smoke is dimmed with the day.
+
+## the light the windows kept
+
+the same five buildings the chimneys stand on, seen at the other end of the day. where the glass is is [`props/buildings.ts`](src/scene/props/buildings.ts); where it ends up in the world is [`landscape/windows.ts`](src/scene/landscape/windows.ts); what burns behind it is [`scene/windows.ts`](src/scene/windows.ts), and the geometry it burns as is [`props/lamp.ts`](src/scene/props/lamp.ts).
+
+**a pane is published, not measured.** `FARMHOUSE_WINDOWS`, `BARN_WINDOWS` and `SAUNA_WINDOWS` are exported lists, and the builders glaze themselves *out of* them — `glaze()` is the only thing in the file that calls `window()`. the same seam the chimneys are on, and for the same reason: two answers to where a window is, is a lamp hanging in a wall the first time either moves. it also means the survey and the geometry cannot disagree about how many there are, which is what the roster test in `windows.test.ts` states as a fact.
+
+the dormer is deliberately not in that list. `dormer()` derives its own pane out of the roof plane it is handed, and a copy of that arithmetic beside it is a second answer that drifts the first time the pitch moves. the attic stays dark.
+
+**the outward normal is the trap.** a pane on the far wall looks the other way, so its bearing is the standing's turned half a circle — and getting that wrong paints the glow on the *inside* face, where the building's own geometry hides it. from the default pose that is indistinguishable from the lamps not working at all, which is precisely the failure a screenshot cannot report. so `windows.test.ts` states it against the data: every pane's bearing, dotted with the vector from its own building's placed centre, is positive.
+
+**two questions, not one.** the sun says whether a lamp is *wanted* — `(1 - day)²`, the same dusk curve the lighthouse comes up on, because two lights on one coast that disagreed about when dusk was would be the more obvious bug. the clock says whether anybody is up to have lit one. those are genuinely different, and the difference is the whole point of the system: at three in the morning the outer rock is still sweeping and the farms are down to a stove glow, because a lighthouse is a machine and a farm is a household.
+
+`windows.banked` is why they are down to a glow rather than out. a farmhouse at four in the morning still has a fire in it, and a scape whose farms go absolutely black at the small hours reads as abandoned rather than as asleep. a `bedtime` at or before `rising` is a household that never gets up — banked all day, which is the honest reading of that pair and not a wrap-around that lights the farm through the afternoon.
+
+**which windows are occupied is a live knob.** the draw is made once per pane at build and *kept*; the comparison against `windows.occupancy` happens every frame. so turning the farm up at midnight is a slider rather than a reload — and because the roll is weighted by how lived-in each building is, it lights the farmhouse before the sauna and the sauna before the byre.
+
+**the glow is sized in pane units, and that is the one scale decision here.** the instanced carrier scales each instance by its own window's width and height, so the haze in front of the glass grows with the opening it comes out of — a bigger window lets out more light. the alternative, writing the spill in metres, needs one geometry per pane size, which is a draw call apiece for a difference nobody can see. there is therefore no length anywhere in the `windows` config section, which is the audit the scale rule asks for.
+
+**the edge lives in the vertex colours.** the spill is a radial fan graded to nothing at its rim, the way the lighthouse's beams are graded down their length. an additive surface that ends at any brightness above zero ends in a visible disc, and no amount of opacity fixes that, because the edge is in the geometry rather than in the blend.
+
+**every tier gets lit windows.** what the tier decides is `quality.lampSpill` — rings in the haze, 0 on `minimal` — so the cheapest device gets a lit pane on a clear night rather than a coarse version of the glow. the pane is two triangles; the spill at four rings is ninety-six.
 
 ## the clock
 

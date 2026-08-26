@@ -575,6 +575,65 @@ export interface ScapeConfig {
      */
     winter: number
   }
+
+  /**
+   * The lamps behind the farmstead windows.
+   *
+   * Every one of these is read per frame, so every one of them is in the
+   * overlay. There is nothing build-time here on purpose: even which windows are
+   * occupied is a kept draw compared against `occupancy` each frame rather than
+   * a lit set decided at build, so turning the farm up at midnight is a slider
+   * rather than a reload. How much geometry the spill is drawn from is the
+   * tier's — see `quality.lampSpill`.
+   *
+   * There is no length in this section, which is worth saying out loud given the
+   * scale rule: the glow is sized by the pane it comes out of, in the pane's own
+   * units, and `props/lamp.ts` is where that decision is written down.
+   */
+  windows: {
+
+    /**
+     * How brightly a lit pane burns, and the switch — 0 is a farm that never
+     * lights a lamp. Whether it is *dusk* is the sun's business.
+     */
+    glow: number
+
+    /**
+     * How much of the farm is occupied, 0..1.
+     *
+     * Weighted per building by how lived-in it is, so this lights the farmhouse
+     * before the sauna and the sauna before the byre. 1 is every pane in the
+     * archipelago burning, which reads less like a farm than like a hotel.
+     */
+    occupancy: number
+
+    /** Phase of the day the household is up, 0..1. 0 is midnight, 0.5 is noon. */
+    rising: number
+
+    /** Phase of the day it turns in. At or before {@link rising}, nobody gets up. */
+    bedtime: number
+
+    /**
+     * How low a window falls once the house is asleep, 0..1.
+     *
+     * Not to nothing: a farmhouse at four in the morning still has a stove in
+     * it, and a scape whose farms go absolutely black at the small hours reads
+     * as abandoned rather than as asleep.
+     */
+    banked: number
+
+    /**
+     * Wobbles a second in a lamp's flame. 0 holds every lamp dead steady.
+     *
+     * Its own rate rather than a share of the wind — a wick gutters indoors on a
+     * still night — and therefore its own line in `STILL`. See
+     * `scripts/scape-shot.ts`.
+     */
+    flicker: number
+
+    /** How deep the wobble goes, 0..1. 1 takes a lamp all the way out at the bottom. */
+    unsteady: number
+  }
   dressing: DressingBudget
 
   /**
@@ -1465,6 +1524,25 @@ export const SCAPE_CONFIG = {
     speed:  1.6,
     drag:   0.55,
     winter: 0.6,
+  },
+  // A farmhouse keeps roughly two thirds of its windows lit in the evening, and
+  // the weights in `landscape/windows.ts` take the sauna and the byre down from
+  // there — so 0.66 is nine panes a holding of which five or six burn, which is
+  // a house with people in it rather than a row of identical lamps.
+  //
+  // Up at half past six and turned in at half past ten, which at this latitude
+  // means the lamps are wanted for six hours in January and not at all in June —
+  // and that is the daylight doing it, not a second seasonal knob. `banked` at
+  // 0.12 leaves a stove glow through the small hours, which is what keeps a
+  // sleeping farm distinguishable from an empty one at the night pose.
+  windows: {
+    glow:      0.95,
+    occupancy: 0.66,
+    rising:    0.27,
+    bedtime:   0.94,
+    banked:    0.12,
+    flicker:   0.55,
+    unsteady:  0.22,
   },
   // Roughly doubled against the run before this one, because the island is
   // roughly twice the ground. A budget is a *count*, not a density, so leaving

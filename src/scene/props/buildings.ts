@@ -40,8 +40,56 @@ export interface StackMouth {
   z: number
 }
 
+/**
+ * One pane of glass, in the prop's own frame.
+ *
+ * The same idea as {@link StackMouth} and for the same reason: where a window
+ * *is* is a fact about the building, and what is burning behind it belongs to
+ * `scene/windows.ts`. The builders below glaze themselves out of these lists
+ * rather than beside them, so there is one answer to where the glass sits and a
+ * lamp cannot end up hanging in a wall.
+ */
+export interface WindowPane {
+
+  /** Middle of the glass. */
+  x: number
+  y: number
+  z: number
+
+  width:  number
+  height: number
+
+  /** +1 for a pane looking along the prop's own `+z`, -1 for the far wall. */
+  facing: 1 | -1
+}
+
+/**
+ * Glaze a wall out of its published panes.
+ *
+ * The only thing that turns a {@link WindowPane} into geometry, so the lists
+ * below are the survey *and* the source — a pane added to one is a pane the
+ * lamplight finds, without a second edit anywhere.
+ */
+function glaze (
+  parts:   BufferGeometry[],
+  rng:     SeededRng,
+  frame:   string,
+  glass:   string,
+  panes:   readonly WindowPane[],
+): void {
+  for (const pane of panes)
+    window(parts, rng, frame, glass, [ pane.x, pane.y, pane.z ], pane.width, pane.height, pane.facing)
+}
+
 /** Ridge height of the farmhouse roof, in the prop's own frame. */
 const FARMHOUSE_PEAK = 6.3
+
+/** Half the farmhouse's depth on `z`. The wall its front windows sit in. */
+const FARMHOUSE_DEPTH = 3
+
+/** Half the barn's depth, and half the sauna's. Named for the same reason. */
+const BARN_DEPTH  = 2.7
+const SAUNA_DEPTH = 1.7
 
 /** Thickness of the granite course capping the farmhouse's brick stack. */
 const FARMHOUSE_CAP = 0.24
@@ -70,11 +118,40 @@ const SAUNA_FLUE_LENGTH = 1.9
 /** The sauna's flue, at the mouth. Placed the way {@link FARMHOUSE_CHIMNEY} is. */
 export const SAUNA_FLUE: StackMouth = { x: -1.2, y: SAUNA_PEAK + 0.85, z: 0 }
 
+/**
+ * The farmhouse's glass: four to the yard and two to the back.
+ *
+ * The inner front pair used to sit at x = ±1, which the 2.6 m porch canopy cut
+ * straight through — hence ±2.1 and ±3.6, which stand clear of it.
+ *
+ * The dormer's pane is deliberately not here. `dormer()` derives its own
+ * position out of the roof plane it is handed, so a copy of that arithmetic in
+ * this list is a second answer to it, and the two would drift the first time the
+ * pitch moved. The attic stays dark.
+ */
+export const FARMHOUSE_WINDOWS: readonly WindowPane[] = [
+  ...[ -3.6, -2.1, 2.1, 3.6 ].map((x): WindowPane =>
+    ({ x, y: 2.4, z: FARMHOUSE_DEPTH + 0.06, width: 0.8, height: 1.1, facing: 1 })),
+  ...[ -2.4, 2.4 ].map((x): WindowPane =>
+    ({ x, y: 2.4, z: -FARMHOUSE_DEPTH - 0.06, width: 0.8, height: 1.1, facing: -1 })),
+]
+
+/** The barn's two — one over the ramp, one on the field side. */
+export const BARN_WINDOWS: readonly WindowPane[] = [
+  { x: 3, y: 2.5, z: BARN_DEPTH + 0.05, width: 0.7, height: 0.7, facing: 1 },
+  { x: -3.2, y: 2.5, z: -BARN_DEPTH - 0.05, width: 0.7, height: 0.7, facing: -1 },
+]
+
+/** The sauna's one small light, beside the door. */
+export const SAUNA_WINDOWS: readonly WindowPane[] = [
+  { x: 1.3, y: 1.9, z: SAUNA_DEPTH + 0.06, width: 0.45, height: 0.4, facing: 1 },
+]
+
 /** The barn (lato) — falu-red board walls, sliding door, hay in the opening. */
 export function buildBarn (rng: SeededRng, palette: NordicPalette): BufferGeometry {
   const parts: BufferGeometry[] = []
   const length                  = 8
-  const halfDepth               = 2.7
+  const halfDepth               = BARN_DEPTH
   const plinthY                 = 0.5
   const wallY                   = 3.6
   const peakY                   = 5.6
@@ -136,8 +213,7 @@ export function buildBarn (rng: SeededRng, palette: NordicPalette): BufferGeomet
     rng,
   }))
 
-  window(parts, rng, palette.trimWhite, palette.glass, [ 3, 2.5, halfDepth + 0.05 ], 0.7, 0.7, 1)
-  window(parts, rng, palette.trimWhite, palette.glass, [ -3.2, 2.5, -halfDepth - 0.05 ], 0.7, 0.7, -1)
+  glaze(parts, rng, palette.trimWhite, palette.glass, BARN_WINDOWS)
 
   return mergeParts(parts, { grime: 2.4, grimeFloor: 0.55 })
 }
@@ -146,7 +222,7 @@ export function buildBarn (rng: SeededRng, palette: NordicPalette): BufferGeomet
 export function buildFarmhouse (rng: SeededRng, palette: NordicPalette): BufferGeometry {
   const parts: BufferGeometry[] = []
   const length                  = 9
-  const halfDepth               = 3
+  const halfDepth               = FARMHOUSE_DEPTH
   const plinthY                 = 0.6
   const wallY                   = 3.9
   const peakY                   = FARMHOUSE_PEAK
@@ -176,13 +252,7 @@ export function buildFarmhouse (rng: SeededRng, palette: NordicPalette): BufferG
         at: [ sx * length / 2, wallY / 2, sz * halfDepth ], color: palette.trimWhite, jitter: 0.03, rng,
       }))
 
-  // Front windows stand clear of the porch canopy on either side. The inner
-  // pair used to sit at x = ±1, which the 2.6 m canopy cut straight through.
-  for (const x of [ -3.6, -2.1, 2.1, 3.6 ])
-    window(parts, rng, palette.trimWhite, palette.glass, [ x, 2.4, halfDepth + 0.06 ], 0.8, 1.1, 1)
-
-  for (const x of [ -2.4, 2.4 ])
-    window(parts, rng, palette.trimWhite, palette.glass, [ x, 2.4, -halfDepth - 0.06 ], 0.8, 1.1, -1)
+  glaze(parts, rng, palette.trimWhite, palette.glass, FARMHOUSE_WINDOWS)
 
   // The attic window, as an actual dormer. Flat on the pitch it read as a
   // picture of a window rather than an opening — there was no depth anywhere.
@@ -239,7 +309,7 @@ export function buildFarmhouse (rng: SeededRng, palette: NordicPalette): BufferG
 export function buildSauna (rng: SeededRng, palette: NordicPalette): BufferGeometry {
   const parts: BufferGeometry[] = []
   const length                  = 4.2
-  const halfDepth               = 1.7
+  const halfDepth               = SAUNA_DEPTH
   const courses                 = SAUNA_COURSES
   const courseH                 = SAUNA_COURSE
   const plinthY                 = SAUNA_PLINTH
@@ -284,7 +354,7 @@ export function buildSauna (rng: SeededRng, palette: NordicPalette): BufferGeome
   parts.push(part(box(0.9, 1.6, 0.14), {
     at: [ 0, plinthY + 0.8, halfDepth + 0.08 ], color: palette.woodLight, jitter: 0.08, rng,
   }))
-  window(parts, rng, palette.tarWood, palette.glass, [ 1.3, 1.9, halfDepth + 0.06 ], 0.45, 0.4, 1)
+  glaze(parts, rng, palette.tarWood, palette.glass, SAUNA_WINDOWS)
 
   parts.push(part(cyl(0.16, 0.18, SAUNA_FLUE_LENGTH, 6), {
     at:     [ SAUNA_FLUE.x, SAUNA_FLUE.y - SAUNA_FLUE_LENGTH / 2, 0 ],

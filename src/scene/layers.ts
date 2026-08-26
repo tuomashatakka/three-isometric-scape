@@ -33,6 +33,17 @@ export const LAYER = {
   seaSmoke: 10,
 
   /**
+   * Lamplight in the farmstead windows.
+   *
+   * Under the mist, which is the only ordering decision it has to make: haze
+   * lying between a lit window and the eye should dilute it, and a glow painted
+   * over the fog would be a lamp burning in front of its own valley. Where it
+   * falls relative to the beams below and the smoke above is cosmetically moot —
+   * both are additive, and addition does not care what order it happens in.
+   */
+  windows: 15,
+
+  /**
    * The lighthouse beams.
    *
    * Over the water, under the mist — which is where they already were relative
