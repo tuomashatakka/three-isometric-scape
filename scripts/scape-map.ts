@@ -4,6 +4,7 @@ import type { ArchipelagoSurvey, LandmassSurvey } from '../src/scene/landscape/a
 import { scheduledFleetMinimumSeparation } from '../src/scene/landscape/boat-motion.ts'
 import { planColonies } from '../src/scene/landscape/colony.ts'
 import { surveyHearths } from '../src/scene/landscape/hearths.ts'
+import { surveyWindows } from '../src/scene/landscape/windows.ts'
 import { distanceToTrack } from '../src/scene/landscape/layout.ts'
 import { createPathQuery, pathLength } from '../src/scene/landscape/path.ts'
 import { STEADING_BUILDINGS } from '../src/scene/landscape/steading.ts'
@@ -177,11 +178,30 @@ export interface MapStats extends CompositionStats {
     count:  number
     lowest: number
   }
+
+  /**
+   * Every glazed pane, and the two ways a lamp goes wrong that a still cannot
+   * report.
+   *
+   * `lowest` is the same clearance check the stacks get, from the other end of
+   * the building: a pane is inside a room, so anything under about half a metre
+   * over the ground means a window has been placed against a floor it does not
+   * stand on. `inward` is the sign check — how many panes' outward bearings
+   * point back at their own building's middle, which is a glow painted on the
+   * inside of the wall it belongs to. From the default pose that is
+   * indistinguishable from the lamps simply not working.
+   */
+  windows: {
+    count:  number
+    lowest: number
+    inward: number
+  }
 }
 
 const round = (value: number, places = 1): number => Number(value.toFixed(places))
 
 type HearthStats = MapStats['hearths']
+type WindowStats = MapStats['windows']
 
 /**
  * Every hearth in the archipelago, and the tightest clearance among them.
@@ -196,6 +216,27 @@ function hearthStats (survey: ArchipelagoSurvey): HearthStats {
   return {
     count:  stacks.length,
     lowest: round(clear.length ? Math.min(...clear) : 0, 2),
+  }
+}
+
+/**
+ * Every pane in the archipelago, its tightest clearance, and its sign.
+ *
+ * Surveyed rather than drawn — see `landscape/windows.ts` — so this asks the
+ * same pure function the scape does and reports what it got.
+ */
+function windowStats (survey: ArchipelagoSurvey): WindowStats {
+  const panes = surveyWindows(survey)
+  const clear = panes.map(pane => pane.y - survey.field.heightAt(pane.x, pane.z))
+
+  const inward = panes.filter(pane =>
+    Math.sin(pane.angle) * (pane.x - pane.centre.x) +
+    Math.cos(pane.angle) * (pane.z - pane.centre.z) <= 0)
+
+  return {
+    count:  panes.length,
+    lowest: round(clear.length ? Math.min(...clear) : 0, 2),
+    inward: inward.length,
   }
 }
 
@@ -391,6 +432,7 @@ export function surveyStats (
     },
     strand,
     hearths:  hearthStats(survey),
+    windows:  windowStats(survey),
     colonies: {
       count: colonies.length,
 
@@ -598,6 +640,28 @@ function strandStats (survey: ArchipelagoSurvey, config: ScapeConfig): MapStats[
   }
 }
 
+/**
+ * The lamplight line, and the two findings it can carry.
+ *
+ * Its own function rather than another pair of ternaries inside `formatStats`,
+ * which the lint config was right to stop: both of these are *findings* rather
+ * than readings, and a finding wants somewhere to explain itself.
+ */
+function windowLine (windows: MapStats['windows']): string {
+  const facing = `facing out ${windows.count - windows.inward}/${windows.count}`
+
+  // A pane is inside a room, so half a metre of clearance is already generous;
+  // under it means a window has been placed against a floor it does not stand
+  // on, the way a chimney can be.
+  const sunk = windows.lowest < 0.5 ? '  <- a pane is set into the hillside' : ''
+
+  // The sign check. A glow on the inside face of its own wall is hidden by the
+  // building, which from the default pose is indistinguishable from no lamps.
+  const back = windows.inward > 0 ? '  <- a lamp is lit on the inside of its own wall' : ''
+
+  return `windows ${windows.count}  lowest pane ${windows.lowest}m over the ground  ${facing}${sunk}${back}`
+}
+
 /** The stats block, as the run reads it. */
 export function formatStats (stats: MapStats): string {
   const steading = Object.entries(stats.steading)
@@ -653,6 +717,7 @@ export function formatStats (stats: MapStats): string {
       : 'strand NONE  <- no pair of islands is named, or the crest is zero',
     `hearths ${stats.hearths.count}  lowest mouth ${stats.hearths.lowest}m over the ground` +
       (stats.hearths.lowest < 3 ? '  <- a stack is standing in its own roof' : ''),
+    windowLine(stats.windows),
     `gulls ${stats.colonies.count}/${stats.colonies.asked} colonies  ` +
       (stats.colonies.sited
         .map(colony => `${colony.id}/${colony.kind} (${colony.x},${colony.z}) r${colony.radius}`)

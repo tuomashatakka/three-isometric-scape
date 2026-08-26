@@ -25,6 +25,7 @@ import type { AtmosphereQuality } from './quality.ts'
 import { createRainLayer } from './rain.ts'
 import { createRuntime } from './runtime.ts'
 import { createVitals } from './vitals.ts'
+import { createWindowLamps } from './windows.ts'
 import type { VitalsSample } from './vitals.ts'
 import { createWind } from './wind.ts'
 import type { WindState } from './wind.ts'
@@ -263,16 +264,17 @@ interface GroundLayerOptions {
 /**
  * Everything that stands over the islands rather than over the world.
  *
- * Four layers that differ only in what they answer to, and they are grouped for
+ * Five layers that differ only in what they answer to, and they are grouped for
  * the same reason the skies are: each needs the landscape *and* the atmosphere
  * to exist first, so none of them can be built where the two are being built.
  * The fall takes the weather for how hard it comes down and the year for what it
  * comes down as; the gulls take the day for whether they are up; the coastal
- * light takes the day for whether the lamp is lit; and the hearth smoke takes
- * the year for how hard the fires are banked. Three of the four are also *sited*
- * by the survey, and every one of them returns null on a tier — or an
- * archipelago — with nothing to give, so the cheapest device gets a graceful
- * absence rather than a poor version.
+ * light takes the day for whether the lamp is lit; the hearth smoke takes the
+ * year for how hard the fires are banked; and the window lamps take the day for
+ * dusk and the *clock* for whether anybody is up to have lit one. Four of the
+ * five are also *sited* by the survey, and every one of them returns null on a
+ * tier — or an archipelago — with nothing to give, so the cheapest device gets a
+ * graceful absence rather than a poor version.
  */
 function hangOverTheGround (
   { camera, config, quality, skip, landscape, daylight, wind }: GroundLayerOptions,
@@ -308,6 +310,12 @@ function hangOverTheGround (
       daylight,
       season: landscape.season,
       wind,
+    })),
+    unless(skip, 'windows', () => createWindowLamps({
+      config,
+      quality,
+      panes: landscape.windows,
+      daylight,
     })),
   ].filter((module): module is ScapeModule => module !== null)
 }

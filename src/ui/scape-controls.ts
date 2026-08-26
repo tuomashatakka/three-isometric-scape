@@ -357,6 +357,32 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       ],
     },
     {
+      group: 'ground & water',
+      title: 'lamplight',
+
+      // Beside the hearth smoke, because it is the same five buildings seen at
+      // the other end of the day. How much haze a lamp is drawn with is the
+      // tier's — see `quality.lampSpill` — and where the panes are is the
+      // survey's, so what is left here is who is up and what their wicks are
+      // doing. Every one of these is read per frame; there is nothing in this
+      // section that needs a rebuild to be seen.
+      controls: [
+        toggled(
+          'lit windows',
+          range('windows.glow', 'lamps', 0, 2, 0.01),
+          0.95,
+          [
+            range('windows.occupancy', 'windows occupied', 0, 1, 0.01),
+            range('windows.rising', 'up at', 0, 0.5, 0.005),
+            range('windows.bedtime', 'turned in at', 0.5, 1, 0.005),
+            range('windows.banked', 'left burning', 0, 1, 0.01),
+            range('windows.flicker', 'guttering', 0, 4, 0.05),
+            range('windows.unsteady', 'guttering depth', 0, 1, 0.01),
+          ],
+        ),
+      ],
+    },
+    {
       group:    'ground & water',
       title:    'ground',
       controls: [

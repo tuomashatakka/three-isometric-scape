@@ -124,6 +124,26 @@ export const TOURS: Record<string, Pose[]> = {
       season: 0.78,
       set:    [ 'camera.focusX=-13', 'camera.focusZ=5' ],
     },
+
+    /**
+     * The same yard four hours earlier, and the only pose in the scape that
+     * catches an evening rather than a night.
+     *
+     * `yard-night` is half past midnight, which is deliberately *after* the
+     * household has turned in — so the lamps in the windows are banked to a
+     * stove glow there, and a pose that only ever saw them banked could not tell
+     * a farm with people in it from one without. Nine in the evening is when the
+     * windows are actually lit, and the week is held in the dark half of the
+     * year for the same reason `night` pins one: at 68° north an hour without a
+     * week is full daylight for half the year.
+     */
+    {
+      name:   'yard-evening',
+      zoom:   48,
+      time:   0.875,
+      season: 0.78,
+      set:    [ 'camera.focusX=-13', 'camera.focusZ=5' ],
+    },
   ],
 
   // The cheap pass: is there a scape at all, and does it survive being drawn.
@@ -171,6 +191,12 @@ export const STILL = [
   // every frame of a tour, and the lamp is at its brightest in exactly the two
   // poses — night and winter — a diff is most sensitive at.
   'beacon.turn=0',
+
+  // The lamps in the farmstead windows. `windows.flicker` is the wick's own
+  // rate — a lamp gutters indoors on a still night, so nothing else stops it —
+  // and the farm is at its brightest in exactly the two poses a diff is most
+  // sensitive at.
+  'windows.flicker=0',
 
   // Both of the flock's rates. The sweep is what carries a gull round its ring
   // and the beat is what its wings are doing while it goes — two integrals, two

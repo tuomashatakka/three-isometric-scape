@@ -32,7 +32,7 @@ import { STILL, TOURS } from './scape-shot.ts'
  * Names, not doc comments: `wind.strength` carries no comment at all, and a
  * lexicon read out of prose would have missed it silently.
  */
-const RATE = /(speed|spin|fall|rate|turn|drift|scroll)$/i
+const RATE = /(speed|spin|fall|rate|turn|drift|scroll|flicker)$/i
 
 /**
  * Names that read as a rate and are not one, each with why.

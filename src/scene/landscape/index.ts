@@ -6,6 +6,7 @@ import type { ScapeSkips } from '../audit.ts'
 import type { LiveConfig, ScapeConfig, ScapeModule } from '../config.ts'
 import { BEACON_SINK, LANTERN_HEIGHT } from '../props/beacon.ts'
 import type { HearthStack } from '../hearth.ts'
+import type { WindowLight } from '../windows.ts'
 import { createScapeMaterials } from '../props/material.ts'
 import { MILL_HUB_HEIGHT, MILL_HUB_REACH, MILL_SINK } from '../props/mill.ts'
 import type { ScapeMaterials } from '../props/material.ts'
@@ -25,6 +26,7 @@ import { planColonies } from './colony.ts'
 import type { Colony } from './colony.ts'
 import { createDressing } from './dressing.ts'
 import { surveyHearths } from './hearths.ts'
+import { surveyWindows } from './windows.ts'
 import type { Dressing } from './dressing.ts'
 import { yawAlong } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
@@ -73,6 +75,15 @@ export interface Landscape {
    * rises out of it answers to the day and the year — see `scene/hearth.ts`.
    */
   hearths: readonly HearthStack[]
+
+  /**
+   * Every glazed pane in the archipelago, in world space.
+   *
+   * Published for the reason the stacks above are: where a window *is* is a fact
+   * about the survey and the prop's own frame, and whether a lamp is burning
+   * behind it answers to the hour — see `scene/windows.ts`.
+   */
+  windows: readonly WindowLight[]
 
   /**
    * The live instant of the year, resolved once per frame by this module's
@@ -185,6 +196,7 @@ export function createLandscape (
    * geometry. The plume itself is `scene/hearth.ts`.
    */
   const hearths = surveyHearths(archipelago)
+  const windows = surveyWindows(archipelago)
 
   /**
    * Every flock the coast can carry, sited over open water.
@@ -319,6 +331,7 @@ export function createLandscape (
     colonies,
     lanternHubs,
     hearths,
+    windows,
     season:    season.state,
     weather:   weather.state,
   }
