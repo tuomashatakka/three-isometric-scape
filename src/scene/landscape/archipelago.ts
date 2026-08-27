@@ -208,6 +208,25 @@ export function toLocal (landmass: LandmassSurvey, point: Vec2): Vec2 {
 }
 
 /**
+ * What one extra `surveyArchipelago` costs a test, in milliseconds.
+ *
+ * A test that proves determinism, or that a second seed lands a different
+ * world, has to survey the whole archipelago a second time — every island
+ * resited, every route retraced — and that is minutes of work against bun's
+ * five-second default. Five tests needed that and five tests wrote their own
+ * `30_000`, which held until the scape outgrew it: the world went on getting
+ * bigger every run and the second-seed survey passed thirty seconds, so a
+ * green suite turned red on nothing but growth.
+ *
+ * So the budget is published once, here, beside the call whose cost it
+ * describes rather than copied into whichever test paid it. The number is
+ * deliberately far above the ~35 s a survey costs today — a budget is a hang
+ * detector, and pricing one to the current world just schedules the next red
+ * suite for whenever the next run adds an island.
+ */
+export const SURVEY_BUDGET_MS = 180_000
+
+/**
  * Survey every inhabited island locally, then join only their world-facing
  * contracts: ground, paths, ports and waterways.
  */
