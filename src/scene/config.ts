@@ -597,6 +597,71 @@ export interface ScapeConfig {
   }
 
   /**
+   * The light that follows the cursor over the ground.
+   *
+   * A warm point light that sits at the point on the landscape under the mouse
+   * pointer, so moving the cursor over the scape lights the ground, props and
+   * buildings around it — a torch the reader carries. It is day-dependent the
+   * same way the coastal lamp is: a lantern at midday is invisible and costs the
+   * same forward-lit pass as a lantern at midnight, so the strength scales with
+   * how far the sun is down.
+   *
+   * Every one of these is read per frame, and every one of them is in the
+   * overlay. There is nothing build-time here: the light follows the pointer and
+   * the daylight, both of which are resolved each tick. `intensity` at zero is
+   * the switch — there is nothing to draw and the module does not mount.
+   */
+  cursorLight: {
+
+    /** Lamp colour, as a hex integer. Warm by default — lantern light, not LED white. */
+    color: number
+
+    /**
+     * Lamp brightness. 0 is a light that was never carried, and it is the switch.
+     *
+     * Scaled by how far the sun is down, so the lamp comes up through dusk and
+     * out again at dawn without this being touched — the same way the coastal
+     * lamp works. The multiplier is `(1 - day)^2`, so midday is invisible and
+     * midnight is full strength.
+     */
+    intensity: number
+
+    /**
+     * How far the light reaches, in metres.
+     *
+     * Metres and not a fraction of the view: the light throws the same radius
+     * of ground at any zoom, which is what a carried lantern does. 15 m is a
+     * small clearing around the pointer — enough to see nearby props and the
+     * ground they stand on, not a floodlight.
+     */
+    distance: number
+
+    /** How quickly the light falls off, 0..2. 2 is physically correct inverse-square. */
+    decay: number
+
+    /**
+     * Metres above the ground point the light sits at.
+     *
+     * A light buried in the surface it is lighting throws nothing. Two metres
+     * is just over head height — close enough to feel like a carried lamp,
+     * high enough to cast downward onto the ground and the props.
+     */
+    lift: number
+
+    /**
+     * Damping time constant for position and intensity smoothing, in seconds.
+     *
+     * The light does not snap to the raw pointer position every frame — that
+     * reads as jitter because the pointer sample is not continuous. Instead it
+     * is damped toward the target with an exponential form that is frame-rate
+     * independent: `1 - exp(-dt / tau)`. 0.15 s is a quarter of a sixth at
+     * sixty hertz, fast enough to feel responsive and slow enough to smooth
+     * out a sub-pixel twitch.
+     */
+    damping: number
+  }
+
+  /**
    * The fires in the farmhouse and the sauna, and the smoke standing over them.
    *
    * Every one of these is live, and every length here is **metres and stays
@@ -1605,6 +1670,20 @@ export const SCAPE_CONFIG = {
     glow:       5,
     beamReach:  88,
     beamSpread: 11,
+  },
+  // A carried lantern. The colour is a warm amber — the same family as the
+  // farmhouse lamps but without the pane to soften it. 0.6 of intensity is
+  // visible against a daylit ground but not blinding at night; raising it past
+  // about 1.5 would bloom on the desktop tier. 15 m of distance is a small
+  // clearing; 2 m of lift is just over head height. 0.15 s of damping is fast
+  // enough to feel responsive without reading as jitter.
+  cursorLight: {
+    color:     0xffa84c,
+    intensity: 0.6,
+    distance:  15,
+    decay:     2,
+    lift:      2,
+    damping:   0.15,
   },
   // 11 metres of rise against a chimney standing 7 m over its own floor puts the
   // top of a plume at about 18 m — well clear of the 9 m peak on the home island

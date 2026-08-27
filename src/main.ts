@@ -183,6 +183,34 @@ const card = cardSlot && firstCanvas.parentElement
 
 let mounted: Mounted | null = null
 
+// the loading overlay ships in index.html so it is visible on the very first
+// paint. dismissed here once data-scape-state reaches 'ready' — meaning the
+// first frame is genuinely drawn, not merely that the module finished importing.
+// re-shown on context loss ('lost') so the reader is not left staring at a dead
+// canvas, and left visible on 'failed' so the error message is not hidden behind
+// a spinner that never stops.
+const loader = document.querySelector<HTMLElement>('#loader')
+
+if (loader) {
+  const observer = new MutationObserver(() => {
+    const state = document.documentElement.dataset.scapeState
+
+    // Never disconnected. A context loss remounts the canvas and drives the
+    // state back to 'lost', and an observer torn down on the first 'ready'
+    // could not hear it — which is the whole re-show this exists for, working
+    // exactly once and then silently not.
+    if (state === 'ready')
+      loader.dataset.hidden = ''
+    else if (state === 'lost' || state === 'booting')
+      delete loader.dataset.hidden
+  })
+
+  observer.observe(document.documentElement, {
+    attributes:      true,
+    attributeFilter: [ 'data-scape-state' ],
+  })
+}
+
 /**
  * Assemble the scape, on the canvas and at the budget the ladder hands over.
  *

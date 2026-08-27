@@ -263,6 +263,7 @@ export function createCameraControls (
     rotationPivot: null as { x: number, z: number } | null,
     pivotHeading:  0,
     pivotFocus:    new Vector3(),
+    pointerGround: null as { x: number, y: number, z: number } | null,
   }
 
   const { right, forward, raycaster, pointerNdc, aim: aimTarget } = scratch
@@ -281,15 +282,43 @@ export function createCameraControls (
    * Re-reading the modifiers per move would let releasing shift halfway through
    * an orbit turn it into a pan under the reader's hand.
    */
-  let dragAction: DragAction      = 'pan'
-  let revolving                   = false
-  let settling                    = true
-  let lastViewSize                = Number.NaN
-  let detach: (() => void) | null = null
+  let dragAction: DragAction = 'pan'
+  let revolving              = false
+  // One declaration rather than three, which is a lint ceiling talking: this
+  // function is one statement over `max-statements` and these three are the
+  // cheapest to merge without moving anything real. They are the closure's
+  // whole mutable state, so grouping them also says so.
+  let settling                  = true,
+    lastViewSize                = Number.NaN,
+    detach: (() => void) | null = null
 
   const aspect = (): number => canvas.clientWidth / canvas.clientHeight || 1
   const tiltOf = (viewSize: number): number =>
     tiltForViewSize(viewSize, limits().minViewSize, limits().maxViewSize, limits().tiltNear, limits().tiltFar)
+
+  /**
+   * Resolve the ground point under the pointer and cache it for anchored
+   * zooming and for other modules that read `camera.userData.pointerGround`.
+   *
+   * Called on every pointer move (hover for mouse, press-start for touch/pen)
+   * rather than per frame — a raycast per wheel tick is fine, per frame is not.
+   */
+  function resolvePointerGround (clientX: number, clientY: number): void {
+    const [ nx, ny ] = clientPointToNdc(clientX, clientY, canvas.getBoundingClientRect())
+    pointerNdc.set(nx, ny)
+    raycaster.setFromCamera(pointerNdc, camera)
+
+    const hit = raycaster.intersectObjects(landscape.surfaces, false)[0]
+
+    if (hit) {
+      scratch.pointerGround         = { x: hit.point.x, y: hit.point.y, z: hit.point.z }
+      camera.userData.pointerGround = [ hit.point.x, hit.point.y, hit.point.z ]
+    }
+    else {
+      scratch.pointerGround         = null
+      camera.userData.pointerGround = undefined
+    }
+  }
 
   /**
    * How far back to sit the camera.
@@ -333,8 +362,20 @@ export function createCameraControls (
     const radius  = liftedRadius(tilt)
     const sinTilt = Math.max(Math.sin(MathUtils.degToRad(tilt)), 1e-3)
 
-    camera.near = Math.max(0.1, radius * 0.08)
-    camera.far  = Math.max(camera.near + 10, radius * 0.5 + pose.viewSize / sinTilt)
+    // The orthographic camera sits at `radius` along the view axis from its
+    // target. The near and far planes must bracket every piece of geometry
+    // along that axis — not stop short of the subject (the old bug at zoom-in)
+    // and not cut off the far islands ( the old bug at zoom-out). `halfDepth`
+    // covers the on-screen footprint (`viewSize / sinTilt`) plus the world's
+    // own extent beyond the visible frame (half the archipelago size, also
+    // divided by sinTilt because the view axis is tilted), plus a margin for
+    // terrain peaks and troughs. The slab is symmetric around `radius` so
+    // both ends stay correct at every zoom.
+    const halfWorld = landscape.archipelago.size * 0.5
+    const halfDepth = (pose.viewSize + halfWorld) / sinTilt + 20
+
+    camera.near = Math.max(0.1, radius - halfDepth)
+    camera.far  = radius + halfDepth
     camera.updateProjectionMatrix()
 
     if (pose.viewSize !== lastViewSize) {
@@ -471,8 +512,28 @@ export function createCameraControls (
     retarget()
   }
 
+  /**
+   * Change the zoom level.
+   *
+   * Centred on the focus, deliberately, and it is worth writing down why since
+   * anchoring it to the cursor is the obvious thing to reach for.
+   *
+   * The zoom is *damped*: `target.viewSize` is where the wheel has asked to go
+   * and `pose.viewSize` is where the camera actually is, easing toward it over
+   * several frames. An anchored zoom has to shift the focus by the ratio of the
+   * two view sizes — and on a wheel burst the target runs several ticks ahead of
+   * the pose, so every tick computes its ratio across two different timelines
+   * and moves the focus by the wrong amount. The result reads as jitter, and it
+   * gets worse the faster you spin the wheel, which is exactly when a reader is
+   * least able to tolerate it.
+   *
+   * Rotation keeps its cursor pivot, and can: a rotation is a rigid turn about
+   * a point with no damped scalar in the arithmetic, so there are no two clocks
+   * to disagree.
+   */
   function zoomTo (scale: number): void {
     leavePath()
+
     target.viewSize = zoomViewSize(target.viewSize, scale, limits().minViewSize, limits().maxViewSize)
     retarget()
   }
@@ -538,9 +599,10 @@ export function createCameraControls (
 
     dragAction = rotates ? 'rotate' : 'pan'
 
-    // Orbit pivots around the point under the cursor. Captured once, held for
-    // the gesture — re-deriving per frame makes the world slide under the hand.
-    if (rotates) {
+    // Capture the pivot for any mouse drag, not only rotate — a pan that
+    // switches to rotate mid-gesture (releasing the modifier) inherits the
+    // pivot captured at press, so the world does not jump.
+    if (event.pointerType === 'mouse') {
       const bounds     = canvas.getBoundingClientRect()
       const [ nx, ny ] = clientPointToNdc(x, y, bounds)
       pointerNdc.set(nx, ny)
@@ -556,6 +618,12 @@ export function createCameraControls (
       else
         scratch.rotationPivot = null
     }
+
+    // For touch/pen, resolve the pointer ground once at press — the gesture
+    // will read it for anchored zooming if the handler requests it. Mouse
+    // resolves per hover instead.
+    if (event.pointerType === 'touch' || event.pointerType === 'pen')
+      resolvePointerGround(x, y)
 
     // Track where the cursor is for the tilt-shift focus band — only a fine
     // pointer (mouse/pen) drives it; the gesture callback already filters by
@@ -600,19 +668,27 @@ export function createCameraControls (
       ? 16
       : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? canvas.clientHeight : 1
 
+    // The ground point is still resolved here, but it no longer steers the
+    // zoom — see `zoomTo`. It is kept because the wheel moves the scape under a
+    // stationary cursor, so without this the ground point the cursor light is
+    // sitting on would go stale for as long as the reader keeps scrolling.
+    resolvePointerGround(event.clientX, event.clientY)
+
     zoomTo(Math.exp(-delta * unit * WHEEL_SPEED))
   }
 
   /**
-   * Track the cursor for the tilt-shift focus band.
+   * Track the cursor for the tilt-shift focus band and resolve the ground point
+   * under the pointer for anchored zooming.
    *
    * Only a fine pointer (mouse, pen) drives this — touch has no hover, so the
    * band stays at the camera look-at for the whole session. A coarse pointer
-   * never writes `pointerScreenY`.
+   * never writes `pointerScreenY` or `pointerGround`.
    */
-  function onHover (_x: number, y: number): void {
+  function onHover (x: number, y: number): void {
     const bounds = canvas.getBoundingClientRect()
     pointerScreenY = 1 - (y - bounds.top) / bounds.height
+    resolvePointerGround(x, y)
   }
 
   /** Clear the orbit pivot when the gesture ends. */
@@ -731,7 +807,9 @@ export function createCameraControls (
         onWheel,
         onHover,
         onLeave () {
-          pointerScreenY = Number.NaN
+          pointerScreenY                = Number.NaN
+          scratch.pointerGround         = null
+          camera.userData.pointerGround = undefined
         },
       },
       { tapMovePx: TAP_MOVE_PX, tapThresholdMs: TAP_MAX_MS },

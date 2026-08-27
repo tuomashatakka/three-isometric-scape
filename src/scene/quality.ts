@@ -106,6 +106,16 @@ export interface AtmosphereQuality {
   lampSpill: number
 
   /**
+   * Whether the cursor light is allowed to run at all.
+   *
+   * A real-time point light adds a forward-lit pass on every material in range,
+   * which is cost the cheapest tiers pay per frame for a lantern the reader may
+   * never bring near the ground. The two floor tiers leave it out rather than
+   * drawing a broken version of it.
+   */
+  cursorLight: boolean
+
+  /**
    * Terrain plane subdivisions per side.
    *
    * A count, not a density — so it is sized against `terrain.size`, and a run
@@ -232,6 +242,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     birdCount:       0,
     beaconBlades:    0,
     lampSpill:       0,
+    cursorLight:     false,
     hearthPuffs:     0,
     terrainSegments: 60,
     scatterScale:    0.16,
@@ -265,6 +276,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     birdCount:       90,
     beaconBlades:    1,
     lampSpill:       2,
+    cursorLight:     false,
     hearthPuffs:     8,
     terrainSegments: 84,
     scatterScale:    0.32,
@@ -314,6 +326,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     birdCount:       260,
     beaconBlades:    2,
     lampSpill:       3,
+    cursorLight:     true,
     hearthPuffs:     14,
     terrainSegments: 208,
     scatterScale:    1,
@@ -347,6 +360,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     birdCount:       420,
     beaconBlades:    3,
     lampSpill:       4,
+    cursorLight:     true,
     hearthPuffs:     20,
     terrainSegments: 288,
     scatterScale:    1.5,
@@ -397,6 +411,7 @@ const UNLOCKED_FLOOR = {
   birdCount:      90,
   beaconBlades:   1,
   lampSpill:      2,
+  cursorLight:    true,
   hearthPuffs:    8,
   detailTaps:     6,
   reliefSteps:    4,
@@ -437,6 +452,7 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
     birdCount:      Math.max(quality.birdCount, UNLOCKED_FLOOR.birdCount),
     beaconBlades:   Math.max(quality.beaconBlades, UNLOCKED_FLOOR.beaconBlades),
     lampSpill:      Math.max(quality.lampSpill, UNLOCKED_FLOOR.lampSpill),
+    cursorLight:    true,
     hearthPuffs:    Math.max(quality.hearthPuffs, UNLOCKED_FLOOR.hearthPuffs),
     detailTaps:     Math.max(quality.detailTaps, UNLOCKED_FLOOR.detailTaps),
     reliefSteps:    Math.max(quality.reliefSteps, UNLOCKED_FLOOR.reliefSteps),

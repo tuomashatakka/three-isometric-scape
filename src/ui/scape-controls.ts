@@ -445,6 +445,26 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       ],
     },
     {
+      group:    'ground & water',
+      title:    'cursor light',
+      // Under the coastal light because they are both lamps: one fixed on a
+      // rock and one carried by the reader. The tier gates whether this runs
+      // at all — see `quality.cursorLight` — and the intensity knob is the
+      // switch, so greying it on the floor tiers is enough.
+      controls: [
+        toggled(
+          'carried lamp',
+          range('cursorLight.intensity', 'strength', 0, 2, 0.01, quality.cursorLight),
+          0.6,
+          [
+            range('cursorLight.distance', 'reach (m)', 2, 40, 0.5),
+            range('cursorLight.lift', 'height (m)', 0, 6, 0.1),
+            range('cursorLight.damping', 'smoothness (s)', 0.02, 0.6, 0.01),
+          ],
+        ),
+      ],
+    },
+    {
       group:    'camera',
       title:    'framing',
       controls: [

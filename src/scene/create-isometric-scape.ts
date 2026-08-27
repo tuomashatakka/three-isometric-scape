@@ -13,6 +13,7 @@ import { createCameraControls } from './camera-controls.ts'
 import type { CameraOpening } from './camera-controls.ts'
 import type { CameraPath } from './camera-path.ts'
 import { createCloudLayer } from './clouds.ts'
+import { createCursorLight } from './cursor-light.ts'
 import { createHearthSmoke } from './hearth.ts'
 import type { DaylightState } from './daylight.ts'
 import { createLandscape } from './landscape/index.ts'
@@ -443,6 +444,15 @@ export function createIsometricScape (
     atmosphere.module,
     ...skies,
     ...overGround,
+
+    // After the atmosphere (which resolves the hour the light answers to) and
+    // after the camera controls (which build the camera the pointer lives on).
+    // The cursor light reads `camera.userData.pointerGround` each frame, so it
+    // must be mounted after the controls that own that bookkeeping.
+    quality.cursorLight
+      ? createCursorLight({ config: readConfig, camera, daylight: atmosphere.daylight })
+      : null,
+
     post,
   ].filter((module): module is ScapeModule => module !== null)
 
