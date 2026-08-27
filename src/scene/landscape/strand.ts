@@ -55,7 +55,7 @@ export interface Strand {
 const SKIRT = 2.6
 
 /** Lateral wander of the centreline, as a multiple of the width. */
-const WANDER = 1.9
+const WANDER = 4.6
 
 /** How much of the crest the undulation is allowed to take away. */
 const UNDULATION = 0.38
@@ -150,6 +150,11 @@ function alongPolyline (points: readonly Vec2[], x: number, z: number): AlongPol
  * a claim the rest of the scape is entitled to rely on: a dip below the
  * waterline anywhere along the line would quietly turn one island back into two,
  * and nothing downstream would say so.
+ *
+ * The ends taper and the width varies along the bar, driven by two more noise
+ * streams off the same fork. A real spit is widest and highest where it leaves
+ * the shore and narrows as it reaches out; some stretches sit just under the
+ * waterline so the water reads as running over it in places.
  */
 export function createStrand (
   config: ScapeConfig,
@@ -163,18 +168,23 @@ export function createStrand (
   const span   = Math.hypot(to.x - from.x, to.z - from.z)
   const steps  = Math.max(2, Math.round(span / 6))
 
-  // Two independent streams off one fork, so the line's wander and the crest's
-  // undulation are not the same shape read twice — a bar that is highest exactly
-  // where it bends furthest is a bar somebody drew.
-  const rng   = createSeededRng(config.seed).fork('strand')
-  const sways = rng.next() * 64
-  const dunes = rng.next() * 64
+  // Three independent streams off one fork, so the line's wander, the crest's
+  // undulation, the width variation and the dips are all different shapes.
+  const rng    = createSeededRng(config.seed).fork('strand')
+  const sways  = rng.next() * 64
+  const dunes  = rng.next() * 64
+  const widths = rng.next() * 64
+  const dips   = rng.next() * 64
 
   // Cells, in metres. Four lobes over the crossing for the line and rather more
   // for the crest, because shingle piles at a shorter wavelength than a spit
   // curves at.
   const swaySpan = Math.max(24, span * 0.25)
   const duneSpan = Math.max(12, span * 0.11)
+
+  // Wider wavelength for width variation — the bar narrows over tens of metres,
+  // not the few metres of a dune crest.
+  const widthSpan = Math.max(40, span * 0.35)
 
   // Across the line, so a lateral wander is a wander and not a longer bar.
   const acrossX = -(to.z - from.z) / span
@@ -239,7 +249,28 @@ export function createStrand (
 
       const dune = 1 - UNDULATION * valueNoise1d(at * span, duneSpan, dunes)
 
-      return seabed + (waterLevel + crest * dune - seabed) * claim
+      // Width varies along the bar — widest at the middle, tapered at both
+      // ends, and nudged by low-frequency noise so the shoreline is not a
+      // clean offset curve.
+      const taper      = Math.sin(at * Math.PI)
+      const wobble     = 1 + (valueNoise1d(at * span, widthSpan, widths) - 0.5) * 0.35
+      const localWidth = width * (0.35 + 0.65 * taper) * wobble
+
+      // The crest dips in places — stretches that sit just under the waterline
+      // so the sea reads as running over the bar in places. The dip is
+      // independent of the undulation and stronger near the ends, which is
+      // where a real bar is lowest and most often awash.
+      const dipBase   = valueNoise1d(at * span + 100, duneSpan * 1.7, dips)
+      const dipEdge   = 1 - Math.pow(taper, 0.6)
+      const dipAmount = dipBase * dipEdge * 0.55
+
+      const localCrest = waterLevel + crest * dune * (1 - dipAmount)
+
+      // Re-scale the claim from the bar's full width to the local width so
+      // the cross-section narrows where the bar is narrower.
+      const localClaim = 1 - smoothstep(localWidth, reach * (localWidth / width), distance)
+
+      return seabed + (localCrest - seabed) * localClaim
     },
 
     claimAt,

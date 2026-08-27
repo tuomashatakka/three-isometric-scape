@@ -382,7 +382,6 @@ function strandGeometry (config: ScapeConfig, strand: Strand, field: HeightField
 
   return createSurfaceRibbon({
     path:   strand.points,
-    // Half-widths, in metres, outward from the centreline.
     across: [ -2.4, -1.15, 0, 1.15, 2.4 ].map(edge => edge * width),
     step:   3,
 

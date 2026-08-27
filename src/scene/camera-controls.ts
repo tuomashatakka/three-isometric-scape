@@ -324,6 +324,19 @@ export function createCameraControls (
       tilt,
     })
 
+    // The frustum's near and far planes are set once by `createIsoCamera` and
+    // never updated — at `maxViewSize` the frame extends ~2000 m along the view
+    // axis but the far plane sits at 500 m, clipping the top of the frame.
+    // Scale both with the camera distance and the view so the whole archipelago
+    // stays inside the frustum at every zoom. `near` stays positive and `far`
+    // stretches to cover the ground footprint plus the height the camera sits at.
+    const radius  = liftedRadius(tilt)
+    const sinTilt = Math.max(Math.sin(MathUtils.degToRad(tilt)), 1e-3)
+
+    camera.near = Math.max(0.1, radius * 0.08)
+    camera.far  = Math.max(camera.near + 10, radius * 0.5 + pose.viewSize / sinTilt)
+    camera.updateProjectionMatrix()
+
     if (pose.viewSize !== lastViewSize) {
       camera.userData.viewSize = pose.viewSize
       resizeIsoCamera(camera, aspect())

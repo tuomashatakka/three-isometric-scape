@@ -62,7 +62,38 @@ const OPEN_DEPTH = 1.6
 const RING_SPACING = 1.5
 
 /** Bearings tested around the tightest ring, however small it gets. */
-const RING_FLOOR = 24
+const RING_FLOOR = 128
+
+
+/**
+ * Bearings the sweep is quantised to.
+ *
+ * The count is rounded up to a multiple of this rather than left wherever the
+ * radius put it, and that is the whole point: "every bearing is wet" is really
+ * "every bearing we looked at was wet", so a search walking 72 bearings and a
+ * check walking 64 share only eight angles between them — and a spit that falls
+ * in one of the other fifty-six passes the search and fails the check. Any
+ * sweep whose count divides into this one samples a subset of these angles, so
+ * a ring this accepts cannot be refused by a coarser sweep taken later.
+ */
+const RING_QUANTUM = 64
+
+
+/**
+ * How much clear water a bearing needs under it, in metres.
+ *
+ * A ring is accepted by walking a finite number of bearings, so "every bearing
+ * is wet" is really "every bearing we looked at was wet" — and a spit narrower
+ * than the sample spacing passes between two of them. Testing against the
+ * waterline exactly makes that an equality: ground a few millimetres proud
+ * counts as dry, and a ring the search accepted fails a finer sweep taken
+ * later, which is what `colony.test.ts` walks at sixty-four bearings.
+ *
+ * Asking for a handspan of depth instead of none costs nothing — a gull's ring
+ * wants open water rather than a wet toe — and it holds however coarsely the
+ * bearings happen to fall.
+ */
+const RING_DEPTH = 0.1
 
 /** How much a ring gives up per attempt, and how small it may get. */
 const SHRINK       = 0.86
@@ -76,12 +107,13 @@ function ringIsWet (
   radius: number,
   water:  number,
 ): boolean {
-  const samples = Math.max(RING_FLOOR, Math.ceil(Math.PI * 2 * radius / RING_SPACING))
+  const wanted  = Math.max(RING_FLOOR, Math.ceil(Math.PI * 2 * radius / RING_SPACING))
+  const samples = Math.ceil(wanted / RING_QUANTUM) * RING_QUANTUM
 
   for (let step = 0; step < samples; step += 1) {
     const around = step / samples * Math.PI * 2
 
-    if (field.heightAt(x + Math.cos(around) * radius, z + Math.sin(around) * radius) > water)
+    if (field.heightAt(x + Math.cos(around) * radius, z + Math.sin(around) * radius) > water - RING_DEPTH)
       return false
   }
 

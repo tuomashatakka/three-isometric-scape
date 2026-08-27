@@ -452,8 +452,8 @@ function wetFragment (lie: string): string {
   return /* glsl */`
   float scapeWet = uWetAmount * (${lie});
 
-  diffuseColor.rgb *= 1.0 - 0.38 * scapeWet;
-  roughnessFactor   = mix(roughnessFactor, 0.24, scapeWet);
+  diffuseColor.rgb *= 1.0 - 0.48 * scapeWet;
+  roughnessFactor   = mix(roughnessFactor, 0.12, scapeWet);
 `
 }
 

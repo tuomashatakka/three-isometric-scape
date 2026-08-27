@@ -1,7 +1,18 @@
 import { hash2, smoothstep } from 'threejs-scene'
 
 
-function valueNoise (x: number, z: number, seed: number): number {
+/**
+ * Smooth bilinear value noise on the unit lattice.
+ *
+ * Exported because `hash2` is the wrong tool for anything that wants *regions*.
+ * A hash answers per exact coordinate, so sampling it across a surface gives
+ * white noise — neighbouring vertices land anywhere in 0..1 and the field has
+ * no features at all, only speckle. This interpolates between lattice corners,
+ * so a caller that divides its coordinates down gets a field whose feature size
+ * it actually chose. See the ruggedness mask in `landscape/height.ts`, which is
+ * the reason this stopped being private.
+ */
+export function valueNoise (x: number, z: number, seed: number): number {
   const x0 = Math.floor(x)
   const z0 = Math.floor(z)
   const tx = smoothstep(0, 1, x - x0)

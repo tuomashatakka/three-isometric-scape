@@ -4,10 +4,12 @@ import {
   MeshStandardMaterial,
   PlaneGeometry,
   Vector2,
+  Vector3,
   Vector4,
 } from 'three'
 import type { IUniform, Texture, WebGLProgramParametersWithUniforms } from 'three'
 import type { LiveConfig } from '../config.ts'
+import { createDaylight } from '../daylight.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import type { SeasonState } from '../season.ts'
 import type { TextureCatalogue } from '../textures/catalogue.ts'
@@ -319,6 +321,9 @@ const WATER_SURF_ALPHA = /* glsl */`
 `
 
 const WATER_PARS_FRAGMENT = /* glsl */`
+  uniform vec3 uSkyHorizon;
+  uniform vec3 uSkyTop;
+  uniform float uReflectionStrength;
   uniform sampler2D uRippleMap;
   uniform sampler2D uWaveMap;
   uniform vec2 uRippleOffset;
@@ -480,6 +485,50 @@ const WATER_NORMAL_FRAGMENT_LITE = /* glsl */`
   ) * (1.0 - iceCover));
 `
 
+/**
+ * Fresnel, and the sky the water borrows off it.
+ *
+ * The one term that decides whether a surface reads as water or as coloured
+ * paint, and it is nearly free. Water reflects almost nothing when you look
+ * straight down it — about two per cent — and almost everything at a grazing
+ * angle, and an isometric camera spends its whole life at grazing angles, so
+ * this is doing real work across most of the frame rather than at the edges.
+ * Schlick's approximation is the standard cheap form of it and it is exact
+ * enough that nobody has ever been able to tell.
+ *
+ * Injected before `opaque_fragment` rather than into the albedo, because a
+ * reflection is light arriving at the eye and not a property of the surface:
+ * folded into `diffuseColor` it would be shaded by the sun a second time and go
+ * dark on the side of a wave facing away. `outgoingLight` already exists by
+ * this point in three's chain, and so do the locals the water body declared —
+ * chunks are inlined into one `main`, so `waterDepth` is still in scope here.
+ *
+ * The sky it reflects is the sky the atmosphere is actually drawing, handed
+ * down as two colours per frame rather than sampled a second time, so the sea
+ * can never mirror a sky the reader is not looking at.
+ */
+const WATER_REFLECTION_FRAGMENT = /* glsl */`
+  {
+    vec3 viewDir    = normalize(vViewPosition);
+    float facing    = clamp(dot(normalize(normal), viewDir), 0.0, 1.0);
+    float fresnel   = 0.02 + 0.98 * pow(1.0 - facing, 5.0);
+
+    // Toward the horizon at grazing angles and toward the zenith looking down,
+    // which is what the reflected ray would have found anyway. Cheaper than
+    // reflecting the vector and sampling, and at this camera's range of angles
+    // the two are within a shade of each other.
+    vec3 sky = mix(uSkyHorizon, uSkyTop, facing);
+
+    // Only over water deep enough to have a surface, and never over ice, which
+    // is rough and scatters rather than mirrors.
+    float mirror = fresnel * uReflectionStrength *
+      smoothstep(0.0, 0.35, waterDepth);
+
+    outgoingLight = mix(outgoingLight, sky, clamp(mirror, 0.0, 0.82));
+  }
+`
+
+
 const WATER_NORMAL_FRAGMENT = /* glsl */`
   #include <normal_fragment_begin>
 
@@ -548,37 +597,73 @@ export function createWater (
   const rippleOffset: IUniform<Vector2> = { value: new Vector2() }
   const waveTime: IUniform<number>      = { value: 0 }
   const iceColor: IUniform<Color>       = { value: new Color(config().palette.ice) }
-  const boatWakes                       = Array.from(
+  const swell: IUniform<Vector2>        = { value: new Vector2(1, 0) }
+
+  /**
+   * Trail ring buffers, one per emitter. Each is three flat arrays of 6 vec4s
+   * (position, direction, distance) plus a scalar point count. The shader
+   * iterates only the valid points, so a partially filled trail is cheap.
+   */
+  const TRAIL_PTS = 6
+  const trailPos  = Array.from(
     { length: MAX_BOAT_WAKES },
-    () => new Vector4(),
+    () => Array.from({ length: TRAIL_PTS }, () => new Vector4()),
   )
-  const boatWakePhases                     = new Float32Array(MAX_BOAT_WAKES)
-  const swell: IUniform<Vector2>           = { value: new Vector2(1, 0) }
+  const trailDir = Array.from(
+    { length: MAX_BOAT_WAKES },
+    () => Array.from({ length: TRAIL_PTS }, () => new Vector4()),
+  )
+  const trailDist   = Array.from(
+    { length: MAX_BOAT_WAKES },
+    () => new Float32Array(TRAIL_PTS),
+  )
+  const trailCounts = new Float32Array(MAX_BOAT_WAKES)
+
+  const daylight                             = createDaylight(config)
+  const sunDir: IUniform<Vector3>            = { value: new Vector3() }
+  const skyHorizon: IUniform<Color>          = { value: new Color() }
+  const skyTop: IUniform<Color>              = { value: new Color() }
+  const reflectionStrength: IUniform<number> = { value: 1 }
+
   const uniforms: Record<string, IUniform> = {
-    uShoreMap:         { value: shoreMap },
-    uRippleMap:        { value: rippleMap },
-    uWaveMap:          { value: waveMap },
-    uRippleOffset:     rippleOffset,
-    uDeep:             { value: new Color(config().palette.deepWater) },
-    uShallow:          { value: new Color(config().palette.shallowWater) },
-    uFoam:             { value: new Color(config().palette.foam) },
-    uIce:              iceColor,
-    uShoreScale:       { value: 1 / maskSpan },
-    uFreeze:           { value: 0 },
-    uIceReach:         { value: config().water.iceReach },
-    uIceBreak:         { value: config().water.iceBreak },
-    uFloeScale:        { value: config().terrain.size / config().archipelago.worldSize },
-    uRippleScale:      { value: 1 / 34 },
-    uRippleStrength:   { value: config().water.rippleStrength },
-    uBoatWakes:        { value: boatWakes },
-    uBoatWakePhases:   { value: boatWakePhases },
-    uBoatWakeStrength: { value: config().water.wakeStrength },
-    uSparkleScale:     { value: 1 / 14 },
-    uSparkle:          { value: config().water.sparkle },
-    uWaveTime:         waveTime,
-    uWaveHeight:       { value: config().water.waveHeight },
-    uSwell:            swell,
-    uSurf:             { value: config().water.surf },
+    uShoreMap:           { value: shoreMap },
+    uRippleMap:          { value: rippleMap },
+    uWaveMap:            { value: waveMap },
+    uRippleOffset:       rippleOffset,
+    uDeep:               { value: new Color(config().palette.deepWater) },
+    uShallow:            { value: new Color(config().palette.shallowWater) },
+    uFoam:               { value: new Color(config().palette.foam) },
+    uIce:                iceColor,
+    uShoreScale:         { value: 1 / maskSpan },
+    uFreeze:             { value: 0 },
+    uIceReach:           { value: config().water.iceReach },
+    uIceBreak:           { value: config().water.iceBreak },
+    uFloeScale:          { value: config().terrain.size / config().archipelago.worldSize },
+    uRippleScale:        { value: 1 / 34 },
+    uRippleStrength:     { value: config().water.rippleStrength },
+    uBoatWakeStrength:   { value: config().water.wakeStrength },
+    uTrailPos0:          { value: trailPos[0] },
+    uTrailPos1:          { value: trailPos[1] },
+    uTrailPos2:          { value: trailPos[2] },
+    uTrailDir0:          { value: trailDir[0] },
+    uTrailDir1:          { value: trailDir[1] },
+    uTrailDir2:          { value: trailDir[2] },
+    uTrailDist0:         { value: trailDist[0] },
+    uTrailDist1:         { value: trailDist[1] },
+    uTrailDist2:         { value: trailDist[2] },
+    uTrailCount0:        { value: 0 },
+    uTrailCount1:        { value: 0 },
+    uTrailCount2:        { value: 0 },
+    uSunDir:             sunDir,
+    uSkyHorizon:         skyHorizon,
+    uSkyTop:             skyTop,
+    uReflectionStrength: reflectionStrength,
+    uSparkleScale:       { value: 1 / 14 },
+    uSparkle:            { value: config().water.sparkle },
+    uWaveTime:           waveTime,
+    uWaveHeight:         { value: config().water.waveHeight },
+    uSwell:              swell,
+    uSurf:               { value: config().water.surf },
 
     // Metres in, fractions of `MAX_DEPTH` out — the mask's depth channel is a
     // fraction of that, so this is where the one conversion happens rather than
@@ -629,6 +714,7 @@ export function createWater (
       .replace('#include <map_fragment>', lite ? WATER_COLOR_FRAGMENT_LITE : WATER_COLOR_FRAGMENT)
       .replace('#include <roughnessmap_fragment>', WATER_ROUGHNESS_FRAGMENT)
       .replace('#include <normal_fragment_begin>', lite ? WATER_NORMAL_FRAGMENT_LITE : WATER_NORMAL_FRAGMENT)
+      .replace('#include <opaque_fragment>', `${WATER_REFLECTION_FRAGMENT}\n#include <opaque_fragment>`)
   }
   material.customProgramCacheKey = () => `scape-water:${lite ? 'lite' : 'full'}`
 
@@ -652,19 +738,25 @@ export function createWater (
       const source   = wakes[index]
       const strength = source?.strength ?? 0
 
-      if (source) {
-        boatWakes[index].set(
-          source.x,
-          source.z,
-          source.directionX * strength,
-          source.directionZ * strength,
-        )
-        boatWakePhases[index] = source.phase
+      if (source?.trail && strength > 0.001) {
+        const trail        = source.trail
+        const count        = trail.count
+        trailCounts[index] = count
+
+        // Copy the ring buffer into the flat arrays. The ring's head points
+        // at the most recent sample, so we walk from head+1 through the
+        // valid points oldest-first, which matches the shader's forward
+        // iteration from stern to bow.
+        for (let i = 0; i < TRAIL_PTS; i++) {
+          const si = (trail.head + 1 + i) % TRAIL_PTS
+          const sp = trail.points[si]
+          trailPos[index][i].set(sp.x, sp.z, 0, 0)
+          trailDir[index][i].set(sp.dirX, sp.dirZ, 0, 0)
+          trailDist[index][i] = sp.trailDist
+        }
       }
-      else {
-        boatWakes[index].set(0, 0, 0, 0)
-        boatWakePhases[index] = 0
-      }
+      else
+        trailCounts[index] = 0
     }
   }
 
@@ -716,6 +808,17 @@ export function createWater (
       uniforms.uSurfExposure.value = config().water.surfExposure
 
       iceColor.value.copy(season.iceColor)
+
+      // Sample the daylight for the reflection. The atmosphere module also
+      // samples it, but its horizon has been adjusted by sun scatter — the
+      // water gets the base colours, which is correct because the water is
+      // the thing being scattered *at* and does not need to re-scatter
+      // its own reflection.
+      const now = daylight.sample(config().daylight.time, config().season.time)
+      sunDir.value.copy(now.direction)
+      skyHorizon.value.copy(now.horizon)
+      skyTop.value.copy(now.skyTop)
+      reflectionStrength.value = config().water.roughness < 0.4 ? 0.6 : 1
 
       if (material.roughness !== config().water.roughness)
         material.roughness = config().water.roughness

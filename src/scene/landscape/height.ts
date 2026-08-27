@@ -1,7 +1,7 @@
 import { smoothstep } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 import { coastWarp, sampleHeight } from '../noise.ts'
-import { MASSIF, distanceToTrack, liftRadiusOf, plotInfluence, sinkToIsland } from './layout.ts'
+import { MASSIF, distanceToTrack, liftRadiusOf, plotInfluence, remapRelief, sinkToIsland } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
 
 
@@ -43,6 +43,7 @@ export interface GroundNormal {
   y: number
   z: number
 }
+
 
 /** Fraction of an islet's radius held at full height before the skirt starts. */
 const ISLE_PLATEAU  = 0.55
@@ -189,6 +190,12 @@ export function createHeightField (config: ScapeConfig, layout: ScapeLayout): He
     // Drown the rim. `sinkToIsland` lives in `layout.ts` because the placement
     // searches there have to agree with this exactly — see its own note.
     height = sinkToIsland(config, x, z, height)
+
+    // Shape the distribution of relief. Gentle regions of the island have their
+    // elevation compressed toward flat, while rugged regions keep full relief.
+    // This goes after the rim drowning but before the islets, so islets are
+    // never flattened — they are their own islands standing in open sea.
+    height = remapRelief(config, x, z, height)
 
     // Raise the islets *after* the falloff. Doing it before would drown them
     // along with the rim — the whole point of the rim drowning is that it is

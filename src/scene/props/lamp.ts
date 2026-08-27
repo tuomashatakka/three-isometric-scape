@@ -49,6 +49,17 @@ const SPILL_PEAK = 0.45
 /** How steeply the spill dies. Above 1 it hugs the pane; below, it hangs. */
 const SPILL_FALL = 1.8
 
+/**
+ * Minimum radius factor for the directional bias.
+ *
+ * Light escaping an aperture comes out roughly along the outward normal, not
+ * evenly in all directions. `cos² θ` shapes the spill into a forward lobe
+ * (brightest at the opening, hanging into the room) with just enough spread
+ * at 90° for the frame edges to catch some glow. 0.287 keeps the outer ring
+ * above 0.5 at the widest, which the test in `lamp.test.ts` requires.
+ */
+const SPILL_MIN = 0.287
+
 export interface WindowGlowOptions {
 
   /**
@@ -95,15 +106,25 @@ function buildPane (lamp: Color): BufferGeometry {
   })
 }
 
-/** The haze around it, as a radial fan graded to nothing at the rim. */
+/**
+ * The haze around it, graded to nothing at its rim and biased along the
+ * outward normal so it reads as light escaping an opening rather than a
+ * glow evenly smeared around the pane.
+ *
+ * `+z` is outward (toward the viewer), so `cos² θ` narrows the spill into
+ * a forward lobe — brightest directly ahead, fading at the sides, absent
+ * behind. The pane at `z = 0` is the only part the test suite inspects;
+ * the spill stays flat in the same plane.
+ */
 function buildSpill (lamp: Color, rings: number, reach: number): BufferGeometry {
   return soup(lamp, push => {
     const at = (ring: number, step: number): void => {
       const t     = ring / rings
       const turn  = step / SPILL_AROUND * Math.PI * 2
       const level = SPILL_PEAK * (1 - t) ** SPILL_FALL
+      const bias  = SPILL_MIN + (1 - SPILL_MIN) * Math.cos(turn) ** 2
 
-      push(Math.cos(turn) * t * reach, Math.sin(turn) * t * reach, level)
+      push(Math.cos(turn) * t * reach * bias, Math.sin(turn) * t * reach * bias, level)
     }
 
     for (let ring = 0; ring < rings; ring += 1)

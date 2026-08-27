@@ -1,6 +1,6 @@
 import { createSeededRng, smoothstep } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
-import { coastWarp, sampleHeight } from '../noise.ts'
+import { coastWarp, sampleHeight, valueNoise } from '../noise.ts'
 import { createCreek } from './creek.ts'
 import type { Creek } from './creek.ts'
 import { MILL_FOOTING, findMillSite } from './mill.ts'
@@ -142,9 +142,115 @@ export function sinkToIsland (config: ScapeConfig, x: number, z: number, height:
   return seabed + (height - seabed) * land
 }
 
+/**
+ * Where the four low-pass taps sit, in metres.
+ *
+ * The wavelength this smooths away. Fourteen metres is a little wider than the
+ * hillside bumps that make the ground read as one steep hill after another, and
+ * comfortably narrower than the massif, so the big shape survives untouched.
+ */
+const RELIEF_TAPS = [[ -14, 0 ], [ 14, 0 ], [ 0, -14 ], [ 0, 14 ]] as const
+
+
+/** Feature size of the mask's coarse octave, in metres — about a third of an island. */
+const COARSE_RELIEF = 330
+
+
+/** Feature size of the fine octave, which roughens the boundary the coarse one draws. */
+const FINE_RELIEF = 90
+
+
+/**
+ * Freeboard, in metres, over which the smoothing fades in from the shore.
+ *
+ * Below this the ground keeps exactly the height it was authored at, which is
+ * a navigation invariant rather than a look: `createWorldPort` throws rather
+ * than sail a ferry over dry ground, so ground moved near the waterline takes
+ * the whole survey down with `no navigable water beyond <id> jetty`. Holding
+ * the first two and a half metres also keeps the coastline as sharply drawn as
+ * it was, which is where the eye reads an island's edge.
+ */
+const SHORE_HOLD = 2.5
+
+
+/**
+ * The ruggedness-mask relief shaper.
+ *
+ * "One steep hill after another" is a complaint about *slope*, not about
+ * height, and the two want opposite treatments. The first cut of this compressed
+ * elevation with a power curve, which does flatten the ground — by taking the
+ * hills down with it. That costs the island the one thing the layout searches
+ * are looking for: `pasture` wants upland, `mill` wants prominence, and a
+ * landscape squashed toward the waterline has neither, so two of the five
+ * islands simply stopped having a pasture at all.
+ *
+ * So this is a low-pass instead. In regions the ruggedness mask marks as gentle
+ * the ground is blended toward the mean of its own neighbourhood, which leaves
+ * the local average — the massif, the upland, the prominence — exactly where it
+ * was and takes out only the mid-frequency relief riding on top of it. The
+ * rugged regions are not touched at all, so the steep places stay steep.
+ *
+ * Applied after the island falloff but before the islets are raised, so islets
+ * are never flattened and the shore shelf and plot levelling still work against
+ * the shaped terrain.
+ *
+ * Lives here rather than in `height.ts` for the reason `sinkToIsland` does, and
+ * it is the same reason: the layout searches have to ask what the ground *will*
+ * be before that ground exists. Shaping the field without shaping the predictor
+ * is two approximations of one landscape, and it sites a pasture on upland that
+ * the field then flattens into the sea.
+ */
+export function remapRelief (config: ScapeConfig, x: number, z: number, height: number): number {
+  const { waterLevel, ruggedness, reliefSmoothing } = config.terrain
+  const { seed }                                    = config
+
+  if (reliefSmoothing <= 0 || ruggedness <= 0)
+    return height
+
+  const relative = height - waterLevel
+
+  // Below water or at the waterline, nothing: the seabed is not where the eye
+  // reads steepness, and the ferry lanes are decided by this ground.
+  if (relative <= 0)
+    return height
+
+  // Two octaves of *smooth* noise, so the steep places are somewhere rather
+  // than everywhere at reduced strength.
+  //
+  // `valueNoise` rather than `hash2`, which is the trap this mask was built on:
+  // a hash answers per exact coordinate, so sampling one across the ground is
+  // white noise — every vertex lands anywhere in 0..1 and neighbours disagree
+  // completely. A mask like that has no regions in it to be gentle or rugged;
+  // it speckles the island at vertex frequency, which averages to nothing at a
+  // distance and reads as noise up close.
+  const coarse = valueNoise(x / COARSE_RELIEF + seed * 0.01, z / COARSE_RELIEF - seed * 0.01, seed)
+  const fine   = valueNoise(x / FINE_RELIEF + seed * 0.03, z / FINE_RELIEF - seed * 0.02, seed ^ 0x51)
+  const mask   = coarse * 0.7 + fine * 0.3
+
+  // Regions above the threshold are rugged and keep every metre of their
+  // relief. Below it the ground is gentle and gets smoothed.
+  const gentle = (1 - smoothstep(1 - ruggedness - 0.15, 1 - ruggedness + 0.15, mask)) *
+    smoothstep(0, SHORE_HOLD, relative)
+
+  if (gentle <= 0.001)
+    return height
+
+  // The neighbourhood mean, from four samples a smoothing radius out. Blending
+  // toward it is what takes the *gradient* down while leaving the local average
+  // alone — which is the whole difference between gentler ground and lower
+  // ground, and the reason the upland survives this.
+  let sum = 0
+
+  for (const [ dx, dz ] of RELIEF_TAPS)
+    sum += sinkToIsland(config, x + dx, z + dz, baseAt(config, x + dx, z + dz))
+
+  return height + (sum / RELIEF_TAPS.length - height) * gentle * reliefSmoothing
+}
+
+
 /** The ground as the falloff leaves it, before any of the authored levelling. */
 function sunkAt (config: ScapeConfig, x: number, z: number): number {
-  return sinkToIsland(config, x, z, baseAt(config, x, z))
+  return remapRelief(config, x, z, sinkToIsland(config, x, z, baseAt(config, x, z)))
 }
 
 /**

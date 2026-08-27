@@ -100,6 +100,13 @@ const RATE_STEPS = 5
  */
 const SCREEN_FLOOR = 0.018
 
+/**
+ * The naive floor `Math.max(birds.wingspan, viewSize * SCREEN_FLOOR)` grows
+ * with the orthographic view — pulling back makes every gull wider. This cap
+ * lets the floor double the true wingspan before the view wins.
+ */
+const MAX_INFLATE = 2
+
 /** Metres a bird rises and falls over one turn of its ring. */
 const BOB = 0.9
 
@@ -438,9 +445,12 @@ export function createBirdFlocks ({
 
       const viewSize = camera.userData.viewSize as number ?? config().camera.viewSize
 
-      material.uniforms.uSweep.value      = swept
-      material.uniforms.uBeat.value       = beaten
-      material.uniforms.uWingspan.value   = Math.max(birds.wingspan, viewSize * SCREEN_FLOOR)
+      material.uniforms.uSweep.value    = swept
+      material.uniforms.uBeat.value     = beaten
+      material.uniforms.uWingspan.value = Math.min(
+        birds.wingspan * MAX_INFLATE,
+        Math.max(birds.wingspan, viewSize * SCREEN_FLOOR),
+      )
       material.uniforms.uCeiling.value    = birds.ceiling
       material.uniforms.uWaterLevel.value = config().terrain.waterLevel
 

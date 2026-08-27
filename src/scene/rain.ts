@@ -3,6 +3,7 @@ import {
   BufferGeometry,
   Color,
   DoubleSide,
+  MathUtils,
   Mesh,
   ShaderMaterial,
   Vector2,
@@ -51,7 +52,7 @@ export interface RainOptions {
  * for. Scaled to `viewSize` instead, the drop count *is* a screen density: 2600
  * drops look like 2600 drops from anywhere on the zoom range.
  */
-const SPAN = 2.4
+const SPAN = 2.8
 
 /** Height of the column, as a multiple of the view. */
 const RISE = 0.85
@@ -59,9 +60,14 @@ const RISE = 0.85
 /** How far below the focus point the column starts, as a share of its height. */
 const DROP = 0.3
 
-/** Streak length and half-width, as fractions of the view. */
-const STREAK = 0.026
-const GIRTH  = 0.0016
+// Streak length and half-width, as fractions of the default view. These are
+// constant in screen terms rather than world terms: a streak that grows with
+// `viewSize` reads as a rod at close zoom and a dot at far zoom. Tied to the
+// default viewSize (the value `viewSize` has at mid-range) and divided by the
+// live `viewSize` in the update, so the streak stays the same number of pixels
+// however far out the map is drawn.
+const STREAK = 0.026 * 260
+const GIRTH  = 0.0016 * 260
 
 /** What a flake keeps of a drop's length and of its speed. */
 const FLAKE_LENGTH = 0.16
@@ -297,10 +303,23 @@ export function createRainLayer ({
       const focus    = camera.userData.target as readonly [number, number, number] | undefined
       const rise     = viewSize * RISE
 
-      box.set(viewSize * SPAN, rise, viewSize * SPAN)
+      // The tilt foreshortens the ground along the view axis: at 52° the footprint
+      // is `viewSize / sin(52°) ≈ 1.27 * viewSize` deep but `viewSize` wide.
+      // A square column sized on `viewSize` alone leaves the far half of the frame
+      // dry — the rain stops at the frustum's midline and the top third is clear.
+      const tiltRad  = MathUtils.degToRad(
+        21 + (52 - 21) * Math.min(1, Math.max(0, (viewSize - 8) / (1600 - 8))),
+      )
+      const sinTilt  = Math.max(Math.sin(tiltRad), 0.5)
+
+      box.set(viewSize * SPAN, rise, viewSize * SPAN / sinTilt)
+
+      // Constant in screen terms: the streak and girth are authored at the
+      // default viewSize and scaled inversely with the live one, so a streak
+      // that reads as two pixels at 260 m reads as two pixels at 1600 m.
       streak.set(
-        viewSize * GIRTH,
-        viewSize * STREAK * (1 - (1 - FLAKE_LENGTH) * sleet),
+        GIRTH / viewSize,
+        STREAK / viewSize * (1 - (1 - FLAKE_LENGTH) * sleet),
       )
 
       // The wind the grass already leans on, taken from the one place that

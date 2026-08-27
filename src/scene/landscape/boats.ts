@@ -21,6 +21,35 @@ import { yawAlong } from './layout.ts'
 import { BOAT_HULL_RADIUS, sampleWaterway } from './waterway.ts'
 import type { RouteSample, WaterwayNetwork, WaterwayRoute } from './waterway.ts'
 
+/**
+ * Trail ring buffer dimensions. Six samples spanning roughly 2.5 seconds of
+ * travel at the default speed give enough history for a smooth curved wake
+ * while the boat turns, and a 0.55 m spacing keeps the interpolated polyline
+ * close to the boat's actual path without burning more uniforms than a weak
+ * mobile gpu can spare. The ring is resampled at fixed world-space spacing
+ * rather than per frame so the trail shape is the same whatever the frame rate.
+ */
+const TRAIL_POINTS  = 6
+const TRAIL_SPACING = 0.55
+
+interface WakeTrailPoint {
+  x:         number
+  z:         number
+  dirX:      number
+  dirZ:      number
+  trailDist: number
+}
+
+interface WakeTrail {
+  points: WakeTrailPoint[]
+  head:   number
+  count:  number
+  accum:  number
+  lastX:  number
+  lastZ:  number
+  filled: boolean
+}
+
 
 export interface BoatPose extends ScheduledBoatSample {
   instanceId: number
@@ -40,6 +69,7 @@ export interface BoatWakeEmitter {
   speed:      number
   strength:   number
   phase:      number
+  trail?:     WakeTrail
 }
 
 export interface BoatMotionConfig {
@@ -103,6 +133,24 @@ function copyWake (source: BoatWakeEmitter, target: BoatWakeEmitter): void {
   target.speed      = source.speed
   target.strength   = source.strength
   target.phase      = source.phase
+
+  if (source.trail && target.trail) {
+    target.trail.head   = source.trail.head
+    target.trail.count  = source.trail.count
+    target.trail.accum  = source.trail.accum
+    target.trail.lastX  = source.trail.lastX
+    target.trail.lastZ  = source.trail.lastZ
+    target.trail.filled = source.trail.filled
+    for (let i = 0; i < TRAIL_POINTS; i++) {
+      const sp     = source.trail.points[i]
+      const tp     = target.trail.points[i]
+      tp.x         = sp.x
+      tp.z         = sp.z
+      tp.dirX      = sp.dirX
+      tp.dirZ      = sp.dirZ
+      tp.trailDist = sp.trailDist
+    }
+  }
 }
 
 function routeBounds (route: WaterwayRoute, y: number): Sphere {
@@ -160,6 +208,53 @@ function createWake (instanceId: number): BoatWakeEmitter {
     speed:      0,
     strength:   0,
     phase:      0,
+    trail:      {
+      points: Array.from(
+        { length: TRAIL_POINTS },
+        (): WakeTrailPoint => ({
+          x: 0, z: 0, dirX: 0, dirZ: 1, trailDist: 0,
+        }),
+      ),
+      head:   0,
+      count:  0,
+      accum:  0,
+      lastX:  0,
+      lastZ:  0,
+      filled: false,
+    },
+  }
+}
+
+function advanceTrail (wake: BoatWakeEmitter, pose: BoatPose, forwardX: number, forwardZ: number): void {
+  const trail = wake.trail!
+  if (!pose.moving)
+    return
+
+  const dx   = wake.x - trail.lastX
+  const dz   = wake.z - trail.lastZ
+  const step = Math.hypot(dx, dz)
+  trail.accum += step
+
+  if (!trail.filled || trail.accum >= TRAIL_SPACING) {
+    const tail = trail.head
+    trail.head = (trail.head + 1) % TRAIL_POINTS
+
+    const p     = trail.points[trail.head]
+    p.x         = wake.x
+    p.z         = wake.z
+    p.dirX      = forwardX
+    p.dirZ      = forwardZ
+    p.trailDist = trail.filled
+      ? trail.points[tail].trailDist + step
+      : 0
+    trail.lastX = wake.x
+    trail.lastZ = wake.z
+    trail.accum = 0
+    if (!trail.filled) {
+      trail.count = Math.min(trail.count + 1, TRAIL_POINTS)
+      if (trail.count >= TRAIL_POINTS)
+        trail.filled = true
+    }
   }
 }
 
@@ -248,6 +343,13 @@ export function createBoatFleet (options: BoatFleetOptions): BoatFleet {
       wake.speed      = pose.speed
       wake.strength   = pose.speed01
       wake.phase     += pose.speed * Math.max(0, delta)
+
+      // Advance the trail ring buffer at fixed world-space spacing rather than
+      // per frame so the trail shape is the same whatever the frame rate. Each
+      // new point carries the cumulative distance from the stern, which the
+      // shader uses to anchor its ripple phase — ripples sit on the water
+      // where they were made rather than sliding with the boat.
+      advanceTrail(wake, pose, forwardX, forwardZ)
     }
 
     mesh.instanceMatrix.needsUpdate = true

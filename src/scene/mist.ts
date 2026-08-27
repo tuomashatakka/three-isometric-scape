@@ -445,12 +445,13 @@ export function createMistLayer ({
     const weight   = (1 - index / (sliceCount + 1)) * SLICE_ALPHA
     const material = mistMaterial(tile(index, 0.5), amount * weight, `mist-slice-${index + 1}`, mistColor)
 
-    const mesh         = new Mesh(upright, material)
-    mesh.name          = `mist-slice-${index + 1}`
-    mesh.position.y    = waterLine + MIST_HEIGHT * 0.5 - 0.6
-    mesh.renderOrder   = LAYER.mist + count + index
-    mesh.frustumCulled = false
-    mesh.visible       = visible
+    const mesh          = new Mesh(upright, material)
+    mesh.name           = `mist-slice-${index + 1}`
+    mesh.rotation.order = 'YXZ'
+    mesh.position.y     = waterLine + MIST_HEIGHT * 0.5 - 0.6
+    mesh.renderOrder    = LAYER.mist + count + index
+    mesh.frustumCulled  = false
+    mesh.visible        = visible
 
     return { mesh, ...drift(index + count, weight, mistColor) }
   })

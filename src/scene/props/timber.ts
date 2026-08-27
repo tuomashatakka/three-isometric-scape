@@ -281,7 +281,14 @@ export function monoRoof (
  */
 export type WallAxis = 'x' | 'z'
 
-/** A window: a dark pane set inside a painted surround. */
+/**
+ * A window: a dark recess cut into the wall with a proud frame around it.
+ *
+ * The glass is offset *inward* (opposite to `facing`) so it reads as a hole
+ * rather than a panel stuck on the surface. The frame is wide enough to
+ * protrude past both the wall face and the recessed pane, which gives the
+ * opening its reveal depth — the visible step between frame front and glass.
+ */
 export function window (
   parts:  BufferGeometry[],
   rng:    SeededRng,
@@ -296,17 +303,22 @@ export function window (
   const [ x, y, z ] = at
   const along       = axis === 'x'
 
-  // The surround and the glass are the same two boxes either way — what the
-  // axis swaps is which of their horizontal extents is the window's width and
-  // which is its thickness through the wall.
+  // the frame sits centred on the pane table's position and is thick enough
+  // to protrude past both the wall face and the recessed glass — 0.06 m on
+  // each side, which is a visible reveal without dwarfing a small opening.
   parts.push(part(
-    along ? box(0.1, height + 0.22, width + 0.22) : box(width + 0.22, height + 0.22, 0.1),
+    along ? box(0.12, height + 0.22, width + 0.22) : box(width + 0.22, height + 0.22, 0.12),
     { at: [ x, y, z ], color: frame, jitter: 0.04, rng },
   ))
+
+  // the glass goes *inward*, opposite to `facing`, so the viewer sees a dark
+  // recess behind the frame rather than a pale sticker on the wall — the sign
+  // is the whole illusion. 0.04 m inside the wall face is enough to shadow
+  // the pane without burying it.
   parts.push(part(
-    along ? box(0.08, height, width) : box(width, height, 0.08),
+    along ? box(0.06, height, width) : box(width, height, 0.06),
     {
-      at:     along ? [ x + facing * 0.05, y, z ] : [ x, y, z + facing * 0.05 ],
+      at:     along ? [ x - facing * 0.04, y, z ] : [ x, y, z - facing * 0.04 ],
       color:  glass,
       jitter: 0.12,
       rng,
