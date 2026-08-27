@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { SCAPE_CONFIG } from '../config.ts'
 import { BEACON_FOOTING, beaconCrown, findBeaconSite, footingIsDry } from './beacon.ts'
-import { surveyArchipelago } from './archipelago.ts'
+import { SURVEY_BUDGET_MS, surveyArchipelago } from './archipelago.ts'
 import { createZoneTests } from './dressing-zones.ts'
 import { resolveIsles } from './height.ts'
 import { surveyScape } from './survey.ts'
@@ -104,10 +104,10 @@ describe('siting the light', () => {
     // And the rock beyond it is ordinary ground again.
     expect(onBeacon(site.x + BEACON_FOOTING + 0.5, site.z)).toBe(false)
 
-  // Its own budget: this is the only test in the file that surveys the whole
+  // The survey budget: this is the only test in the file that surveys the whole
   // archipelago rather than the home island, which is three surveys' work
   // against a five-second default.
-  }, 30_000)
+  }, SURVEY_BUDGET_MS)
 
   test('a rock too small for masonry gets no tower', () => {
     expect(findBeaconSite(withBeacon({ minRock: 40 }), survey.field)).toBeNull()

@@ -24,7 +24,7 @@ import { createGroundContact, findCrossing, isFoliage, plotOutline, trackPointNe
 import { createScatterRules, createZoneTests } from './dressing-zones.ts'
 import { yawAlong } from './layout.ts'
 import type { Plot, Vec2 } from './layout.ts'
-import { createDiscSampler, createSpotSampler, createTreadSampler } from './samplers.ts'
+import { createDiscSampler, createSkerrySampler, createSpotSampler, createTreadSampler } from './samplers.ts'
 
 
 export interface Dressing {
@@ -204,10 +204,16 @@ export function createDressing (
     quality.terrainSegments,
   )
 
-  const budget   = (count: number): number =>
+  // `spread` is which world the count is a count *of*. Almost everything is
+  // dressing islands, so island area is the default. The guard is not: sixteen
+  // chains are thrown whatever the archipelago's area, so a budget aimed at the
+  // rocks that took `areaScale` would be multiplied by five islands it has
+  // nothing to do with. Naming the scale is cheaper than discovering it as
+  // five times the weed nobody asked for.
+  const budget   = (count: number, spread = areaScale): number =>
     Math.max(
       archipelago.landmasses.length,
-      Math.round(count * quality.scatterScale * areaScale),
+      Math.round(count * quality.scatterScale * spread),
     )
 
   const solver = createPlacementField({
@@ -815,6 +821,29 @@ export function createDressing (
 
     scatterCover('crop', config.dressing.crop, (x, z) =>
       onPlot(x, z) > 0.35 && heightAt(x, z) > water + 0.6, 0.85, 1.15, 0, 90, true, sampleSpot, TILT.rooted)
+
+    // The tidal band on the rocks out in the open water. Its own sampler for the
+    // reason the paving has one, and its own scale for the reason `budget` now
+    // takes one. The two bands are height tests and nothing else — no rule
+    // anywhere says "this is a skerry", because the sampler has already decided
+    // that and the height decides the rest. Which is what lets the same two
+    // bands dress an island shore the day somebody points them at one.
+    const sampleSkerry = createSkerrySampler(archipelago.skerries, rng.fork('skerry'))
+
+    // No rocks, no tidal band, and no second switch anywhere that says so.
+    if (sampleSkerry) {
+      const { weedDepth, weedRise, lichenBase, wrack, crust } = config.littoral
+
+      scatterCover('bladderwrack', wrack, (x, z) => {
+        const height = heightAt(x, z)
+        return height > water - weedDepth && height < water + weedRise
+      }, 0.7, 1.4, 0, 24, true, sampleSkerry, TILT.rooted, 1)
+
+      // Stone rather than foliage, for the reason the cobbles are: lichen that
+      // took the wind sway would be a crust breathing on the rock it grew to.
+      scatterCover('rockLichen', crust, (x, z) =>
+        heightAt(x, z) > water + lichenBase, 0.75, 1.45, 0, 24, false, sampleSkerry, TILT.loose, 1)
+    }
   }
 
   dressGround()
@@ -906,8 +935,9 @@ export function createDressing (
     foliage = true,
     sample = sampleSpot,
     tilt: TiltWeight = 0,
+    spread?: number,
   ): void {
-    const total = budget(count)
+    const total = budget(count, spread)
     root.add(stamp(name, total, () => {
       for (let attempt = 0; attempt < attempts; attempt += 1) {
         const { x, z } = sample()

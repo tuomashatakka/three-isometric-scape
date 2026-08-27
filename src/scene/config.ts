@@ -432,6 +432,79 @@ export interface ScapeConfig {
   }
 
   /**
+   * The tidal band on the rocks in the open sea.
+   *
+   * The guard put forty-nine rocks in water that had been empty, and left every
+   * one of them bare — `createSpotSampler` draws from the landmass discs and
+   * their islets only, so no scatter budget in the scape could reach one. This
+   * is the band that dresses them, and it is written as a *zone* rather than as
+   * two more scatter counts: what grows on a sea rock is decided by how far
+   * above the water it is standing and nothing else, which is the one fact a
+   * littoral zone is.
+   *
+   * Build-time like `skerries` and `creek`, and out of the tuning overlay for
+   * the same reason: the weed is stamped into instance matrices once, so a
+   * slider here would need a rebuild to be seen and would be lying about what a
+   * slider does.
+   *
+   * Every length is metres and stays metres. There is no world-sized number in
+   * the section at all — a tide does not get deeper because the archipelago got
+   * wider, and the one thing that does scale with the world, how many rocks
+   * there are to dress, is already `skerries.chains`.
+   */
+  littoral: {
+
+    /**
+     * Metres under the waterline the weed still holds.
+     *
+     * The switch for the weed, and the only one: 0 leaves the rocks scoured and
+     * there is no boolean beside it. Deep enough to reach the top of the shelf
+     * and no deeper — bladderwrack is an intertidal weed, and a scape that grew
+     * it four metres down would be growing it where no tide has ever gone.
+     */
+    weedDepth: number
+
+    /**
+     * Metres over the waterline the weed still holds.
+     *
+     * The splash zone. Weed does not stop dead at the waterline, and a band that
+     * did would draw a machined line round every rock — the same failure the
+     * ice edge has `iceBreak` to avoid.
+     */
+    weedRise: number
+
+    /**
+     * Metres over the waterline before the lichen starts.
+     *
+     * Above the weed and never in it: the two bands share the rock and must not
+     * share a height, because a crust drawn under the tide is a crust that
+     * spends its life submerged. Kept clear of `weedRise` so there is a strip of
+     * bare stone between them, which is what the real zonation looks like.
+     */
+    lichenBase: number
+
+    /**
+     * How darkly the weed stains the stone it covers, 0..1.
+     *
+     * The band is painted into the rock's own vertex colours as well as being
+     * stamped as clumps, and this is the paint. A rock forty metres across seen
+     * from two hundred shows a dark ring at the waterline, not weed — so the
+     * ring is a tint, and the clumps are what the close zoom finds on top of it.
+     *
+     * 0 leaves the stone bare and the clumps standing on unstained rock, which
+     * looks exactly like weed that has been pasted on. It is not a second switch
+     * for the band: `weedDepth` is the switch.
+     */
+    weedShade: number
+
+    /** Weed clumps attempted across the whole guard. */
+    wrack: number
+
+    /** Lichen crusts attempted across the whole guard. */
+    crust: number
+  }
+
+  /**
    * The paths worn between the places the farm has to be.
    *
    * Build-time like `creek` and `layout`, and absent from the tuning overlay for
@@ -1217,6 +1290,17 @@ export interface ScapeConfig {
     scree:        number
     lichen:       number
 
+    /**
+     * Bladderwrack on wet stone — the tidal band on the rocks in the open sea.
+     *
+     * Olive-brown and very dark, because weed out of the water nearly is. Its
+     * own entry rather than a reuse of `heath` or `streambed`: the band has to
+     * read as a different substance from the rock it is on, and a second name
+     * for an existing tone is how two rocks in one scape end up different
+     * colours. See `ScapeConfig.littoral`.
+     */
+    wrack: number
+
     /** Mown upland grass — the clearing inside the pasture wall. */
     pasture: number
 
@@ -1627,6 +1711,23 @@ export const SCAPE_CONFIG = {
     spacing:      46,
     clearance:    70,
   },
+
+  // The bands are tight because the rocks are low: `skerries.crest` carries the
+  // tallest rock of a chain 1.9 m over the water, so a weed band a metre deep
+  // and a lichen line 0.55 m up divide a rock into three legible parts. Widen
+  // either and the whole guard is one colour again.
+  // The counts are for the whole guard rather than for one island, and the guard
+  // is large: forty-nine rocks of ten to twenty-two metres' radius is more stone
+  // than the home island has coast. A budget sized like a scatter on one holding
+  // works out at three clumps a rock and photographs as nothing at all.
+  littoral: {
+    weedDepth:  1,
+    weedRise:   0.8,
+    lichenBase: 1.15,
+    weedShade:  0.88,
+    wrack:      4_200,
+    crust:      2_200,
+  },
   footpath: {
     width:  1.5,
     verge:  0.7,
@@ -1914,6 +2015,7 @@ export const SCAPE_CONFIG = {
     heath:        0x6b6a52,
     scree:        0x7d7a72,
     lichen:       0x9aa088,
+    wrack:        0x3f3a20,
     pasture:      0x76803f,
     streambed:    0x585f57,
     trodden:      0x6c6049,

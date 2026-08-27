@@ -3,6 +3,7 @@ import type { SeededRng } from 'threejs-scene'
 import { buildLighthouse } from './beacon.ts'
 import { buildAitta, buildBarn, buildFarmhouse, buildSauna, buildWoodshed } from './buildings.ts'
 import { buildWindmill } from './mill.ts'
+import { buildBladderwrack, buildRockLichen } from './littoral.ts'
 import { buildBarrel, buildDriftwood, buildFirewood, buildHayBale, buildMailbox, buildRowboat } from './objects.ts'
 import type { NordicPalette } from './palette.ts'
 import { buildBoathouse, buildMooringPost, buildNetRack } from './shore.ts'
@@ -88,6 +89,9 @@ export const PROPS = {
   lilyPads:   buildLilyPads,
   crop:       buildCropRow,
 
+  bladderwrack: buildBladderwrack,
+  rockLichen:   buildRockLichen,
+
   erratic:    buildErratic,
   fieldStone: buildFieldStone,
   cobble:     buildCobble,
@@ -112,6 +116,7 @@ export const SCATTER_PROPS = [
   'spruce', 'pine', 'birch', 'deadSpruce', 'sapling', 'stump', 'juniper',
   'grass', 'heather', 'wildflower', 'reeds', 'lilyPads', 'crop',
   'erratic', 'fieldStone', 'cobble', 'cairn',
+  'bladderwrack', 'rockLichen',
   'hayBale', 'firewood', 'barrel', 'driftwood', 'mooringPost', 'hayPole',
 ] as const satisfies readonly PropName[]
 

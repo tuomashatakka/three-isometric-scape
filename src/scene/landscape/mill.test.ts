@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { SCAPE_CONFIG } from '../config.ts'
-import { surveyArchipelago } from './archipelago.ts'
+import { SURVEY_BUDGET_MS, surveyArchipelago } from './archipelago.ts'
 import { createScapeLayout } from './layout.ts'
 import { MILL_FOOTING, MILL_STAIR_REACH, findMillSite, millDoorstep, prominenceAt } from './mill.ts'
 import type { MillSearch } from './mill.ts'
@@ -128,5 +128,5 @@ describe('the mills the scape actually has', () => {
     // Not every island has to have one, but the scape would be making a claim
     // it could not keep if none of them did.
     expect(archipelago.landmasses.some(landmass => landmass.survey.layout.mill)).toBe(true)
-  }, 30_000)
+  }, SURVEY_BUDGET_MS)
 })

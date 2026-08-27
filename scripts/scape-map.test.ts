@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { SCAPE_CONFIG } from '../src/scene/config.ts'
 import type { ScapeConfig } from '../src/scene/config.ts'
-import { surveyArchipelago } from '../src/scene/landscape/archipelago.ts'
+import { SURVEY_BUDGET_MS, surveyArchipelago } from '../src/scene/landscape/archipelago.ts'
 import { applyOverrides, coerce, parseArgs } from './args.ts'
 import { ALL_LAYERS, LAND_RAMP, WATER_RAMP, glyphFor, renderGrid, surveyStats } from './scape-map.ts'
 import { shotUrl } from './scape-shot.ts'
@@ -70,9 +70,9 @@ describe('the map', () => {
   })
 
   // A second seed means a second full survey — every island resited, every
-  // route retraced — and that is several seconds of work on its own before a
-  // glyph is drawn. The default per-test budget is written for assertions
-  // against a survey that already exists, so this one states its own.
+  // route retraced — and that is minutes of work on its own before a glyph is
+  // drawn. The default per-test budget is written for assertions against a
+  // survey that already exists, so this one takes the published survey budget.
   test('a different seed is a different archipelago', () => {
     const other = clone()
 
@@ -80,7 +80,7 @@ describe('the map', () => {
 
     expect(renderGrid(other, surveyArchipelago(other), WINDOW, 48, 24, ALL_LAYERS))
       .not.toBe(renderGrid(config, archipelago, WINDOW, 48, 24, ALL_LAYERS))
-  }, 30_000)
+  }, SURVEY_BUDGET_MS)
 
   test('dropping every overlay leaves only ground', () => {
     const bare = renderGrid(config, archipelago, WINDOW, 48, 24, {
@@ -185,13 +185,13 @@ describe('the stats', () => {
   })
 
   // A second survey of the same seed, for the same reason the second-seed test
-  // above states a budget: proving determinism costs a whole extra archipelago.
+  // above takes the budget: proving determinism costs a whole extra archipelago.
   test('it is the same survey twice', () => {
     const again = clone()
 
     expect(surveyStats(again, surveyArchipelago(again), WINDOW, 32, 16))
       .toEqual(surveyStats(config, archipelago, WINDOW, 32, 16))
-  }, 30_000)
+  }, SURVEY_BUDGET_MS)
 })
 
 

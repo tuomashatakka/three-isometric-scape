@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { SCAPE_CONFIG } from '../config.ts'
 import type { ScapeConfig } from '../config.ts'
-import { surveyArchipelago } from './archipelago.ts'
+import { SURVEY_BUDGET_MS, surveyArchipelago } from './archipelago.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
 import { STEADING_BUILDINGS } from './steading.ts'
 
@@ -60,7 +60,7 @@ describe('the inhabited archipelago', () => {
     const again       = surveyArchipelago(againConfig)
 
     expect(structuralSignature(again)).toEqual(structuralSignature(world))
-  }, 30_000)
+  }, SURVEY_BUDGET_MS)
 
   test('each island carries the same essential holding and a route to its jetty', () => {
     for (const landmass of world.landmasses) {
