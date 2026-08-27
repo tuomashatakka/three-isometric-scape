@@ -2,6 +2,8 @@ import type { SeededRng } from 'threejs-scene'
 import type { ArchipelagoSurvey } from './archipelago.ts'
 import type { Footpaths } from './footpath.ts'
 import type { Vec2 } from './path.ts'
+import { SKERRY_WATERLINE } from './skerry.ts'
+import type { SkerryGuard } from './skerry.ts'
 
 
 /**
@@ -20,6 +22,16 @@ import type { Vec2 } from './path.ts'
  */
 
 const TAU = Math.PI * 2
+
+/**
+ * How far past the waterline seam a skerry's darts still land, as a fraction.
+ *
+ * The weed hangs *down* off the rock as well as sitting on it, so a dart circle
+ * that stopped exactly at the seam would place nothing in the band the weed
+ * actually lives in. A little over it, and the height test does the rest — the
+ * sampler decides where the budget is spent, never what is acceptable.
+ */
+const WRACK_MARGIN = 1.3
 
 /**
  * A candidate-point generator, biased onto land.
@@ -67,6 +79,58 @@ export function createSpotSampler (
       })
     }
   }
+
+  return () => {
+    const want   = rng.next() * total
+    const region = regions.find(candidate => candidate.reach >= want) ?? regions[regions.length - 1]
+    const angle  = rng.next() * TAU
+    const radius = Math.sqrt(rng.next()) * region.radius
+
+    spot.x = region.x + Math.cos(angle) * radius
+    spot.z = region.z + Math.sin(angle) * radius
+    return spot
+  }
+}
+
+/**
+ * Candidate points drawn from the rocks standing in the open sea.
+ *
+ * The island sampler cannot reach a skerry, and that is deliberate rather than
+ * an oversight: its regions are the landmass discs and their islets, which is
+ * exactly what keeps a scatter budget from sowing reeds in the middle of the
+ * ocean. The guard needs the opposite instrument. Forty-nine rocks a few tens of
+ * metres across, thrown over fifteen hundred metres of water, are about a
+ * thousandth of the field — a uniform dart lands on one roughly never, so the
+ * only way a budget of rock weed becomes rock weed on the ground is to draw the
+ * candidates from the rocks themselves.
+ *
+ * Darts stop at the waterline seam rather than at the rock's outer edge.
+ * `Skerry.radius` runs all the way out to where the stone has fallen back to the
+ * seabed, and most of that circle is several metres under water: aiming at it
+ * would throw the greater part of every budget into the sea and report a count
+ * the scape does not have. {@link SKERRY_WATERLINE} is where the sea actually
+ * meets the rock, and the margin past it is the shelf the weed hangs down into.
+ *
+ * `null` when the guard is empty — which is what `skerries.crest = 0` leaves
+ * behind. No rocks to sample means nothing growing on them, without a second
+ * switch anywhere saying so.
+ */
+export function createSkerrySampler (guard: SkerryGuard, rng: SeededRng): (() => Vec2) | null {
+  const spot                                                               = { x: 0, z: 0 }
+  const regions: { x: number, z: number, radius: number, reach: number }[] = []
+  let total = 0
+
+  for (const skerry of guard.skerries) {
+    const radius = skerry.radius * SKERRY_WATERLINE * WRACK_MARGIN
+
+    // Area-weighted, so a twenty-two metre rock carries more than a four metre
+    // one instead of the guard being dressed a rock at a time.
+    total += radius * radius
+    regions.push({ x: skerry.x, z: skerry.z, radius, reach: total })
+  }
+
+  if (regions.length === 0 || total <= 0)
+    return null
 
   return () => {
     const want   = rng.next() * total

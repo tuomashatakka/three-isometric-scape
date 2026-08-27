@@ -475,7 +475,10 @@ function skerryGeometry (
   const tide           = new Color(config.palette.streambed)
   const dry            = new Color(config.palette.scree)
   const crown          = new Color(config.palette.lichen)
+  const weed           = new Color(config.palette.wrack)
   const paint          = new Color()
+
+  const { weedDepth, weedRise, weedShade } = config.littoral
 
   return archipelago.skerries.skerries.map(skerry => {
     const side     = skerry.radius * 2.5
@@ -504,6 +507,20 @@ function skerryGeometry (
       else
         paint.copy(tide).lerp(dry, smoothstep(0, 0.7, over))
           .lerp(crown, smoothstep(0.9, 2.2, over) * 0.5)
+
+      // The tidal band, painted rather than modelled. A rock forty metres across
+      // seen from two hundred does not show individual weed — it shows a dark
+      // ring at the waterline, and the honest way to draw a tint is a tint. The
+      // clumps `dressing.ts` stamps into the same band are the close-zoom detail
+      // over the top of this, not the thing that makes it read.
+      //
+      // Both read `littoral`, so the paint and the weed standing on it cannot
+      // disagree about where the tide reaches. Zeroing `weedDepth` collapses the
+      // band here and empties the scatter there, which is the one switch.
+      paint.lerp(weed, weedShade * Math.min(
+        smoothstep(-weedDepth, -weedDepth * 0.5, over),
+        smoothstep(weedRise, weedRise * 0.4, over),
+      ))
 
       paint.multiplyScalar(0.9 + hash2(x * 0.11, z * 0.11) * 0.17)
       paint.toArray(colors, index * 3)

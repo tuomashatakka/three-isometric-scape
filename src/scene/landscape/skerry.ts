@@ -100,8 +100,15 @@ const LOBE = 0.19
  * So the profile is two curves with the waterline as the seam between them, and
  * this is where the seam sits. The shelf is what the surf then breaks over, and
  * the crown is the part anybody can see.
+ *
+ * Exported because it is the only answer to "how much of a rock is out of the
+ * water", and anything aiming at a rock rather than at the sea round it needs
+ * that answer. A second copy of 0.42 elsewhere is a scatter that drifts off the
+ * stone the first time the profile is retuned.
  */
-const SHELF = 0.42
+export const SKERRY_WATERLINE = 0.42
+
+const SHELF = SKERRY_WATERLINE
 
 /** Attempts per rock before a chain gives up on the sea it is in. */
 const TRIES = 24

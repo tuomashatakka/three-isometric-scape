@@ -133,7 +133,7 @@ url overrides for a device you cannot attach a debugger to: `?debug` adds live v
 
 the intended first edit is [`src/scene/config.ts`](src/scene/config.ts). `SCAPE_CONFIG` owns the seed, terrain extent and waterline, the islets, the beck, the footpaths, the dressing budgets, camera framing and zoom limits, all three clocks, the whole light and atmosphere rig, the optical chain, and the complete palette.
 
-a knob that is **visual and read per frame** also belongs in [`ui/scape-controls.ts`](src/ui/scape-controls.ts) as a dotted path, which makes it persist, reset and become url-addressable for free. a knob that needs a **rebuild** to be seen — `layout.*`, `creek.*`, `footpath.*`, `cartRuts.*`, `dressing.*`, `strand.*`, `skerries.*` — stays out of the overlay, because a slider that lies about what it does is worse than no slider.
+a knob that is **visual and read per frame** also belongs in [`ui/scape-controls.ts`](src/ui/scape-controls.ts) as a dotted path, which makes it persist, reset and become url-addressable for free. a knob that needs a **rebuild** to be seen — `layout.*`, `creek.*`, `footpath.*`, `cartRuts.*`, `dressing.*`, `strand.*`, `skerries.*`, `littoral.*` — stays out of the overlay, because a slider that lies about what it does is worse than no slider.
 
 `camera.focusX` and `camera.focusZ` are where the camera *opens*, read once when the controls are built and live state from then on. they default to the middle of the world, which is open sea — set them to put the opening view on the farm, and set them from a url to capture anything on the ground at all.
 
@@ -229,7 +229,7 @@ src/
     │   ├── terrain.ts              geometry, banded colour, path wear and cart soil painted in, ruts merged on
     │   ├── shore-mask.ts           the baked bathymetry, and which way each coast faces
     │   ├── water.ts                swell, surf, foam, glitter, winter ice
-    │   ├── samplers.ts             where the dressing throws its darts
+    │   ├── samplers.ts             where the dressing throws its darts, islands and rocks alike
     │   ├── dressing-zones.ts       what the composition already claims the ground for
     │   ├── dressing-helpers.ts     the placement questions that are pure geometry
     │   ├── dressing.ts             placement, hero merge, instanced scatter
@@ -253,7 +253,8 @@ src/
         ├── beacon.ts               the lighthouse tower, and the optic that turns in it
         ├── shore.ts                boathouse and slipway, net rack, mooring stakes
         ├── objects.ts              rowboat, bales, firewood, barrel, mailbox, driftwood
-        └── stone.ts                erratics, field stones, cobbles, cairns
+        ├── stone.ts                erratics, field stones, cobbles, cairns
+        └── littoral.ts             bladderwrack and rock lichen — the tidal band
 
 scripts/
 ├── args.ts                         the shared command line, and dotted-path overrides
@@ -533,9 +534,27 @@ there are fifteen, grouped rather than evenly spread — a close western pair, a
 
 **`clearance` is the number the ferries depend on.** the network is planned over the field the rocks are already in, and `createWaterways` throws rather than sail a boat through one — so a guard dropped across a harbour mouth is a failed build, and a guard dropped just outside one is a route that survives by taking the long way round every rock in the world. seventy metres is comfortably more than `boats.routeCell`, which keeps every landing's water several navigation cells wide before the planner ever runs. the five legs, the 2,516 m of route and the 0.55 m of minimum clearance are all unchanged with the guard in the field, and `skerry.test.ts` states that as a fact rather than leaving it to a screenshot.
 
-**the rocks are bare, and that is the sampler rather than a rule.** `createSpotSampler` draws candidates from the landmass discs and their islets only, never from the open sea, so no scatter budget can reach a skerry — no reeds growing in the middle of the ocean, and no cost. a guard with a tuft of lichen on it would want the sampler to be told about the rocks, which is a run of its own.
+**the rocks were bare, and that was the sampler rather than a rule.** `createSpotSampler` draws candidates from the landmass discs and their islets only, never from the open sea, so no scatter budget could reach a skerry — no reeds growing in the middle of the ocean, and no cost. giving the guard a tidal band meant giving it a sampler of its own; see [the tidal band](#the-tidal-band) below.
 
 **they cost no draw call.** each rock is a small patch sampled from the composite field and merged into the same single terrain geometry the islands and the bar are in. `SKERRY_DETAIL` is the fells' argument at a different number: a rock looked at from four hundred metres up does not need the island's two metres to a quad, and forty-nine of them drawn at that density would cost more triangles than the home island does. 0.45 was the first cut and `--poses guard` refused it — five and a half metres to a quad leaves the crowns visibly faceted at `reef-near` — so it is 0.7, three metres to a quad, which the whole guard pays for in about 22k triangles against 1.84M.
+
+## the tidal band
+
+forty-nine rocks stood in the open sea with nothing on them. the guard had solved where they go and what shape they are, and left every one of them a bare grey cap — which at `reef-near` is a blank pale lozenge in the middle of the frame. `config.littoral` is what grows on them.
+
+**a littoral zone is one fact: how far above the water a thing is standing.** so the section is written as a zone rather than as two more scatter counts. `weedDepth` and `weedRise` are the band the weed holds, either side of the waterline; `lichenBase` is where the crust starts, kept clear of `weedRise` so a strip of bare stone stays between them. nothing in the section says "skerry" — which is what would let the same three numbers dress an island shore the day somebody points them at one.
+
+**the band is painted *and* modelled, from the same three numbers.** a rock forty metres across seen from two hundred does not show individual weed, it shows a dark ring at the waterline — so the ring is a tint in the rock's own vertex colours, and the clumps stamped into the same band are what the close zoom finds on top of it. both read `config.littoral`, because two answers to where the tide reaches is weed hanging in mid-air the first time either moves. zeroing `weedDepth` collapses the paint and empties the scatter together, and that is the one switch: there is no boolean beside it.
+
+**the paint is a tint and cannot be more than one.** at the capture tier a skerry patch is about three metres to a quad and a rock's exposed cap is nine metres across, so the cap is three quads wide and a vertex-colour band is smeared across a single interpolation. that is a real ceiling rather than a tuning problem — resolving a sharp tideline in the mesh means multiplying `SKERRY_DETAIL`, which the guard's own run already measured and set at 0.7. so the paint does what a low-resolution colour can honestly do, a soft darkening of the rim, and the clumps carry the detail.
+
+**the sampler is the whole reason a budget lands.** `createSkerrySampler` draws from the rocks themselves, area-weighted, and stops at the waterline seam rather than at `Skerry.radius` — the radius runs out to where the stone has fallen back to the seabed, and most of that circle is metres under water. forty-nine rocks are about a thousandth of a fifteen-hundred-metre field, so a uniform dart lands on one roughly never; `SKERRY_WATERLINE` is exported from `skerry.ts` for this, because a second copy of 0.42 is a scatter that drifts off the stone the first time the profile is retuned. an empty guard returns `null`, and the absence is what stands in for a second flag.
+
+**the count is a count of the guard, not of an island.** `budget()` grew a `spread` argument for it. every other scatter in the scape is dressing islands and takes `areaScale`, the summed island area; sixteen chains are thrown whatever that area is, so a guard budget that took it would have been multiplied by five islands it has nothing to do with. naming the scale is cheaper than discovering it as five times the weed nobody asked for.
+
+**two props, two instanced draws, and no texture memory.** [`props/littoral.ts`](src/scene/props/littoral.ts) is its own file for the reason `shore.ts` and `upland.ts` are: nothing else in the scape grows where these do, and nothing in `vegetation.ts` would last a tide. the wrack is five straps bent past a half turn so the clump finishes *below* its own holdfast — a frond bent by less than that still spends most of its length going up, and the first cut read as grass standing in the sea. `littoral.test.ts` states the resulting silhouette, broader than it is tall, as the fact that separates the two. the lichen is four discs two centimetres proud, which is a stain rather than a thing standing on the rock, and one patch in four is drawn rust so the crust is not one flat colour repeated forty-nine times.
+
+**every tier gets it.** the counts go through `quality.scatterScale`, so `minimal` takes 16% of them and `ultra` 150%, and the geometry is small enough that the cheapest device still gets weed on its rocks rather than a coarse substitute.
 
 ## the beck, and the inlet it cuts
 
