@@ -165,6 +165,7 @@ bun run scape:shot --poses beacon                   # the light, 4 headings, at 
 bun run scape:shot --poses coast                    # the shoreline, 4 frames, weather side and lee
 bun run scape:shot --poses steading                 # the farmyard, 4 frames, summer/winter/night/evening
 bun run scape:shot --poses guard                    # the rocks in the open sea, 4 frames
+bun run scape:shot --poses window                   # one farmhouse wall, 2 frames: the glass by day, the lamp at dusk
 bun run scape:shot --poses chapel                   # the church and its yard, 4 frames
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0

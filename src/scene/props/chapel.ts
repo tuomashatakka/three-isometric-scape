@@ -42,6 +42,16 @@ import type { RoofPlane } from './timber.ts'
 const NAVE_LENGTH = 5.8
 const NAVE_DEPTH  = 2.1
 
+/**
+ * How thick the board skin is, on the nave, the chancel and the tower alike.
+ *
+ * One number rather than the five literals it was, because {@link CHAPEL_WINDOWS}
+ * is read as saying where the wall's *face* is — see `window()` in `timber.ts` —
+ * and the face is the wall's centre plus half its skin. A skin retuned here and a
+ * pane table left alone is a window inside its own wall.
+ */
+const NAVE_SKIN = 0.16
+
 /** Top of the granite socle — the floor every wall on the building stands on. */
 const PLINTH = 0.4
 
@@ -103,7 +113,7 @@ const CHANCEL_COVER = CHANCEL_LEN + 0.6
 export const CHAPEL_WINDOWS: readonly WindowPane[] = [
   ...([ 1, -1 ] as const).flatMap(side =>
     [ -0.9, 0.5, 1.9 ].map((x): WindowPane =>
-      ({ x, y: PLINTH + 1.8, z: side * (NAVE_DEPTH + 0.06), width: 0.62, height: 1.3, facing: side }))),
+      ({ x, y: PLINTH + 1.8, z: side * (NAVE_DEPTH + NAVE_SKIN / 2), width: 0.62, height: 1.3, facing: side }))),
 
   // The east light, over the altar. In a gable rather than a long wall, so it is
   // the one pane the fixed dimetric heading can never hide behind a roof.
@@ -151,7 +161,7 @@ function boards (
   const width = span / count * 0.92
 
   for (const x of spread(count, span - width))
-    parts.push(part(box(width, height, 0.16), {
+    parts.push(part(box(width, height, NAVE_SKIN), {
       at: [ at + x, baseY + height / 2, z ], color, jitter: 0.09, rng,
     }))
 }
@@ -212,7 +222,7 @@ function nave (parts: BufferGeometry[], rng: SeededRng, palette: NordicPalette):
   const wall = NAVE_ROOF.eaveY - PLINTH
 
   for (const side of [ -1, 1 ]) {
-    claddingPlanks(parts, rng, palette.trimWhite, 12, NAVE_LENGTH, wall, 0.16, side * NAVE_DEPTH, PLINTH)
+    claddingPlanks(parts, rng, palette.trimWhite, 12, NAVE_LENGTH, wall, NAVE_SKIN, side * NAVE_DEPTH, PLINTH)
 
     // The corner boards, tarred. On a white wall they are the only thing that
     // says where the building ends at the zoom the whole island fits into.

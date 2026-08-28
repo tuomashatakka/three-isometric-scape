@@ -219,6 +219,45 @@ export const TOURS: Record<string, Pose[]> = {
     },
   ],
 
+  /**
+   * One farmhouse wall, from close enough to see a window as a window.
+   *
+   * The sixth set added for the reason the first five were, and the smallest
+   * subject yet: a pane is 0.8 m across, which at the tour's closest frame is
+   * four pixels and at its default one is a third of a pixel. Every set before
+   * this was aimed at something a building tall; this is aimed at something a
+   * *window* tall, because that is the scale at which the kit's glass and the
+   * lamplight behind it are either there or not — and for two runs they were not,
+   * with no pose in the scape pointed anywhere near them.
+   *
+   * `window` is the daylight frame: the surround, the reveal and the dark glass
+   * in it. `window-evening` is the same wall at nine in the evening in late
+   * autumn, which is the hour the household has its lamps lit — the one frame in
+   * the scape where a window is a light source rather than a hole.
+   *
+   * The heading is deliberately not the default 45°. The farmhouse turns its
+   * front to the yard and the yard is west of it, so the door wall — the one with
+   * four of the house's thirteen panes in it — faces away from the camera at
+   * every pose the scape opens on.
+   */
+  window: [
+    {
+      name: 'window',
+      rot:  225,
+      zoom: 16,
+      time: 0.5,
+      set:  [ 'camera.focusX=-8', 'camera.focusZ=3' ],
+    },
+    {
+      name:   'window-evening',
+      rot:    225,
+      zoom:   16,
+      time:   0.875,
+      season: 0.78,
+      set:    [ 'camera.focusX=-8', 'camera.focusZ=3' ],
+    },
+  ],
+
   // The cheap pass: is there a scape at all, and does it survive being drawn.
   quick: [{ name: 'default' }],
 }
@@ -551,7 +590,7 @@ async function main (): Promise<void> {
     console.log([
       'scape:shot — the scape, from a pose, without anybody watching',
       '',
-      '  --poses tour          named set: tour (6) | beacon (4, the light)',
+      '  --poses tour          named set: tour (6) | beacon (4, the light) | window (2)',
       '                        coast (4, the shoreline) | steading (3, the farmyard)',
       '                        guard (4, the rocks in the open sea)',
       '                        chapel (4, the church and its yard) | quick (1)',

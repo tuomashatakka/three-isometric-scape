@@ -1,8 +1,26 @@
 import { describe, expect, test } from 'bun:test'
 import type { BufferGeometry } from 'three'
 import { createSeededRng } from 'threejs-scene'
+import {
+  BARN_WINDOWS,
+  FARMHOUSE_WINDOWS,
+  SAUNA_WINDOWS,
+  buildBarn,
+  buildFarmhouse,
+  buildSauna,
+} from './buildings.ts'
+import type { WindowPane } from './buildings.ts'
+import { CHAPEL_WINDOWS, buildChapel } from './chapel.ts'
 import { resolvePalette } from './palette.ts'
-import { dormer, gableEnd, gabledRoof, monoRoof, roofUnderside } from './timber.ts'
+import {
+  WINDOW_FRAME_PROUD,
+  WINDOW_GLASS_PROUD,
+  dormer,
+  gableEnd,
+  gabledRoof,
+  monoRoof,
+  roofUnderside,
+} from './timber.ts'
 
 
 /**
@@ -157,5 +175,107 @@ describe('a dormer', () => {
     // line they sit on — which is why it is 0.3 m and not a hair.
     for (const rise of [ 0.3, 0.5, 2, 20 ])
       expect(Math.max(...build(rise).map(([ , y ]) => y))).toBeLessThan(roof.peakY)
+  })
+})
+
+
+/**
+ * The claim every window in the scape quietly failed for two runs.
+ *
+ * A window here is not a hole. The kit has no holes: a wall is a slab of
+ * cladding and a window is drawn onto the face of it, so the surround and the
+ * glass both have to stand *proud* of that face — and the pane table is read as
+ * saying where the face is.
+ *
+ * When the surround was one solid slab covering the whole opening, the glass sat
+ * 0.07 m behind its own front face and no camera in the scape could see a pane of
+ * glass anywhere in the archipelago. Nothing failed: a window with no glass in it
+ * looks exactly like a window from twenty metres away, which is the only distance
+ * anything had ever looked from.
+ *
+ * So the claim is stated where it cannot hide — as a fact about the built
+ * geometry, for every published pane in the kit at once. Standing at the middle
+ * of a pane and looking straight at it, the nearest surface of the building is
+ * the glass. If a later run thickens a wall, moves a plank or writes a pane table
+ * at the wall's centre instead of its face, this is what says so.
+ */
+/**
+ * The nearest surface to the eye at one point of a wall, looking along the
+ * pane's own outward normal.
+ *
+ * A triangle counts when its footprint in the wall's plane covers the point.
+ * The bounding box is enough for that here: everything in this kit that can
+ * stand in front of a pane is an axis-aligned box.
+ */
+function outermostAt (geometry: BufferGeometry, pane: WindowPane): [number, number] {
+  const points = geometry.getAttribute('position').array as ArrayLike<number>
+  const colors = geometry.getAttribute('color').array as ArrayLike<number>
+  const along  = pane.axis === 'x'
+  const across = along ? pane.z : pane.x
+
+  let face  = -Infinity
+  let level = 1
+
+  for (let corner = 0; corner < points.length; corner += 9) {
+    let low    = Infinity
+    let high   = -Infinity
+    let lowUp  = Infinity
+    let highUp = -Infinity
+    let out    = -Infinity
+
+    for (let step = 0; step < 3; step += 1) {
+      const base = corner + step * 3
+      const side = along ? points[base + 2] : points[base]
+
+      low    = Math.min(low, side)
+      high   = Math.max(high, side)
+      lowUp  = Math.min(lowUp, points[base + 1])
+      highUp = Math.max(highUp, points[base + 1])
+      out    = Math.max(out, (along ? points[base] : points[base + 2]) * pane.facing)
+    }
+
+    if (across < low || across > high || pane.y < lowUp || pane.y > highUp || out <= face)
+      continue
+
+    face  = out
+    level = Math.max(colors[corner], colors[corner + 1], colors[corner + 2])
+  }
+
+  return [ face, level ]
+}
+
+describe('a window is a hole with glass in it', () => {
+  const glazed = [
+    [ 'farmhouse', buildFarmhouse, FARMHOUSE_WINDOWS ],
+    [ 'barn', buildBarn, BARN_WINDOWS ],
+    [ 'sauna', buildSauna, SAUNA_WINDOWS ],
+    [ 'chapel', buildChapel, CHAPEL_WINDOWS ],
+  ] as const
+
+  test.each(glazed)('%s: every pane is glass the eye can reach', (_name, build, panes) => {
+    const geometry = build(rng(), palette)
+
+    expect(panes.length).toBeGreaterThan(0)
+
+    for (const pane of panes) {
+      const [ face, level ] = outermostAt(geometry, pane)
+      const wall            = (pane.axis === 'x' ? pane.x : pane.z) * pane.facing
+
+      // Dark. Every wall colour in the kit — falu red, limewash, tarred board,
+      // shingle — is far brighter than the glass, so this is what separates
+      // "the pane is visible" from "something else is standing in front of it".
+      expect(level).toBeLessThan(0.2)
+
+      // And it is where the glass was asked to be: proud of the wall the pane
+      // table names, by the width of the pane's own slab and no more.
+      expect(face).toBeGreaterThan(wall)
+      expect(face - wall).toBeCloseTo(WINDOW_GLASS_PROUD, 2)
+    }
+
+    geometry.dispose()
+  })
+
+  test('the surround stands proud of the glass, which is what makes a reveal', () => {
+    expect(WINDOW_FRAME_PROUD).toBeGreaterThan(WINDOW_GLASS_PROUD)
   })
 })

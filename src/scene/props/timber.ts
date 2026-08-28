@@ -282,12 +282,60 @@ export function monoRoof (
 export type WallAxis = 'x' | 'z'
 
 /**
- * A window: a dark recess cut into the wall with a proud frame around it.
+ * How far the glass stands proud of the wall it is cut into, in metres.
  *
- * The glass is offset *inward* (opposite to `facing`) so it reads as a hole
- * rather than a panel stuck on the surface. The frame is wide enough to
- * protrude past both the wall face and the recessed pane, which gives the
- * opening its reveal depth — the visible step between frame front and glass.
+ * Three centimetres, which is nothing — and it has to be *something*. The kit
+ * does not cut holes: a wall is a slab of cladding and a window is drawn onto
+ * the face of it, so a pane written flush with that face is a pane the wall
+ * z-fights with, and a pane written behind it is a pane the wall hides.
+ */
+export const WINDOW_GLASS_PROUD = 0.03
+
+/** How thick the surround is, in metres. */
+export const WINDOW_FRAME_DEPTH = 0.12
+
+/**
+ * How far the surround's front face stands proud of the wall, in metres.
+ *
+ * Published because two things have to agree about it and only one of them
+ * builds it: this is the plane a lit window's own light has to clear, and
+ * `props/lamp.ts` is where that light is placed. The difference between this and
+ * {@link WINDOW_GLASS_PROUD} is the reveal — the visible step from the front of
+ * the surround down to the glass in it.
+ */
+export const WINDOW_FRAME_PROUD = 0.09
+
+/** How wide the surround's bars are, in metres. */
+const WINDOW_FRAME_BAR = 0.1
+
+/** How thick the glass slab is. Thin enough to read as a pane, thick enough to shade. */
+const GLASS_DEPTH = 0.06
+
+/**
+ * A window: a dark pane set into a wall, with a proud surround around it.
+ *
+ * ## The surround is a ring, and the opening is empty
+ *
+ * It used to be one solid slab — `box(width + 0.22, height + 0.22, 0.12)` centred
+ * on the pane — with the glass 0.04 m *behind* it. A slab that covers the opening
+ * is not a surround, it is a shutter: the glass ended up inside it, 0.07 m behind
+ * its own front face, and every window in the archipelago drew as a blank pale
+ * rectangle with nothing in it. Nothing reported that, because a window with no
+ * glass in it looks exactly like a window from far enough away — and the thing it
+ * buried, the lamplight in `scene/windows.ts`, was deeper in still and drew
+ * *nothing at all*: `--skip windows` changed the frame by one channel level on
+ * one pixel.
+ *
+ * So the surround is four bars around the opening and the opening is empty.
+ *
+ * ## Everything is built outward, because the kit does not cut holes
+ *
+ * A wall here is a slab of cladding with a window drawn on the face of it, so
+ * both the glass and the surround stand *proud* — {@link WINDOW_GLASS_PROUD} and
+ * {@link WINDOW_FRAME_PROUD} — and the pane table is read as saying where that
+ * face is. Which is a contract the tables have to keep, and `timber.test.ts`
+ * states it as a fact about the geometry: at the middle of every published pane
+ * in the kit, the outermost surface of the building is the glass.
  */
 export function window (
   parts:  BufferGeometry[],
@@ -302,23 +350,41 @@ export function window (
 ): void {
   const [ x, y, z ] = at
   const along       = axis === 'x'
+  const bar         = WINDOW_FRAME_BAR
+  const reach       = bar / 2
+  const here        = along ? x : z
 
-  // the frame sits centred on the pane table's position and is thick enough
-  // to protrude past both the wall face and the recessed glass — 0.06 m on
-  // each side, which is a visible reveal without dwarfing a small opening.
-  parts.push(part(
-    along ? box(0.12, height + 0.22, width + 0.22) : box(width + 0.22, height + 0.22, 0.12),
-    { at: [ x, y, z ], color: frame, jitter: 0.04, rng },
-  ))
+  // Both stand out from the wall the pane is written on, so both are offsets
+  // along the outward normal rather than absolute coordinates — which is what
+  // keeps the sign in one place instead of in four.
+  const glassAt = here + facing * (WINDOW_GLASS_PROUD - GLASS_DEPTH / 2)
+  const frameAt = here + facing * (WINDOW_FRAME_PROUD - WINDOW_FRAME_DEPTH / 2)
 
-  // the glass goes *inward*, opposite to `facing`, so the viewer sees a dark
-  // recess behind the frame rather than a pale sticker on the wall — the sign
-  // is the whole illusion. 0.04 m inside the wall face is enough to shadow
-  // the pane without burying it.
+  // The head and the sill, spanning the full width of the surround, and the two
+  // jambs between them. Written as offsets in the wall's own plane so the same
+  // four bars serve a long wall and a gable end.
+  const bars: [number, number, number, number][] = [
+    [ 0, height / 2 + reach, width + bar * 2, bar ],
+    [ 0, -(height / 2 + reach), width + bar * 2, bar ],
+    [ width / 2 + reach, 0, bar, height ],
+    [ -(width / 2 + reach), 0, bar, height ],
+  ]
+
+  for (const [ across, up, spanW, spanH ] of bars)
+    parts.push(part(
+      along ? box(WINDOW_FRAME_DEPTH, spanH, spanW) : box(spanW, spanH, WINDOW_FRAME_DEPTH),
+      {
+        at:     along ? [ frameAt, y + up, z + across ] : [ x + across, y + up, frameAt ],
+        color:  frame,
+        jitter: 0.04,
+        rng,
+      },
+    ))
+
   parts.push(part(
-    along ? box(0.06, height, width) : box(width, height, 0.06),
+    along ? box(GLASS_DEPTH, height, width) : box(width, height, GLASS_DEPTH),
     {
-      at:     along ? [ x - facing * 0.04, y, z ] : [ x, y, z - facing * 0.04 ],
+      at:     along ? [ glassAt, y, z ] : [ x, y, glassAt ],
       color:  glass,
       jitter: 0.12,
       rng,
