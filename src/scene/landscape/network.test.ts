@@ -4,7 +4,7 @@ import type { Obstacle } from './footpath.ts'
 import { createHeightField } from './height.ts'
 import { findHarbourBank, findLanding } from './landing.ts'
 import { createScapeLayout } from './layout.ts'
-import { planFarmNetwork } from './network.ts'
+import { farmWaypoints, planFarmNetwork } from './network.ts'
 import { STEADING_BUILDINGS, doorstepOf, faceToward, steadingPlaces } from './steading.ts'
 
 
@@ -164,5 +164,37 @@ describe('which way a building faces', () => {
       expect(stepped).toBeLessThan(toYard)
       expect(Math.hypot(step.x - place.x, step.z - place.z)).toBeGreaterThan(place.radius)
     }
+  })
+})
+
+/**
+ * The chapel is walked to; it is not a place anything else is oriented by.
+ *
+ * A field's gate is cut toward the nearest *anchor*, and letting the church be
+ * one turned a plot gate round to face it — which put that field's only leg onto
+ * the cart track, where the tracer correctly refuses to wear a second line
+ * beside the road, and left the field with no way in. The waypoint therefore
+ * joins the list after the gates are cut, and this is the claim that says so.
+ */
+describe('the chapel in the street plan', () => {
+  test('is walked to, and is not what a field turns its gate toward', () => {
+    const points = farmWaypoints(layout, places, [ landing, harbour ])
+    const chapel = points.find(point => point.kind === 'chapel')
+
+    expect(chapel).toBeDefined()
+
+    // Every gate is cut before the chapel is named, so no gate can be facing it.
+    const gates = points.filter(point => point.kind === 'field')
+
+    expect(points.indexOf(chapel!)).toBeGreaterThan(Math.max(...gates.map(gate => points.indexOf(gate))))
+  })
+
+  test('has a leg planned to it, like every other place the farm walks to', () => {
+    const points = farmWaypoints(layout, places, [ landing, harbour ])
+    const at     = points.findIndex(point => point.kind === 'chapel')
+    const plan   = planFarmNetwork(layout, places, [ landing, harbour ], avoid)
+
+    expect(at).toBeGreaterThan(-1)
+    expect(plan.legs.some(([ a, b ]) => a === at || b === at)).toBe(true)
   })
 })

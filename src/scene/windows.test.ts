@@ -5,6 +5,7 @@ import { createDaylight } from './daylight.ts'
 import { surveyArchipelago } from './landscape/archipelago.ts'
 import { surveyWindows } from './landscape/windows.ts'
 import { BARN_WINDOWS, FARMHOUSE_WINDOWS, SAUNA_WINDOWS } from './props/buildings.ts'
+import { CHAPEL_WINDOWS } from './props/chapel.ts'
 import { createWindowLamps, householdWake, isLit, lampLevel } from './windows.ts'
 import { LADDER, atmosphereQuality } from './quality.ts'
 
@@ -13,6 +14,9 @@ const survey = surveyArchipelago(SCAPE_CONFIG)
 const panes  = surveyWindows(survey)
 
 const A_HOLDING = FARMHOUSE_WINDOWS.length + SAUNA_WINDOWS.length + BARN_WINDOWS.length
+
+/** How many of the five islands the survey found a knoll to put a chapel on. */
+const CHAPELS = survey.landmasses.filter(landmass => landmass.survey.layout.chapel).length
 
 /** Enough of a sky for the one path that never reads it. See the absence test. */
 const DAYLIGHT = createDaylight(() => SCAPE_CONFIG).state
@@ -24,9 +28,17 @@ function tuned (windows: Partial<ScapeConfig['windows']>): ScapeConfig {
 
 
 describe('where the lamps are', () => {
-  test('is every glazed pane on every holding', () => {
-    expect(panes.length).toBe(SCAPE_CONFIG.archipelago.landmasses.length * A_HOLDING)
+  test('is every glazed pane on every holding, and in every chapel', () => {
+    expect(panes.length)
+      .toBe(SCAPE_CONFIG.archipelago.landmasses.length * A_HOLDING + CHAPELS * CHAPEL_WINDOWS.length)
     expect(A_HOLDING).toBe(13)
+    expect(CHAPEL_WINDOWS.length).toBe(7)
+
+    // Not every island carries one — the ridge has no knoll near enough to its
+    // farm — so a count that assumed one per landmass would be wrong on the
+    // seed this scape actually opens at.
+    expect(CHAPELS).toBeGreaterThan(0)
+    expect(CHAPELS).toBeLessThan(SCAPE_CONFIG.archipelago.landmasses.length)
   })
 
   /**

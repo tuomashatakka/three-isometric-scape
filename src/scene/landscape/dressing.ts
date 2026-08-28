@@ -5,8 +5,6 @@ import type { SeededRng } from 'threejs-scene'
 
 import { createPlacementField, mergeGeometryList, scatterInstances } from 'threejs-scene/modules/assets'
 import type { ScapeConfig } from '../config.ts'
-import { buildFenceRun } from '../props/fence.ts'
-import type { FencePoint } from '../props/fence.ts'
 import { buildProp, resolvePalette } from '../props/index.ts'
 import type { PropName } from '../props/index.ts'
 import type { ScapeMaterials } from '../props/material.ts'
@@ -14,13 +12,14 @@ import { Ploppable, baseFootprint } from '../props/ploppable.ts'
 import type { Footprint } from '../props/ploppable.ts'
 import { BEACON_SINK } from '../props/beacon.ts'
 import { MILL_SINK } from '../props/mill.ts'
-import { buildStoneWallRun } from '../props/wall.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import type { TiltWeight } from './align.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from './archipelago.ts'
 import { BEACON_FOOTING } from './beacon.ts'
 import type { Spot } from './landing.ts'
-import { createGroundContact, findCrossing, isFoliage, plotOutline, trackPointNear } from './dressing-helpers.ts'
+import { createGroundContact, findCrossing, isFoliage, trackPointNear } from './dressing-helpers.ts'
+import { raiseEnclosures } from './dressing-enclosures.ts'
+import type { Walling } from './dressing-enclosures.ts'
 import { createScatterRules, createZoneTests } from './dressing-zones.ts'
 import { yawAlong } from './layout.ts'
 import type { Plot, Vec2 } from './layout.ts'
@@ -234,8 +233,21 @@ export function createDressing (
   /** Where the harbours ended up, so their shallows can be dressed as their own. */
   const harbourAnchors: Vec2[] = []
 
-  function placeHero (name: PropName, x: number, z: number, angle: number, sink = 0.12): void {
-    const geometry = buildProp(name, rng.fork(`hero-${name}`), palette)
+  /**
+   * `variant` is for the props there is more than one of. Every hero is built
+   * from a fork named after the prop, which is what keeps one seed giving one
+   * farmhouse — and which would otherwise give a churchyard fourteen copies of
+   * the same stone, leaning the same way.
+   */
+  function placeHero (
+    name:  PropName,
+    x:     number,
+    z:     number,
+    angle: number,
+    sink = 0.12,
+    variant = '',
+  ): void {
+    const geometry = buildProp(name, rng.fork(`hero-${name}${variant}`), palette)
     geometry.rotateY(angle)
     geometry.translate(x, heightAt(x, z) - sink, z)
     heroes.push(geometry)
@@ -513,117 +525,6 @@ export function createDressing (
   }
 
   /**
-   * The upland pasture: a drystone wall around the hay meadow, a barn inside it
-   * and a gate where the wall is left open toward the farm.
-   *
-   * The wall is a hero geometry like the fencing, so the whole enclosure costs
-   * no draw call of its own — and it is *reserved against* rather than merely
-   * built, because the solver has no idea it exists and would otherwise stand a
-   * spruce in the middle of it.
-   */
-  function raiseUpland (landmass: LandmassSurvey): void {
-    const localPasture = landmass.survey.layout.pasture
-
-    if (!localPasture)
-      return
-
-    const pasture = {
-      ...localPasture,
-      x: localPasture.x + landmass.origin.x,
-      z: localPasture.z + landmass.origin.z,
-    }
-    const gap                = landmass.config.layout.pastureGateway * Math.PI / 180
-    const arc                = TAU - gap
-    const stones             = Math.max(12, Math.round(pasture.radius * arc / 2))
-    const line: FencePoint[] = []
-
-    for (let step = 0; step <= stones; step += 1) {
-      const angle = pasture.gateway + gap / 2 + arc * (step / stones)
-      line.push({
-        x: pasture.x + Math.cos(angle) * pasture.radius,
-        z: pasture.z + Math.sin(angle) * pasture.radius,
-      })
-    }
-
-    const wall = buildStoneWallRun({
-      points:    line,
-      heightAt,
-      rng:       rng.fork(`pasture-wall-${landmass.id}`),
-      palette,
-      minHeight: water + 0.6,
-    })
-
-    if (wall)
-      heroes.push(wall)
-
-    // Just wide enough to keep a trunk out of the stones. The claims reach
-    // inward as well as out, and an enclosure this size has very little middle
-    // left once the barn has taken its own — reserve generously here and the
-    // meadow ends up walled, barned and empty.
-    for (const point of line)
-      solver.reserve(point.x, point.z, 1.2)
-
-    // The gate stands in the gap, across it — the same relationship the track's
-    // gate has to the track, which is why it takes the same quarter turn.
-    placeHero(
-      'gate',
-      pasture.x + Math.cos(pasture.gateway) * pasture.radius,
-      pasture.z + Math.sin(pasture.gateway) * pasture.radius,
-      pasture.gateway + Math.PI / 2,
-    )
-
-    // The barn goes at the back of the enclosure with its doorway looking down
-    // at the farm, so the gateway, the yard and the barn door all line up.
-    //
-    // Hard against the back wall, not halfway out: a building's claim on the
-    // solver is a circle around its longest half, which on an enclosure this
-    // size is most of the enclosure. Set back it leans that circle onto the
-    // wall's own claims, and the meadow keeps a middle to stand hay in.
-    const barnAngle = pasture.gateway + Math.PI
-
-    // Set back against the wall, then walked in toward the middle until the
-    // ground under the whole of it is within a plinth's reach of level. The
-    // meadow is only sited for the flatness of its middle, so the back of it is
-    // not ground anything was promised it could stand on.
-    raiseBuilding(
-      'meadowBarn',
-      pasture.x + Math.cos(barnAngle) * pasture.radius * 0.68,
-      pasture.z + Math.sin(barnAngle) * pasture.radius * 0.68,
-      yawAlong(pasture.gateway),
-      pasture,
-    )
-  }
-
-  /**
-   * Fence the field plots.
-   *
-   * One continuous run per plot rather than a row of identical segment props:
-   * `buildFenceRun` sets each post at its own ground height and spans the rails
-   * between them, so the fence follows the terrain instead of floating over it.
-   * The runs join the hero merge, so all the fencing in the scape costs nothing
-   * beyond the steading's single draw.
-   */
-  function raiseFences (landmass: LandmassSurvey): void {
-    for (const [ index, plot ] of landmass.survey.layout.plots.entries()) {
-      const run = buildFenceRun({
-        points: plotOutline(plot).map(point => ({
-          x: point.x + landmass.origin.x,
-          z: point.z + landmass.origin.z,
-        })),
-        heightAt,
-        rng:       rng.fork(`fence-${landmass.id}-${index}`),
-        palette,
-        spacing:   landmass.config.layout.fenceSpacing,
-        closed:    true,
-        minHeight: water + 0.4,
-      })
-
-      if (run)
-        heroes.push(run)
-    }
-  }
-
-  /**
    * Collapse every hero prop into one geometry.
    *
    * They are static and always in frame, so per-object culling buys nothing —
@@ -652,11 +553,24 @@ export function createDressing (
     owned.geometries.push(merged)
   }
 
+  // What the walls and fences reach back through. Assembled rather than closed
+  // over, because the enclosures moved out to their own module the run the
+  // churchyard arrived — see `dressing-enclosures.ts`.
+  const walling: Walling = {
+    heightAt,
+    waterLevel: water,
+    rng,
+    palette,
+    reserve:    (x, z, radius) => solver.reserve(x, z, radius),
+    addHero:    geometry => heroes.push(geometry),
+    placeHero,
+    raiseBuilding,
+  }
+
   for (const landmass of archipelago.landmasses) {
     raiseSteading(landmass)
     raiseOutlying(landmass)
-    raiseUpland(landmass)
-    raiseFences(landmass)
+    raiseEnclosures(landmass, walling)
   }
   mergeSteading()
 
