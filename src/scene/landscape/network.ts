@@ -1,3 +1,4 @@
+import { chapelDoorstep } from './chapel.ts'
 import { CLEARANCE } from './footpath.ts'
 import type { FootpathRoute, Obstacle } from './footpath.ts'
 import { plotInfluence } from './layout.ts'
@@ -44,7 +45,7 @@ export interface Waypoint extends Vec2 {
   name: string
 
   /** What kind of place it is. Carried for the debug tools, not used in planning. */
-  kind: 'well' | 'door' | 'field' | 'meadow' | 'mill' | 'shore'
+  kind: 'well' | 'door' | 'field' | 'meadow' | 'mill' | 'chapel' | 'shore'
 }
 
 /** One planned leg, as a pair of indices into the waypoint list. */
@@ -245,6 +246,23 @@ export function farmWaypoints (
     if (gate)
       points.push({ x: gate.x, z: gate.z, name: `field-${index + 1}`, kind: 'field' })
   })
+
+  // After the gates are cut, and deliberately: a field's gate faces the nearest
+  // *anchor*, and a chapel is not one of them. It is not a farm building the
+  // field is worked from, and letting it be an anchor turned a plot gate round
+  // to face the church — which moved that field's only leg onto the cart track,
+  // where the tracer correctly refused to wear a second line beside the road,
+  // and left the field with no way in. The chapel is walked to; it is not a
+  // place anything else is oriented by.
+  //
+  // The door itself is in the tower's west face rather than on a long wall, so
+  // the place walked to is out in front of that — the same rule as every other
+  // doorstep, applied to the one building in the kit not fronted on local `+z`.
+  if (layout.chapel) {
+    const step = chapelDoorstep(layout.chapel)
+
+    points.push({ x: step.x, z: step.z, name: 'chapel', kind: 'chapel' })
+  }
 
   const shores = [ 'landing', 'harbour' ]
 

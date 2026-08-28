@@ -2,6 +2,7 @@ import { createSeededRng } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 import { findBeaconSite } from './beacon.ts'
 import type { BeaconSite } from './beacon.ts'
+import { CHAPEL_FOOTING } from './chapel.ts'
 import { createFootpaths } from './footpath.ts'
 import type { Footpaths, Obstacle } from './footpath.ts'
 import { createHeightField } from './height.ts'
@@ -77,6 +78,10 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     // The trestle, so a route bends round the piers rather than through them.
     // The sail sweep is deliberately not in here — see `MILL_FOOTING`.
     ...layout.mill ? [{ x: layout.mill.x, z: layout.mill.z, radius: MILL_FOOTING }] : [],
+    // The whole chapel, unlike the mill: there is no walking under a nave, and
+    // a leg that cut the corner off the churchyard would be a path through the
+    // graves and out over the wall.
+    ...layout.chapel ? [{ x: layout.chapel.x, z: layout.chapel.z, radius: CHAPEL_FOOTING }] : [],
   ]
   const network = planFarmNetwork(layout, places, [ landing, harbour ], avoid)
 

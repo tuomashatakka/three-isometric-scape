@@ -613,6 +613,57 @@ export interface ScapeConfig {
   }
 
   /**
+   * The chapel on the knoll, and the churchyard around it.
+   *
+   * Build-time, all four, so none of them is in the overlay: moving a building
+   * and re-walling its yard needs the whole composition re-surveyed, and a
+   * slider that requires a reload lies about what a slider does. See
+   * `landscape/chapel.ts` for the siting and `props/chapel.ts` for the building.
+   */
+  chapel: {
+
+    /**
+     * Metres the ground has to stand above what surrounds it before a chapel is
+     * built on it.
+     *
+     * The switch, and the only one — the same shape as `mill.prominence` and for
+     * the same reason. 0 puts the chapel on the first level dry patch inside
+     * `reach`, which is a chapel in a hollow; raising it past what an island
+     * offers takes that island's chapel back out of the scape.
+     */
+    prominence: number
+
+    /**
+     * How far from the yard the search will look, in metres.
+     *
+     * **Metres, and they stay metres.** This is how far a person will walk to a
+     * service on a winter morning, which is a fact about people rather than
+     * about how wide the archipelago is — so a larger world must not scale it.
+     * What it does interact with is the island: a rise past this is not a site,
+     * however prominent, and an island with nothing inside it gets no chapel.
+     */
+    reach: number
+
+    /**
+     * Radius of the walled churchyard, in metres.
+     *
+     * Measured from the chapel, and it has to clear `CHAPEL_FOOTING` — a wall
+     * inside the building's own footprint is a wall through the chancel. The
+     * ground between the two is where the markers stand.
+     */
+    yardRadius: number
+
+    /**
+     * How many grave markers the churchyard holds.
+     *
+     * A count rather than a density, because a churchyard is a fixed enclosure
+     * and not a scattered zone; 0 leaves the walled ground empty, which is what
+     * a chapel built this decade would look like.
+     */
+    graves: number
+  }
+
+  /**
    * The seamark on the outer rock, and the light it turns.
    *
    * Split the way `mill` is: the first two decide which islet the tower is built
@@ -1753,6 +1804,20 @@ export const SCAPE_CONFIG = {
     spin:       1.15,
     prominence: 1.6,
     sailSpan:   8.4,
+  },
+  // An eighth of the mill's prominence, and it is not a slack number — it is
+  // measured against the *land* rather than against the sea beside it (see
+  // `landProminenceAt`), which on this coast is a far harder question. The yard,
+  // the pasture, four plots and the mill hold every rise the home island has, so
+  // what is left for a chapel is ground that merely does not lie in a hollow: at
+  // 0.2 the search finds five squares that qualify and takes the best at 0.37.
+  // 90 metres is about two minutes' walk from the yard. The wall at 9 m clears
+  // the building's 5.5 m footing by two rows of graves.
+  chapel: {
+    prominence: 0.2,
+    reach:      90,
+    yardRadius: 9,
+    graves:     12,
   },
   // 6 metres of radius takes in the two largest islets and leaves every skerry
   // out, which is what puts the tower on the north-eastern outlier — the

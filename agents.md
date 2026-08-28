@@ -113,6 +113,8 @@ boats 3  separation 115.79m  conflicts 0
 gulls 4/4 colonies  home/harbour (-53,-63) r24.1  home/rock (71,46) r28  ridge/harbour (-116,147) r28  meadow/harbour (103,132) r28
 ```
 
+`chapel NONE` is the same kind of answer with an extra clause: a chapel needs a rise *and* a rise inside `chapel.reach` metres of its own yard, so an island whose only knolls are out on a headland gets no church rather than one nobody walks to. the line carries the distance from the yard beside the prominence for that reason — a chapel that moved on a run which touched neither `chapel.prominence` nor `chapel.reach` is a finding, and so is one whose `from the yard` crept toward the reach.
+
 `beacon NONE` is the same kind of answer: the light goes on the *outermost* islet in the ring that is broad enough for masonry and has eight dry bearings at its footing, so an archipelago whose skerries are all too small gets no lighthouse. a beacon that moved isle on a run that did not touch `beacon.minRock`, `beacon.freeboard` or `terrain.isles` is a finding.
 
 `gulls 4/4 colonies` is the flock line, and the two numbers are the finding: the second is what the islands *offered* — one landing each, plus an outer rock where a light was built — and the first is how many of those found open water wide enough to fit a whole ring over. `3/4` on a run that did not touch `birds.spread`, the coastline or the landings means a bank closed up. this is here rather than in a screenshot because a flock is four pixels wide at the default pose.
@@ -163,6 +165,7 @@ bun run scape:shot --poses beacon                   # the light, 4 headings, at 
 bun run scape:shot --poses coast                    # the shoreline, 4 frames, weather side and lee
 bun run scape:shot --poses steading                 # the farmyard, 4 frames, summer/winter/night/evening
 bun run scape:shot --poses guard                    # the rocks in the open sea, 4 frames
+bun run scape:shot --poses chapel                   # the church and its yard, 4 frames
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain
@@ -217,6 +220,8 @@ and rebuilt, which is a head start that costs exactly as much as no head start.
 
 the reuse is keyed on the commit **and on every knob that changes the picture** — tier, ratio, aa, post, skip, size, frames, stillness and `--set` — written to `.scape/ref-shots/.ref-sha` beside the images. shots on disk say nothing about what they are shots *of*, so without
 that a run reuses whatever the last one happened to leave behind. a mismatched sha, or any missing pose, rebuilds.
+
+the pose's *own* camera is keyed separately, in `.ref-poses` beside the sentinel, because a pose is named on the command line but *defined* in the working tree. retune one — move its focus, change its hour, add a `--set` to it — and the sentinel still matches while `chapel.png` has become a picture from somewhere else. a pose whose zoom, rotation, time, season or overrides have moved is rebuilt; the rest of the cache is kept, so retuning one frame does not throw the tour away.
 
 builds the reference in a detached git worktree, serves both, captures the same poses through both, prints a table. an image is written **only** for a pose that moved past `--threshold`. the `structural:` line runs `scape:map --json` on both sides, tolerates the older single-island json shape, and compares landmasses, jetties, waterways and fleet safety when present.
 
@@ -298,6 +303,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `structures.ts` | jetty, well, hay rack, gate, bridge, cart |
 | `shore.ts` | boathouse and slipway, net rack, mooring stakes |
 | `upland.ts` | meadow barn, hay drying poles |
+| `chapel.ts` | the chapel — nave, stepped chancel, open belfry, spire — and the grave markers. **fronted on `-x`, not `+z`** |
 | `mill.ts` | the post mill and its trestle, plus the sail wheel — **the one geometry not based at `y = 0`** |
 | `beacon.ts` | the lighthouse tower, and the optic — a halo plus two crossed, vertex-graded fans per panel |
 | `vegetation.ts` | spruce, pine, birch, grass, reeds, crops — and all four runtime vertex deformers: `applyTaper`/`applyBend`/`applyTwist` on a blade, `displaceByNoise` on every canopy |
@@ -317,7 +323,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | --- | --- |
 | `archipelago.ts` | local surveys projected into one field, path set and port set — **the tools' entry point** |
 | `survey.ts` | one island's pure local composition, before anything is drawn |
-| `layout.ts` | yard, cart track, field plots, ridges, pasture, mill, `sinkToIsland`, `yawAlong` |
+| `layout.ts` | yard, cart track, field plots, ridges, pasture, mill, chapel, `sinkToIsland`, `yawAlong` |
 | `height.ts` | authored ground, islets, beck, fbm underneath |
 | `steading.ts` | where the buildings stand, `faceToward`, `doorstepOf` |
 | `landing.ts` | one local shoreline, with an open-sea jetty and harbour |
@@ -333,6 +339,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `hearths.ts` | every chimney and flue in the archipelago, carried from the prop's own frame out to the mouth |
 | `windows.ts` | every glazed pane, carried out the same way and turned to its wall's outward bearing |
 | `fixtures.ts` | the transform both of those share: a point in a raised building's own frame, in world metres |
+| `chapel.ts` | the knoll a chapel stands on, its doorstep, and `chapelYaw` — the one yaw `yawAlong` cannot give |
 | `mill.ts` | the exposed shoulder a windmill stands on, and the doorstep at the foot of its stair |
 | `mill-sails.ts` | every mill's wheel in one dynamic `InstancedMesh`, geared off `wind.strength` |
 | `terrain.ts` | shared archipelago geometry, height/slope banded colour, path wear painted in |
@@ -340,6 +347,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `samplers.ts` | where the dressing throws its darts — island, disc, tread, skerry |
 | `dressing-zones.ts` | world-space keep-outs and pure scatter acceptance rules |
 | `dressing-helpers.ts` | hand-placed runs and helpers shared by each holding |
+| `dressing-enclosures.ts` | the walled ground: the pasture wall, the churchyard wall and its graves, the plot fences |
 | `dressing.ts` | placement, hero merge, instanced scatter |
 | `littoral.test.ts` | the tidal band on the guard: the sampler lands on rock, the two zones do not overlap, and both reach every rock |
 | `index.ts` | the scene module, and what raycasts |

@@ -183,6 +183,42 @@ export const TOURS: Record<string, Pose[]> = {
     },
   ],
 
+  /**
+   * The chapel on its knoll, from close enough to read the building.
+   *
+   * Added for the reason `beacon`, `coast`, `steading` and `guard` were, and it
+   * is the same reason a fifth time. The chapel is 31 m north-east of the world
+   * origin, which is exactly far enough for `near` at ten metres to be standing
+   * in the farmyard with its back to it — so the one pose in the tour that could
+   * resolve a ten-metre tower is the one pose aimed away from it.
+   *
+   * `chapel` holds the whole enclosure: the building, the wall, the gate and the
+   * markers between them. `chapel-far` pulls back to the view the composition
+   * claim is actually about — the church on its rise *above* the farm, with the
+   * steading in the same frame, which is the only way to see whether the siting
+   * search put it where a parish would. `chapel-evening` is the hour the windows
+   * are lit and the week the north has a dark one, the same pair `yard-evening`
+   * pins and for the same reason. `chapel-winter` is midwinter, where a
+   * limewashed wall has to hold its own against lying snow.
+   */
+  chapel: [
+    { name: 'chapel', zoom: 46, set: [ 'camera.focusX=26.8', 'camera.focusZ=15.1' ]},
+    { name: 'chapel-far', zoom: 120, set: [ 'camera.focusX=5', 'camera.focusZ=8' ]},
+    {
+      name:   'chapel-evening',
+      zoom:   46,
+      time:   0.875,
+      season: 0.78,
+      set:    [ 'camera.focusX=26.8', 'camera.focusZ=15.1' ],
+    },
+    {
+      name:   'chapel-winter',
+      zoom:   46,
+      season: 0.02,
+      set:    [ 'camera.focusX=26.8', 'camera.focusZ=15.1' ],
+    },
+  ],
+
   // The cheap pass: is there a scape at all, and does it survive being drawn.
   quick: [{ name: 'default' }],
 }
@@ -517,7 +553,8 @@ async function main (): Promise<void> {
       '',
       '  --poses tour          named set: tour (6) | beacon (4, the light)',
       '                        coast (4, the shoreline) | steading (3, the farmyard)',
-      '                        guard (4, the rocks in the open sea) | quick (1)',
+      '                        guard (4, the rocks in the open sea)',
+      '                        chapel (4, the church and its yard) | quick (1)',
       '  --rot 45 --zoom 70    camera yaw, and view size (tilt is derived from zoom)',
       '  --time 0.42           the day, 0..1',
       '  --season 0.5          the year, 0..1',

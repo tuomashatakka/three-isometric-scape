@@ -257,6 +257,41 @@ const REF_SHOTS    = '.scape/ref-shots'
 const REF_SENTINEL = join(REF_SHOTS, '.ref-sha')
 
 /**
+ * What each cached shot is a shot *from*.
+ *
+ * The sentinel answers "which commit, at which tier"; it cannot answer "from
+ * which camera", because the poses are named in the *working tree's* pose table
+ * rather than on the command line. So a run that retunes a pose — moves its
+ * focus, changes its hour, adds a `--set` to it — asks for `chapel.png`, finds a
+ * `chapel.png`, and diffs a new camera against an old one. That is the same
+ * silent wrong answer the sentinel exists to prevent, arriving through the one
+ * door it does not watch, and this run walked straight into it: the chapel poses
+ * were retuned the moment the building moved.
+ *
+ * A digest per pose rather than one more field on the sentinel, because
+ * `--poses` deliberately does not key the sentinel — a prewarm of the tour is
+ * meant to be reusable by a run comparing one of its frames.
+ */
+const REF_POSES = join(REF_SHOTS, '.ref-poses')
+
+/** Everything about a pose that moves the camera or the clock. */
+export function poseDigest (pose: Pose): string {
+  return JSON.stringify([ pose.rot ?? null, pose.zoom ?? null, pose.time ?? null, pose.season ?? null, pose.set ?? [] ])
+}
+
+async function recordedPoses (): Promise<Record<string, string>> {
+  if (!existsSync(REF_POSES))
+    return {}
+
+  try {
+    return JSON.parse(await Bun.file(REF_POSES).text()) as Record<string, string>
+  }
+  catch {
+    return {}
+  }
+}
+
+/**
  * What the shots on disk are shots *of*.
  *
  * The commit alone is not enough. Every knob below changes the picture without
@@ -281,7 +316,13 @@ async function refShotsMatch (
 
   const stamped = (await Bun.file(REF_SENTINEL).text()).trim()
 
-  return stamped === stamp && poses.every(pose => existsSync(join(REF_SHOTS, `${pose.name}.png`)))
+  if (stamped !== stamp)
+    return false
+
+  const recorded = await recordedPoses()
+
+  return poses.every(pose =>
+    existsSync(join(REF_SHOTS, `${pose.name}.png`)) && recorded[pose.name] === poseDigest(pose))
 }
 
 async function prepareRef (rev: string): Promise<string> {
@@ -328,8 +369,20 @@ async function prepareReference (
   if (await refShotsMatch(stamp, poses))
     return { tree, reused: true }
 
+  // Merged rather than replaced: a prewarm of the tour and a later run of the
+  // chapel poses are two captures of the same reference, and throwing the tour's
+  // record away on the second would rebuild it on the third.
+  const recorded = await refShotsMatch(stamp, []) ? await recordedPoses() : {}
+
   await capture(tree, args.num('port', 4186), REF_SHOTS, poses, args)
   await Bun.write(REF_SENTINEL, `${stamp}\n`)
+  await Bun.write(
+    REF_POSES,
+    JSON.stringify(Object.fromEntries([
+      ...Object.entries(recorded),
+      ...poses.map(pose => [ pose.name, poseDigest(pose) ]),
+    ])),
+  )
 
   return { tree, reused: false }
 }

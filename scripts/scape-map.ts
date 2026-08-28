@@ -100,6 +100,7 @@ interface CompositionStats {
   creek:      { head: [ number, number, number ], mouth: [ number, number, number ], length: number } | null
   pasture:    { x: number, z: number, radius: number } | null
   mill:       { x: number, z: number, prominence: number } | null
+  chapel:     { x: number, z: number, prominence: number, fromYard: number } | null
   beacon:     { x: number, z: number, freeboard: number, reach: number, isle: number } | null
   plots:      number
   ridges:     number
@@ -352,6 +353,12 @@ function compositionStats (landmass: LandmassSurvey, w: number, h: number): Comp
       z:          round(worldZ(layout.mill.z)),
       prominence: round(layout.mill.prominence, 2),
     },
+    chapel: layout.chapel && {
+      x:          round(worldX(layout.chapel.x)),
+      z:          round(worldZ(layout.chapel.z)),
+      prominence: round(layout.chapel.prominence, 2),
+      fromYard:   round(layout.chapel.fromYard),
+    },
     beacon: survey.beacon && {
       x:         round(worldX(survey.beacon.x)),
       z:         round(worldZ(survey.beacon.z)),
@@ -594,6 +601,9 @@ export function renderGrid (
       if (layout.mill)
         stamp(worldX(layout.mill.x), worldZ(layout.mill.z), 'W')
 
+      if (layout.chapel)
+        stamp(worldX(layout.chapel.x), worldZ(layout.chapel.z), 'K')
+
       if (beacon)
         stamp(worldX(beacon.x), worldZ(beacon.z), 'L')
 
@@ -761,6 +771,10 @@ export function formatStats (stats: MapStats): string {
     stats.mill
       ? `mill (${stats.mill.x},${stats.mill.z}) prominence ${stats.mill.prominence}m`
       : 'mill NONE  <- no shoulder stood proud enough',
+    stats.chapel
+      ? `chapel (${stats.chapel.x},${stats.chapel.z}) prominence ${stats.chapel.prominence}m  ` +
+        `${stats.chapel.fromYard}m from the yard`
+      : 'chapel NONE  <- no knoll near enough to the farm',
     stats.beacon
       ? `beacon (${stats.beacon.x},${stats.beacon.z}) isle ${stats.beacon.isle} ` +
         `freeboard ${stats.beacon.freeboard}m  reach ${stats.beacon.reach}m`

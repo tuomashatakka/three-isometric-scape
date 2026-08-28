@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { parseArgs } from './args.ts'
-import { refStamp, structuralLine } from './scape-diff.ts'
+import { poseDigest, refStamp, structuralLine } from './scape-diff.ts'
 
 
 const legacy: Record<string, unknown> = {
@@ -141,6 +141,28 @@ describe('what a cached reference is a reference *of*', () => {
       [ '--set', 'water.sparkle=0' ],
     ])
       expect(refStamp(sha, parseArgs(flag))).not.toBe(plain)
+  })
+
+  /**
+   * The door the sentinel does not watch, and the one this run walked into. A
+   * pose's camera lives in the working tree's own pose table rather than on the
+   * command line, so retuning one leaves a `chapel.png` on disk that is a
+   * picture from somewhere else — and the sentinel, which keys on the commit
+   * and the flags, cannot tell.
+   */
+  test('a retuned pose is a different picture of the same commit', () => {
+    const before = { name: 'chapel', zoom: 46, set: [ 'camera.focusX=25.6' ]}
+
+    for (const after of [
+      { ...before, zoom: 60 },
+      { ...before, set: [ 'camera.focusX=26.8' ]},
+      { ...before, time: 0.5 },
+      { ...before, season: 0.02 },
+      { ...before, rot: 90 },
+    ])
+      expect(poseDigest(after)).not.toBe(poseDigest(before))
+
+    expect(poseDigest({ ...before })).toBe(poseDigest(before))
   })
 
   test('a flag that changes nothing about the picture does not', () => {

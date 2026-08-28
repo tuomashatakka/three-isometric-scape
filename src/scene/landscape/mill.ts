@@ -108,17 +108,21 @@ const FOOTING = 2.4
  * The mean of a ring rather than its lowest point, deliberately: a shoulder
  * with one gully cutting into it is still a shoulder, and scoring it by the
  * gully would move every mill on the coast into the middle of its island.
+ *
+ * Takes the sampler rather than a whole {@link MillSearch}, because the chapel
+ * asks the same question of the same ground and has no sails to describe. See
+ * [`chapel.ts`](chapel.ts).
  */
-export function prominenceAt (search: MillSearch, x: number, z: number): number {
+export function prominenceAt (ground: (x: number, z: number) => number, x: number, z: number): number {
   let sum = 0
 
   for (let step = 0; step < HORIZON_PROBES; step += 1) {
     const angle = step / HORIZON_PROBES * Math.PI * 2
 
-    sum += search.ground(x + Math.cos(angle) * HORIZON, z + Math.sin(angle) * HORIZON)
+    sum += ground(x + Math.cos(angle) * HORIZON, z + Math.sin(angle) * HORIZON)
   }
 
-  return search.ground(x, z) - sum / HORIZON_PROBES
+  return ground(x, z) - sum / HORIZON_PROBES
 }
 
 function roughnessAt (search: MillSearch, x: number, z: number): number {
@@ -192,7 +196,7 @@ export function findMillSite (
       if (dryness < 3.2)
         continue
 
-      const rise = prominenceAt(search, x, z)
+      const rise = prominenceAt(search.ground, x, z)
 
       if (rise < search.prominence)
         continue

@@ -1,5 +1,7 @@
 import { BARN_WINDOWS, FARMHOUSE_WINDOWS, SAUNA_WINDOWS } from '../props/buildings.ts'
 import type { WindowPane } from '../props/buildings.ts'
+import { CHAPEL_DWELLING, CHAPEL_WINDOWS } from '../props/chapel.ts'
+import { chapelStanding } from './chapel.ts'
 import type { WindowLight } from '../windows.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
 import { fixtureAt } from './fixtures.ts'
@@ -19,7 +21,10 @@ import type { Standing } from './steading.ts'
  * Three of the five buildings are glazed. The aitta is a storehouse on staddle
  * stones and the woodshed is open on one side; neither was modelled with a
  * window, and inventing one here would be light coming out of a wall the
- * geometry does not have.
+ * geometry does not have. The chapel is the fourth, and the one building here
+ * that is not in the yard — it is glazed off its own site rather than off
+ * `SteadingPlaces`, through the standing `chapel.ts` resolves for both this and
+ * the dressing that raises it.
  */
 
 /**
@@ -69,6 +74,9 @@ export function paneAt (
   }
 }
 
+/** A standing already in world space needs no origin carried into it. */
+const ORIGIN: Vec2 = { x: 0, z: 0 }
+
 /** Every glazed pane on every holding, ready to be lit. */
 export function surveyWindows (archipelago: ArchipelagoSurvey): WindowLight[] {
   const { field } = archipelago
@@ -76,10 +84,22 @@ export function surveyWindows (archipelago: ArchipelagoSurvey): WindowLight[] {
   return archipelago.landmasses.flatMap(landmass => {
     const { places } = landmass.survey
 
+    const { chapel } = landmass.survey.layout
+
+    // The chapel's standing is already in world space — it is sited off the
+    // island's own terrain rather than arranged around the yard — so the origin
+    // it is carried through is the zero one. Adding the landmass origin twice is
+    // a chapel lighting up somewhere out at sea.
+    const chapelPanes = chapel
+      ? CHAPEL_WINDOWS.map(pane =>
+        paneAt(field, chapelStanding(chapel, landmass.origin), pane, ORIGIN, CHAPEL_DWELLING))
+      : []
+
     return [
       ...FARMHOUSE_WINDOWS.map(pane => paneAt(field, places.farmhouse, pane, landmass.origin, DWELLING.farmhouse)),
       ...SAUNA_WINDOWS.map(pane => paneAt(field, places.sauna, pane, landmass.origin, DWELLING.sauna)),
       ...BARN_WINDOWS.map(pane => paneAt(field, places.barn, pane, landmass.origin, DWELLING.barn)),
+      ...chapelPanes,
     ]
   })
 }

@@ -85,11 +85,12 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a cobbled network of paths between every place the farm goes — planned as a graph, worn as desire lines, paved with stones sampled along the treads themselves
 - a working boat harbour: a boathouse on piles with a slipway, a net rack, and stakes in the shallows
 - a walled upland hay meadow with a barn, a gate and drying poles
+- a limewashed chapel on a knoll above the farm — a bell tower with an open belfry and a spire, a stepped chancel, and a walled churchyard with twelve leaning markers in it
 - juniper bushes out on the dry upland heath — a low, spreading evergreen that reads apart from the conifers and answers to the same one wind
 - a lighthouse on the outermost rock of the ring, throwing beams that sweep the water from dusk until dawn
 - gull colonies wheeling over every harbour mouth and over the outer rock, banking into the turn, down at night and mostly down in a squall
 - wood smoke standing over every farmhouse chimney and sauna flue in the archipelago, leaning on the same one wind as the grass and banked harder the colder the week
-- lamplight in sixty-five farmstead windows: lit at dusk, banked to a stove glow once the household turns in, and back up before dawn — while the lighthouse burns straight through, because a lighthouse is a machine and a farm is not
+- lamplight in ninety-three windows: sixty-five farmstead panes lit at dusk, banked to a stove glow once the household turns in, and back up before dawn — the chapels' twenty-eight burning fainter, because nobody sleeps in one — while the lighthouse burns straight through, because a lighthouse is a machine and a farm is not
 - a beck traced downhill from a spring, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself
 - **three clocks** — a day, a year, and a weather front — each a phase and a speed, each deriving everything else from that phase
 - a solar arc solved from a latitude — a polar night at midwinter, a midnight sun at midsummer — with dusk and night palettes derived from it, plus seasonal growth, leaf turn, lying snow, sea ice, sea smoke, and rain that leaves the ground wet
@@ -205,7 +206,7 @@ src/
     ├── landscape/
     │   ├── survey.ts               the pure composition, before anything is drawn
     │   ├── archipelago.ts          every inhabited island, joined by what faces the world
-    │   ├── layout.ts               yard, cart track, field plots, ridges, pasture, mill
+    │   ├── layout.ts               yard, cart track, field plots, ridges, pasture, mill, chapel
     │   ├── height.ts               authored ground, islets, beck, fbm underneath, and which way it faces
     │   ├── align.ts                the euler that stands a prop on a slope instead of beside one
     │   ├── steading.ts             where the buildings stand, and which way they face
@@ -221,6 +222,7 @@ src/
     │   ├── hearths.ts             every chimney and flue, at the mouth and in world space
     │   ├── windows.ts             every glazed pane, in world space and facing out
     │   ├── fixtures.ts            carrying a point out of a raised building's own frame
+    │   ├── chapel.ts               the knoll a chapel would stand on, and the yaw its door is turned by
     │   ├── mill.ts                 the exposed shoulder a windmill would stand on
     │   ├── mill-sails.ts           every mill's wheel, turning in one instanced draw
     │   ├── waterway.ts             the navigable water between the ports
@@ -232,6 +234,7 @@ src/
     │   ├── samplers.ts             where the dressing throws its darts, islands and rocks alike
     │   ├── dressing-zones.ts       what the composition already claims the ground for
     │   ├── dressing-helpers.ts     the placement questions that are pure geometry
+    │   ├── dressing-enclosures.ts  the pasture wall, the churchyard wall, the plot fences
     │   ├── dressing.ts             placement, hero merge, instanced scatter
     │   └── index.ts                the scene module, and what raycasts
     ├── textures/
@@ -249,6 +252,7 @@ src/
         ├── structures.ts           jetty, well, hay rack, gate, bridge, cart
         ├── vegetation.ts           spruce, pine, birch, grass, reeds, crops
         ├── upland.ts               meadow barn, hay drying poles
+        ├── chapel.ts               the chapel, its tower, and the markers in its yard
         ├── mill.ts                 the post mill, its trestle and its sail wheel
         ├── beacon.ts               the lighthouse tower, and the optic that turns in it
         ├── shore.ts                boathouse and slipway, net rack, mooring stakes
@@ -330,7 +334,7 @@ the farm is a set of places — a yard with five buildings on it, a landing, a b
 
 **it is a network, not a star.** the first version had every route leaving the well and ending somewhere, which is what you get from asking *how does a person reach each place*. it is wrong in the one way a reader notices: getting from the barn to the woodshed meant walking to the middle of the yard and out again, past a door you were already standing at. [`network.ts`](src/scene/landscape/network.ts) plans it in three steps instead.
 
-1. **places first.** the well, each building's *doorway*, each field's gate, the meadow gateway, the landing and the harbour.
+1. **places first.** the well, each building's *doorway*, each field's gate, the meadow gateway, the chapel door, the landing and the harbour.
 2. **a minimum spanning tree over them**, costed so a leg that would have to detour round a building is dearer than one that would not — 2.6× — which makes the tree prefer the open side of the yard to the squeeze between two walls. that alone joins everything to everything by the shortest total length there is.
 3. **shortcuts**, because a tree has no loops: two doors ten metres apart can be a forty-metre walk from each other through the well. any pair the tree makes a real detour of, close enough to be worth it and clear of every building, gets a direct leg. that is what closes the ring round the yard.
 
@@ -603,6 +607,28 @@ out on the exposed rise the farm never built on there is a post mill: a boarded 
 **the wheel is the one part of a building here that cannot be merged.** everything else in the settlement is baked into one geometry at build; sails turn, so they are their own `InstancedMesh` with one instance per mill and one draw for the archipelago. its bounding sphere is *given* rather than derived, because three computes an instanced bound from the geometry at the identity and these hubs are three hundred metres apart — without it two of the three mills are culled from most poses. the rate is `mill.spin` scaled by `wind.strength`, so the knob that already says how hard it is blowing turns the wheel too, and a still day stops it with nothing else set. a stopped wheel writes no matrix and uploads no buffer.
 
 **the hub is one number in two places, so it is one constant.** the windshaft is modelled into the mill and the wheel is placed by a different module entirely; `MILL_HUB_HEIGHT`, `MILL_HUB_REACH` and `MILL_SINK` are exported from the prop and read by both, and the test that says no sail tip reaches the ground is stated against those constants rather than against a screenshot.
+
+## the chapel on the knoll
+
+on a rise between the farm and the sea there is a chapel: a limewashed boarded nave with tarred corner boards, a stepped chancel with an east light over the altar, and a bell tower with an open belfry and a shingled spire — ten metres to the iron cross on top of it. round it is a drystone wall with a gate in it, and inside that twelve leaning markers, half granite slabs and half wrought iron crosses. the geometry is [`props/chapel.ts`](src/scene/props/chapel.ts), where it stands is [`landscape/chapel.ts`](src/scene/landscape/chapel.ts), and the walls and the graves are raised in [`landscape/dressing-enclosures.ts`](src/scene/landscape/dressing-enclosures.ts).
+
+**it is the only white building in the scape, and that is the point of it.** the steading is falu red because falu red is what a farm paints the buildings it walks past every day; the meadow barn is bare because nobody paints a hay store. a chapel is the one thing a coast this poor puts limewash on — so from the far zoom, where the farmstead is a red smudge and the pasture is a grey one, the chapel is the thing the eye lands on. the `grime` pass every other prop is merged with is nearly off here for the same reason: everything else in the kit is darkened toward its base because everything else is worked.
+
+**a chapel is sited by two questions that pull against each other.** the mill wants the open shoulder and pays for it in distance from the farm — `findMillSite` scores prominence and subtracts nothing. a chapel wants to be *seen*, which is the same rise, and to be *walked to* on a winter morning, which is not. so `findChapelSite` is the mill's search with the sign of the distance term flipped, plus one rule the mill has no use for: `chapel.reach` metres from the yard is a refusal rather than a penalty. a knoll at the far end of the island is a fine mill site and a useless church, and scoring it down merely makes it lose to a better one — refusing it is what says nobody carries a coffin up a headland.
+
+**the socle is a foundation, not a stilt.** the mill tolerates 1.3 m of fall across its footing because a post mill is four dry-laid piers that can be packed level. a chapel is a continuous granite course, so the search refuses ground that falls more than 0.9 m across half the nave's length — which is the same number as `PLINTH_REACH` in the dressing, seen from the other end: that one decides how much fall a foundation will bridge, and this one refuses the ground that would need more. the chapel is also the only outlying building that is *plopped* rather than merged, for exactly that reason: the mill and the lighthouse are happy baked at one height, and a nave baked at one height shows daylight under a gable.
+
+**the door is in the west face, and no other building in the kit is.** everything else here is modelled fronted on local `+z`, which is what `yawAlong` and `faceToward` assume. a chapel is entered up its axis, so the tower and the door are on local `-x` — and `chapelYaw(bearing) = π - bearing` is the rotation that turns *that* face toward the farm. it is a quarter turn and a reflection away from `yawAlong`, so feeding a chapel to the helper every other prop uses stands the church broadside to the path worn to its door. the same function resolves the standing the dressing raises it on and the standing `windows.ts` carries each pane out through, because a second copy of it is a second chance to get the sign wrong — and a sign wrong there is lamplight on the inside of a wall.
+
+**the churchyard is the pasture wall's twin, and now they are one function.** both are a ring of drystone stations opened by `layout.pastureGateway` degrees on one bearing, built as a single hero geometry, reserved against so the scatter does not seed a spruce through the wall, with a gate standing across the gap. that seam is what [`dressing-enclosures.ts`](src/scene/landscape/dressing-enclosures.ts) is: the churchyard pushed `dressing.ts` past the 666-line ceiling, and the honest split was not "move the new thing out" but "the walled ground was always one idea".
+
+**a chapel is walked to; it is nothing else's landmark.** a field's gate is cut toward the nearest *anchor* — the neighbour the network is going to join it to — and naming the church before the gates were cut turned one of them round to face it. that moved the field's only leg onto the cart track, where the tracer correctly refuses to wear a second line beside the road, and left the field with no way in. the waypoint joins the list after the gates are cut. `footpath.test.ts` is what caught it, from the claim it already made: the tracer may drop a leg, but not the *last* leg to somewhere.
+
+**it is measured against the land, not the sea beside it.** `prominenceAt` averages a ring twenty-two metres out and subtracts, which is the right question inland and the wrong one anywhere near a coast this ragged: half that ring is water, the seabed is nine metres down, and every point on every shoreline reads as a hill. the first cut duly sited the chapel on a tideline spit — scored at 3.95 m of prominence — with eight of its fourteen graves in the sea. `landProminenceAt` hands a probe that lands on water the candidate's own level, so it neither raises the score nor lowers it. the mill still reads the raw ground on purpose: a headland is where a mill goes, and the drop is its fetch.
+
+**the markers all face the same way.** each is raised on the *chapel's* yaw rather than on its own bearing from the middle — a ring of stones turned to face outward reads as a stone circle, and a churchyard reads as a churchyard precisely because the rows agree. they are laid on two arcs in the band between the building's footing and the wall, and the arcs start `APPROACH` radians clear of the gateway, so the walk from the gate to the door is not over the plots. one builder rather than two props, with the seed picking a slab or a cross: a yard of nothing but slabs is a rockery, and one of nothing but crosses is a decal repeated twelve times.
+
+**`null` is an answer, the way it is for the mill.** at the default seed four of the five islands build one and the ridge does not — nothing inside `chapel.reach` of its farm stands proud enough or lies level enough. `scape:map --stats` reports the site, its prominence and its distance from the yard, or says which of those it could not find.
 
 ## the light on the outer rock
 

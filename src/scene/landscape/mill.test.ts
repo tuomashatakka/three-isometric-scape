@@ -95,7 +95,7 @@ describe('siting a mill', () => {
   test('prominence reads a hollow as negative', () => {
     const bowl: MillSearch = { ...knoll(9), ground: (x, z) => (x * x + z * z) / 400 }
 
-    expect(prominenceAt(bowl, 0, 0)).toBeLessThan(0)
+    expect(prominenceAt(bowl.ground, 0, 0)).toBeLessThan(0)
   })
 })
 
