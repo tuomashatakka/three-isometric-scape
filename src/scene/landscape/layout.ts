@@ -1,6 +1,8 @@
 import { createSeededRng, smoothstep } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 import { coastWarp, sampleHeight, valueNoise } from '../noise.ts'
+import { CHAPEL_FOOTING, findChapelSite } from './chapel.ts'
+import type { ChapelSite } from './chapel.ts'
 import { createCreek } from './creek.ts'
 import type { Creek } from './creek.ts'
 import { MILL_FOOTING, findMillSite } from './mill.ts'
@@ -49,6 +51,9 @@ export interface ScapeLayout {
 
   /** The windmill's shoulder, or `null` if the island has no exposed rise. */
   mill: MillSite | null
+
+  /** The chapel's seaward knoll, or `null` if the coast offered none. */
+  chapel: ChapelSite | null
 
   /** The beck running off the high ground, or `null` if no ridge fed one. */
   creek:  Creek | null
@@ -603,6 +608,33 @@ export function createScapeLayout (config: ScapeConfig): ScapeLayout {
     ],
   )
 
+  // After the mill, and for the reason the mill comes after the beck: the
+  // chapel is the freest thing in the composition — a band of coast rather than
+  // one shoulder — so it is the one that can afford to be told where everything
+  // else already is. Handing the mill a chapel to miss would move a windmill
+  // that has been on the same shoulder since it was built.
+  const chapel = findChapelSite(
+    {
+      ground:     (x, z) => sunkAt(config, x, z),
+      landRadius: landRadiusOf(config),
+      waterLevel: config.terrain.waterLevel,
+      knoll:      config.chapel.knoll,
+      shore:      config.chapel.shore,
+    },
+    yard,
+    [
+      { points: track, clearance: CHAPEL_FOOTING },
+      // The sill clear of the channel *and* of the water in it, the same sum
+      // the mill's trestle is held off the beck by.
+      ...creek ? [{ points: creek.points, clearance: CHAPEL_FOOTING + config.creek.width }] : [],
+    ],
+    [
+      ...plots.map(plot => ({ x: plot.x, z: plot.z, radius: Math.max(plot.halfW, plot.halfD) })),
+      ...pasture ? [{ x: pasture.x, z: pasture.z, radius: pasture.radius }] : [],
+      ...mill ? [{ x: mill.x, z: mill.z, radius: config.mill.sailSpan * 0.5 }] : [],
+    ],
+  )
+
   return {
     yard,
     track:      { points: track, width: config.layout.trackWidth },
@@ -610,6 +642,7 @@ export function createScapeLayout (config: ScapeConfig): ScapeLayout {
     ridges:     findRidges(config, yard),
     pasture,
     mill,
+    chapel,
     creek,
     extent:     config.terrain.size * 0.5,
     landRadius: landRadiusOf(config),

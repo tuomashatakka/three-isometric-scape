@@ -613,6 +613,46 @@ export interface ScapeConfig {
   }
 
   /**
+   * The chapel on the seaward knoll.
+   *
+   * Build-time, both of them, and out of the tuning overlay for the reason
+   * `mill.prominence` is: where a chapel *stands* is surveyed once and the
+   * building is raised on that ground, so a slider here would need a rebuild to
+   * be seen and would be lying about what a slider does.
+   *
+   * Both are **metres and stay metres**. A knoll is the height a knoll is and a
+   * shore is as wide as a shore; neither grows because the archipelago did — the
+   * one thing that scales with the island is what they are measured against,
+   * and that is the surveyed `landRadius` rather than anything written here.
+   */
+  chapel: {
+
+    /**
+     * Metres the ground must stand above what surrounds it before a chapel is
+     * built on it.
+     *
+     * The switch, and the only one. A chapel is put where it can be seen, which
+     * on this coast means a rise; 0 will build one on the first flat dry patch
+     * of shore the search reaches, and raising it past what an island offers
+     * takes that island's chapel back out of the scape. See
+     * `landscape/chapel.ts`.
+     */
+    knoll: number
+
+    /**
+     * Metres in from the coast a chapel may still be sited.
+     *
+     * The other half of the siting, and the half that makes it a *coastal*
+     * chapel rather than another building on the best ground the island has:
+     * measured in from the radius that is dry whichever way you walk, so it is
+     * the same band of shore on an island of any size. Past about a third of
+     * `landRadius` the band takes in the middle of the island and the search
+     * stops being about the water at all.
+     */
+    shore: number
+  }
+
+  /**
    * The seamark on the outer rock, and the light it turns.
    *
    * Split the way `mill` is: the first two decide which islet the tower is built
@@ -1753,6 +1793,17 @@ export const SCAPE_CONFIG = {
     spin:       1.15,
     prominence: 1.6,
     sailSpan:   8.4,
+  },
+  // 1.1 m of knoll is a rise a person notices standing on it and a good deal
+  // less than the 1.6 m of shoulder the mill holds out for — a chapel wants to
+  // be seen rather than to catch the wind, and the seaward ground of a coast
+  // this warped rarely stands as proud as an inland shoulder does. 26 m of
+  // shore is a little over half the home island's `landRadius` of 44 measured
+  // from the outside in, which leaves the search a broad coastal belt and still
+  // refuses the middle of the island.
+  chapel: {
+    knoll: 1.1,
+    shore: 26,
   },
   // 6 metres of radius takes in the two largest islets and leaves every skerry
   // out, which is what puts the tower on the north-eastern outlier — the

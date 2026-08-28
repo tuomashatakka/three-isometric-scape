@@ -183,6 +183,35 @@ export const TOURS: Record<string, Pose[]> = {
     },
   ],
 
+  /**
+   * The chapel on the home island's south-eastern knoll.
+   *
+   * Added for the reason `beacon`, `coast`, `steading` and `guard` were, and it
+   * is the same reason a fifth time: the tour aims at the middle of a 1520 m
+   * archipelago, where a ten-metre spire is three pixels. `near`, the tour's one
+   * close frame, is focused on the world origin — which is fifty metres from
+   * this and takes in the farmyard instead.
+   *
+   * `chapel` is the building at a zoom that holds it and the ground it stands
+   * on. `chapel-sea` is the pose the whole siting rule exists for: pulled back
+   * over the water off the south-east shore, where the claim *a chapel is built
+   * where it can be seen from the sea* is either true in the picture or it is
+   * not. `chapel-night` is the silhouette — a spire is the one thing on this
+   * coast that is still legible with no light on it at all, and it is also the
+   * frame the lamps behind the chapel's glass would show up in.
+   */
+  chapel: [
+    { name: 'chapel', zoom: 34, set: [ 'camera.focusX=27.7', 'camera.focusZ=-20.5' ]},
+    { name: 'chapel-sea', zoom: 78, set: [ 'camera.focusX=30', 'camera.focusZ=-26' ]},
+    {
+      name:   'chapel-night',
+      zoom:   34,
+      time:   0.02,
+      season: 0.78,
+      set:    [ 'camera.focusX=27.7', 'camera.focusZ=-20.5' ],
+    },
+  ],
+
   // The cheap pass: is there a scape at all, and does it survive being drawn.
   quick: [{ name: 'default' }],
 }
@@ -515,7 +544,7 @@ async function main (): Promise<void> {
     console.log([
       'scape:shot — the scape, from a pose, without anybody watching',
       '',
-      '  --poses tour          named set: tour (6) | beacon (4, the light)',
+      '  --poses tour          named set: tour (6) | beacon (4, the light) | chapel (3)',
       '                        coast (4, the shoreline) | steading (3, the farmyard)',
       '                        guard (4, the rocks in the open sea) | quick (1)',
       '  --rot 45 --zoom 70    camera yaw, and view size (tilt is derived from zoom)',

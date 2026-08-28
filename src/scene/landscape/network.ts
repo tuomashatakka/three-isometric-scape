@@ -44,7 +44,7 @@ export interface Waypoint extends Vec2 {
   name: string
 
   /** What kind of place it is. Carried for the debug tools, not used in planning. */
-  kind: 'well' | 'door' | 'field' | 'meadow' | 'mill' | 'shore'
+  kind: 'well' | 'door' | 'field' | 'meadow' | 'mill' | 'chapel' | 'shore'
 }
 
 /** One planned leg, as a pair of indices into the waypoint list. */
@@ -235,6 +235,16 @@ export function farmWaypoints (
     const step = millDoorstep(layout.mill)
 
     points.push({ x: step.x, z: step.z, name: 'mill', kind: 'mill' })
+  }
+
+  // The chapel needs no rule of its own here, and that is the point of siting it
+  // as a `Standing`: its door is faced by `faceToward` and its doorstep is the
+  // same `doorstepOf` every building in the yard is walked to by, so the leg to
+  // it is planned, costed and traced exactly like a leg to the barn.
+  if (layout.chapel) {
+    const step = doorstepOf(layout.chapel)
+
+    points.push({ x: step.x, z: step.z, name: 'chapel', kind: 'chapel' })
   }
 
   const anchors = points.map(point => ({ x: point.x, z: point.z }))

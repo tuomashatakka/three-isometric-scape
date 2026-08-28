@@ -32,7 +32,7 @@ const SHALLOW = 0.45
 export const LEGEND =
   '~ deep  - shallow  . shore  : low  = mid  + upper  * high  # peak\n' +
   ', footpath  ≡ track  · waterway  b boat  s beck  ' +
-  'F/B/A/W/S steading  o well  J jetty  H harbour  p plot  ^ ridge'
+  'F/B/A/W/S steading  o well  J jetty  H harbour  p plot  ^ ridge  K chapel'
 
 export interface Layers {
   height:    boolean
@@ -100,13 +100,23 @@ interface CompositionStats {
   creek:      { head: [ number, number, number ], mouth: [ number, number, number ], length: number } | null
   pasture:    { x: number, z: number, radius: number } | null
   mill:       { x: number, z: number, prominence: number } | null
-  beacon:     { x: number, z: number, freeboard: number, reach: number, isle: number } | null
-  plots:      number
-  ridges:     number
-  isles:      { total: number, surfacing: number }
-  steading:   Record<string, [ number, number ]>
-  landing:    [ number, number ] | null
-  harbour:    [ number, number ] | null
+
+  /**
+   * The chapel, and the two things about it that a still cannot report.
+   *
+   * `prominence` is the rise it was sited for and `inland` how far in from the
+   * coast it ended up — the two halves of the search, as numbers. A chapel that
+   * drifted into the middle of the island is a chapel nobody can see from the
+   * water, which from every pose the tour takes looks exactly like a chapel.
+   */
+  chapel:   { x: number, z: number, prominence: number, inland: number } | null
+  beacon:   { x: number, z: number, freeboard: number, reach: number, isle: number } | null
+  plots:    number
+  ridges:   number
+  isles:    { total: number, surfacing: number }
+  steading: Record<string, [ number, number ]>
+  landing:  [ number, number ] | null
+  harbour:  [ number, number ] | null
 }
 
 export interface LandmassMapStats extends CompositionStats {
@@ -352,6 +362,12 @@ function compositionStats (landmass: LandmassSurvey, w: number, h: number): Comp
       z:          round(worldZ(layout.mill.z)),
       prominence: round(layout.mill.prominence, 2),
     },
+    chapel: layout.chapel && {
+      x:          round(worldX(layout.chapel.x)),
+      z:          round(worldZ(layout.chapel.z)),
+      prominence: round(layout.chapel.prominence, 2),
+      inland:     round(layout.chapel.inland, 1),
+    },
     beacon: survey.beacon && {
       x:         round(worldX(survey.beacon.x)),
       z:         round(worldZ(survey.beacon.z)),
@@ -594,6 +610,9 @@ export function renderGrid (
       if (layout.mill)
         stamp(worldX(layout.mill.x), worldZ(layout.mill.z), 'W')
 
+      if (layout.chapel)
+        stamp(worldX(layout.chapel.x), worldZ(layout.chapel.z), 'K')
+
       if (beacon)
         stamp(worldX(beacon.x), worldZ(beacon.z), 'L')
 
@@ -761,6 +780,10 @@ export function formatStats (stats: MapStats): string {
     stats.mill
       ? `mill (${stats.mill.x},${stats.mill.z}) prominence ${stats.mill.prominence}m`
       : 'mill NONE  <- no shoulder stood proud enough',
+    stats.chapel
+      ? `chapel (${stats.chapel.x},${stats.chapel.z}) knoll ${stats.chapel.prominence}m  ` +
+        `${stats.chapel.inland}m in from the coast`
+      : 'chapel NONE  <- no seaward knoll stood proud enough, or the coast was spoken for',
     stats.beacon
       ? `beacon (${stats.beacon.x},${stats.beacon.z}) isle ${stats.beacon.isle} ` +
         `freeboard ${stats.beacon.freeboard}m  reach ${stats.beacon.reach}m`
@@ -774,7 +797,8 @@ export function formatStats (stats: MapStats): string {
       `land ${landmass.land}% peak ${landmass.peak.height}m  ` +
       `paths ${landmass.footpaths.routes}  ` +
       `jetty ${landmass.landing ? `(${landmass.landing})` : 'NONE'}  ` +
-      `mill ${landmass.mill ? `(${landmass.mill.x},${landmass.mill.z})` : 'NONE'}`),
+      `mill ${landmass.mill ? `(${landmass.mill.x},${landmass.mill.z})` : 'NONE'}  ` +
+      `chapel ${landmass.chapel ? `(${landmass.chapel.x},${landmass.chapel.z})` : 'NONE'}`),
     `waterways ${stats.waterways.legs} legs ${stats.waterways.length}m  ` +
       `connected ${stats.waterways.connected ? 'OK' : 'BROKEN'}  ` +
       `wet ${stats.waterways.wet ? 'OK' : 'DRY'}  ` +

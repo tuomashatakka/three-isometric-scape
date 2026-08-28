@@ -5,6 +5,7 @@ import { createDaylight } from './daylight.ts'
 import { surveyArchipelago } from './landscape/archipelago.ts'
 import { surveyWindows } from './landscape/windows.ts'
 import { BARN_WINDOWS, FARMHOUSE_WINDOWS, SAUNA_WINDOWS } from './props/buildings.ts'
+import { CHAPEL_WINDOWS } from './props/chapel.ts'
 import { createWindowLamps, householdWake, isLit, lampLevel } from './windows.ts'
 import { LADDER, atmosphereQuality } from './quality.ts'
 
@@ -13,6 +14,10 @@ const survey = surveyArchipelago(SCAPE_CONFIG)
 const panes  = surveyWindows(survey)
 
 const A_HOLDING = FARMHOUSE_WINDOWS.length + SAUNA_WINDOWS.length + BARN_WINDOWS.length
+
+/** Holdings are five and always five; chapels are however many the coast took. */
+const FARM_PANES = SCAPE_CONFIG.archipelago.landmasses.length * A_HOLDING
+const CHAPELS    = survey.landmasses.filter(landmass => landmass.survey.layout.chapel).length
 
 /** Enough of a sky for the one path that never reads it. See the absence test. */
 const DAYLIGHT = createDaylight(() => SCAPE_CONFIG).state
@@ -24,9 +29,27 @@ function tuned (windows: Partial<ScapeConfig['windows']>): ScapeConfig {
 
 
 describe('where the lamps are', () => {
-  test('is every glazed pane on every holding', () => {
-    expect(panes.length).toBe(SCAPE_CONFIG.archipelago.landmasses.length * A_HOLDING)
+  test('is every glazed pane on every holding, and on every chapel built', () => {
+    expect(panes.length).toBe(FARM_PANES + CHAPELS * CHAPEL_WINDOWS.length)
     expect(A_HOLDING).toBe(13)
+    expect(CHAPEL_WINDOWS).toHaveLength(6)
+    expect(CHAPELS).toBeGreaterThan(0)
+  })
+
+  /**
+   * The ordering claim, and it is not tidiness. `createWindowLamps` rolls one
+   * number per pane *in list order* to decide which windows are occupied, so a
+   * pane inserted into the middle of the list relights every farm downstream of
+   * it — a change to which lamps burn in a farmyard, made by adding a building
+   * on the other side of the island. Appended, the farm's rolls are the rolls it
+   * always had, and the chapels take the new numbers off the end.
+   */
+  test('the chapels come after the holdings, so no farm lamp is reshuffled', () => {
+    // The chapel is the one building in the scape nobody lives in, so its
+    // weight is the one below every dwelling's. That is what makes the split
+    // checkable from the record rather than from the code that wrote it.
+    expect(panes.slice(0, FARM_PANES).every(pane => pane.dwelling >= 0.3)).toBe(true)
+    expect(panes.slice(FARM_PANES).every(pane => pane.dwelling < 0.3)).toBe(true)
   })
 
   /**

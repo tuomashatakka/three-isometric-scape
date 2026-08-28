@@ -163,6 +163,7 @@ bun run scape:shot --poses beacon                   # the light, 4 headings, at 
 bun run scape:shot --poses coast                    # the shoreline, 4 frames, weather side and lee
 bun run scape:shot --poses steading                 # the farmyard, 4 frames, summer/winter/night/evening
 bun run scape:shot --poses guard                    # the rocks in the open sea, 4 frames
+bun run scape:shot --poses chapel                   # the chapel, 3 frames: close, from the water, and its lancet at night
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain

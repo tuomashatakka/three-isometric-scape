@@ -85,11 +85,12 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a cobbled network of paths between every place the farm goes — planned as a graph, worn as desire lines, paved with stones sampled along the treads themselves
 - a working boat harbour: a boathouse on piles with a slipway, a net rack, and stakes in the shallows
 - a walled upland hay meadow with a barn, a gate and drying poles
+- a limewashed board chapel on the seaward knoll of every island whose coast offers one — a west tower, an open belfry with the bell in it, a shingled spire and a cross, standing clear of every ridge line the island has
 - juniper bushes out on the dry upland heath — a low, spreading evergreen that reads apart from the conifers and answers to the same one wind
 - a lighthouse on the outermost rock of the ring, throwing beams that sweep the water from dusk until dawn
 - gull colonies wheeling over every harbour mouth and over the outer rock, banking into the turn, down at night and mostly down in a squall
 - wood smoke standing over every farmhouse chimney and sauna flue in the archipelago, leaning on the same one wind as the grass and banked harder the colder the week
-- lamplight in sixty-five farmstead windows: lit at dusk, banked to a stove glow once the household turns in, and back up before dawn — while the lighthouse burns straight through, because a lighthouse is a machine and a farm is not
+- lamplight in eighty-nine windows — sixty-five in the farmsteads and twenty-four in the chapels: lit at dusk, banked to a stove glow once the household turns in, and back up before dawn — while the lighthouse burns straight through, because a lighthouse is a machine and a farm is not
 - a beck traced downhill from a spring, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself
 - **three clocks** — a day, a year, and a weather front — each a phase and a speed, each deriving everything else from that phase
 - a solar arc solved from a latitude — a polar night at midwinter, a midnight sun at midsummer — with dusk and night palettes derived from it, plus seasonal growth, leaf turn, lying snow, sea ice, sea smoke, and rain that leaves the ground wet
@@ -205,7 +206,7 @@ src/
     ├── landscape/
     │   ├── survey.ts               the pure composition, before anything is drawn
     │   ├── archipelago.ts          every inhabited island, joined by what faces the world
-    │   ├── layout.ts               yard, cart track, field plots, ridges, pasture, mill
+    │   ├── layout.ts               yard, cart track, field plots, ridges, pasture, mill, chapel
     │   ├── height.ts               authored ground, islets, beck, fbm underneath, and which way it faces
     │   ├── align.ts                the euler that stands a prop on a slope instead of beside one
     │   ├── steading.ts             where the buildings stand, and which way they face
@@ -221,6 +222,7 @@ src/
     │   ├── hearths.ts             every chimney and flue, at the mouth and in world space
     │   ├── windows.ts             every glazed pane, in world space and facing out
     │   ├── fixtures.ts            carrying a point out of a raised building's own frame
+    │   ├── chapel.ts               the seaward knoll a chapel would stand on
     │   ├── mill.ts                 the exposed shoulder a windmill would stand on
     │   ├── mill-sails.ts           every mill's wheel, turning in one instanced draw
     │   ├── waterway.ts             the navigable water between the ports
@@ -246,6 +248,7 @@ src/
         ├── lamp.ts                 the pane and the haze a lit window throws
         ├── timber.ts               cladding, gable and roof vocabulary
         ├── buildings.ts            barn, farmhouse, sauna, aitta, woodshed
+        ├── chapel.ts               the chapel: nave, west tower, belfry, spire
         ├── structures.ts           jetty, well, hay rack, gate, bridge, cart
         ├── vegetation.ts           spruce, pine, birch, grass, reeds, crops
         ├── upland.ts               meadow barn, hay drying poles
@@ -603,6 +606,28 @@ out on the exposed rise the farm never built on there is a post mill: a boarded 
 **the wheel is the one part of a building here that cannot be merged.** everything else in the settlement is baked into one geometry at build; sails turn, so they are their own `InstancedMesh` with one instance per mill and one draw for the archipelago. its bounding sphere is *given* rather than derived, because three computes an instanced bound from the geometry at the identity and these hubs are three hundred metres apart — without it two of the three mills are culled from most poses. the rate is `mill.spin` scaled by `wind.strength`, so the knob that already says how hard it is blowing turns the wheel too, and a still day stops it with nothing else set. a stopped wheel writes no matrix and uploads no buffer.
 
 **the hub is one number in two places, so it is one constant.** the windshaft is modelled into the mill and the wheel is placed by a different module entirely; `MILL_HUB_HEIGHT`, `MILL_HUB_REACH` and `MILL_SINK` are exported from the prop and read by both, and the test that says no sail tip reaches the ground is stated against those constants rather than against a screenshot.
+
+## the chapel on the knoll
+
+on the seaward rise between the farm and the water there is a chapel: a limewashed board nave on a granite sill, a west tower with an open belfry and the bell hanging in it, a shingled spire, and a cross on top of that. the geometry is [`props/chapel.ts`](src/scene/props/chapel.ts) and where it stands is [`landscape/chapel.ts`](src/scene/landscape/chapel.ts).
+
+**a chapel is sited by two questions asked together, and neither of them is the mill's.** the yard wants shelter, the pasture wants unused height, the mill wants wind, the light wants reach. a chapel wants to be *seen from the water* and to *stand above what is around it* — so `findChapelSite` gates on both: `chapel.shore` metres in from the radius that is dry whichever way you walk, and `chapel.knoll` metres of prominence. neither on its own is the rule. the shore band alone puts it on the first flat beach; the prominence alone puts it on the island's best hill, which is inland, which is where nobody rowing past can see it.
+
+**the rise is measured by the mill's own function, not by a second one.** `prominenceAt` and `roughnessAt` are exported from [`landscape/mill.ts`](src/scene/landscape/mill.ts) and take a `GroundSample` — anything that can be asked how high the ground is — rather than a `MillSearch`. two answers to *is this a rise* is how a chapel ends up in a hollow the mill would have refused, and the widening cost one type and no arithmetic.
+
+**it is a `Standing`, and that is the whole integration.** the five farmstead buildings are placed, faced and walked to through `Standing.angle` and `doorstepOf`; the mill needs a bearing of its own because a mill is turned to face the wind rather than the farm. a chapel is faced like a building, so it is *typed* like one — and everything downstream comes for free: `faceToward` turns its door to the yard, `doorstepOf` puts the anchor outside its wall, the network plans and costs a leg to it like a leg to the barn, `raiseBuilding` grows a foundation under it, and `paneAt` hangs lamps behind its glass. not one of those five needed a chapel-shaped branch.
+
+**it is sited last, after the mill, for the reason the mill is sited after the beck.** the beck cannot be moved, the mill can be moved a little, and the chapel can stand anywhere along a whole band of coast — so it takes every other feature as a disc or a line to keep off and moves nothing that was already placed. the mill on the home island has not shifted a centimetre.
+
+**the sill is level ground or it is nowhere.** a mill stands on four dry-laid piers and tolerates a slope a boarded wall does not, so the chapel's roughness gate is 0.9 m across a 2.8 m footing against the mill's 1.3 m across 2.4 m. it is raised as a `Ploppable` rather than merged like the mill and the light, which is the one draw call a holding pays for it: a building with a continuous sill wants a foundation that follows the ground, and the alternative is a chapel with daylight under one corner.
+
+**`null` is an answer, the way it is for the mill and the pasture.** at the default seed four of the five islands build one and the ridge island does not — the same island that has no shoulder for a mill has no knoll near enough to its water. `chapel.knoll` is the switch: raise it past what the ground offers and the chapels go, which is the same shape as every other absence in this scape.
+
+**the tower is sized against the skyline rather than against the nave.** what makes a chapel legible at the zoom this scape is usually read at is the silhouette — one vertical standing clear of everything around it — so the spire tops out at 9.75 m against a 6.3 m farmhouse and a 5.4 m mill hub, and `chapel.test.ts` states that as a fact about the two geometries rather than as a number in a comment. the walls are limewashed and the grime is turned right down for it: `mergeParts` darkens toward the base over its reach, and the farm's 2.8 m at 0.58 puts most of a three-metre wall in shadow — which on a falu-red barn reads as weathering and on a limewashed chapel reads as a brown building.
+
+**it is glazed out of its own published list, by the farmstead's own function.** `CHAPEL_WINDOWS` is six lancets and `glaze` — exported from [`props/buildings.ts`](src/scene/props/buildings.ts) — is still the only thing in the scape that turns a `WindowPane` into geometry, so the list is the survey *and* the source here too. the chapels' panes are appended to `surveyWindows`' result rather than interleaved with the holdings', because `createWindowLamps` rolls one number per pane *in list order*: inserted in the middle, a new building on one island would relight the farmyards of every island after it.
+
+**nobody lives in it, and the weight says so.** `DWELLING.chapel` is 0.2 against the farmhouse's 1, which at the authored occupancy leaves three of the archipelago's twenty-four lancets burning — a chapel lit for a service rather than a sixth outbuilding with lamps in it.
 
 ## the light on the outer rock
 

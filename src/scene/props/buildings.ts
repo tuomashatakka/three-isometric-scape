@@ -76,11 +76,13 @@ export interface WindowPane {
 /**
  * Glaze a wall out of its published panes.
  *
- * The only thing that turns a {@link WindowPane} into geometry, so the lists
- * below are the survey *and* the source — a pane added to one is a pane the
- * lamplight finds, without a second edit anywhere.
+ * The only thing in the scape that turns a {@link WindowPane} into geometry, so
+ * the lists below are the survey *and* the source — a pane added to one is a
+ * pane the lamplight finds, without a second edit anywhere. Exported for the
+ * chapel in [`chapel.ts`](chapel.ts), which is glazed out of its own list by
+ * this same function rather than by a second copy of the loop.
  */
-function glaze (
+export function glaze (
   parts:   BufferGeometry[],
   rng:     SeededRng,
   frame:   string,

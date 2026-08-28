@@ -69,10 +69,20 @@ export interface MillKeepOff {
   clearance: number
 }
 
-export interface MillSearch {
-
-  /** The ground as the island falloff leaves it, in metres. */
+/**
+ * Anything that can be asked how high the ground is.
+ *
+ * The two terrain readings below — {@link prominenceAt} and {@link roughnessAt}
+ * — never wanted more than this, and saying so is what lets the chapel's own
+ * search in [`chapel.ts`](chapel.ts) ask the same two questions of the same two
+ * functions. A second copy of "is this a rise" is how a chapel ends up in a
+ * hollow the mill would have refused.
+ */
+export interface GroundSample {
   ground(x: number, z: number): number
+}
+
+export interface MillSearch extends GroundSample {
 
   /** Radius that is dry whichever way you walk, in metres. */
   landRadius: number
@@ -109,7 +119,7 @@ const FOOTING = 2.4
  * with one gully cutting into it is still a shoulder, and scoring it by the
  * gully would move every mill on the coast into the middle of its island.
  */
-export function prominenceAt (search: MillSearch, x: number, z: number): number {
+export function prominenceAt (search: GroundSample, x: number, z: number): number {
   let sum = 0
 
   for (let step = 0; step < HORIZON_PROBES; step += 1) {
@@ -121,11 +131,18 @@ export function prominenceAt (search: MillSearch, x: number, z: number): number 
   return search.ground(x, z) - sum / HORIZON_PROBES
 }
 
-function roughnessAt (search: MillSearch, x: number, z: number): number {
+/**
+ * How far the ground moves under a footing of `reach` metres.
+ *
+ * The spread of four neighbours rather than a gradient: what a foundation cares
+ * about is the worst step it has to bridge, and a slope that is uniform is one a
+ * building sits on quite happily.
+ */
+export function roughnessAt (search: GroundSample, x: number, z: number, reach: number): number {
   const centre = search.ground(x, z)
   let worst    = 0
 
-  for (const [ dx, dz ] of [[ FOOTING, 0 ], [ -FOOTING, 0 ], [ 0, FOOTING ], [ 0, -FOOTING ]])
+  for (const [ dx, dz ] of [[ reach, 0 ], [ -reach, 0 ], [ 0, reach ], [ 0, -reach ]])
     worst = Math.max(worst, Math.abs(search.ground(x + dx, z + dz) - centre))
 
   return worst
@@ -200,7 +217,7 @@ export function findMillSite (
       // The trestle is four piers on dry-laid stone. It tolerates a slope the
       // way a barn's sill does not — but only just, and the tolerance is the
       // pier height rather than a taste.
-      const rough = roughnessAt(search, x, z)
+      const rough = roughnessAt(search, x, z, FOOTING)
 
       if (rough > 1.3)
         continue

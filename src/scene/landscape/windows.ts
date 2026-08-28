@@ -1,5 +1,6 @@
 import { BARN_WINDOWS, FARMHOUSE_WINDOWS, SAUNA_WINDOWS } from '../props/buildings.ts'
 import type { WindowPane } from '../props/buildings.ts'
+import { CHAPEL_WINDOWS } from '../props/chapel.ts'
 import type { WindowLight } from '../windows.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
 import { fixtureAt } from './fixtures.ts'
@@ -34,6 +35,14 @@ const DWELLING = {
   farmhouse: 1,
   sauna:     0.55,
   barn:      0.3,
+
+  // Nobody lives in it. A chapel is lit for the hour of a service and dark the
+  // rest of the year, so this is low enough that three of the archipelago's
+  // twenty-four lancets burn at the authored occupancy — which is the difference
+  // between a chapel and a sixth outbuilding with lamps in it. The roll is made
+  // once and kept, so it is the same three every night; turning `occupancy` up
+  // is what lights the rest, and it lights the farm first.
+  chapel: 0.2,
 } as const
 
 /**
@@ -69,11 +78,19 @@ export function paneAt (
   }
 }
 
-/** Every glazed pane on every holding, ready to be lit. */
+/**
+ * Every glazed pane on every holding, ready to be lit.
+ *
+ * The chapels come after the farms rather than each after its own, and that is
+ * not tidiness: `createWindowLamps` rolls one number per pane in list order to
+ * decide which are occupied, so a pane inserted into the middle reshuffles every
+ * lamp downstream of it. Appended, the farm's windows are lit on exactly the
+ * rolls they were lit on before there was a chapel in the scape.
+ */
 export function surveyWindows (archipelago: ArchipelagoSurvey): WindowLight[] {
   const { field } = archipelago
 
-  return archipelago.landmasses.flatMap(landmass => {
+  const holdings = archipelago.landmasses.flatMap(landmass => {
     const { places } = landmass.survey
 
     return [
@@ -82,4 +99,14 @@ export function surveyWindows (archipelago: ArchipelagoSurvey): WindowLight[] {
       ...BARN_WINDOWS.map(pane => paneAt(field, places.barn, pane, landmass.origin, DWELLING.barn)),
     ]
   })
+
+  const chapels = archipelago.landmasses.flatMap(landmass => {
+    const { chapel } = landmass.survey.layout
+
+    return chapel
+      ? CHAPEL_WINDOWS.map(pane => paneAt(field, chapel, pane, landmass.origin, DWELLING.chapel))
+      : []
+  })
+
+  return [ ...holdings, ...chapels ]
 }

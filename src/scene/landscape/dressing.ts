@@ -469,6 +469,16 @@ export function createDressing (
       solver.reserve(beaconX, beaconZ, BEACON_FOOTING + 1.2)
     }
 
+    // The chapel, on the seaward knoll the survey found for it. Plopped rather
+    // than merged, unlike the mill and the light: it is a boarded building with
+    // a sill on the ground, and the ground it is on was chosen for its view of
+    // the water rather than for being level. `standable` is deliberately not
+    // used — a path is worn to this door in `survey.ts` before any of this runs,
+    // and a building that walked itself inland here would leave that path
+    // ending where the chapel used to be.
+    if (layout.chapel)
+      raiseBuilding('chapel', layout.chapel.x + ox, layout.chapel.z + oz, layout.chapel.angle)
+
     // A bridge only earns its place where the track has something to cross.
     const crossing = findCrossing(layout, survey.field, localConfig)
     if (crossing) {
