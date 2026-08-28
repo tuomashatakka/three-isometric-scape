@@ -87,17 +87,6 @@ const TAU = Math.PI * 2
 const LAMP_BLOOM = 2.6
 
 /**
- * How far past the wall face the glow geometry is pushed, in metres.
- *
- * The pane table positions the glass just outside the wall face; this moves
- * the glow *inside* the house so the viewer sees light coming out through
- * the opening rather than sitting on its surface. 0.10 m is a hair inside
- * the frame's inner edge, which is enough to hide the emitter behind the
- * surround while keeping the spill close enough to catch the reveal.
- */
-const LAMP_INSIDE = 0.10
-
-/**
  * Width of the ramp the household wakes and turns in over, as a fraction of the
  * day. Roughly twenty minutes — long enough not to be a switch, short enough
  * that a still taken an hour either side is unambiguous.
@@ -198,16 +187,14 @@ export function createWindowLamps (options: WindowLampOptions): ScapeModule | nu
   const carrier = new Object3D()
 
   for (const [ index, pane ] of panes.entries()) {
-    // offset *inward* — opposite to the outward bearing — so the emitter
-    // sits just inside the house. the spill at z ≥ 0 in pane units then
-    // starts from the glass plane and fans outward through the opening.
-    // the stored outward normal is not flipped; the inward offset is
-    // applied only here at placement time.
-    carrier.position.set(
-      pane.x - Math.sin(pane.angle) * LAMP_INSIDE,
-      pane.y,
-      pane.z - Math.cos(pane.angle) * LAMP_INSIDE,
-    )
+    // On the wall, and nowhere else. The pane table is written at the face of
+    // the wall the window is cut into and the glow geometry carries its own two
+    // standoffs from there — the lit pane down in the reveal, the haze clear of
+    // the surround (see `LAMP_PANE_PROUD` and `LAMP_SPILL_PROUD` in
+    // `props/lamp.ts`). An offset applied *here* as well is a second answer to
+    // the same question, and the last one pushed the whole system 0.10 m into
+    // the house, where the depth test threw every pixel of it away.
+    carrier.position.set(pane.x, pane.y, pane.z)
     carrier.rotation.set(0, pane.angle, 0)
     carrier.scale.set(pane.width, pane.height, 1)
     carrier.updateMatrix()

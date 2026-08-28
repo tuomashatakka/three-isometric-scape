@@ -1,6 +1,7 @@
 import { BufferAttribute, BufferGeometry, Color } from 'three'
 import { mergeParts } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
+import { WINDOW_FRAME_PROUD, WINDOW_GLASS_PROUD } from './timber.ts'
 
 
 /**
@@ -50,6 +51,29 @@ const SPILL_PEAK = 0.45
 const SPILL_FALL = 1.8
 
 /**
+ * Where the lit pane sits, in metres out from the wall the window is on.
+ *
+ * The one length in this file that is *not* in pane units, and it is in metres
+ * for a reason the run that wrote this had already reasoned out and then got
+ * backwards: the light belongs in the reveal — behind the surround's front face
+ * and in front of the glass — and a reveal is a fixed depth of timber rather than
+ * a fraction of a window. A hair off the glass, so the two do not z-fight.
+ */
+export const LAMP_PANE_PROUD = WINDOW_GLASS_PROUD + 0.01
+
+/**
+ * Where the haze in front of the pane sits, in metres out from the same wall.
+ *
+ * Clear of the surround, which is the whole of what went wrong before: the glow
+ * was pushed 0.10 m *into* the house, the geometry is flat, and the depth test
+ * did the rest — the entire system drew nothing at all, at every pose, for two
+ * runs. The pane can live down in the reveal because the opening is empty now;
+ * the haze cannot, because it is wider than the opening and would be clipped by
+ * the surround it is supposed to be spilling past.
+ */
+export const LAMP_SPILL_PROUD = WINDOW_FRAME_PROUD + 0.02
+
+/**
  * Minimum radius factor for the directional bias.
  *
  * Light escaping an aperture comes out roughly along the outward normal, not
@@ -76,9 +100,14 @@ export interface WindowGlowOptions {
 /**
  * A lit pane and the haze in front of it, built in the pane's own frame.
  *
- * Centred on the glass, in the XY plane, looking down `+z` — so the carrier in
- * `scene/windows.ts` has only to place it and turn it to the wall's outward
- * bearing. Nothing here is lit: the material is unlit and additive, and the
+ * Centred on the glass and looking down `+z`, so the carrier in
+ * `scene/windows.ts` has only to place it on the wall and turn it to that wall's
+ * outward bearing. It is *not* flat: the lit pane sits in the reveal at
+ * {@link LAMP_PANE_PROUD} and the haze stands off in front of the surround at
+ * {@link LAMP_SPILL_PROUD}, both in metres, because both are answering to a depth
+ * of timber rather than to the size of the window.
+ *
+ * Nothing here is lit: the material is unlit and additive, and the
  * colour is baked per *vertex* rather than per facet so the spill falls to
  * nothing at its rim without the blend having to do it. See `buildBeaconOptic`
  * for the same argument at greater length — an additive edge lives in the
@@ -98,7 +127,7 @@ export function buildWindowGlow (palette: NordicPalette, options: WindowGlowOpti
 
 /** The glass itself, at full brightness and one unit square. */
 function buildPane (lamp: Color): BufferGeometry {
-  return soup(lamp, push => {
+  return soup(lamp, LAMP_PANE_PROUD, push => {
     const at = (x: number, y: number): void => push(x, y, 1)
 
     at(-0.5, -0.5); at(0.5, -0.5); at(0.5, 0.5)
@@ -113,11 +142,12 @@ function buildPane (lamp: Color): BufferGeometry {
  *
  * `+z` is outward (toward the viewer), so `cos² θ` narrows the spill into
  * a forward lobe — brightest directly ahead, fading at the sides, absent
- * behind. The pane at `z = 0` is the only part the test suite inspects;
- * the spill stays flat in the same plane.
+ * behind. It is flat, but not in the pane's plane: the whole fan stands at
+ * {@link LAMP_SPILL_PROUD}, in front of the surround it would otherwise be
+ * clipped by.
  */
 function buildSpill (lamp: Color, rings: number, reach: number): BufferGeometry {
-  return soup(lamp, push => {
+  return soup(lamp, LAMP_SPILL_PROUD, push => {
     const at = (ring: number, step: number): void => {
       const t     = ring / rings
       const turn  = step / SPILL_AROUND * Math.PI * 2
@@ -152,14 +182,18 @@ function buildSpill (lamp: Color, rings: number, reach: number): BufferGeometry 
  * `+z` — nothing lights this geometry, but `mergeParts` requires every part to
  * carry the same attributes, and a merge is what this is for.
  */
-function soup (lamp: Color, fill: (push: (x: number, y: number, level: number) => void) => void): BufferGeometry {
+function soup (
+  lamp: Color,
+  at:   number,
+  fill: (push: (x: number, y: number, level: number) => void) => void,
+): BufferGeometry {
   const positions: number[] = []
   const normals: number[]   = []
   const uvs: number[]       = []
   const colors: number[]    = []
 
   fill((x, y, level) => {
-    positions.push(x, y, 0)
+    positions.push(x, y, at)
     normals.push(0, 0, 1)
     uvs.push(x + 0.5, y + 0.5)
     colors.push(lamp.r * level, lamp.g * level, lamp.b * level)

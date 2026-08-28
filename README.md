@@ -246,8 +246,8 @@ src/
         ├── material.ts             shared materials, cloud shadow, wind, ground relief, wetness, snow
         ├── ploppable.ts            2d placement with a ground-following foundation
         ├── fence.ts / wall.ts      continuous ground-following runs
-        ├── lamp.ts                 the pane and the haze a lit window throws
-        ├── timber.ts               cladding, gable and roof vocabulary
+        ├── lamp.ts                 the pane in the reveal and the haze in front of it
+        ├── timber.ts               cladding, gable, roof and window vocabulary
         ├── buildings.ts            barn, farmhouse, sauna, aitta, woodshed
         ├── structures.ts           jetty, well, hay rack, gate, bridge, cart
         ├── vegetation.ts           spruce, pine, birch, grass, reeds, crops
@@ -734,6 +734,12 @@ the dormer is deliberately not in that list. `dormer()` derives its own pane out
 `windows.banked` is why they are down to a glow rather than out. a farmhouse at four in the morning still has a fire in it, and a scape whose farms go absolutely black at the small hours reads as abandoned rather than as asleep. a `bedtime` at or before `rising` is a household that never gets up — banked all day, which is the honest reading of that pair and not a wrap-around that lights the farm through the afternoon.
 
 **which windows are occupied is a live knob.** the draw is made once per pane at build and *kept*; the comparison against `windows.occupancy` happens every frame. so turning the farm up at midnight is a slider rather than a reload — and because the roll is weighted by how lived-in each building is, it lights the farmhouse before the sauna and the sauna before the byre.
+
+**a window is a hole with glass in it, and for two runs it was neither.** the surround was one solid slab — `box(width + 0.22, height + 0.22, 0.12)` centred on the pane, with the glass set 0.04 m *behind* it — so the glass sat inside its own frame, 0.07 m back from the face the eye reaches first, and no camera in this scape could see a pane of glass anywhere in the archipelago. the surround is four bars now and the opening between them is empty. nothing had failed: a window with no glass in it looks exactly like a window from twenty metres away, and twenty metres is the only distance anything had ever looked from.
+
+**everything is built outward, because the kit does not cut holes.** a wall here is a slab of cladding with a window drawn on the face of it, so both the glass and the surround stand *proud* of that face — `WINDOW_GLASS_PROUD` and `WINDOW_FRAME_PROUD` — and the pane table is read as saying where the face is. which is a contract the tables have to keep, and one of them was not: the sauna's wall is a course of round logs rather than boards, so its face is a whole log radius out, and its one pane was written at a board's offset and buried 0.15 m inside its own wall. `timber.test.ts` states the contract as a fact about the built geometry, for every published pane in the kit at once — standing at the middle of a pane and looking straight in, the nearest surface of the building is the glass.
+
+**the lamp is two depths, not one.** it used to be flat, and a test in `lamp.test.ts` said so approvingly — *nothing leaves the plane the wall is*. that sounded like discipline and was the bug: `scene/windows.ts` then pushed the flat thing 0.10 m *into* the house to get "light coming out through the opening", the depth test threw all of it away, and the whole system drew **nothing at all** — `--skip windows` changed a 400,000-pixel frame by one channel level on one pixel. a window is not a plane. the lit pane belongs down in the reveal, between the glass and the front of the surround; the haze belongs in front of the surround, because it is wider than the opening and anything in the reveal is clipped by the jambs. `LAMP_PANE_PROUD` and `LAMP_SPILL_PROUD` are those two depths, both derived from the surround's own, and the placement in `scene/windows.ts` is now no offset at all — one answer to where a lamp is, in the geometry that has to clear the timber.
 
 **the glow is sized in pane units, and that is the one scale decision here.** the instanced carrier scales each instance by its own window's width and height, so the haze in front of the glass grows with the opening it comes out of — a bigger window lets out more light. the alternative, writing the spill in metres, needs one geometry per pane size, which is a draw call apiece for a difference nobody can see. there is therefore no length anywhere in the `windows` config section, which is the audit the scale rule asks for.
 

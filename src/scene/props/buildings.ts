@@ -100,6 +100,18 @@ const FARMHOUSE_PEAK = 6.3
 /** Half the farmhouse's depth on `z`. The wall its front windows sit in. */
 const FARMHOUSE_DEPTH = 3
 
+/**
+ * How thick the board cladding is, on every building that has any.
+ *
+ * One number rather than four literals, because the pane tables below are read
+ * as saying where the wall's *face* is — see `window()` in `timber.ts` — and the
+ * face is the wall's centre plus half its skin. A cladding retuned in one place
+ * and a pane table left in the other is a window inside its own wall, which is
+ * exactly the failure this file's windows were in.
+ */
+const FARMHOUSE_SKIN = 0.2
+const BARN_SKIN      = 0.18
+
 /** Half the barn's depth, and half the sauna's. Named for the same reason. */
 const BARN_DEPTH  = 2.7
 const SAUNA_DEPTH = 1.7
@@ -144,33 +156,43 @@ export const SAUNA_FLUE: StackMouth = { x: -1.2, y: SAUNA_PEAK + 0.85, z: 0 }
  */
 export const FARMHOUSE_WINDOWS: readonly WindowPane[] = [
   ...[ -3.6, -2.1, 2.1, 3.6 ].map((x): WindowPane =>
-    ({ x, y: 2.4, z: FARMHOUSE_DEPTH + 0.06, width: 0.8, height: 1.1, facing: 1 })),
+    ({ x, y: 2.4, z: FARMHOUSE_DEPTH + FARMHOUSE_SKIN / 2, width: 0.8, height: 1.1, facing: 1 })),
   ...[ -2.4, 2.4 ].map((x): WindowPane =>
-    ({ x, y: 2.4, z: -FARMHOUSE_DEPTH - 0.06, width: 0.8, height: 1.1, facing: -1 })),
+    ({ x, y: 2.4, z: -FARMHOUSE_DEPTH - FARMHOUSE_SKIN / 2, width: 0.8, height: 1.1, facing: -1 })),
 
   // One to each gable, and they are not decoration: the camera is a fixed
   // dimetric heading, so a nine-metre house glazed only on its long walls turns
   // a blank end to the eye on half the yaws the reader can spin it to — and a
   // lamp nobody can see from the angle the scape opens at is a lamp that may as
-  // well not be lit. The gable wall's outer face is at `length / 2 + 0.11`.
+  // well not be lit. The gable wall's outer face is at `length / 2 + 0.11`, and
+  // the pane sits on it rather than a centimetre proud of it: the surround and
+  // the glass are built outward from here, so a pane written past the face is a
+  // window floating off its own wall.
   ...([ 1, -1 ] as const).map((side): WindowPane =>
-    ({ x: side * 4.62, y: 2.4, z: 0, width: 0.8, height: 1, facing: side, axis: 'x' })),
+    ({ x: side * 4.61, y: 2.4, z: 0, width: 0.8, height: 1, facing: side, axis: 'x' })),
 ]
 
 /** The barn's two — one over the ramp, one on the field side. */
 export const BARN_WINDOWS: readonly WindowPane[] = [
-  { x: 3, y: 2.5, z: BARN_DEPTH + 0.05, width: 0.7, height: 0.7, facing: 1 },
-  { x: -3.2, y: 2.5, z: -BARN_DEPTH - 0.05, width: 0.7, height: 0.7, facing: -1 },
+  { x: 3, y: 2.5, z: BARN_DEPTH + BARN_SKIN / 2, width: 0.7, height: 0.7, facing: 1 },
+  { x: -3.2, y: 2.5, z: -BARN_DEPTH - BARN_SKIN / 2, width: 0.7, height: 0.7, facing: -1 },
 
   // A hayloft light in each gable, above the door head, for the same reason the
   // farmhouse has them. Its wall face is at `length / 2 + 0.1`.
   ...([ 1, -1 ] as const).map((side): WindowPane =>
-    ({ x: side * 4.12, y: 2.9, z: 0, width: 0.6, height: 0.6, facing: side, axis: 'x' })),
+    ({ x: side * 4.1, y: 2.9, z: 0, width: 0.6, height: 0.6, facing: side, axis: 'x' })),
 ]
 
-/** The sauna's one small light, beside the door. */
+/**
+ * The sauna's one small light, beside the door.
+ *
+ * Its wall is a course of round logs rather than a board skin, so the face it
+ * sits on is a whole log radius out — `SAUNA_COURSE / 2` — which is three times
+ * what a boarded wall stands proud by. Writing it at a board's offset is what
+ * had this one pane, alone in the kit, buried 0.15 m inside its own wall.
+ */
 export const SAUNA_WINDOWS: readonly WindowPane[] = [
-  { x: 1.3, y: 1.9, z: SAUNA_DEPTH + 0.06, width: 0.45, height: 0.4, facing: 1 },
+  { x: 1.3, y: 1.9, z: SAUNA_DEPTH + SAUNA_COURSE / 2, width: 0.45, height: 0.4, facing: 1 },
 ]
 
 /** The barn (lato) — falu-red board walls, sliding door, hay in the opening. */
@@ -187,8 +209,8 @@ export function buildBarn (rng: SeededRng, palette: NordicPalette): BufferGeomet
     at: [ 0, plinthY / 2, 0 ], color: palette.granite, jitter: 0.11, rng,
   }))
 
-  claddingPlanks(parts, rng, palette.faluRed, 10, length, wallY, 0.18, -halfDepth)
-  claddingPlanks(parts, rng, palette.faluWorn, 10, length, wallY, 0.18, halfDepth)
+  claddingPlanks(parts, rng, palette.faluRed, 10, length, wallY, BARN_SKIN, -halfDepth)
+  claddingPlanks(parts, rng, palette.faluWorn, 10, length, wallY, BARN_SKIN, halfDepth)
 
   for (const side of [ -1, 1 ]) {
     parts.push(part(box(0.2, wallY, halfDepth * 2), {
@@ -258,8 +280,8 @@ export function buildFarmhouse (rng: SeededRng, palette: NordicPalette): BufferG
     at: [ 0, plinthY / 2, 0 ], color: palette.granite, jitter: 0.12, rng,
   }))
 
-  claddingPlanks(parts, rng, palette.faluRed, 11, length, wallY, 0.2, -halfDepth)
-  claddingPlanks(parts, rng, palette.faluRed, 11, length, wallY, 0.2, halfDepth)
+  claddingPlanks(parts, rng, palette.faluRed, 11, length, wallY, FARMHOUSE_SKIN, -halfDepth)
+  claddingPlanks(parts, rng, palette.faluRed, 11, length, wallY, FARMHOUSE_SKIN, halfDepth)
 
   for (const side of [ -1, 1 ]) {
     parts.push(part(box(0.22, wallY, halfDepth * 2), {

@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import type { BufferAttribute } from 'three'
 import { resolvePalette } from './index.ts'
-import { buildWindowGlow } from './lamp.ts'
+import { LAMP_PANE_PROUD, LAMP_SPILL_PROUD, buildWindowGlow } from './lamp.ts'
+import { WINDOW_FRAME_PROUD, WINDOW_GLASS_PROUD } from './timber.ts'
 
 
 const palette = resolvePalette()
@@ -28,12 +29,12 @@ describe('the glow behind a lit window', () => {
   })
 
   /**
-   * It is built in *pane units* — see the note at the top of `lamp.ts` — and the
-   * carrier scales each instance by its own window's width and height. So the
-   * pane itself has to be the unit square about the origin, or every lamp in the
-   * archipelago is the wrong size and off its own glass by the same amount.
+   * It is built in *pane units* across — see the note at the top of `lamp.ts` —
+   * and the carrier scales each instance by its own window's width and height. So
+   * the pane itself has to be the unit square about the origin, or every lamp in
+   * the archipelago is the wrong size and off its own glass by the same amount.
    */
-  test('the pane is the unit square, centred, and flat on z', () => {
+  test('the pane is the unit square, centred', () => {
     const pane = Array.from({ length: A_PANE }, (_value, index) => ({
       x: position.getX(index),
       y: position.getY(index),
@@ -43,15 +44,37 @@ describe('the glow behind a lit window', () => {
     for (const point of pane) {
       expect(Math.abs(point.x)).toBeCloseTo(0.5, 9)
       expect(Math.abs(point.y)).toBeCloseTo(0.5, 9)
-      expect(point.z).toBe(0)
+      expect(point.z).toBeCloseTo(LAMP_PANE_PROUD, 6)
     }
 
     expect(new Set(pane.map(point => `${point.x},${point.y}`)).size).toBe(4)
   })
 
-  test('nothing leaves the plane the wall is', () => {
-    for (let index = 0; index < position.count; index += 1)
-      expect(position.getZ(index)).toBe(0)
+  /**
+   * The claim this whole geometry got wrong for two runs, stated as a fact about
+   * the vertices.
+   *
+   * It used to be flat — every vertex at `z = 0` — and a test here said so in as
+   * many words: *nothing leaves the plane the wall is*. Which sounded like
+   * discipline and was the bug: `scene/windows.ts` then pushed the flat thing
+   * 0.10 m *into* the house to get light "coming out through the opening", the
+   * depth test threw all of it away, and every window in the archipelago drew
+   * nothing at all. `--skip windows` changed a 400,000-pixel frame by one channel
+   * level on one pixel.
+   *
+   * A window is not a plane. It is a surround standing proud of a wall with glass
+   * down in the reveal behind it, so the light has *two* depths: the lit pane
+   * belongs in the reveal, between the glass and the front of the surround, and
+   * the haze belongs in front of the surround, because it is wider than the
+   * opening and anything in the reveal would be clipped by the jambs.
+   */
+  test('the pane sits in the reveal and the haze stands clear of the surround', () => {
+    expect(LAMP_PANE_PROUD).toBeGreaterThan(WINDOW_GLASS_PROUD)
+    expect(LAMP_PANE_PROUD).toBeLessThan(WINDOW_FRAME_PROUD)
+    expect(LAMP_SPILL_PROUD).toBeGreaterThan(WINDOW_FRAME_PROUD)
+
+    for (let index = A_PANE; index < position.count; index += 1)
+      expect(position.getZ(index)).toBeCloseTo(LAMP_SPILL_PROUD, 6)
   })
 
   /**
