@@ -1086,6 +1086,47 @@ export interface ScapeConfig {
     roughness: number
 
     /**
+     * How brightly the sun draws its net on the bottom, 0..1.
+     *
+     * The switch for the caustics, and the only one: 0 is a sea the light goes
+     * straight through. What is *on* any given day is not here — the net is
+     * scaled by how high the sun is standing, so a midwinter noon at this
+     * latitude has none of it and a polar night has none of it either, without
+     * a second knob saying so. See `causticStrength` in `landscape/water.ts`.
+     *
+     * It is deliberately not a share of {@link sparkle}. Glitter is the sun
+     * seen *off* the surface and caustics are the sun seen *through* it: the
+     * one is killed by a chop that the other only softens, they live at
+     * opposite ends of the depth range, and a scape that tuned them together
+     * could never have a bright bottom under a dull surface.
+     */
+    caustics: number
+
+    /**
+     * Metres of water depth the net fades out over.
+     *
+     * **Metres, and they stay metres.** Light is absorbed by the water it
+     * passes through at a rate set by the water, not by how wide the world is
+     * or how far the camera is pulled out — so this is neither world-sized nor
+     * frame-sized, and a wider archipelago must not scale it. Like
+     * {@link surfDepth}, what it *does* scale with is the ground: a shelving
+     * bay carries the net a long way out and a rock that falls away sheer
+     * carries it barely at all, and neither of those had to be authored.
+     */
+    causticDepth: number
+
+    /**
+     * Metres between the cells of the net.
+     *
+     * Metres for the same reason {@link causticDepth} is: a cell is the size
+     * the swell above it makes it, which is a fact about water rather than
+     * about the frame. The net is *hidden* rather than shrunk once a cell no
+     * longer covers a pixel — see `WATER_CAUSTIC_GLSL` — so this stays put at
+     * every zoom and the far view simply loses a detail it could not resolve.
+     */
+    causticScale: number
+
+    /**
      * How far out of the shallows the winter ice carries, 0..1.
      *
      * 0 freezes the open sea as readily as the bank, which is a lake rather
@@ -2034,6 +2075,14 @@ export const SCAPE_CONFIG = {
   // leaves the lee about a quarter of the weather side's break — sheltered
   // rather than glassy, which is what a sound between islands actually looks
   // like on a day with a sea running.
+  //
+  // 2.8 m of caustic reach stands a little *past* the surf's 2.4 m shelf, which
+  // is the right relationship rather than a coincidence: a swell trips as soon
+  // as it feels the bottom, and light in clear northern water gives up a good
+  // deal further down than that. So the net runs out under the breakers and
+  // keeps going a few metres beyond them. 2.6 m between cells is what a swell
+  // of this height focuses to — big enough to read as a net at the shallows
+  // poses and small enough that one bay carries several dozen of them.
   water: {
     sparkle:        0.5,
     waveHeight:     0.075,
@@ -2045,6 +2094,9 @@ export const SCAPE_CONFIG = {
     surf:           1,
     surfDepth:      2.4,
     surfExposure:   0.72,
+    caustics:       1,
+    causticDepth:   2.8,
+    causticScale:   2.6,
   },
   // The screen-scale class, grown with the world it frames. `maxViewSize` is
   // what the cloud and aurora tiles are sized against, so a world that tripled

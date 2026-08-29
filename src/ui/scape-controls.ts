@@ -304,6 +304,18 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
             range('water.surfExposure', 'weather side', 0, 1, 0.01),
           ],
         ),
+        // How much of it is up on any given hour is the sun's, the same way the
+        // surf's heading is the wind's. What is here is how bright, how far
+        // down it reaches, and how big the cells of the net are.
+        toggled(
+          'caustics',
+          range('water.caustics', 'strength', 0, 1.5, 0.01),
+          1,
+          [
+            range('water.causticDepth', 'reach (m)', 0, 6, 0.05),
+            range('water.causticScale', 'cell size (m)', 0.5, 8, 0.05),
+          ],
+        ),
         toggled('boat wakes', range('water.wakeStrength', 'wake strength', 0, 1.5, 0.01), 0.78),
         range('water.roughness', 'roughness', 0.05, 1, 0.01),
         range('boats.speed', 'boat speed', 0, 12, 0.1),

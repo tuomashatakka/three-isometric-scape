@@ -9,7 +9,7 @@ import {
 } from 'three'
 import type { IUniform, Texture, WebGLProgramParametersWithUniforms } from 'three'
 import type { LiveConfig } from '../config.ts'
-import { createDaylight } from '../daylight.ts'
+import { createDaylight, sunHeight } from '../daylight.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import type { SeasonState } from '../season.ts'
 import type { TextureCatalogue } from '../textures/catalogue.ts'
@@ -19,6 +19,12 @@ import type { BoatWakeEmitter } from './boats.ts'
 import type { HeightField } from './height.ts'
 import { LAYER } from '../layers.ts'
 import { MAX_DEPTH, bakeShoreMask } from './shore-mask.ts'
+import {
+  CAUSTIC_RATE,
+  WATER_CAUSTIC_FRAGMENT,
+  WATER_CAUSTIC_GLSL,
+  causticStrength,
+} from './water-caustics.ts'
 
 
 /**
@@ -342,6 +348,7 @@ const WATER_PARS_FRAGMENT = /* glsl */`
 ${WAVE_GLSL}
 ${ICE_GLSL}
 ${WATER_SURF_GLSL}
+${WATER_CAUSTIC_GLSL}
 ${BOAT_WAKE_GLSL}
 `
 
@@ -405,6 +412,9 @@ const WATER_COLOR_FRAGMENT = /* glsl */`
   float breakers = scapeSurf(vWaterGround, shore, waterDepth) * (1.0 - iceCover);
 
   diffuseColor.rgb = mix(uShallow, uDeep, smoothstep(0.0, 0.5, waterDepth));
+
+${WATER_CAUSTIC_FRAGMENT}
+
   diffuseColor.rgb = mix(
     diffuseColor.rgb,
     uFoam,
@@ -463,6 +473,8 @@ const WATER_COLOR_FRAGMENT_LITE = /* glsl */`
   float breakers = scapeSurf(vWaterGround, shore, waterDepth) * (1.0 - iceCover);
 
   diffuseColor.rgb = mix(uShallow, uDeep, smoothstep(0.0, 0.5, waterDepth));
+
+${WATER_CAUSTIC_FRAGMENT}
 
   float sheen = texture2D(uRippleMap, vWaterGround * uRippleScale + uRippleOffset).r;
   diffuseColor.rgb *= 0.93 + 0.15 * sheen;
@@ -788,6 +800,15 @@ export function createWater (
     uSurfDepth:    { value: config().water.surfDepth / MAX_DEPTH },
     uSurfExposure: { value: config().water.surfExposure },
     uSurgePhase:   { value: 0 },
+
+    // Metres in, radians of the net out. `causticScale` is the distance between
+    // cells, and one cell is one period of the sheet's first sine — so the
+    // conversion is a whole turn per cell, and it happens here rather than in
+    // the shader for the reason `uSurfDepth`'s does.
+    uCaustics:     { value: 0 },
+    uCausticDepth: { value: config().water.causticDepth / MAX_DEPTH },
+    uCausticCells: { value: Math.PI * 2 / config().water.causticScale },
+    uCausticPhase: { value: 0 },
   }
 
   // Opaque at the material level, and let the shader's alpha ramp do the
@@ -931,6 +952,29 @@ export function createWater (
       // water gets the base colours, which is correct because the water is
       // the thing being scattered *at* and does not need to re-scatter
       // its own reflection.
+      // The net on the bottom. It rides `wind.travel` rather than `elapsed` for
+      // the reason the surge does — see `CAUSTIC_RATE` — so `wind.speed=0` in a
+      // still holds it where it stands and there is nothing here for `STILL` to
+      // name that it does not already name.
+      //
+      // The elevation is solved rather than taken off the daylight sample: the
+      // sample's `direction` is held above the horizon so the key light never
+      // lights the terrain from underneath, which makes it exactly the wrong
+      // thing to ask how high the sun is. `sunHeight` is the arc itself.
+      uniforms.uCausticPhase.value = wind.travel * CAUSTIC_RATE
+      uniforms.uCausticDepth.value = config().water.causticDepth / MAX_DEPTH
+      uniforms.uCausticCells.value = Math.PI * 2 / Math.max(0.05, config().water.causticScale)
+      uniforms.uCaustics.value     = causticStrength(
+        config().water.caustics,
+        sunHeight(
+          config().daylight.time,
+          config().season.time,
+          config().daylight.latitude,
+          config().daylight.axialTilt,
+        ),
+        fall,
+      )
+
       const now = daylight.sample(config().daylight.time, config().season.time)
       sunDir.value.copy(now.direction)
       sunColor.value.copy(now.sun)
@@ -965,3 +1009,11 @@ export function createWater (
 // the mask's spare channels, so a breaker band costs one dot product, one sine
 // and two smoothsteps on a fetch the lake was making anyway. No draw, no
 // texture memory, no tap — which is why the phone gets it too.
+//
+// The caustics are the third of those. Six sines, two powers, a `fwidth` and
+// three smoothsteps on the depth the lake had already fetched — no draw, no
+// texture, no tap, and an early-out on `uCaustics` for the tiers and the hours
+// that have none. That is why this one is not a `quality` field: there is no
+// cheap version to fall back to and no expensive version to protect a phone
+// from, and a boolean beside a strength that already reaches zero would be the
+// `enabled` flag this scape does not have.

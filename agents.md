@@ -168,6 +168,7 @@ bun run scape:shot --poses guard                    # the rocks in the open sea,
 bun run scape:shot --poses window                   # one farmhouse wall, 2 frames: the glass by day, the lamp at dusk
 bun run scape:shot --poses chapel                   # the church and its yard, 4 frames
 bun run scape:shot --poses grazing                  # the flocks on the rough ground, 3 frames
+bun run scape:shot --poses shallows                 # the light on the bottom, 4 frames
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain
@@ -180,6 +181,8 @@ bun run scape:shot --skip post                      # drop the optical chain
 `steading` is the fourth set, and the same argument again one scale further down: the farmyard at a 48 m view, in the authored light, at midwinter and at night. every pose in `tour` is aimed at the middle of the archipelago, and `near` — the one exception at ten metres — is focused on the world origin, which is open yard between the farmhouse and the sauna and takes neither of them in. the fourth pose, `yard-evening`, is nine in the evening rather than half past midnight, and it is there because `yard-night` is deliberately *after* the household has turned in: the lamps in the windows are banked to a stove glow at that hour, and a pose that only ever saw them banked could not tell a farm with people in it from an empty one. reach for the set whenever the change is the size of a building or something standing on one: a roof, a doorstep, a rut, a chimney, a lit window.
 
 `guard` is the fifth set, and the argument once more in the other direction — out to sea rather than in at the yard. four frames on the chain of rocks at (305, -99): `reef` over the whole 199 m line, `reef-near` on its widest rock at a zoom where the drowned shelf, the break on it and the dry crown are three things rather than one speck, `reef-lee` at the identical frame to `reef` with the wind turned right around, and `reef-winter` where the shallows the guard created are the first water in the archipelago to shut. the tour *can* see the guard — the chains read at `default`, `far` and `noon` — but forty-nine rocks of forty metres in a 1400 m frame move a fraction of one per cent of the pixels, so the whole-frame column says `same` and only `maxblock` is honest. reach for it whenever the change touches the open water between the islands, or anything standing on the rocks in it — `littoral.*` included.
+
+`shallows` is the eighth set, and the first whose subject is not a thing at all — it is a *pattern*, two and a half metres across, on the bottom of the water. four frames on the harbour bank west of the landing: `shallows` in the authored light, `shallows-noon` with the sun at its highest, which is the top of the elevation ramp the net is scaled by, `shallows-winter` where the midwinter sun never clears the horizon at this latitude *and* the ice has shut the bank, and `shallows-far` at a 620 m view, which is the *guard*: the net is procedural and has no mipmap, so it measures its own footprint and hides rather than aliasing, and that pose has to come back `same` for the claim to hold. `coast/wash` is the closest any earlier pose comes to the water and it is still ninety metres out. reach for it whenever the change touches what the water is doing between its edge and its depth tint — `water.caustics`, `water.causticDepth`, `water.causticScale`.
 
 `beacon` is the second set: the light itself, at night, from four headings 90° apart, aimed by `camera.focusX`/`focusZ` rather than by zoom. it exists because the beams' bug was a render-order tie broken by *projected depth*, and that flips with yaw — one heading can only ever photograph one side of the flip, and no pose in `tour` has the tower in frame at all. reach for it whenever the change touches the transparent stack.
 
@@ -347,12 +350,14 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `mill-sails.ts` | every mill's wheel in one dynamic `InstancedMesh`, geared off `wind.strength` |
 | `terrain.ts` | shared archipelago geometry, height/slope banded colour, path wear painted in |
 | `water.ts` | baked bathymetry, swell, foam, glitter, winter ice and shader boat wakes |
+| `water-caustics.ts` | the net the sun draws on the bottom of the shallows, and how bright it is today |
 | `samplers.ts` | where the dressing throws its darts — island, disc, tread, skerry |
 | `dressing-zones.ts` | world-space keep-outs and pure scatter acceptance rules |
 | `dressing-helpers.ts` | hand-placed runs and helpers shared by each holding |
 | `dressing-enclosures.ts` | the walled ground: the pasture wall, the churchyard wall and its graves, the plot fences |
 | `dressing.ts` | placement, hero merge, instanced scatter |
 | `littoral.test.ts` | the tidal band on the guard: the sampler lands on rock, the two zones do not overlap, and both reach every rock |
+| `water-caustics.test.ts` | the net is a daylight effect: nothing under the horizon, nothing in the polar night, a ramp rather than a step, and rain dims it without putting it out |
 | `index.ts` | the scene module, and what raycasts |
 
 **a yaw is not a bearing.** `rotateY(θ)` carries a prop's front (local `+z`) to `(sin θ, cos θ)`; a compass bearing points at `(cos a, sin a)`. they are reflections and agree on exactly one diagonal, which is why getting it wrong survives for months. use `faceToward(from, to)` for props and `yawAlong(bearing)` for anything laid along a line.
