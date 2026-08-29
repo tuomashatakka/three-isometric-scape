@@ -21,6 +21,7 @@ import { createGroundContact, findCrossing, isFoliage, trackPointNear } from './
 import { raiseEnclosures } from './dressing-enclosures.ts'
 import type { Walling } from './dressing-enclosures.ts'
 import { createScatterRules, createZoneTests } from './dressing-zones.ts'
+import { createGrazingTest, planGrazing } from './grazing.ts'
 import { yawAlong } from './layout.ts'
 import type { Plot, Vec2 } from './layout.ts'
 import { createDiscSampler, createSkerrySampler, createSpotSampler, createTreadSampler } from './samplers.ts'
@@ -42,7 +43,7 @@ const TAU = Math.PI * 2
 /**
  * How much of the ground's lean each family of prop takes.
  *
- * Four answers rather than one, because "does this thing stand plumb" is a
+ * Five answers rather than one, because "does this thing stand plumb" is a
  * question about what the thing *is*. See `align.ts` for the rotation itself.
  */
 const TILT = {
@@ -64,6 +65,16 @@ const TILT = {
 
   /** Grows toward the light whatever it is rooted in, and mostly wins. */
   rooted: 0.28,
+
+  /**
+   * On four legs — the one thing in the scape that levels itself.
+   *
+   * Not zero, though. An animal on a hillside stands square to gravity and
+   * *reads* as leaning slightly into the slope, because its legs are shorter
+   * uphill than down; taking none of the ground's lean at all is what makes a
+   * sheep on a bank look like a sheep hovering beside one.
+   */
+  footed: 0.2,
 } as const
 
 /**
@@ -121,10 +132,17 @@ function createDressingSampling (
       }]
       : []
   })
+  // The flocks are surveyed, not sampled: `grazing.ts` walks out from each yard
+  // and hands back the discs of hill a farm would turn its stock out onto. What
+  // the dressing does with them is what it does with the pasture — one sampler
+  // over all of them, and one per flock so every farm keeps its own sheep.
+  const grazings      = planGrazing(archipelago, config)
   const samplePasture = createDiscSampler(rng, pastures)
   const sampleYard    = createDiscSampler(rng, yards)
   const sampleHarbour = createDiscSampler(rng, harbours)
+  const sampleGrazing = createDiscSampler(rng, grazings)
   const pastureQuota  = pastures.map(feature => createDiscSampler(rng, [ feature ]))
+  const grazingQuota  = grazings.map(feature => createDiscSampler(rng, [ feature ]))
   const yardQuota     = yards.map(feature => createDiscSampler(rng, [ feature ]))
   const harbourQuota  = harbours.map(feature => createDiscSampler(rng, [ feature ]))
   const homeArea      = config.terrain.size ** 2
@@ -145,9 +163,12 @@ function createDressingSampling (
     samplePasture,
     sampleYard,
     sampleHarbour,
+    sampleGrazing,
     pastureQuota,
     yardQuota,
     harbourQuota,
+    grazingQuota,
+    grazings,
     areaScale,
   }
 }
@@ -189,9 +210,12 @@ export function createDressing (
     samplePasture,
     sampleYard,
     sampleHarbour,
+    sampleGrazing,
     pastureQuota,
     yardQuota,
     harbourQuota,
+    grazingQuota,
+    grazings,
     areaScale,
   }              = createDressingSampling(config, archipelago, rng)
   // Where anything standing on the ground meets it, and which way that ground
@@ -606,9 +630,7 @@ export function createDressing (
     return null
   }
 
-  const {
-    conifer, stoneRule, openGround, beachRule, birchRule, juniperRule, plotEdge, inPasture, inYard,
-  } = createScatterRules(config, archipelago, field, rng, {
+  const zones = {
     onYard,
     onTrack,
     onPath,
@@ -616,7 +638,15 @@ export function createDressing (
     onPasture,
     onBeacon,
     clear,
-  })
+  }
+  const {
+    conifer, stoneRule, openGround, beachRule, birchRule, juniperRule, plotEdge, inPasture, inYard,
+  } = createScatterRules(config, archipelago, field, rng, zones)
+
+  // The same predicate the flocks were sited with — see `grazing.ts`. The
+  // survey answers *where* the ground is; this answers whether one dart thrown
+  // at it landed on grass rather than in the beck running through it.
+  const onGrazing = createGrazingTest(archipelago, config, zones)
 
   /** Populate the ground, biggest footprints first. */
   function dressGround (): void {
@@ -758,6 +788,56 @@ export function createDressing (
       scatterCover('rockLichen', crust, (x, z) =>
         heightAt(x, z) > water + lichenBase, 0.75, 1.45, 0, 24, false, sampleSkerry, TILT.loose, 1)
     }
+
+    // ---- the flock -----------------------------------------------------------
+
+    // Last, and that is not a taste decision. Placement draws from one shared
+    // rng — the yaw, the scale, the tint and every dart the sampler throws —
+    // so a scatter inserted in the middle of this function shifts the stream
+    // every batch after it reads from, and a run that added forty sheep moved
+    // every tree, stone and tuft in the archipelago by a metre. The flock goes
+    // on the end, where it disturbs nothing, and the solver has by then
+    // reserved every trunk and boulder the animals have to keep clear of.
+    //
+    // The flock, on the ground the survey found for it. Sampled from the flock
+    // discs rather than from the island: rough grazing is a few hundred square
+    // metres of a landmass that is tens of thousands, so darts thrown at the
+    // island put a budget of seventy sheep on the hill as seven. A quota per
+    // flock keeps every farm's stock at its own farm, and the lambs draw from
+    // the same discs, so they come up among the ewes rather than in a field of
+    // their own.
+    //
+    // The count is scaled by the *flocks* rather than by island area, for the
+    // reason the guard's weed is scaled by the rocks: a budget aimed at ground
+    // the survey found is a count of what stands on that ground. Taking
+    // `areaScale` here multiplied ten ewes by a seven-island archipelago the
+    // ground had nothing to do with, and asked seven metres of hillside to hold
+    // seventy animals — which the spacing solver then spent four hundred
+    // rejected darts declining to do.
+    scatterStructural(
+      'sheep',
+      config.dressing.sheep,
+      0.9,
+      onGrazing,
+      0.92,
+      1.08,
+      40,
+      { sample: sampleGrazing, quota: grazingQuota, claimScale: 0.5 },
+      TILT.footed,
+      grazings.length,
+    )
+    scatterStructural(
+      'lamb',
+      config.dressing.lamb,
+      0.6,
+      onGrazing,
+      0.88,
+      1.12,
+      40,
+      { sample: sampleGrazing, quota: grazingQuota, claimScale: 0.5 },
+      TILT.footed,
+      grazings.length,
+    )
   }
 
   dressGround()
@@ -800,8 +880,9 @@ export function createDressing (
     attempts = 26,
     sampling: ScatterSampling = {},
     tilt: TiltWeight = 0,
+    spread?: number,
   ): void {
-    const total  = budget(count)
+    const total  = budget(count, spread)
     const sample = sampling.sample ?? sampleSpot
     let placement = 0
 

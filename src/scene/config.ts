@@ -158,6 +158,19 @@ export interface DressingBudget {
 
   /** Drying poles standing in the upland pasture. */
   hayPole: number
+
+  /**
+   * Ewes on one flock's ground — head per flock, before the tier scales it.
+   *
+   * Per flock rather than per archipelago, which is the exception in this
+   * table and deliberate: the flocks are surveyed features, so raising this
+   * puts more sheep in the fields that exist rather than one sheep alone on a
+   * headland. Fewer flocks is fewer sheep, and that is the honest answer.
+   */
+  sheep: number
+
+  /** Lambs among them, on the same ground and two thirds the size. */
+  lamb: number
 }
 
 export interface ScapeConfig {
@@ -901,6 +914,36 @@ export interface ScapeConfig {
     unsteady: number
   }
   dressing: DressingBudget
+
+  /**
+   * The rough grazing, and the flocks turned out on it.
+   *
+   * A build-time knob and deliberately not in the overlay: moving a flock moves
+   * the instance matrices its sheep were baked into, and a slider that needs a
+   * rebuild to be seen lies about what a slider does. How many animals stand on
+   * the ground these numbers find is `dressing.sheep` and `dressing.lamb`.
+   *
+   * `spread = 0` is a scape with no livestock in it — an absence, not a
+   * boolean, in the same way every other effect here is switched off by the
+   * number that describes it going to zero.
+   */
+  grazing: {
+
+    /** Metres from a flock's centre to the edge of the ground it feeds over. */
+    spread: number
+
+    /** Flocks one farm turns out, at most. */
+    flocks: number
+
+    /** Metres of hillside the search walks out from the yard before giving up. */
+    reach: number
+
+    /** Metres of ground above the waterline before stock will stand on it. */
+    minLift: number
+
+    /** Steepest ground a sheep will feed on, as the height field's own slope. */
+    maxSlope: number
+  }
 
   /**
    * The gulls, and the water they wheel over.
@@ -1925,6 +1968,38 @@ export const SCAPE_CONFIG = {
 
     mooringPost: 22,
     hayPole:     7,
+
+    // Head *to a flock*, unlike every other budget here, which is a count for
+    // the whole archipelago scaled by its island area: the flock is a feature
+    // the survey found, so its stock is scaled by the flocks. Twenty-six ewes
+    // and ten lambs on a hillside is a smallholding's flock rather than a hill
+    // station's — the scale the rest of this steading is drawn at, which is one
+    // barn, four plots and seven drying poles. Twenty-six ewes over a
+    // seven-metre disc is one animal to six square metres, which is a flock
+    // feeding rather than a dozen sheep standing about on a hill — and the
+    // spacing solver is what keeps the last few out rather than a lower number
+    // here: on this seed 122 of the 182 ewe slots and 64 of the 70 lamb slots
+    // find ground, and the rest are zero-scaled and cost nothing. Seven flocks,
+    // 186 animals standing, two draw calls, about 54k triangles.
+    sheep: 26,
+    lamb:  10,
+  },
+  // A flock feeds over about a fifteen-metre patch of hill: wide enough that
+  // twelve animals in it are spread out rather than heaped, tight enough that
+  // the patch fits between the plots and the forest on an island whose whole
+  // land radius is forty-four metres. Two flocks a farm — the infield and the
+  // hill — and a reach of eighty metres, which is the far side of the home
+  // island's dry ground and about as far as anybody walks to gather sheep.
+  //
+  // 1.2 m of lift keeps them off the wet strand the tide works, and a slope of
+  // 0.55 is the ground a sheep actually feeds on: steeper than the mown pasture
+  // the drying poles stand in, well short of the scree the juniper takes.
+  grazing: {
+    spread:   7,
+    flocks:   2,
+    reach:    90,
+    minLift:  1.2,
+    maxSlope: 0.55,
   },
   // A 1.6 m wingspan is a great black-backed gull, the largest bird on this
   // coast, and it is the largest on purpose: pulled fully out a metre is three

@@ -88,6 +88,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a limewashed chapel on a knoll above the farm — a bell tower with an open belfry and a spire, a stepped chancel, and a walled churchyard with twelve leaning markers in it
 - juniper bushes out on the dry upland heath — a low, spreading evergreen that reads apart from the conifers and answers to the same one wind
 - a lighthouse on the outermost rock of the ring, throwing beams that sweep the water from dusk until dawn
+- sheep on the rough grazing outside every farm: two flocks to a farm, sited by a search out from the yard, feeding on the open ground between the crop plots and the moor — and outside the hay meadow's wall, which is what the wall is for
 - gull colonies wheeling over every harbour mouth and over the outer rock, banking into the turn, down at night and mostly down in a squall
 - wood smoke standing over every farmhouse chimney and sauna flue in the archipelago, leaning on the same one wind as the grass and banked harder the colder the week
 - lamplight in ninety-three windows: sixty-five farmstead panes lit at dusk, banked to a stove glow once the household turns in, and back up before dawn — the chapels' twenty-eight burning fainter, because nobody sleeps in one — while the lighthouse burns straight through, because a lighthouse is a machine and a farm is not
@@ -219,6 +220,7 @@ src/
     │   ├── skerry.ts               the bare rocks standing in the water between the islands
     │   ├── beacon.ts               the outer rock a light would stand on
     │   ├── colony.ts              the open water a flock can wheel over without crossing land
+    │   ├── grazing.ts             the rough ground a farm turns its stock out onto
     │   ├── hearths.ts             every chimney and flue, at the mouth and in world space
     │   ├── windows.ts             every glazed pane, in world space and facing out
     │   ├── fixtures.ts            carrying a point out of a raised building's own frame
@@ -258,7 +260,8 @@ src/
         ├── shore.ts                boathouse and slipway, net rack, mooring stakes
         ├── objects.ts              rowboat, bales, firewood, barrel, mailbox, driftwood
         ├── stone.ts                erratics, field stones, cobbles, cairns
-        └── littoral.ts             bladderwrack and rock lichen — the tidal band
+        ├── littoral.ts             bladderwrack and rock lichen — the tidal band
+        └── livestock.ts            the ewe with her head down, and the lamb with hers up
 
 scripts/
 ├── args.ts                         the shared command line, and dotted-path overrides
@@ -591,6 +594,28 @@ up the slope from the steading there is a walled hay meadow: a drystone wall, a 
 **it has to agree with the ground that gets built.** `height.ts` sinks the raw fbm into the island before anything else touches it, and the layout searches run before `height.ts` exists — so they were reading a height the terrain would never have. `sinkToIsland` is now that falloff, in one place, called by the height field *and* by the search that has to predict it. two approximations of the same curve is exactly how a wall gets built on the sea.
 
 the barn is set hard against the back wall: a building's claim on the solver is a circle around its longest half, which on a twelve-metre enclosure is most of the enclosure, and pushing it back leans that circle onto the wall's own claims instead of onto the meadow.
+
+## the flock the wall was built against
+
+the farm has kept sheep since this run. two flocks to a farm, seven across the archipelago, standing on the rough ground between the crop plots and the moor — and the first thing to say about them is *where they are not*. they are not in the walled hay meadow. a hay meadow is shut up in spring to grow a crop, and stock in it in july is the failure the wall exists to prevent. the enclosure has had a wall and a gate for several runs and nothing on the other side of them; the flock is what the wall is against.
+
+**where a farm grazes is a fact about the farm, not about the terrain.** [`landscape/grazing.ts`](src/scene/landscape/grazing.ts) walks out from each *yard* on twenty-four bearings rather than searching the island at large, because grazing is ground somebody drives stock onto and gathers them off again twice a day. a hillside on the far side of the island with nobody living under it is not pasture, it is a hillside.
+
+three rules decide whether a bearing has anything on it, and each one is a failure that was easy to write:
+
+- **a disc, not a point.** a centre test alone sites a flock on the one clear square metre in a spruce stand. what is being asked is whether fourteen metres *across* will carry animals, so twenty-five points inside the disc are sampled and 72% of them have to come back grazeable. the three rings are offset from each other so they do not stack their samples on the same eight bearings.
+- **the whole disc inside `landRadius`.** the same rule the walled meadow's search keeps, and for the same reason plus one: past that radius the island falloff has begun taking height away, and it is also where the islets start. a sheep does not swim to work.
+- **one predicate, used twice.** the same `createGrazingTest` that finds the ground is the accept rule the scatter throws its darts at. two readings of "grazeable" is how a flock gets sited on ground its own sheep are then rejected from, and the field carries four animals instead of twenty.
+
+the count is the exception in the dressing budget and says so: `dressing.sheep` is head **per flock**, scaled by the flocks the survey found rather than by island area. taking `areaScale` here — which is right for trees, because trees are a fact about ground — multiplied twenty-six ewes by a seven-island archipelago and asked seven metres of hillside to hold a hundred and eighty of them, which the spacing solver then spent four hundred rejected darts declining to do.
+
+**the flock is stamped last, and that is not a taste decision.** every placement in `dressing.ts` draws from one shared rng — the yaw, the scale, the tint and every dart the sampler throws — so a scatter inserted in the middle of that function shifts the stream for every batch after it. the first version of this change went in beside the saplings and moved every tree, stone and tuft in the archipelago by a metre: `scape:diff` reported the farmyard 10% changed by a run that had added nothing to the farmyard. on the end, it disturbs nothing, and by then the solver has reserved every trunk and boulder the animals have to keep clear of.
+
+**the ewe grazes and the lamb looks up**, which is a composition decision rather than a whim. this scape is seen from above at a fixed dimetric angle, and the profile that reads as a sheep from the side is exactly the one that reads as an anonymous pale lump from the camera the reader actually has. head down, the neck breaks the body's outline at one end and the animal has a *direction* — a field of them reads as a flock feeding across a hill rather than as a scatter of boulders, which matters here because the ground they are on is full of actual boulders. the lamb is the second silhouette at a second scale, and it costs one more draw call and nothing else.
+
+they do not move. an instance matrix is baked once at build, and the alternative — a hundred animals re-posed every frame — is a per-frame cost for something a metre long in a frame that holds an island. what a sheep does take from the ground is a *tilt*: `TILT.footed` at 0.2, because an animal stands square to gravity but reads as leaning slightly into a slope, its legs being shorter uphill than down. at zero it hovers beside the bank rather than standing on it.
+
+`scape:map --stats` grew a `grazing` line — flocks found against flocks asked, and the thinnest cover among them — because every way this goes wrong is invisible in a still: a farm whose search found nothing at all, a flock a third of the way into a wood, two flocks collapsed onto one hillside. and `--poses grazing` is the third instrument, for the reason `beacon` and `coast` were: a ewe is 1.4 m long, which is three pixels at the tour's default frame and nothing at all pulled out.
 
 ## the mill on the shoulder
 

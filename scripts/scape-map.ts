@@ -3,6 +3,7 @@ import { surveyArchipelago } from '../src/scene/landscape/archipelago.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from '../src/scene/landscape/archipelago.ts'
 import { scheduledFleetMinimumSeparation } from '../src/scene/landscape/boat-motion.ts'
 import { planColonies } from '../src/scene/landscape/colony.ts'
+import { planGrazing } from '../src/scene/landscape/grazing.ts'
 import { surveyHearths } from '../src/scene/landscape/hearths.ts'
 import { surveyWindows } from '../src/scene/landscape/windows.ts'
 import { distanceToTrack } from '../src/scene/landscape/layout.ts'
@@ -184,6 +185,24 @@ export interface MapStats extends CompositionStats {
     count: number
     asked: number
     sited: { id: string, kind: string, x: number, z: number, radius: number }[]
+  }
+
+  /**
+   * The rough grazing, and the flocks turned out on it.
+   *
+   * Here for the reason the colonies are, and rather more so: a sheep is a
+   * metre long, which is two pixels at the default pose and nothing at all
+   * pulled out. Every way this goes wrong is a number in this block and
+   * invisible in a still — a farm whose search found no ground at all, a flock
+   * sited on a disc that is a third forest, two flocks that collapsed onto the
+   * same hillside. `asked` is what the archipelago offered: every farm's full
+   * quota, so the gap between it and `count` is the finding.
+   */
+  grazing: {
+    count: number
+    asked: number
+    cover: number
+    sited: { id: string, kind: string, x: number, z: number, radius: number, cover: number }[]
   }
 
   /**
@@ -429,6 +448,7 @@ export function surveyStats (
   const strand                                                     = strandStats(survey, config)
   const { waterways }                                              = survey
   const colonies                                                   = planColonies(survey, config)
+  const flocks                                                     = planGrazing(survey, config)
   const scheduleSeparation                                         = scheduledFleetMinimumSeparation(
     waterways.route,
     waterways.boatOffsets.length,
@@ -460,6 +480,23 @@ export function surveyStats (
     },
     strand,
     skerries: skerryStats(survey, config),
+    grazing:  {
+      count: flocks.length,
+      asked: survey.landmasses.length * config.grazing.flocks,
+
+      // The worst disc in the archipelago rather than the mean: a mean cover
+      // stays comfortable while one farm's flock stands half in the sea, and
+      // the one that is wrong is the one worth printing.
+      cover: round(flocks.length ? Math.min(...flocks.map(flock => flock.cover)) : 0, 2),
+      sited: flocks.map(flock => ({
+        id:     flock.id,
+        kind:   flock.kind,
+        x:      Math.round(flock.x),
+        z:      Math.round(flock.z),
+        radius: round(flock.radius),
+        cover:  round(flock.cover, 2),
+      })),
+    },
     hearths:  hearthStats(survey),
     windows:  windowStats(survey),
     colonies: {
@@ -704,6 +741,29 @@ function strandStats (survey: ArchipelagoSurvey, config: ScapeConfig): MapStats[
 }
 
 /**
+ * The grazing line, and the finding it carries.
+ *
+ * Its own function for the reason `windowLine` is: the empty case is a finding
+ * rather than a reading. Every farm asks for its full quota of flocks, so a
+ * count under `asked` means some farm's search walked every bearing out to its
+ * reach and never found a disc of open ground — which is a composition that has
+ * grown until there is nowhere left to put an animal, and is invisible in a
+ * still because the thing it is about is the thing that is not there.
+ */
+function grazingLine (grazing: MapStats['grazing']): string {
+  const head = `grazing ${grazing.count}/${grazing.asked} flocks  `
+
+  if (grazing.sited.length === 0)
+    return `${head}<- no farm found open ground to turn stock out on`
+
+  const sited = grazing.sited
+    .map(flock => `${flock.id}/${flock.kind} (${flock.x},${flock.z}) r${flock.radius}`)
+    .join('  ')
+
+  return `${head}thinnest cover ${grazing.cover}  ${sited}`
+}
+
+/**
  * The lamplight line, and the two findings it can carry.
  *
  * Its own function rather than another pair of ternaries inside `formatStats`,
@@ -805,6 +865,7 @@ export function formatStats (stats: MapStats): string {
     `hearths ${stats.hearths.count}  lowest mouth ${stats.hearths.lowest}m over the ground` +
       (stats.hearths.lowest < 3 ? '  <- a stack is standing in its own roof' : ''),
     windowLine(stats.windows),
+    grazingLine(stats.grazing),
     `gulls ${stats.colonies.count}/${stats.colonies.asked} colonies  ` +
       (stats.colonies.sited
         .map(colony => `${colony.id}/${colony.kind} (${colony.x},${colony.z}) r${colony.radius}`)

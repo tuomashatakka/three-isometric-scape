@@ -55,6 +55,15 @@ export const NORDIC_PALETTE = {
   ironRust:  '#7d4a33',
   canvas:    '#9a8c6b',
 
+  // The flock. A fleece off the hill is not white — it is a dirty cream that
+  // has stood in a year of rain — and `trimWhite` would have made the sheep the
+  // brightest thing in the scape after the chapel's limewash.
+  fleece:      '#ded7c3',
+  fleeceShade: '#b7ae99',
+
+  /** Face, ears and legs — the dark points a landrace ewe carries. */
+  hide: '#33302c',
+
   /** A burning wick behind glass — the lamp in the lantern room, and its beams. */
   lampWarm: '#ffdca8',
   flagBlue: '#2f5d8f',
