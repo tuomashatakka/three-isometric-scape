@@ -97,6 +97,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a solar arc solved from a latitude — a polar night at midwinter, a midnight sun at midsummer — with dusk and night palettes derived from it, plus seasonal growth, leaf turn, lying snow, sea ice, sea smoke, and rain that leaves the ground wet
 - an aurora over the dark half of the year, gated on the night and on how much night the week has
 - a star field that turns one whole revolution a day, with a galactic band across it, and a moon that keeps its own month — full at midnight, new at noon, and riding high over the midwinter sun
+- sunlight focused into a moving net on the bottom of every shallow in the archipelago — brightest with the sun overhead, gone under the horizon, gone under the ice, and hidden rather than aliased at a zoom that cannot resolve a cell
 - view-reactive fog, a gradient sky, deterministic drifting ground mist, and a sky cloud deck
 - a configurable 3d-lut grade with vignette, miniature tilt-shift, bloom and film grain
 - a live graphics overlay that persists to local storage and reloads what you left it at
@@ -233,6 +234,7 @@ src/
     │   ├── terrain.ts              geometry, banded colour, path wear and cart soil painted in, ruts merged on
     │   ├── shore-mask.ts           the baked bathymetry, and which way each coast faces
     │   ├── water.ts                swell, surf, foam, glitter, winter ice
+    │   ├── water-caustics.ts      the sun's net on the bottom of the shallows
     │   ├── samplers.ts             where the dressing throws its darts, islands and rocks alike
     │   ├── dressing-zones.ts       what the composition already claims the ground for
     │   ├── dressing-helpers.ts     the placement questions that are pure geometry
@@ -1035,6 +1037,30 @@ the test that states this is worth reading for one detail: **it walks the mask b
 ### and the tour could not see any of it
 
 six poses, and every one of them aimed at the middle of the home island: `near` at ten metres is standing in the farmyard, `default` and `far` take in the whole archipelago at better than half a metre to the pixel. a change that repaints every shore in the scape reads as `same` at all six — not because it is invisible, but because the instrument is not pointed at it. `--poses coast` is the fix, and it is the same fix `beacon` was: four frames on a shoreline, one of them the *identical* frame with the wind turned right around, so the exposure claim is a picture rather than an assertion.
+
+## the light that reaches the bottom
+
+the shallows in this scape were a colour. the depth tint mixed `shallowWater` toward `deepWater` off the baked bathymetry, the foam trim drew a line at the waterline and the surf broke on the shelf — and between those two the water was a flat wash, at every hour and in every bay. which is the one thing shallow water on a sunny day never looks like.
+
+**a wave is a lens.** every crest gathers the light falling on it and every trough spreads it, so what arrives at the seabed is not even — it is a moving mesh of bright filaments with dim cells between them. that is what separates water you can see the bottom of from water that is merely a paler blue, and [`landscape/water-caustics.ts`](src/scene/landscape/water-caustics.ts) is the whole of it: a shader chunk, one line of injection, a rate, and one pure function.
+
+the net is the zero set of three sines, ridged and raised to a power — one minus the absolute sum peaks where the three cancel, which is a set of curved filaments rather than a grid, and the exponent is what thins them until they read as focused light instead of as a plaid. two sheets at incommensurate scales, drifting in opposite directions, so the pattern never resolves into the one repeating cell a single sheet would.
+
+three things decide where it is drawn, and each is a different fact:
+
+- **the depth**, out to `water.causticDepth` — *metres*, and they stay metres, for the reason `water.surfDepth` does: light is absorbed at a rate set by the water rather than by how wide the world is. what it scales with is the ground, so a shelving bay carries the net a long way out and a granite face carries it a metre, and neither was authored per island.
+- **the sun**, and this is the part that is not a knob. `causticStrength` scales the whole effect by the *sine of the sun's elevation*, taken from `sunHeight` — the same solved arc the daylight rig runs on, not the lighting direction, which is deliberately held above the horizon so the key light never lights the terrain from underneath. a low sun refracts into a smear rather than a focus and a sun under the horizon has nothing to focus, so midwinter at 68°N gets none of this and midnight gets none of it, with no seasonal knob having been written for either.
+- **the pixel.** a cell is 2.6 m across, which is fifty pixels at the coastal poses and less than one at the full zoom-out — and a procedural net has no mipmap to fall back on, so under a pixel a cell it is not detail, it is moiré marching across the whole sea. `scapeCaustics` measures its own footprint with `fwidth` and **hides** rather than shrinking. the cell stays 2.6 m at every zoom; what changes is whether the frame can hold it.
+
+**the phase rides `wind.travel`, not `elapsed`.** the swell's own `uWaveTime` is raw seconds and cannot be stopped, so a net carried on it would be somewhere else in every frame of every capture taken after it landed. `wind.travel` is the scape's one integrated distance — the same one the ripple map scrolls on and the surf marches in on — and it dies with either `wind.speed` or `wind.strength`, both of which `STILL` already names. there was nothing to add to it.
+
+**it goes in under the foam and under the ice.** broken water is air in water and you cannot see the bottom through it; a frozen bay is the sea under a lid. mixing the white over the top afterwards takes the net away exactly where those two are, for no arithmetic of its own. it is *added* rather than mixed, in the sun's own colour, because this is light arriving rather than a property of the surface — and `diffuseColor` is still shaded afterwards, so a cloud shadow puts the net out, which is what a shadow on water actually does.
+
+**every tier gets it, and it is not a `quality` field.** six sines, two powers, a `fwidth` and three smoothsteps on the depth the lake had already fetched: no draw, no texture, no tap, and an early-out on the strength for the tiers and the hours that have none. there is no cheap version to fall back to and no expensive version to protect a phone from, so a boolean beside a strength that already reaches zero would be the `enabled` flag this scape does not have.
+
+### and no pose in the scape was pointed at the water
+
+`coast/wash` is the closest any existing pose comes, and it is ninety metres out — a cell is fifteen pixels of a shore fringe a few pixels wide, and the whole archipelago's shallows together move seven hundredths of one per cent of the frame. so `--poses shallows` is the eighth set added for the reason `beacon` and `coast` were, and the first whose subject is not a *thing* at all but a pattern with a size. four frames on the harbour bank: the authored light, noon at the top of the elevation ramp, midwinter where it has to be absent twice over, and a 620 m view which is the guard — the frame that has to come back `same` for "it hides rather than aliases" to be a claim about the code rather than a hope.
 
 ## framing the sea
 

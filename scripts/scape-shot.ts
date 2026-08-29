@@ -290,6 +290,51 @@ export const TOURS: Record<string, Pose[]> = {
     },
   ],
 
+  /**
+   * The bottom of the shallows, from close enough for the light on it to read.
+   *
+   * The eighth set added for the reason the first seven were, and the first one
+   * whose subject is not a *thing* at all: the caustic net is a metre-scaled
+   * pattern on the seabed, so it is a subject with a size the way a ewe or a
+   * pane is, and the size is about two and a half metres. `coast/wash` at ninety
+   * metres is the closest any existing pose comes to the water, and at that view
+   * a cell is fifteen pixels of a shore fringe a few pixels wide — the whole
+   * archipelago's shallows together move seven hundredths of one per cent of the
+   * frame, which the whole-frame column correctly calls `same`.
+   *
+   * `shallows` is the harbour bank west of the landing, at a view where the
+   * bottom of the water is a surface rather than a colour. `shallows-noon` is
+   * the same frame with the sun at its highest, which is the top of the ramp the
+   * effect is scaled by — that ramp saturates well before noon, so this pose and
+   * `shallows-winter` are its two ends and the authored pose sits between them. `shallows-winter` is
+   * midwinter, where the sun does not clear the horizon at this latitude *and*
+   * the ice has shut the bank: the net has to be absent twice over.
+   *
+   * `shallows-far` is the guard. The net is procedural and has no mipmap to fall
+   * back on, so at a view where a cell is smaller than a pixel it would be
+   * moiré marching across the whole sea rather than detail — `scapeCaustics`
+   * measures its own footprint with `fwidth` and hides instead. This pose is the
+   * frame that has to come back `same` for that to be true, and it is aimed at
+   * the same water the other three are.
+   */
+  shallows: [
+    { name: 'shallows', zoom: 26, set: [ 'camera.focusX=-30', 'camera.focusZ=-24' ]},
+    {
+      name: 'shallows-noon',
+      zoom: 26,
+      time: 0.5,
+      set:  [ 'camera.focusX=-30', 'camera.focusZ=-24' ],
+    },
+    {
+      name:   'shallows-winter',
+      zoom:   26,
+      time:   0.5,
+      season: 0.02,
+      set:    [ 'camera.focusX=-30', 'camera.focusZ=-24' ],
+    },
+    { name: 'shallows-far', zoom: 620, set: [ 'camera.focusX=-30', 'camera.focusZ=-24' ]},
+  ],
+
   // The cheap pass: is there a scape at all, and does it survive being drawn.
   quick: [{ name: 'default' }],
 }
@@ -626,7 +671,8 @@ async function main (): Promise<void> {
       '                        coast (4, the shoreline) | steading (3, the farmyard)',
       '                        grazing (3, the flocks on the rough ground)',
       '                        guard (4, the rocks in the open sea)',
-      '                        chapel (4, the church and its yard) | quick (1)',
+      '                        chapel (4, the church and its yard)',
+      '                        shallows (4, the light on the bottom) | quick (1)',
       '  --rot 45 --zoom 70    camera yaw, and view size (tilt is derived from zoom)',
       '  --time 0.42           the day, 0..1',
       '  --season 0.5          the year, 0..1',
