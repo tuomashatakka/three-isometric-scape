@@ -5,6 +5,7 @@ import { buildAitta, buildBarn, buildFarmhouse, buildSauna, buildWoodshed } from
 import { buildChapel, buildGraveMarker } from './chapel.ts'
 import { buildWindmill } from './mill.ts'
 import { buildBladderwrack, buildRockLichen } from './littoral.ts'
+import { buildLamb, buildSheep } from './livestock.ts'
 import { buildBarrel, buildDriftwood, buildFirewood, buildHayBale, buildMailbox, buildRowboat } from './objects.ts'
 import type { NordicPalette } from './palette.ts'
 import { buildBoathouse, buildMooringPost, buildNetRack } from './shore.ts'
@@ -102,6 +103,9 @@ export const PROPS = {
 
   mooringPost: buildMooringPost,
   hayPole:     buildHayPole,
+
+  sheep: buildSheep,
+  lamb:  buildLamb,
 } as const satisfies Record<string, PropBuilder>
 
 /** Name of a prop in {@link PROPS}. */
@@ -122,6 +126,7 @@ export const SCATTER_PROPS = [
   'erratic', 'fieldStone', 'cobble', 'cairn',
   'bladderwrack', 'rockLichen',
   'hayBale', 'firewood', 'barrel', 'driftwood', 'mooringPost', 'hayPole',
+  'sheep', 'lamb',
 ] as const satisfies readonly PropName[]
 
 /** Build one prop's geometry. The caller owns and disposes the result. */

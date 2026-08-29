@@ -258,6 +258,38 @@ export const TOURS: Record<string, Pose[]> = {
     },
   ],
 
+  /**
+   * The rough grazing, from close enough to see what is standing on it.
+   *
+   * The seventh set added for the reason the first six were, and the smallest
+   * *subject* of the lot after the window: a ewe is 1.4 m long, which is three
+   * pixels at the tour's default frame and nothing at all pulled out. The home
+   * island's two flocks are on the east shoulder at (32, 12) and (32, -14),
+   * which no pose in the tour is aimed at — `near` at ten metres is in the
+   * farmyard, forty-five metres west of the nearer of them.
+   *
+   * `flock` holds one disc at a view where an animal is an animal — eleven
+   * metres, which is about as far out as a fleece is still a fleece rather than
+   * two pale pixels. `graze` pulls back to hold both of the home island's
+   * flocks and the walled hay meadow between them, which is the composition
+   * claim: the stock is *outside* the wall, on the ground the wall was built
+   * to keep them off.
+   * `flock-winter` is midwinter, where lying snow takes the ground the flock
+   * stands on and a fleece has to hold its own against it — the one frame where
+   * a white animal on white ground either reads or does not.
+   */
+  grazing: [
+    { name: 'flock', zoom: 11, set: [ 'camera.focusX=32', 'camera.focusZ=12' ]},
+    { name: 'graze', zoom: 45, set: [ 'camera.focusX=30', 'camera.focusZ=-1' ]},
+    {
+      name:   'flock-winter',
+      zoom:   11,
+      time:   0.5,
+      season: 0.06,
+      set:    [ 'camera.focusX=32', 'camera.focusZ=12' ],
+    },
+  ],
+
   // The cheap pass: is there a scape at all, and does it survive being drawn.
   quick: [{ name: 'default' }],
 }
@@ -592,6 +624,7 @@ async function main (): Promise<void> {
       '',
       '  --poses tour          named set: tour (6) | beacon (4, the light) | window (2)',
       '                        coast (4, the shoreline) | steading (3, the farmyard)',
+      '                        grazing (3, the flocks on the rough ground)',
       '                        guard (4, the rocks in the open sea)',
       '                        chapel (4, the church and its yard) | quick (1)',
       '  --rot 45 --zoom 70    camera yaw, and view size (tilt is derived from zoom)',

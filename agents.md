@@ -167,6 +167,7 @@ bun run scape:shot --poses steading                 # the farmyard, 4 frames, su
 bun run scape:shot --poses guard                    # the rocks in the open sea, 4 frames
 bun run scape:shot --poses window                   # one farmhouse wall, 2 frames: the glass by day, the lamp at dusk
 bun run scape:shot --poses chapel                   # the church and its yard, 4 frames
+bun run scape:shot --poses grazing                  # the flocks on the rough ground, 3 frames
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain
@@ -337,6 +338,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `creek.ts` | the beck: descent trace, channel, tidal mouth |
 | `beacon.ts` | the outermost rock broad and dry enough to carry a light, and the footing probe that proves it |
 | `colony.ts` | the open water off a harbour or an outer rock that a flock can wheel over without crossing land |
+| `grazing.ts` | the rough ground each farm turns stock out onto, and the one predicate that both sites a flock and accepts a sheep |
 | `hearths.ts` | every chimney and flue in the archipelago, carried from the prop's own frame out to the mouth |
 | `windows.ts` | every glazed pane, carried out the same way and turned to its wall's outward bearing |
 | `fixtures.ts` | the transform both of those share: a point in a raised building's own frame, in world metres |
