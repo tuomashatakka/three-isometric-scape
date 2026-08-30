@@ -353,6 +353,66 @@ export interface ScapeConfig {
   }
 
   /**
+   * The water standing in that channel.
+   *
+   * Its own section rather than two more fields on `creek`, and the split is
+   * the usual one in this config: `creek` is the shape cut into the ground and
+   * is read once when the terrain is generated, and this is the sheet lying in
+   * it — half build-time and half live. `depth` and `fill` decide where the
+   * surface is laid and stay out of the overlay; `flow` and `riffle` are read
+   * every frame and are on it.
+   *
+   * **Every length here is metres and stays metres.** A beck is the same beck
+   * over a wider archipelago and at any zoom, so nothing in this section is
+   * scaled by `archipelago.worldSize` or by the live `viewSize` — the audit the
+   * scale rule asks for, written at the knob. What the water *does* scale with
+   * is the channel: the sheet is as wide as `creek.halfWidthAt` says the floor
+   * is at that point, so it opens out at the mouth without that being authored.
+   */
+  beck: {
+
+    /**
+     * Metres the surface stands above the channel floor.
+     *
+     * The switch, and the only one: 0 is a dry bed, and there is no geometry to
+     * draw rather than a sheet drawn at nothing. Kept well under
+     * `creek.incision`, because a depth deeper than the cut is a beck that has
+     * burst its own banks.
+     */
+    depth: number
+
+    /**
+     * How much of the channel floor the water covers, 0..1.
+     *
+     * 1 wets the floor bank to bank, which is the beck in spate; below about
+     * 0.6 it reads as a trickle down the middle of a wide dry bed. There is
+     * gravel showing either side at the default, which is what a summer beck
+     * on this coast actually looks like.
+     */
+    fill: number
+
+    /**
+     * Metres of channel a fleck of foam travels in a second.
+     *
+     * 0 holds the surface where it stands, and it is therefore its own line in
+     * `STILL` — see `scripts/scape-shot.ts`. Its own rate rather than a share
+     * of `wind.speed`: a beck runs on the fall under it and would go on running
+     * through a dead calm.
+     */
+    flow: number
+
+    /**
+     * How white the water breaks where it falls, 0..1.
+     *
+     * Not a second switch for the beck: where the white goes is the *bed's*
+     * business — the fall is baked into the sheet at build time, so a flat
+     * reach stays dark however far this is turned up and no slider can put
+     * rapids on a pool. Zero is a beck that runs black over every step in it.
+     */
+    riffle: number
+  }
+
+  /**
    * The bar of sand and shingle joining the two southern islands.
    *
    * Build-time geometry, like `creek` and `layout`, and absent from the tuning
@@ -1816,6 +1876,20 @@ export const SCAPE_CONFIG = {
     incision:   1.35,
     mouthDepth: 2.6,
     mouthFlare: 3.2,
+  },
+  // 0.22 m of water in a channel cut 1.35 m deep is a beck you could wade
+  // without wetting a knee — a sixth of the incision, which leaves the banks
+  // reading as banks. 0.78 of fill puts a hand's breadth of wet gravel either
+  // side of the water at the spring and a good deal more at the mouth, where
+  // the floor is three times as wide. 1.1 m/s is a hill beck walking rather
+  // than a river: it crosses the home island's 38 m course in about half a
+  // minute, which is a streak of foam you can follow with your eye at the near
+  // poses and a shimmer at the far ones.
+  beck: {
+    depth:  0.22,
+    fill:   0.78,
+    flow:   1.1,
+    riffle: 0.55,
   },
   // 11 metres of half-width is a bar you could drive a cart along, against a
   // crossing of roughly three hundred — narrow enough at that length to read as

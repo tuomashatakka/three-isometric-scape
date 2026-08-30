@@ -195,6 +195,19 @@ export interface AtmosphereQuality {
    */
   reliefSteps: number
 
+  /**
+   * Octaves of surface texture on the running water. 0 is a beck that runs
+   * smooth.
+   *
+   * A count rather than a switch, for the reason `auroraLayers` is one: the
+   * sheet itself is two thousand vertices in one draw and every tier can afford
+   * it, and what scales is the *fragment* work on top — one lobe is a moving
+   * surface, three is a surface with a texture. The cheapest tier gets a beck
+   * that lies still rather than no beck at all, which is the graceful absence
+   * the brief asks for.
+   */
+  beckRipples: number
+
   /** Lake plane subdivisions per side. */
   waterSegments: number
 
@@ -256,6 +269,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     frameRate:       20,
     detailTaps:      1,
     reliefSteps:     0,
+    beckRipples:     0,
     waterSegments:   24,
     waterSpan:       2.2,
     shoreMask:       384,
@@ -299,6 +313,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     frameRate:     30,
     detailTaps:    1,
     reliefSteps:   0,
+    beckRipples:   1,
     waterSegments: 48,
     waterSpan:     3,
     shoreMask:     768,
@@ -340,6 +355,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     frameRate:       0,
     detailTaps:      6,
     reliefSteps:     6,
+    beckRipples:     2,
     waterSegments:   96,
     waterSpan:       8,
     shoreMask:       1_024,
@@ -374,6 +390,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     frameRate:       0,
     detailTaps:      6,
     reliefSteps:     12,
+    beckRipples:     3,
     waterSegments:   128,
     waterSpan:       8,
     shoreMask:       1_536,
@@ -415,6 +432,7 @@ const UNLOCKED_FLOOR = {
   hearthPuffs:    8,
   detailTaps:     6,
   reliefSteps:    4,
+  beckRipples:    1,
 } as const
 
 /**
@@ -456,6 +474,7 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
     hearthPuffs:    Math.max(quality.hearthPuffs, UNLOCKED_FLOOR.hearthPuffs),
     detailTaps:     Math.max(quality.detailTaps, UNLOCKED_FLOOR.detailTaps),
     reliefSteps:    Math.max(quality.reliefSteps, UNLOCKED_FLOOR.reliefSteps),
+    beckRipples:    Math.max(quality.beckRipples, UNLOCKED_FLOOR.beckRipples),
   }
 }
 

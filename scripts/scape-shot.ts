@@ -335,6 +335,44 @@ export const TOURS: Record<string, Pose[]> = {
     { name: 'shallows-far', zoom: 620, set: [ 'camera.focusX=-30', 'camera.focusZ=-24' ]},
   ],
 
+  /**
+   * The beck, from close enough for the water in it to be water.
+   *
+   * The ninth set added for the reason the first eight were. The home island's
+   * course runs from a spring at (19, 23) to a mouth at (36, 56) — sixty-odd
+   * metres off the world origin every pose in `tour` is aimed at, and three
+   * metres wide where it starts. At `default` that is a hairline and at `near`
+   * it is off the bottom of the frame.
+   *
+   * The two close frames are aimed at the *wetted* reach rather than at the
+   * course, and those are not the same sixteen metres: the water runs from the
+   * spring down to about (26, 36), and everything below that is tidal inlet the
+   * sea's own surface has always drawn.
+   *
+   * `beck` is the middle of that reach, where the fall is steepest and the
+   * white water is; `beck-mouth` is the tideline, which is the one frame that
+   * shows the sheet meeting the sea rather than ending in the air above it;
+   * `beck-winter` is the same middle reach in deep winter, at *noon* and a
+   * fortnight off the shortest day — pinned that way for the reason
+   * `grazing/flock-winter` is: an unqualified midwinter frame at 68° north is a
+   * polar night, and a frame with no light in it cannot say whether the water
+   * in it has locked; and `beck-far` is the guard — the water is a metre-scaled surface
+   * with no mipmap behind it, so a view where a streak is under a pixel has to
+   * come back as a channel rather than as a shimmer.
+   */
+  beck: [
+    { name: 'beck', zoom: 26, set: [ 'camera.focusX=22.5', 'camera.focusZ=29' ]},
+    { name: 'beck-mouth', zoom: 22, set: [ 'camera.focusX=26', 'camera.focusZ=36.5' ]},
+    {
+      name:   'beck-winter',
+      zoom:   26,
+      time:   0.5,
+      season: 0.06,
+      set:    [ 'camera.focusX=22.5', 'camera.focusZ=29' ],
+    },
+    { name: 'beck-far', zoom: 320, set: [ 'camera.focusX=22.5', 'camera.focusZ=29' ]},
+  ],
+
   // The cheap pass: is there a scape at all, and does it survive being drawn.
   quick: [{ name: 'default' }],
 }
@@ -368,6 +406,13 @@ export const STILL = [
   'look.grain=0',
   'atmosphere.auroraSpeed=0',
   'water.waveHeight=0',
+
+  // The running water. Its own rate rather than a share of the wind, because a
+  // beck runs on the fall under it — so nothing else in this list stops it, and
+  // a surface that scrolls a metre a second is a different beck in every frame
+  // of a tour.
+  'beck.flow=0',
+
   'boats.speed=0',
 
   // The sails are already stopped by `wind.strength=0` above, because that is
@@ -672,7 +717,8 @@ async function main (): Promise<void> {
       '                        grazing (3, the flocks on the rough ground)',
       '                        guard (4, the rocks in the open sea)',
       '                        chapel (4, the church and its yard)',
-      '                        shallows (4, the light on the bottom) | quick (1)',
+      '                        shallows (4, the light on the bottom)',
+      '                        beck (4, the water in the channel) | quick (1)',
       '  --rot 45 --zoom 70    camera yaw, and view size (tilt is derived from zoom)',
       '  --time 0.42           the day, 0..1',
       '  --season 0.5          the year, 0..1',
