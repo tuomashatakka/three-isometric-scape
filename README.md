@@ -92,7 +92,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - gull colonies wheeling over every harbour mouth and over the outer rock, banking into the turn, down at night and mostly down in a squall
 - wood smoke standing over every farmhouse chimney and sauna flue in the archipelago, leaning on the same one wind as the grass and banked harder the colder the week
 - lamplight in ninety-three windows: sixty-five farmstead panes lit at dusk, banked to a stove glow once the household turns in, and back up before dawn — the chapels' twenty-eight burning fainter, because nobody sleeps in one — while the lighthouse burns straight through, because a lighthouse is a machine and a farm is not
-- a beck traced downhill from a spring, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself
+- a beck traced downhill from a spring, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself — with water standing in it, lying flat across the channel, falling with the ground, breaking white where the hill drops, and freezing later than the sea it runs into
 - **three clocks** — a day, a year, and a weather front — each a phase and a speed, each deriving everything else from that phase
 - a solar arc solved from a latitude — a polar night at midwinter, a midnight sun at midsummer — with dusk and night palettes derived from it, plus seasonal growth, leaf turn, lying snow, sea ice, sea smoke, and rain that leaves the ground wet
 - an aurora over the dark half of the year, gated on the night and on how much night the week has
@@ -105,7 +105,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a scape that survives a lost webgl context: it rebuilds one tier cheaper rather than asking you to reload, and remembers the verdict
 - an on-page diagnostics log that survives a reload, because a phone has no devtools
 - an orthographic dimetric camera, click-to-focus with an eased landing, full keyboard equivalents
-- one terrain draw, one water draw, one merged steading draw, and one `InstancedMesh` per scattered prop type
+- one terrain draw, one water draw, one beck draw, one merged steading draw, and one `InstancedMesh` per scattered prop type
 
 there is deliberately no chat surface, llm schema, prop authoring tool or hidden app service. the only persisted state is the graphics overlay's own snapshot, under one key.
 
@@ -136,7 +136,7 @@ url overrides for a device you cannot attach a debugger to: `?debug` adds live v
 
 the intended first edit is [`src/scene/config.ts`](src/scene/config.ts). `SCAPE_CONFIG` owns the seed, terrain extent and waterline, the islets, the beck, the footpaths, the dressing budgets, camera framing and zoom limits, all three clocks, the whole light and atmosphere rig, the optical chain, and the complete palette.
 
-a knob that is **visual and read per frame** also belongs in [`ui/scape-controls.ts`](src/ui/scape-controls.ts) as a dotted path, which makes it persist, reset and become url-addressable for free. a knob that needs a **rebuild** to be seen — `layout.*`, `creek.*`, `footpath.*`, `cartRuts.*`, `dressing.*`, `strand.*`, `skerries.*`, `littoral.*` — stays out of the overlay, because a slider that lies about what it does is worse than no slider.
+a knob that is **visual and read per frame** also belongs in [`ui/scape-controls.ts`](src/ui/scape-controls.ts) as a dotted path, which makes it persist, reset and become url-addressable for free. a knob that needs a **rebuild** to be seen — `layout.*`, `creek.*`, `footpath.*`, `cartRuts.*`, `dressing.*`, `strand.*`, `skerries.*`, `littoral.*`, and `beck.depth`/`beck.fill` — stays out of the overlay, because a slider that lies about what it does is worse than no slider.
 
 `camera.focusX` and `camera.focusZ` are where the camera *opens*, read once when the controls are built and live state from then on. they default to the middle of the world, which is open sea — set them to put the opening view on the farm, and set them from a url to capture anything on the ground at all.
 
@@ -218,6 +218,7 @@ src/
     │   ├── footpath.ts             a planned leg traced into a worn line
     │   ├── cart-ruts.ts            the wheel lines worn down the cart track
     │   ├── creek.ts                the beck: descent trace, channel, tidal mouth
+    │   ├── beck.ts                 the water standing in that channel, and the white it breaks
     │   ├── skerry.ts               the bare rocks standing in the water between the islands
     │   ├── beacon.ts               the outer rock a light would stand on
     │   ├── colony.ts              the open water a flock can wheel over without crossing land
@@ -273,6 +274,7 @@ scripts/
 ├── api-digest.ts                   what the runtime exports, and what we use of it
 ├── prop-map.ts                     one prop as ascii, from six angles
 ├── scape-map.ts                    the whole composition as ascii
+├── scape-map-format.ts             the stats block, as the run reads it
 ├── scape-shot.ts                   headless stills, posed and pinned
 ├── scape-diff.ts                   what a change did to the picture, in numbers
 └── setup.ts                        what a run has before it starts thinking
@@ -584,6 +586,32 @@ a beck springs on the highest interior ground the farm is not standing on, falls
 **the long profile is clamped to fall the whole way.** the descent obeys the raw fbm and the ground it is carved into is not that: the shore shelving lifts the bank, an islet across the mouth's path raises the seabed. left alone the scape gets a stream running up over a bar and back down. a running minimum over the smoothed profile is the one rule water has.
 
 `creek.mouthFlare` decides whether the scape gained a stream or a sound; below about 2 the lower reach never resolves on the mobile tier, where a terrain quad is two metres across and the whole channel is five.
+
+## the water in that channel
+
+the channel was cut for six runs before anything was standing in it. the terrain painted its floor as wet gravel and the tidal reach filled itself from the lake, so a beck read as a damp crease above the waterline and as sea below it, with nothing in between — and the sixteen metres in between are the part that is a beck.
+
+[`beck.ts`](src/scene/landscape/beck.ts) is the sheet lying in it: one ribbon per island, merged into **one draw** with one material, about 2.6k vertices for the whole archipelago.
+
+**a colour on the terrain could not have done it.** the ground's vertices are already there and already painted, and making them read wetter is one line — but water lies *flat across* its channel and falls *along* it, and a colour on the terrain's own vertices necessarily follows the V of the cut. that is a wet-looking hollow. the thing that makes a stream a stream is that it has a surface at a level, and a level is geometry.
+
+**so every cross-section is laid at one height**, taken from the drawn bed under the centreline and lifted by `beck.depth`. the width is not authored twice: it is `creek.halfWidthAt` — the channel floor's own half-width — times `beck.fill`, so the water opens out threefold toward the mouth because the channel does, and a run that retunes `creek.mouthFlare` moves the water with it.
+
+**the profile is a running minimum, for the reason the channel's own is.** the drawn terrain is a grid, and a grid puts lips in a bed that falls smoothly — so a sheet laid straight on it would have reaches standing higher than the reach above them, which is the one thing water does not do. taking the running minimum means a lip leaves the surface briefly *under* the bed rather than over it, and buried water is invisible where floating water is a shelf hanging in the air. that is the safe direction for the error to go.
+
+**it stops at the tideline, and that is not tidiness.** past there the mouth is dredged below the waterline and the lake's own plane is already drawing it. two surfaces at one level is a z-fight the whole width of the estuary, and the beck has no business being the one that wins it. the last cut is kept rather than dropped, so the sheet tucks *under* the sea rather than ending on a visible edge above it.
+
+**where it breaks white is the bed's business, not a slider's.** the local fall is measured at build time and baked into the ribbon, so `beck.riffle` can only ever brighten the water where the ground is already steep. no setting of it puts rapids on a pool, and the middle reach is white on this seed because the middle reach is where the hill drops.
+
+**the surface scrolls in the channel's own frame.** each vertex carries three numbers — metres across, metres down the course, and the fall under it — and the texture is a value noise in the first two, translated by `beck.flow` in the second. scrolling in world space instead would need a direction field to follow the bends; parametrised this way a streak travels *along* the beck round every corner for free, and the pattern needs no mipmap because it is not a map.
+
+**it is opaque, deliberately.** a transparent sheet a hand's breadth over a bed it is nearly the colour of buys nothing the depth tint cannot draw, and it would put a fourth overlapping surface into a stack this scape has been bitten by twice — see [`layers.ts`](src/scene/layers.ts).
+
+**the beck freezes after the sea does.** moving water over a shallow gravel bed holds out well past the week the sound shuts, so `beckFreeze` puts the channel's ice on a curve that starts where the sea is already half locked. it is derived from the same `season.freeze` the lake reads rather than authored beside it: there is one winter in the scape, and a second knob here would be a second winter to keep in step with the first.
+
+**the tier decides the texture, never the water.** every device gets the sheet — two thousand vertices in one draw is not a thing a phone cannot afford. what scales is `quality.beckRipples`, the octaves of value noise on top: `minimal` gets **zero** and compiles a beck that runs smooth, with no hash in its shader at all, and ultra gets three.
+
+`beck.depth` at zero is a dry bed, and there is no geometry rather than a sheet drawn at nothing. it is the switch, and the only one.
 
 ## the upland pasture
 

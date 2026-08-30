@@ -20,6 +20,8 @@ import type { WeatherState } from '../weather.ts'
 import type { WindState } from '../wind.ts'
 import { surveyArchipelago } from './archipelago.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
+import { createBeck } from './beck.ts'
+import type { Beck } from './beck.ts'
 import { createBoatFleet } from './boats.ts'
 import type { BoatFleet } from './boats.ts'
 import { planColonies } from './colony.ts'
@@ -138,6 +140,7 @@ export function createLandscape (
   let fleet: BoatFleet | null          = null
   let sails: MillSails | null          = null
   let water: Water | null              = null
+  let beck: Beck | null                = null
 
   /**
    * Every mill's wheel, in world space.
@@ -244,6 +247,16 @@ export function createLandscape (
         root.add(water.mesh)
       }
 
+      // Built after the terrain and before the dressing, because it reads the
+      // ground *as drawn*: the sheet is laid on the same chord the patch
+      // renders, at the same segment count the patch was given.
+      if (!skip.has('water')) {
+        beck = createBeck(config, archipelago, quality, quality.terrainSegments)
+
+        if (beck)
+          root.add(beck.mesh)
+      }
+
       if (!skip.has('dressing')) {
         dressing = createDressing(config(), archipelago, materials, quality)
         fleet = createBoatFleet({
@@ -290,6 +303,7 @@ export function createLandscape (
       fleet?.update(frame.delta)
       sails?.update(frame.delta, wind.strength)
       materials?.update(wind, now, front)
+      beck?.update(frame.delta, now)
       water?.update(frame.elapsed, wind, now, front, fleet?.wakeEmitters)
     },
 
@@ -298,6 +312,7 @@ export function createLandscape (
       fleet?.dispose()
       sails?.dispose()
       water?.dispose()
+      beck?.dispose()
 
       if (root) {
         root.removeFromParent()
@@ -337,6 +352,6 @@ export function createLandscape (
   }
 }
 
-// perf: one merged terrain draw, one water draw, one merged settlement draw,
+// perf: one merged terrain draw, one water draw, one beck draw, one merged settlement draw,
 // one moving fleet draw, one turning sail draw, and one InstancedMesh per
 // scattered prop type.

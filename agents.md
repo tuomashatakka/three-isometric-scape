@@ -169,6 +169,7 @@ bun run scape:shot --poses window                   # one farmhouse wall, 2 fram
 bun run scape:shot --poses chapel                   # the church and its yard, 4 frames
 bun run scape:shot --poses grazing                  # the flocks on the rough ground, 3 frames
 bun run scape:shot --poses shallows                 # the light on the bottom, 4 frames
+bun run scape:shot --poses beck                     # the water in the channel, 4 frames
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain
@@ -183,6 +184,8 @@ bun run scape:shot --skip post                      # drop the optical chain
 `guard` is the fifth set, and the argument once more in the other direction — out to sea rather than in at the yard. four frames on the chain of rocks at (305, -99): `reef` over the whole 199 m line, `reef-near` on its widest rock at a zoom where the drowned shelf, the break on it and the dry crown are three things rather than one speck, `reef-lee` at the identical frame to `reef` with the wind turned right around, and `reef-winter` where the shallows the guard created are the first water in the archipelago to shut. the tour *can* see the guard — the chains read at `default`, `far` and `noon` — but forty-nine rocks of forty metres in a 1400 m frame move a fraction of one per cent of the pixels, so the whole-frame column says `same` and only `maxblock` is honest. reach for it whenever the change touches the open water between the islands, or anything standing on the rocks in it — `littoral.*` included.
 
 `shallows` is the eighth set, and the first whose subject is not a thing at all — it is a *pattern*, two and a half metres across, on the bottom of the water. four frames on the harbour bank west of the landing: `shallows` in the authored light, `shallows-noon` with the sun at its highest, which is the top of the elevation ramp the net is scaled by, `shallows-winter` where the midwinter sun never clears the horizon at this latitude *and* the ice has shut the bank, and `shallows-far` at a 620 m view, which is the *guard*: the net is procedural and has no mipmap, so it measures its own footprint and hides rather than aliasing, and that pose has to come back `same` for the claim to hold. `coast/wash` is the closest any earlier pose comes to the water and it is still ninety metres out. reach for it whenever the change touches what the water is doing between its edge and its depth tint — `water.caustics`, `water.causticDepth`, `water.causticScale`.
+
+`beck` is the ninth set, and it is aimed at the one surface in the scape that is neither the sea nor the ground: the sheet of water standing in the channel. four frames on the home island's course — `beck` at the middle reach where the fall is steepest and the white water is, `beck-mouth` at the estuary, which is the only frame that shows the sheet meeting the sea rather than ending in the air above it, `beck-winter` at midwinter, where a beck that runs later than the sound freezes has to still be running when the bay beside it has shut, and `beck-far` at a 320 m view, the *guard*: the surface texture is a metre-scaled procedural pattern with no mipmap behind it. the course is sixty metres off the world origin every pose in `tour` is aimed at and three metres wide where it starts, so it is a hairline at `default` and off the bottom of the frame at `near`. reach for it whenever the change touches `beck.*`, `creek.*`, or the ground either of them is cut into.
 
 `beacon` is the second set: the light itself, at night, from four headings 90° apart, aimed by `camera.focusX`/`focusZ` rather than by zoom. it exists because the beams' bug was a render-order tie broken by *projected depth*, and that flips with yaw — one heading can only ever photograph one side of the flip, and no pose in `tour` has the tower in frame at all. reach for it whenever the change touches the transparent stack.
 
@@ -351,6 +354,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `terrain.ts` | shared archipelago geometry, height/slope banded colour, path wear painted in |
 | `water.ts` | baked bathymetry, swell, foam, glitter, winter ice and shader boat wakes |
 | `water-caustics.ts` | the net the sun draws on the bottom of the shallows, and how bright it is today |
+| `beck.ts` | the sheet of water standing in every island's channel, its fall, its white water and the week it locks |
 | `samplers.ts` | where the dressing throws its darts — island, disc, tread, skerry |
 | `dressing-zones.ts` | world-space keep-outs and pure scatter acceptance rules |
 | `dressing-helpers.ts` | hand-placed runs and helpers shared by each holding |
@@ -358,6 +362,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `dressing.ts` | placement, hero merge, instanced scatter |
 | `littoral.test.ts` | the tidal band on the guard: the sampler lands on rock, the two zones do not overlap, and both reach every rock |
 | `water-caustics.test.ts` | the net is a daylight effect: nothing under the horizon, nothing in the polar night, a ramp rather than a step, and rain dims it without putting it out |
+| `beck.test.ts` | the sheet never runs uphill, lies flat across the channel, opens out with it, stops at the tideline, and locks after the sea does |
 | `index.ts` | the scene module, and what raycasts |
 
 **a yaw is not a bearing.** `rotateY(θ)` carries a prop's front (local `+z`) to `(sin θ, cos θ)`; a compass bearing points at `(cos a, sin a)`. they are reflections and agree on exactly one diagonal, which is why getting it wrong survives for months. use `faceToward(from, to)` for props and `yawAlong(bearing)` for anything laid along a line.

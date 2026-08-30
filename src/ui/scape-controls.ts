@@ -316,6 +316,16 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
             range('water.causticScale', 'cell size (m)', 0.5, 8, 0.05),
           ],
         ),
+        // The running water, filed under the sea it runs into. Only the two
+        // live knobs are here: how deep the sheet is laid and how much of the
+        // floor it covers are cut into the ribbon at build time, and a slider
+        // that needs a reload lies about what a slider does.
+        toggled(
+          'the beck',
+          range('beck.flow', 'flow (m/s)', 0, 4, 0.05),
+          1.1,
+          [ range('beck.riffle', 'white water', 0, 1.5, 0.01, quality.beckRipples > 0) ],
+        ),
         toggled('boat wakes', range('water.wakeStrength', 'wake strength', 0, 1.5, 0.01), 0.78),
         range('water.roughness', 'roughness', 0.05, 1, 0.01),
         range('boats.speed', 'boat speed', 0, 12, 0.1),
