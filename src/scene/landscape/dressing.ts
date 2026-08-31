@@ -16,6 +16,7 @@ import type { AtmosphereQuality } from '../quality.ts'
 import type { TiltWeight } from './align.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from './archipelago.ts'
 import { BEACON_FOOTING } from './beacon.ts'
+import { BOATHOUSE_CLEARING, NET_RACK_CLEARING, boathouseSpot, netRackSpot } from './landing.ts'
 import type { Spot } from './landing.ts'
 import { createGroundContact, findCrossing, isFoliage, trackPointNear } from './dressing-helpers.ts'
 import { raiseEnclosures } from './dressing-enclosures.ts'
@@ -476,6 +477,17 @@ export function createDressing (
     if (survey.harbour)
       raiseHarbour(survey.harbour)
 
+    // The smokehouse, up the bank from the boats. Plopped rather than merged
+    // into the steading draw, for the reason the five farmstead buildings are:
+    // a shore bank slopes, and a merged geometry is baked at build time and can
+    // only ever sit at one height. Its own socle takes up what is left of the
+    // fall the site search already refused to exceed.
+    if (survey.smokehouse) {
+      const { x, z, angle } = survey.smokehouse
+
+      raiseBuilding('smokehouse', x + ox, z + oz, angle)
+    }
+
     // The windmill, out on the shoulder the survey found for it. Merged rather
     // than plopped, unlike the five farmstead buildings: a mill stands on four
     // dry-laid piers and the search already refused ground the trestle could
@@ -530,20 +542,17 @@ export function createDressing (
       const bearing = bank.angle
       const bankX   = bank.x + ox
       const bankZ   = bank.z + oz
-      const houseX  = bankX + Math.cos(bearing) * 1.8
-      const houseZ  = bankZ + Math.sin(bearing) * 1.8
+      const house   = boathouseSpot(bank)
+      const rack    = netRackSpot(bank)
 
       harbourAnchors.push({ x: bankX, z: bankZ })
-      placeHeroAt('boathouse', houseX, water + 0.05, houseZ, yawAlong(bearing))
-      solver.reserve(houseX, houseZ, 8)
+      placeHeroAt('boathouse', house.x + ox, water + 0.05, house.z + oz, yawAlong(bearing))
+      solver.reserve(house.x + ox, house.z + oz, BOATHOUSE_CLEARING)
 
       // The rack dries nets on dry ground behind the shed, never in the shallows.
-      const rackX = bankX - Math.cos(bearing) * 5
-      const rackZ = bankZ - Math.sin(bearing) * 5
-
-      if (heightAt(rackX, rackZ) > water + 0.5) {
-        placeHero('netRack', rackX, rackZ, yawAlong(bearing))
-        solver.reserve(rackX, rackZ, 4)
+      if (heightAt(rack.x + ox, rack.z + oz) > water + 0.5) {
+        placeHero('netRack', rack.x + ox, rack.z + oz, yawAlong(bearing))
+        solver.reserve(rack.x + ox, rack.z + oz, NET_RACK_CLEARING)
       }
     }
   }

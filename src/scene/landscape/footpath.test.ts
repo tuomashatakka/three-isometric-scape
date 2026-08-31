@@ -17,9 +17,11 @@ const landing = findLanding(layout, field, SCAPE_CONFIG)
 
 const avoid: Obstacle[] = STEADING_BUILDINGS.map(name => places[name])
 
+const harbour = landing && findHarbourBank(layout, field, SCAPE_CONFIG, landing)
+
 const routes = footpathRoutes(layout, places, [
-  landing,
-  landing && findHarbourBank(layout, field, SCAPE_CONFIG, landing),
+  landing && { x: landing.x, z: landing.z, name: 'landing', kind: 'shore' },
+  harbour && { x: harbour.x, z: harbour.z, name: 'harbour', kind: 'shore' },
 ], avoid)
 
 /** The scape's own options, so the tests exercise what actually ships. */

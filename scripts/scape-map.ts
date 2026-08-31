@@ -12,6 +12,7 @@ import { surveyHearths } from '../src/scene/landscape/hearths.ts'
 import { surveyWindows } from '../src/scene/landscape/windows.ts'
 import { distanceToTrack } from '../src/scene/landscape/layout.ts'
 import { createPathQuery, pathLength } from '../src/scene/landscape/path.ts'
+import type { SmokehouseSite } from '../src/scene/landscape/smokehouse.ts'
 import { STEADING_BUILDINGS } from '../src/scene/landscape/steading.ts'
 import { sampleWaterway } from '../src/scene/landscape/waterway.ts'
 import type { ScapeConfig } from '../src/scene/config.ts'
@@ -38,7 +39,8 @@ const SHALLOW = 0.45
 export const LEGEND =
   '~ deep  - shallow  . shore  : low  = mid  + upper  * high  # peak\n' +
   ', footpath  ≡ track  · waterway  b boat  s beck  ' +
-  'F/B/A/W/S steading  o well  J jetty  H harbour  p plot  ^ ridge'
+  'F/B/A/W/S steading  o well  J jetty  H harbour  V smokehouse  ' +
+  'W mill  K chapel  L light  p plot  ^ ridge'
 
 export interface Layers {
   height:    boolean
@@ -115,17 +117,27 @@ interface CompositionStats {
    * for: a beck that stopped surfacing reads as `NONE` here, and a course that
    * drowned under a retuned falloff reads as a wetted reach that collapsed.
    */
-  beck:     { wetted: number, fall: number } | null
-  pasture:  { x: number, z: number, radius: number } | null
-  mill:     { x: number, z: number, prominence: number } | null
-  chapel:   { x: number, z: number, prominence: number, fromYard: number } | null
-  beacon:   { x: number, z: number, freeboard: number, reach: number, isle: number } | null
-  plots:    number
-  ridges:   number
-  isles:    { total: number, surfacing: number }
-  steading: Record<string, [ number, number ]>
-  landing:  [ number, number ] | null
-  harbour:  [ number, number ] | null
+  beck:    { wetted: number, fall: number } | null
+  pasture: { x: number, z: number, radius: number } | null
+  mill:    { x: number, z: number, prominence: number } | null
+  chapel:  { x: number, z: number, prominence: number, fromYard: number } | null
+
+  /**
+   * The hut on the bank above the boat harbour, and how far up that bank it is.
+   *
+   * A structural line rather than a decorative one: `NONE` here on an island
+   * that has a harbour means the shore behind it never came up dry enough to
+   * keep a fire on, which is exactly the kind of thing a retuned falloff does
+   * and a screenshot at the default pose never shows.
+   */
+  smokehouse: { x: number, z: number, fromBank: number } | null
+  beacon:     { x: number, z: number, freeboard: number, reach: number, isle: number } | null
+  plots:      number
+  ridges:     number
+  isles:      { total: number, surfacing: number }
+  steading:   Record<string, [ number, number ]>
+  landing:    [ number, number ] | null
+  harbour:    [ number, number ] | null
 }
 
 export interface LandmassMapStats extends CompositionStats {
@@ -330,6 +342,26 @@ function beckOf (
 }
 
 /**
+ * The harbour's hut, as the stats line reports it.
+ *
+ * A function rather than a fourth null-guarded block inside `compositionStats`,
+ * which the lint config's complexity ceiling refuses — and rightly: a
+ * survey-to-stats mapping that keeps growing branches is a mapping that wants
+ * splitting, not a limit that wants raising.
+ */
+function smokehouseOf (
+  site:   SmokehouseSite | null,
+  worldX: (x: number) => number,
+  worldZ: (z: number) => number,
+): CompositionStats['smokehouse'] {
+  return site && {
+    x:        round(worldX(site.x)),
+    z:        round(worldZ(site.z)),
+    fromBank: round(site.fromBank, 1),
+  }
+}
+
+/**
  * Everything the grid cannot say.
  *
  * The picture is for a person; this is for the run. A creek that failed to
@@ -427,7 +459,8 @@ function compositionStats (landmass: LandmassSurvey, w: number, h: number): Comp
       prominence: round(layout.chapel.prominence, 2),
       fromYard:   round(layout.chapel.fromYard),
     },
-    beacon: survey.beacon && {
+    smokehouse: smokehouseOf(survey.smokehouse, worldX, worldZ),
+    beacon:     survey.beacon && {
       x:         round(worldX(survey.beacon.x)),
       z:         round(worldZ(survey.beacon.z)),
       freeboard: round(survey.beacon.freeboard, 2),
@@ -669,9 +702,9 @@ export function renderGrid (
 
   if (layers.buildings)
     for (const landmass of archipelago.landmasses) {
-      const { layout, places, landing, harbour, beacon } = landmass.survey
-      const worldX                                       = (x: number): number => x + landmass.origin.x
-      const worldZ                                       = (z: number): number => z + landmass.origin.z
+      const { layout, places, landing, harbour, beacon, smokehouse } = landmass.survey
+      const worldX                                                   = (x: number): number => x + landmass.origin.x
+      const worldZ                                                   = (z: number): number => z + landmass.origin.z
 
       for (const ridge of layout.ridges)
         stamp(worldX(ridge.x), worldZ(ridge.z), '^')
@@ -689,6 +722,9 @@ export function renderGrid (
 
       if (layout.chapel)
         stamp(worldX(layout.chapel.x), worldZ(layout.chapel.z), 'K')
+
+      if (smokehouse)
+        stamp(worldX(smokehouse.x), worldZ(smokehouse.z), 'V')
 
       if (beacon)
         stamp(worldX(beacon.x), worldZ(beacon.z), 'L')

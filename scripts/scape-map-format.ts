@@ -126,6 +126,10 @@ export function formatStats (stats: MapStats): string {
       ? `chapel (${stats.chapel.x},${stats.chapel.z}) prominence ${stats.chapel.prominence}m  ` +
         `${stats.chapel.fromYard}m from the yard`
       : 'chapel NONE  <- no knoll near enough to the farm',
+    stats.smokehouse
+      ? `smokehouse (${stats.smokehouse.x},${stats.smokehouse.z}) ` +
+        `${stats.smokehouse.fromBank}m up the bank`
+      : 'smokehouse NONE  <- no dry ground behind the harbour',
     stats.beacon
       ? `beacon (${stats.beacon.x},${stats.beacon.z}) isle ${stats.beacon.isle} ` +
         `freeboard ${stats.beacon.freeboard}m  reach ${stats.beacon.reach}m`

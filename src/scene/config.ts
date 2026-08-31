@@ -737,6 +737,50 @@ export interface ScapeConfig {
   }
 
   /**
+   * The smokehouse on the bank above the boat harbour.
+   *
+   * Build-time, all three, and for the reason the chapel's four are: moving a
+   * building re-plans the footpath network around it, and a slider that needs a
+   * reload lies about what a slider does. See `landscape/smokehouse.ts` for the
+   * siting and `props/smokehouse.ts` for the building.
+   *
+   * **Metres, and they stay metres.** All three are measured off the harbour
+   * bank — how far a barrow is wheeled up from the boats, and how much dry
+   * ground a fire needs under it. None of them is a fraction of the world or of
+   * the frame, so a wider archipelago must not scale them.
+   */
+  smokehouse: {
+
+    /**
+     * Nearest the bank the building may stand, in metres.
+     *
+     * Past the net rack, which dries five metres back from the same bank — the
+     * two are the whole of the harbour's dry ground, and the rack was there
+     * first.
+     */
+    setback: number
+
+    /**
+     * Furthest from the bank the search will look, in metres.
+     *
+     * A smokehouse belongs to the harbour, not to the island. Past this the
+     * search gives up rather than walking one up the hillside, and a harbour cut
+     * into a shelf that shelves straight into rock gets no smokehouse at all.
+     */
+    reach: number
+
+    /**
+     * Metres of dry ground the sill needs under it, at the middle and at all
+     * four corners of the footing.
+     *
+     * The switch, and the only one — the same shape as `mill.prominence` and for
+     * the same reason. Raising it past what the bank offers takes the
+     * smokehouses back out of the scape.
+     */
+    freeboard: number
+  }
+
+  /**
    * The seamark on the outer rock, and the light it turns.
    *
    * Split the way `mill` is: the first two decide which islet the tower is built
@@ -1981,6 +2025,26 @@ export const SCAPE_CONFIG = {
   // out, which is what puts the tower on the north-eastern outlier — the
   // furthest rock in the ring with ground to spare. 1.2 metres of freeboard is
   // one storm surge, and the smallest rise the plinth reads as standing on.
+  // Five metres puts the hut alongside the net rack rather than behind it — the
+  // rack's own footing keeps the two apart — and eighteen is about as far up a
+  // bank as anyone wheels a barrow of fish. The reach has to be that generous
+  // because the harbour bank is by construction the nearest water to the *yard*:
+  // on the home island the shore shelves at a metre in four for seventeen metres
+  // and the first ground a socle can stand on is at the bottom of the farmyard.
+  // The score pays for every one of those metres, so the four islands with a
+  // gentler bank put theirs six to nine metres up instead.
+  //
+  // 0.6 m of freeboard is a shore building rather than a hill one, and it is
+  // measured against its neighbours rather than against the chapel: the
+  // boathouse's deck sits at the waterline plus five centimetres and the net
+  // rack asks for half a metre. Demanding the chapel's two and a half here reads
+  // as caution and is really a refusal — at 1.4 m no bank in the archipelago
+  // qualified and every island came back with no smokehouse at all.
+  smokehouse: {
+    setback:   5,
+    reach:     18,
+    freeboard: 0.6,
+  },
   beacon: {
     minRock:   6,
     freeboard: 1.2,

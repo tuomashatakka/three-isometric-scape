@@ -5,6 +5,7 @@ import { createHeightField } from './height.ts'
 import { findHarbourBank, findLanding } from './landing.ts'
 import { createScapeLayout } from './layout.ts'
 import { farmWaypoints, planFarmNetwork } from './network.ts'
+import type { OutlyingPlace } from './network.ts'
 import { STEADING_BUILDINGS, doorstepOf, faceToward, steadingPlaces } from './steading.ts'
 
 
@@ -14,8 +15,14 @@ const places  = steadingPlaces(layout.yard)
 const landing = findLanding(layout, field, SCAPE_CONFIG)
 const harbour = landing && findHarbourBank(layout, field, SCAPE_CONFIG, landing)
 
+/** The survey's own two shore places, named the way `surveyScape` names them. */
+const shores: (OutlyingPlace | null)[] = [
+  landing && { x: landing.x, z: landing.z, name: 'landing', kind: 'shore' },
+  harbour && { x: harbour.x, z: harbour.z, name: 'harbour', kind: 'shore' },
+]
+
 const avoid: Obstacle[] = STEADING_BUILDINGS.map(name => places[name])
-const network           = planFarmNetwork(layout, places, [ landing, harbour ], avoid)
+const network           = planFarmNetwork(layout, places, shores, avoid)
 
 /** Which waypoints can be reached from the well by walking the planned legs. */
 function reachable (): Set<number> {
@@ -130,7 +137,7 @@ describe('the farm’s street plan', () => {
   })
 
   test('the same layout always plans the same network', () => {
-    const again = planFarmNetwork(layout, places, [ landing, harbour ], avoid)
+    const again = planFarmNetwork(layout, places, shores, avoid)
 
     expect(again.legs).toEqual(network.legs)
     expect(again.waypoints).toEqual(network.waypoints)
@@ -178,7 +185,7 @@ describe('which way a building faces', () => {
  */
 describe('the chapel in the street plan', () => {
   test('is walked to, and is not what a field turns its gate toward', () => {
-    const points = farmWaypoints(layout, places, [ landing, harbour ])
+    const points = farmWaypoints(layout, places, shores)
     const chapel = points.find(point => point.kind === 'chapel')
 
     expect(chapel).toBeDefined()
@@ -190,9 +197,9 @@ describe('the chapel in the street plan', () => {
   })
 
   test('has a leg planned to it, like every other place the farm walks to', () => {
-    const points = farmWaypoints(layout, places, [ landing, harbour ])
+    const points = farmWaypoints(layout, places, shores)
     const at     = points.findIndex(point => point.kind === 'chapel')
-    const plan   = planFarmNetwork(layout, places, [ landing, harbour ], avoid)
+    const plan   = planFarmNetwork(layout, places, shores, avoid)
 
     expect(at).toBeGreaterThan(-1)
     expect(plan.legs.some(([ a, b ]) => a === at || b === at)).toBe(true)

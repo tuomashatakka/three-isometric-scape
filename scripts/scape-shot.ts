@@ -220,6 +220,34 @@ export const TOURS: Record<string, Pose[]> = {
   ],
 
   /**
+   * The smokehouse, and the plume that is the whole point of it.
+   *
+   * Added for the reason `chapel` was, and it is the same reason again: the hut
+   * is 3.4 m long against the chapel's fourteen, so at the tour's default frame
+   * it is a smudge and at `near`'s ten metres the camera is standing beside it
+   * facing the other way. A building this small is either photographed on
+   * purpose or not photographed.
+   *
+   * `smokehouse` reads the building — turf roof, log courses, the billets
+   * against the blind gable — and the cowl the smoke leaves through. `harbour`
+   * pulls back to the claim the siting is actually about: the hut and the water
+   * it works for in one frame, so a reviewer can see whether the search put it
+   * with the boats or wandered off up the hill. `smokehouse-still` is the
+   * same close frame on a windless day, because the plume is laid over by the
+   * wind and a column that only reads when it is bent is a column that vanishes
+   * the first calm morning.
+   */
+  smokehouse: [
+    { name: 'smokehouse', zoom: 30, set: [ 'camera.focusX=-8.5', 'camera.focusZ=-10.3' ]},
+    { name: 'harbour', zoom: 40, set: [ 'camera.focusX=-13', 'camera.focusZ=-21' ]},
+    {
+      name: 'smokehouse-still',
+      zoom: 30,
+      set:  [ 'camera.focusX=-8.5', 'camera.focusZ=-10.3', 'wind.strength=0' ],
+    },
+  ],
+
+  /**
    * One farmhouse wall, from close enough to see a window as a window.
    *
    * The sixth set added for the reason the first five were, and the smallest
@@ -717,6 +745,7 @@ async function main (): Promise<void> {
       '                        grazing (3, the flocks on the rough ground)',
       '                        guard (4, the rocks in the open sea)',
       '                        chapel (4, the church and its yard)',
+      '                        smokehouse (3, the hut above the harbour)',
       '                        shallows (4, the light on the bottom)',
       '                        beck (4, the water in the channel) | quick (1)',
       '  --rot 45 --zoom 70    camera yaw, and view size (tilt is derived from zoom)',
