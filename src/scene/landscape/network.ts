@@ -25,8 +25,8 @@ import type { SteadingPlaces } from './steading.ts'
  * geometry rather than out of a list:
  *
  * 1. Every place the farm walks to becomes a {@link Waypoint} — the well, each
- *    building's *doorway*, each field's gate, the meadow gateway, the landing
- *    and the boat harbour.
+ *    building's *doorway*, each field's gate, the meadow gateway, the landing,
+ *    the boat harbour and the smokehouse door above it.
  * 2. A minimum spanning tree over those, costed so that a leg which would have
  *    to detour round a building is dearer than one that would not. That alone
  *    connects everything to everything, by the cheapest total length there is.
@@ -46,6 +46,25 @@ export interface Waypoint extends Vec2 {
 
   /** What kind of place it is. Carried for the debug tools, not used in planning. */
   kind: 'well' | 'door' | 'field' | 'meadow' | 'mill' | 'chapel' | 'shore'
+}
+
+/**
+ * A place outside the layout that the network still has to reach.
+ *
+ * The landing, the harbour and the smokehouse's door. They are found against the
+ * *height field* rather than against the layout, so they cannot be derived here
+ * the way a plot gate or a doorstep is — the caller resolves them and hands them
+ * over already named.
+ *
+ * Named by the caller, and that is the point: this used to be a bare list of
+ * points with the names supplied positionally from a `['landing', 'harbour']`
+ * array in this file, which meant adding a third place to the survey silently
+ * renamed it `shore-2`. A waypoint that cannot say what it is is a waypoint the
+ * debug tools cannot draw.
+ */
+export interface OutlyingPlace extends Vec2 {
+  name: string
+  kind: Waypoint['kind']
 }
 
 /** One planned leg, as a pair of indices into the waypoint list. */
@@ -210,7 +229,7 @@ function nearest (to: Vec2, among: readonly Vec2[]): Vec2 {
 export function farmWaypoints (
   layout:   ScapeLayout,
   places:   SteadingPlaces,
-  outlying: readonly (Vec2 | null)[],
+  outlying: readonly (OutlyingPlace | null)[],
 ): Waypoint[] {
   const points: Waypoint[] = [{ x: places.well.x, z: places.well.z, name: 'well', kind: 'well' }]
 
@@ -264,12 +283,9 @@ export function farmWaypoints (
     points.push({ x: step.x, z: step.z, name: 'chapel', kind: 'chapel' })
   }
 
-  const shores = [ 'landing', 'harbour' ]
-
-  outlying.forEach((place, index) => {
+  for (const place of outlying)
     if (place)
-      points.push({ x: place.x, z: place.z, name: shores[index] ?? `shore-${index}`, kind: 'shore' })
-  })
+      points.push({ x: place.x, z: place.z, name: place.name, kind: place.kind })
 
   return points
 }
@@ -284,7 +300,7 @@ export interface FarmNetwork {
 export function planFarmNetwork (
   layout:   ScapeLayout,
   places:   SteadingPlaces,
-  outlying: readonly (Vec2 | null)[],
+  outlying: readonly (OutlyingPlace | null)[],
   avoid:    readonly Obstacle[],
 ): FarmNetwork {
   const waypoints = farmWaypoints(layout, places, outlying)
@@ -302,7 +318,7 @@ export function planFarmNetwork (
 export function footpathRoutes (
   layout:   ScapeLayout,
   places:   SteadingPlaces,
-  outlying: readonly (Vec2 | null)[],
+  outlying: readonly (OutlyingPlace | null)[],
   avoid:    readonly Obstacle[],
 ): FootpathRoute[] {
   return [ ...planFarmNetwork(layout, places, outlying, avoid).routes ]

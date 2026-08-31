@@ -170,6 +170,7 @@ bun run scape:shot --poses chapel                   # the church and its yard, 4
 bun run scape:shot --poses grazing                  # the flocks on the rough ground, 3 frames
 bun run scape:shot --poses shallows                 # the light on the bottom, 4 frames
 bun run scape:shot --poses beck                     # the water in the channel, 4 frames
+bun run scape:shot --poses smokehouse               # the hut above the harbour, 3 frames
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain
@@ -310,6 +311,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `buildings.ts` | farmhouse, barn, sauna, aitta, woodshed |
 | `structures.ts` | jetty, well, hay rack, gate, bridge, cart |
 | `shore.ts` | boathouse and slipway, net rack, mooring stakes |
+| `smokehouse.ts` | the smokehouse — log walls, turf roof, ridge cowl, and `SMOKEHOUSE_VENT` |
 | `upland.ts` | meadow barn, hay drying poles |
 | `chapel.ts` | the chapel — nave, stepped chancel, open belfry, spire — and the grave markers. **fronted on `-x`, not `+z`** |
 | `mill.ts` | the post mill and its trestle, plus the sail wheel — **the one geometry not based at `y = 0`** |
@@ -334,7 +336,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `layout.ts` | yard, cart track, field plots, ridges, pasture, mill, chapel, `sinkToIsland`, `yawAlong` |
 | `height.ts` | authored ground, islets, beck, fbm underneath |
 | `steading.ts` | where the buildings stand, `faceToward`, `doorstepOf` |
-| `landing.ts` | one local shoreline, with an open-sea jetty and harbour |
+| `landing.ts` | one local shoreline, with an open-sea jetty and harbour, and where the harbour's own furniture stands |
 | `path.ts` | polyline smoothing and queries — reuse these, do not re-derive them |
 | `network.ts` | the farm's street plan: waypoints, spanning tree, shortcuts |
 | `footpath.ts` | tracing a planned leg into a worn line, and the wear query |
@@ -345,10 +347,11 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `beacon.ts` | the outermost rock broad and dry enough to carry a light, and the footing probe that proves it |
 | `colony.ts` | the open water off a harbour or an outer rock that a flock can wheel over without crossing land |
 | `grazing.ts` | the rough ground each farm turns stock out onto, and the one predicate that both sites a flock and accepts a sheep |
-| `hearths.ts` | every chimney and flue in the archipelago, carried from the prop's own frame out to the mouth |
+| `hearths.ts` | every chimney, flue and ridge cowl in the archipelago, carried from the prop's own frame out to the mouth |
 | `windows.ts` | every glazed pane, carried out the same way and turned to its wall's outward bearing |
 | `fixtures.ts` | the transform both of those share: a point in a raised building's own frame, in world metres |
 | `chapel.ts` | the knoll a chapel stands on, its doorstep, and `chapelYaw` — the one yaw `yawAlong` cannot give |
+| `smokehouse.ts` | the patch of bank above the harbour a smokehouse is built on |
 | `mill.ts` | the exposed shoulder a windmill stands on, and the doorstep at the foot of its stair |
 | `mill-sails.ts` | every mill's wheel in one dynamic `InstancedMesh`, geared off `wind.strength` |
 | `terrain.ts` | shared archipelago geometry, height/slope banded colour, path wear painted in |

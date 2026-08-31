@@ -227,6 +227,7 @@ src/
     │   ├── windows.ts             every glazed pane, in world space and facing out
     │   ├── fixtures.ts            carrying a point out of a raised building's own frame
     │   ├── chapel.ts               the knoll a chapel would stand on, and the yaw its door is turned by
+    │   ├── smokehouse.ts           the patch of bank above the harbour the smokehouse is built on
     │   ├── mill.ts                 the exposed shoulder a windmill would stand on
     │   ├── mill-sails.ts           every mill's wheel, turning in one instanced draw
     │   ├── waterway.ts             the navigable water between the ports
@@ -261,6 +262,7 @@ src/
         ├── mill.ts                 the post mill, its trestle and its sail wheel
         ├── beacon.ts               the lighthouse tower, and the optic that turns in it
         ├── shore.ts                boathouse and slipway, net rack, mooring stakes
+        ├── smokehouse.ts           the smokehouse — log walls, turf roof, ridge cowl
         ├── objects.ts              rowboat, bales, firewood, barrel, mailbox, driftwood
         ├── stone.ts                erratics, field stones, cobbles, cairns
         ├── littoral.ts             bladderwrack and rock lichen — the tidal band
@@ -685,6 +687,22 @@ on a rise between the farm and the sea there is a chapel: a limewashed boarded n
 
 **`null` is an answer, the way it is for the mill.** at the default seed four of the five islands build one and the ridge does not — nothing inside `chapel.reach` of its farm stands proud enough or lies level enough. `scape:map --stats` reports the site, its prominence and its distance from the yard, or says which of those it could not find.
 
+## the smokehouse above the harbour
+
+a few paces up the bank from the boats there is a smokehouse: a squat log hut on a granite socle, roofed in sod rather than shingle, with a cowl on the ridge that the smoke leaves through and a stack of alder billets against its blind gable. the geometry is [`props/smokehouse.ts`](src/scene/props/smokehouse.ts), where it stands is [`landscape/smokehouse.ts`](src/scene/landscape/smokehouse.ts), and the plume is the hearth system's, unchanged.
+
+**it is the one building on the island sited against the harbour rather than against the farm.** the yard is found by shelter, the pasture by unused height, the mill by wind, the chapel by a rise near the farm. a smokehouse is where the catch is landed, so its search is a ring sweep out from the harbour bank — the shortest search in the scape, and the only one with no landscape term in it at all. it scores two things: nearness to the bank, and how level the ground is. every term it does *not* have is a term that cannot pull it up the hill away from the boats.
+
+**no bearing is privileged and the farmyard is not fenced off.** the sweep goes the whole way round the bank and the freeboard test throws out the half of it that is water, which is the same answer a landward half-plane would give on a straight coast and a better one in a cove, where "behind the bank" is not a direction. and the yard is left open on purpose: `findBank` walks outward *from the yard*, so the harbour bank is by construction the nearest water to the farm, and on a compact island the shore and the bottom of the farmyard are the same few metres of ground. a rule that kept the hut off the yard's graded shelf took the home island's smokehouse away with it.
+
+**it is a shore building, and its standards are its neighbours' rather than the chapel's.** the boathouse's deck sits at the waterline plus five centimetres and the net rack asks for half a metre; `smokehouse.freeboard` asks for 0.6. demanding the chapel's two and a half metres here reads as caution and is really a refusal — at 1.4 m no bank in the archipelago qualified and every island came back with nothing. the gate that actually bites is the fall across the footing: a shore bank is the steepest ground anything here is built on, and the home island's harbour shelves at about a metre in four for seventeen metres before a socle can stand on it.
+
+**a footing and a clearing are different questions.** the harbour's arrangement moved out of the dressing and into [`landscape/landing.ts`](src/scene/landscape/landing.ts) when a third thing needed to know where the boathouse and the net rack ended up, and splitting in two came with it. the *footing* is the ground the thing itself stands on and is what another building has to miss; the *clearing* is the wider ground kept free of scatter so a spruce is not seeded through the slipway. reading the clearing as a footing is not a conservative mistake but a disabling one: the boathouse's eight metres plus a hut's own footing walled off every bearing within nine metres of the bank, and the search came back `null` on all five islands.
+
+**it is plopped, not merged, for the chapel's reason.** a shore bank slopes and a merged geometry is baked at build time at one height. the socle takes up what is left of the fall the search already refused to exceed. it costs one draw per island against the same material, which is what the five farmstead buildings already cost and for the same reason.
+
+**and it is walked to.** the door is on local `+z` like every building but the chapel, so `faceToward` turns it at the water and `doorstepOf` finds the place the network is worn to — no yaw helper of its own. adding a third outlying place is also what finally took the positional `['landing', 'harbour']` name list out of `network.ts`: a waypoint whose name came from its index in an array is a waypoint that gets renamed `shore-2` the moment anything is added beside it.
+
 ## the light on the outer rock
 
 on the furthest skerry the ring has, there is a lighthouse: a battered stone tower with a painted band round its middle, a corbelled gallery with an iron rail, a glazed lantern room, and a cap with a vent finial on it. after dark the lamp comes up and the optic turns, sweeping two beams over the water on the desktop tier and three on ultra. the geometry is [`props/beacon.ts`](src/scene/props/beacon.ts), where it stands is [`landscape/beacon.ts`](src/scene/landscape/beacon.ts), and the light itself is [`scene/beacon.ts`](src/scene/beacon.ts).
@@ -754,11 +772,11 @@ over every harbour mouth in the archipelago, and over the rock the light stands 
 
 ## the smoke over the farmsteads
 
-every holding in the archipelago keeps two fires — the farmhouse's brick chimney and the sauna's iron flue — and every one of them smokes. where the stacks stand is [`landscape/hearths.ts`](src/scene/landscape/hearths.ts); the plume that rises out of them is [`scene/hearth.ts`](src/scene/hearth.ts).
+every holding in the archipelago keeps three fires — the farmhouse's brick chimney, the sauna's iron flue and the cowl on the smokehouse down at the harbour — and every one of them smokes. the third is conditional where the other two are not, and that is a fact about the ground rather than about the building: a harbour with no dry bank behind it has no smokehouse to smoke. where the stacks stand is [`landscape/hearths.ts`](src/scene/landscape/hearths.ts); the plume that rises out of them is [`scene/hearth.ts`](src/scene/hearth.ts).
 
 **the mouth is the prop's own answer, not a second copy of it.** `FARMHOUSE_CHIMNEY` and `SAUNA_FLUE` are exported from [`props/buildings.ts`](src/scene/props/buildings.ts) and the masonry is placed *from* them — the cap course sits at `mouth.y - thickness/2` rather than beside a repeated `-2.6`. the same seam the lantern hubs and the mill's wheels are on, and for the same reason: two numbers for where a chimney is, is a plume hanging beside its own brick the first time either moves.
 
-**the floor is approximated, and it says so.** a building is levelled onto the *highest* ground under its own footprint, and the footprint does not exist until the geometry has been built — which happens in the dressing, on a tier that may not build it at all. so the four corners of the standing's claim are probed and the high one taken, which is the same rule applied to a square rather than to an outline. on a yard the layout has already flattened the two agree to a few centimetres. `scape:map --stats` prints `hearths 10  lowest mouth 5.5m over the ground`, and anything under about three metres there means a stack has been placed against a floor it does not stand on.
+**the floor is approximated, and it says so.** a building is levelled onto the *highest* ground under its own footprint, and the footprint does not exist until the geometry has been built — which happens in the dressing, on a tier that may not build it at all. so the four corners of the standing's claim are probed and the high one taken, which is the same rule applied to a square rather than to an outline. on a yard the layout has already flattened the two agree to a few centimetres. `scape:map --stats` prints `hearths 15  lowest mouth 4.3m over the ground`, and anything under about three metres there means a stack has been placed against a floor it does not stand on.
 
 **the rotation sign is the trap.** a chimney stands 2.6 m off the middle of the ridge, so the offset has to be carried through the same `rotateY` the building is raised with — local `+x` to `(cos θ, -sin θ)`, the convention `steading.ts` faces every door by. the mirrored version looks correct on every seed where a farmhouse happens to face square and puts the smoke out of the gable end on the rest, which is why `hearth.test.ts` states it as a fact: every stack is within its own standing's radius plus a metre.
 

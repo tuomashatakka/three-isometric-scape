@@ -18,8 +18,14 @@ const read = (name: string): BufferAttribute => geometry.getAttribute(name) as B
 
 
 describe('where the smoke comes from', () => {
-  test('is two stacks for every holding in the archipelago', () => {
-    expect(stacks.length).toBe(SCAPE_CONFIG.archipelago.landmasses.length * 2)
+  test('is a stack for every fire in the archipelago', () => {
+    // Two unconditional — the farmhouse chimney and the sauna flue — plus the
+    // smokehouse's ridge cowl on each island whose harbour had a dry bank
+    // behind it. The third is conditional because the *building* is: see
+    // `landscape/smokehouse.ts`.
+    const smoking = survey.landmasses.filter(landmass => landmass.survey.smokehouse).length
+
+    expect(stacks.length).toBe(SCAPE_CONFIG.archipelago.landmasses.length * 2 + smoking)
   })
 
   /**
@@ -56,13 +62,17 @@ describe('where the smoke comes from', () => {
    */
   test('every stack sits on its own building', () => {
     const places = survey.landmasses.flatMap(landmass => {
-      const { farmhouse, sauna } = landmass.survey.places
+      const { places: steading, smokehouse } = landmass.survey
 
-      return [ farmhouse, sauna ].map(place => ({
-        x:     place.x + landmass.origin.x,
-        z:     place.z + landmass.origin.z,
-        reach: place.radius + 1,
-      }))
+      // In the order `surveyHearths` publishes them, so the pairing below is
+      // the identity rather than a lookup — a stack that has strayed onto its
+      // neighbour's roof is exactly the failure this is here to catch.
+      return [ steading.farmhouse, steading.sauna, ...smokehouse ? [ smokehouse ] : [] ]
+        .map(place => ({
+          x:     place.x + landmass.origin.x,
+          z:     place.z + landmass.origin.z,
+          reach: place.radius + 1,
+        }))
     })
 
     const strayed = stacks

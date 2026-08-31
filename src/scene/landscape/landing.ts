@@ -145,3 +145,48 @@ export function findHarbourBank (
     landing.angle + config.layout.harbourSpread * Math.PI / 180,
   )
 }
+
+/**
+ * How the harbour is laid out around its bank, in metres.
+ *
+ * The boathouse reaches out over the water; the net rack dries gear behind it;
+ * and both of them claim ground that nothing else may be put on. The numbers
+ * live here rather than in the dressing that raises them because a third thing
+ * now has to know where they ended up — the smokehouse search sites itself past
+ * them — and a second copy of an arrangement is how a building gets built on top
+ * of a building.
+ *
+ * Each of the two has a *footing* and a *clearing*, and they are different
+ * questions rather than one number used twice. The footing is the ground the
+ * thing itself stands on, and it is what another building has to miss. The
+ * clearing is the wider ground kept free of scatter around it, so a spruce is
+ * not seeded through the slipway — generous on purpose, because a tree that
+ * grows into a building is worse than a bare yard.
+ *
+ * Reading the clearing as a footing is not a conservative mistake, it is a
+ * disabling one: the boathouse's eight metres plus a hut's own footing walled
+ * off every bearing within nine metres of the bank, and the smokehouse search
+ * came back `NONE` on all five islands.
+ */
+export const BOATHOUSE_REACH    = 1.8
+export const BOATHOUSE_FOOTING  = 3.4
+export const BOATHOUSE_CLEARING = 8
+export const NET_RACK_SETBACK   = 5
+export const NET_RACK_FOOTING   = 2.4
+export const NET_RACK_CLEARING  = 4
+
+/** Where the boathouse deck sits, out over the water from its bank. */
+export function boathouseSpot (bank: Spot): Vec2 {
+  return {
+    x: bank.x + Math.cos(bank.angle) * BOATHOUSE_REACH,
+    z: bank.z + Math.sin(bank.angle) * BOATHOUSE_REACH,
+  }
+}
+
+/** Where the net rack stands, back up the bank from the boathouse. */
+export function netRackSpot (bank: Spot): Vec2 {
+  return {
+    x: bank.x - Math.cos(bank.angle) * NET_RACK_SETBACK,
+    z: bank.z - Math.sin(bank.angle) * NET_RACK_SETBACK,
+  }
+}
