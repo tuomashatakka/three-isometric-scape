@@ -29,7 +29,7 @@ import { normalFromHeight } from './normals.ts'
 export type TextureId =
   'ground.grain' | 'ground.normal' | 'ground.wear' | 'prop.bark' | 'sky.cloudShadow' |
   'water.ripple' | 'water.wave' | 'water.shoreMask' |
-  'sky.deck' | 'sky.aurora' | 'sky.gradient' | 'mist.field' | 'post.lut'
+  'weather.squall' | 'sky.deck' | 'sky.aurora' | 'sky.gradient' | 'mist.field' | 'post.lut'
 
 /**
  * Where a texture's pixels come from.
@@ -136,6 +136,14 @@ export const TEXTURES: readonly TextureEntry[] = [
     size:      256,
     module:    'clouds.ts',
     consumers: [ 'map' ],
+  },
+  {
+    id:        'weather.squall',
+    origin:    'baked',
+    purpose:   'the mottling in the shower crossing the open water',
+    size:      128,
+    module:    'squall.ts',
+    consumers: [ 'uField' ],
   },
   {
     id:        'sky.aurora',

@@ -55,6 +55,18 @@ export interface AtmosphereQuality {
   rainDrops: number
 
   /**
+   * Stacked sheets in the shower crossing the water. 0 is a sea nothing ever
+   * crosses.
+   *
+   * A count rather than a switch, for the reason `mistLayers` and `auroraLayers`
+   * are: the depth of a flat sheet is entirely the parallax between its copies,
+   * and one sheet is a shower where two are a shower with weather behind it.
+   * Sized against the *frame* like `rainDrops`, so the same count is the same
+   * shower at every zoom — see `squall.ts`.
+   */
+  squallSheets: number
+
+  /**
    * Gulls in the air across the whole archipelago. 0 is a coast with no birds
    * on it.
    *
@@ -252,6 +264,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     auroraLayers:    0,
     starCount:       0,
     rainDrops:       0,
+    squallSheets:    0,
     birdCount:       0,
     beaconBlades:    0,
     lampSpill:       0,
@@ -287,6 +300,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     auroraLayers:    1,
     starCount:       700,
     rainDrops:       900,
+    squallSheets:    1,
     birdCount:       90,
     beaconBlades:    1,
     lampSpill:       2,
@@ -338,6 +352,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     auroraLayers:    2,
     starCount:       1_900,
     rainDrops:       2_600,
+    squallSheets:    2,
     birdCount:       260,
     beaconBlades:    2,
     lampSpill:       3,
@@ -373,6 +388,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     auroraLayers:    3,
     starCount:       3_200,
     rainDrops:       4_200,
+    squallSheets:    3,
     birdCount:       420,
     beaconBlades:    3,
     lampSpill:       4,
@@ -425,6 +441,7 @@ const UNLOCKED_FLOOR = {
   auroraLayers:   1,
   starCount:      700,
   rainDrops:      700,
+  squallSheets:   1,
   birdCount:      90,
   beaconBlades:   1,
   lampSpill:      2,
@@ -467,6 +484,7 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
     auroraLayers:   Math.max(quality.auroraLayers, UNLOCKED_FLOOR.auroraLayers),
     starCount:      Math.max(quality.starCount, UNLOCKED_FLOOR.starCount),
     rainDrops:      Math.max(quality.rainDrops, UNLOCKED_FLOOR.rainDrops),
+    squallSheets:   Math.max(quality.squallSheets, UNLOCKED_FLOOR.squallSheets),
     birdCount:      Math.max(quality.birdCount, UNLOCKED_FLOOR.birdCount),
     beaconBlades:   Math.max(quality.beaconBlades, UNLOCKED_FLOOR.beaconBlades),
     lampSpill:      Math.max(quality.lampSpill, UNLOCKED_FLOOR.lampSpill),

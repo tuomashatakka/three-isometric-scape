@@ -93,6 +93,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - wood smoke standing over every farmhouse chimney and sauna flue in the archipelago, leaning on the same one wind as the grass and banked harder the colder the week
 - lamplight in ninety-three windows: sixty-five farmstead panes lit at dusk, banked to a stove glow once the household turns in, and back up before dawn — the chapels' twenty-eight burning fainter, because nobody sleeps in one — while the lighthouse burns straight through, because a lighthouse is a machine and a farm is not
 - a beck traced downhill from a spring, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself — with water standing in it, lying flat across the channel, falling with the ground, breaking white where the hill drops, and freezing later than the sea it runs into
+- showers standing out on the open water, crossing the archipelago from upwind ahead of the front that will reach the farm shortly after — read off the same clock the fall is, one lead ahead of it, and cut off at every coastline by the land it cannot rain on
 - **three clocks** — a day, a year, and a weather front — each a phase and a speed, each deriving everything else from that phase
 - a solar arc solved from a latitude — a polar night at midwinter, a midnight sun at midsummer — with dusk and night palettes derived from it, plus seasonal growth, leaf turn, lying snow, sea ice, sea smoke, and rain that leaves the ground wet
 - an aurora over the dark half of the year, gated on the night and on how much night the week has
@@ -195,6 +196,7 @@ src/
     ├── wind.ts                     clock four: one bearing, one gust, one travel every scroll shares
     ├── tide.ts                     the moon from underneath: how far the sea is off its mean this hour
     ├── rain.ts                     the fall, as one screen-sized column of streaks
+    ├── squall.ts                   the shower out on the water, one lead ahead of the front
     ├── birds.ts                     the gulls, and the rings they wheel on
     ├── hearth.ts                   the smoke over the farmsteads, and the year that banks it
     ├── windows.ts                  lamplight in the farmstead windows, and the household that lights it
@@ -1135,6 +1137,32 @@ three numbers, and each is a different fact:
 ### two frames of one shore
 
 a tide is only visible as a difference, and any two frames taken at two *hours* differ by the light as well — which is much the larger signal and would bury the smaller one. so `--poses tide` holds the hour and turns `tide.lag` instead: `ebb` and `flood` are the identical frame of the harbour bank, half a cycle apart, and the only thing that can have moved between them is the water. `tide-slack` is the guard, the same frame at `tide.range=0`, which has to come back `same` as the sea before there was a tide.
+
+## the squall you can see coming
+
+the front was a clock the reader stood *under*. `weather.ts` gives an hour of fall, an hour of wet ground and, in the cold half of the year, an hour of white — and every one of those happens exactly where the camera already is. there was nothing in the scape that said weather is a thing that *arrives*, which on a coast is most of what weather is.
+
+[`squall.ts`](src/scene/squall.ts) is a shower on the open water, upwind, crossing.
+
+**it is not a fifth clock, and it is not even a fourth reading.** the whole module is the same front sampled twice: `showerAmount(phase)`, which is what is falling here, and `showerAmount(phase + lead)`, which is what will be falling here shortly. the *maximum* of those two is how heavy the shower is and their *difference* is how far upwind it still is — positive on the way in, zero as it crosses, negative once it has gone by. one curve, so the shower's weight and the shower's place can never disagree, and a band that fades in where it stands is a shape the code cannot make.
+
+**it lies on the water, and that is the second thing this was.** the obvious shape for a squall is the one you see from a beach: a dark curtain hanging under the cloud, out on the horizon. that shape was built first, and it is wrong for this camera. the scape is read from above at a frame more than a kilometre across, against a cloud deck thirty-four metres up — a vertical curtain is nine pixels tall there, and there is no horizon in the picture for it to stand on. `scape:diff` said so plainly: `same` at all six poses, which is the brief's own definition of a failed run. what a shower over water looks like *from above* is a moving patch of dark, mottled surface, and that is a sheet.
+
+**land occludes it for nothing.** the sheet is drawn at the waterline and the terrain is opaque and writes depth, so every island stands out of the shower exactly as far as it stands out of the sea. no mask, no bathymetry sample, no second copy of where the coast is — the coastline the shower draws is by construction the coastline the ground already has.
+
+**it is drawn over the ground fog, although it lies under it.** the one ordering decision here that goes against the geometry, and it went there by measurement. under the mist — where a sheet lying on the sea physically belongs — the shower changed 0.00% of the frame at every pose of the tour, because this coast's mist collects over exactly the water the shower crosses. what the sheet actually stands for is not a stain on the surface but the whole column of rain above it, which reaches from the deck down to the sea and is therefore in front of anything lying in the bottom nine metres of that column. it stays under the gulls, which fly between the eye and it, and under the fall, which is falling on the reader rather than out there.
+
+**every extent is frame-sized, and that is the audit.** the sheet's width and the tile of its mottling both follow the live `viewSize`, because both are compositions — how much picture the shower covers, and how many patches are in it. `span` and `reach` are authored against the frame as well, and `squallBandWidth` divides them back down into the sheet's own several-frames-wide coordinates. skipping that conversion was the second thing that made the shower invisible: a band authored as three quarters of the picture, handed straight to a sheet 3.2 frames across, sits a frame and a half outside it. nothing here is world-sized, which is right — the shower is not a place in the archipelago.
+
+**the field had to be made to tile.** the mist and the cloud deck repeat the same baked fBm about five times over a sheet and nobody sees the seam, because a discontinuity in soft white haze is not a line. this sheet lies flat on the water with a mottle in it, and an unwrapped repeat drew a visible lattice of straight seams across the sea. `tiledField` blends four samples a tile apart, weighted by position, so the far edge is by construction the near one — with `sampleHeight`'s radial lift switched off, because a lift that depends on distance from the noise origin gives each of the four a different one and puts the seam straight back.
+
+**the mottle is a body, not a stencil.** cut to a hard field alone it took a third of the shower away with its own gaps, a mean field value of 0.35 being a third of an opacity. the gaps in a squall are the space between one squall and the next, and the band is what draws those; the field decides where the shower is *heaviest*.
+
+**one draw per sheet and one texture in total.** two sheets on the desktop tier, one on mobile, three on ultra, none on `minimal` — a count rather than a switch, for the reason the mist layers and the auroral veils are counts: a flat sheet's depth is entirely the parallax between its copies. the repeat and the scroll are uniforms rather than the texture's own transform, so unlike the cloud deck there is no clone per layer.
+
+**nothing new can move without the wind.** the mottling travels on a share of `wind.travel` and the band is placed by the front's own phase, so `wind.speed=0` and `weather.speed=0` — both already in `STILL` — hold the whole thing. `squall.drift=0` is named there anyway, for the reason `mill.spin` is: a capture must not depend on a second knob's value to be reproducible.
+
+**what it does not do is show at night.** the shower is a darkening of the water, and at the tour's night pose the water is already dark — the diff reads `same`, and that is the honest answer rather than a gap. a squall you could see in the dark would be a squall lit by nothing.
 
 ## framing the sea
 
