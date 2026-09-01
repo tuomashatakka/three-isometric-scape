@@ -8,6 +8,7 @@ import {
 import type { MeshStandardMaterial } from 'three'
 import { createSeededRng } from 'threejs-scene'
 import type { LiveConfig } from '../config.ts'
+import type { TideState } from '../tide.ts'
 import { buildProp, resolvePalette } from '../props/index.ts'
 import {
   advanceFleetSchedule,
@@ -94,7 +95,17 @@ export interface BoatFleetOptions {
   config:   LiveConfig
   network:  WaterwayNetwork
   material: MeshStandardMaterial
-  motion?:  Partial<BoatMotionConfig>
+
+  /**
+   * The state of the sea this frame.
+   *
+   * A boat floats on the water rather than at the level the water was surveyed
+   * at, and the fleet takes the published record rather than resolving the hour
+   * itself: two answers to where the surface is, in the same frame, is a hull
+   * sitting in a hole in the sea.
+   */
+  tide:    TideState
+  motion?: Partial<BoatMotionConfig>
 }
 
 export const DEFAULT_BOAT_MOTION: Readonly<BoatMotionConfig> = {
@@ -104,7 +115,7 @@ export const DEFAULT_BOAT_MOTION: Readonly<BoatMotionConfig> = {
   wakeOffset:    1.45,
 }
 
-/** How much of the keel sits below the mean water surface, in metres. */
+/** How much of the keel sits below the surface it is floating on, in metres. */
 const DRAFT = 0.16
 
 function copyPose (source: BoatPose, target: BoatPose): void {
@@ -266,9 +277,9 @@ function advanceTrail (wake: BoatWakeEmitter, pose: BoatPose, forwardX: number, 
  * it is allowed to animate.
  */
 export function createBoatFleet (options: BoatFleetOptions): BoatFleet {
-  const { config, network, material } = options
-  const motion                        = { ...DEFAULT_BOAT_MOTION, ...options.motion }
-  const geometry                      = buildProp(
+  const { config, network, material, tide } = options
+  const motion                              = { ...DEFAULT_BOAT_MOTION, ...options.motion }
+  const geometry                            = buildProp(
     'rowboat',
     createSeededRng(config().seed).fork('boat-fleet'),
     resolvePalette(),
@@ -283,6 +294,8 @@ export function createBoatFleet (options: BoatFleetOptions): BoatFleet {
   mesh.updateMatrix()
   mesh.matrixAutoUpdate       = false
   mesh.userData.instanceFleet = 'boat'
+  // Against mean water: the sphere is a cull bound and the tide's half-metre is
+  // inside the radius the route already spans.
   mesh.boundingSphere         = routeBounds(network.route, config().terrain.waterLevel)
 
   const carrier             = new Object3D()
@@ -291,7 +304,6 @@ export function createBoatFleet (options: BoatFleetOptions): BoatFleet {
   const poses               = network.boatOffsets.map((_offset, index) => createPose(index))
   const wakeEmitters        = network.boatOffsets.map((_offset, index) => createWake(index))
   const schedule            = createFleetSchedule()
-  const water               = config().terrain.waterLevel
   const minimumSeparation   = scheduledFleetMinimumSeparation(
     network.route,
     network.boatOffsets.length,
@@ -319,7 +331,7 @@ export function createBoatFleet (options: BoatFleetOptions): BoatFleet {
       pose.angle = snap
         ? desiredAngle
         : turnToward(previousAngle, desiredAngle, motion.turnRate * Math.max(0, delta))
-      pose.y       = water - DRAFT
+      pose.y       = config().terrain.waterLevel + tide.level - DRAFT
       pose.bearing = pose.angle
       pose.speed01 = pose.speed > 0
         ? Math.min(1, pose.speed / Math.max(1e-6, config().boats.speed))
@@ -336,7 +348,7 @@ export function createBoatFleet (options: BoatFleetOptions): BoatFleet {
       const forwardZ = Math.sin(pose.angle)
 
       wake.x          = pose.x - forwardX * motion.wakeOffset
-      wake.y          = water + 0.02
+      wake.y          = config().terrain.waterLevel + tide.level + 0.02
       wake.z          = pose.z - forwardZ * motion.wakeOffset
       wake.directionX = forwardX
       wake.directionZ = forwardZ

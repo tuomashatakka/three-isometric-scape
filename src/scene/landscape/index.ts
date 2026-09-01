@@ -17,6 +17,7 @@ import { createSeason } from '../season.ts'
 import type { SeasonState } from '../season.ts'
 import { createWeather } from '../weather.ts'
 import type { WeatherState } from '../weather.ts'
+import type { TideState } from '../tide.ts'
 import type { WindState } from '../wind.ts'
 import { surveyArchipelago } from './archipelago.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
@@ -107,6 +108,7 @@ export function createLandscape (
   config: LiveConfig,
   quality: AtmosphereQuality,
   wind: WindState,
+  tide: TideState,
   skip: ScapeSkips = NOTHING_SKIPPED,
 ): Landscape {
   const surfaces: Object3D[] = []
@@ -263,6 +265,7 @@ export function createLandscape (
           config,
           network:  archipelago.waterways,
           material: materials.ground,
+          tide,
           motion:   {
             dwellSeconds:  config().boats.dwellSeconds,
             turnRate:      config().boats.turnRate,
@@ -304,7 +307,7 @@ export function createLandscape (
       sails?.update(frame.delta, wind.strength)
       materials?.update(wind, now, front)
       beck?.update(frame.delta, now)
-      water?.update(frame.elapsed, wind, now, front, fleet?.wakeEmitters)
+      water?.update(frame.elapsed, wind, tide, now, front, fleet?.wakeEmitters)
     },
 
     dispose () {

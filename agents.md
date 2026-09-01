@@ -171,6 +171,7 @@ bun run scape:shot --poses grazing                  # the flocks on the rough gr
 bun run scape:shot --poses shallows                 # the light on the bottom, 4 frames
 bun run scape:shot --poses beck                     # the water in the channel, 4 frames
 bun run scape:shot --poses smokehouse               # the hut above the harbour, 3 frames
+bun run scape:shot --poses tide                     # the sea at both ends of its swing, 3 frames
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain
@@ -187,6 +188,8 @@ bun run scape:shot --skip post                      # drop the optical chain
 `shallows` is the eighth set, and the first whose subject is not a thing at all — it is a *pattern*, two and a half metres across, on the bottom of the water. four frames on the harbour bank west of the landing: `shallows` in the authored light, `shallows-noon` with the sun at its highest, which is the top of the elevation ramp the net is scaled by, `shallows-winter` where the midwinter sun never clears the horizon at this latitude *and* the ice has shut the bank, and `shallows-far` at a 620 m view, which is the *guard*: the net is procedural and has no mipmap, so it measures its own footprint and hides rather than aliasing, and that pose has to come back `same` for the claim to hold. `coast/wash` is the closest any earlier pose comes to the water and it is still ninety metres out. reach for it whenever the change touches what the water is doing between its edge and its depth tint — `water.caustics`, `water.causticDepth`, `water.causticScale`.
 
 `beck` is the ninth set, and it is aimed at the one surface in the scape that is neither the sea nor the ground: the sheet of water standing in the channel. four frames on the home island's course — `beck` at the middle reach where the fall is steepest and the white water is, `beck-mouth` at the estuary, which is the only frame that shows the sheet meeting the sea rather than ending in the air above it, `beck-winter` at midwinter, where a beck that runs later than the sound freezes has to still be running when the bay beside it has shut, and `beck-far` at a 320 m view, the *guard*: the surface texture is a metre-scaled procedural pattern with no mipmap behind it. the course is sixty metres off the world origin every pose in `tour` is aimed at and three metres wide where it starts, so it is a hairline at `default` and off the bottom of the frame at `near`. reach for it whenever the change touches `beck.*`, `creek.*`, or the ground either of them is cut into.
+
+`tide` is the tenth set, and the first whose subject is a *difference* rather than a place. a tide is only ever visible as two frames of one shore, and two frames taken at two hours of the day differ by the light as well — which is the larger signal and would drown the smaller one. so the hour is held and `tide.lag` is turned instead: `ebb` and `flood` are the identical frame of the harbour bank west of the landing, half a cycle of lag apart, and the only thing that can have moved between them is the water. `tide-slack` is the *guard* — the same frame at `tide.range=0`, which has to come back `same` as the tideless scape, or the range is not the switch the section says it is. reach for it whenever the change touches `tide.*`, the waterline, or anything floating on it.
 
 `beacon` is the second set: the light itself, at night, from four headings 90° apart, aimed by `camera.focusX`/`focusZ` rather than by zoom. it exists because the beams' bug was a render-order tie broken by *projected depth*, and that flips with yaw — one heading can only ever photograph one side of the flip, and no pose in `tour` has the tower in frame at all. reach for it whenever the change touches the transparent stack.
 
@@ -367,6 +370,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `water-caustics.test.ts` | the net is a daylight effect: nothing under the horizon, nothing in the polar night, a ramp rather than a step, and rain dims it without putting it out |
 | `beck.test.ts` | the sheet never runs uphill, lies flat across the channel, opens out with it, stops at the tideline, and locks after the sea does |
 | `index.ts` | the scene module, and what raycasts |
+| `tide.test.ts` (in `src/scene/`) | two highs a lunar day, springs on new *and* full, a mean of zero over a cycle, a flat sea at range zero — and the shipped range fits under the router's clearance and inside the wrack band |
 
 **a yaw is not a bearing.** `rotateY(θ)` carries a prop's front (local `+z`) to `(sin θ, cos θ)`; a compass bearing points at `(cos a, sin a)`. they are reflections and agree on exactly one diagonal, which is why getting it wrong survives for months. use `faceToward(from, to)` for props and `yawAlong(bearing)` for anything laid along a line.
 
@@ -382,7 +386,7 @@ the pointer bookkeeping — capture, live pointers, the pinch frame, tap detecti
 
 ### an atmospheric system
 
-`src/scene/*.ts` — `atmosphere.ts`, `mist.ts`, `clouds.ts`, `aurora.ts`, `nightsky.ts`, `rain.ts`, `birds.ts`, `beacon.ts`, `hearth.ts`, `windows.ts`, `post.ts`, and the four clocks `daylight.ts` / `season.ts` / `weather.ts` / `wind.ts`. composed in [`create-isometric-scape.ts`](src/scene/create-isometric-scape.ts). the hung sheets share [`sky-deck.ts`](src/scene/sky-deck.ts) — the zoom reveal and the focus they follow — so two decks cannot fade in at two different zooms.
+`src/scene/*.ts` — `atmosphere.ts`, `mist.ts`, `clouds.ts`, `aurora.ts`, `nightsky.ts`, `rain.ts`, `birds.ts`, `beacon.ts`, `hearth.ts`, `windows.ts`, `post.ts`, the four clocks `daylight.ts` / `season.ts` / `weather.ts` / `wind.ts`, and `tide.ts`, which is not a fifth — it is the first two read against each other. composed in [`create-isometric-scape.ts`](src/scene/create-isometric-scape.ts). the hung sheets share [`sky-deck.ts`](src/scene/sky-deck.ts) — the zoom reveal and the focus they follow — so two decks cannot fade in at two different zooms.
 
 anything mounted *after* `atmosphere.module` sees this frame's day; anything before it sees the last one's. that is the whole reason the coastal light is a layer here rather than part of the landscape that surveys it — `beacon.ts` reads `daylight.day` and the landscape publishes `lanternHubs` for it.
 

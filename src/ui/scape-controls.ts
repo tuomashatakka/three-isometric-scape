@@ -326,6 +326,18 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           1.1,
           [ range('beck.riffle', 'white water', 0, 1.5, 0.01, quality.beckRipples > 0) ],
         ),
+        // Which hour the water is at is the day's and the month's, the same way
+        // the surf's heading is the wind's. What is here is how far it swings,
+        // how much of that the month takes back, and how late it arrives.
+        toggled(
+          'the tide',
+          range('tide.range', 'spring range (m)', 0, 1.6, 0.01),
+          0.8,
+          [
+            range('tide.spring', 'neap falloff', 0, 1, 0.01),
+            range('tide.lag', 'high-water lag (h)', 0, 12.4, 0.1),
+          ],
+        ),
         toggled('boat wakes', range('water.wakeStrength', 'wake strength', 0, 1.5, 0.01), 0.78),
         range('water.roughness', 'roughness', 0.05, 1, 0.01),
         range('boats.speed', 'boat speed', 0, 12, 0.1),

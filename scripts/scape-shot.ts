@@ -401,6 +401,41 @@ export const TOURS: Record<string, Pose[]> = {
     { name: 'beck-far', zoom: 320, set: [ 'camera.focusX=22.5', 'camera.focusZ=29' ]},
   ],
 
+  /**
+   * The state of the sea, twice, in the same light.
+   *
+   * The tenth set, and the first whose subject is a *difference* rather than a
+   * place: a tide is only visible as two frames of one shore, and any two
+   * frames taken at two hours of the day differ by the light as well, which is
+   * the larger signal. So the hour is held and `tide.lag` is turned instead —
+   * half a cycle of lag is the same instant of the same day at the opposite end
+   * of the swing, and the only thing that can have moved between `ebb` and
+   * `flood` is the water.
+   *
+   * `ebb` and `flood` are the harbour bank west of the landing, where the
+   * ground shelves gently enough for a 0.4 m rise to walk the waterline several
+   * metres up the beach and to take the wrack band on the skerries with it.
+   * `tide-slack` is the guard: a range of zero has to come back `same` as the
+   * scape did before there was a tide, or the switch is not a switch.
+   */
+  tide: [
+    {
+      name: 'ebb',
+      zoom: 60,
+      set:  [ 'camera.focusX=-30', 'camera.focusZ=-24', 'tide.lag=0' ],
+    },
+    {
+      name: 'flood',
+      zoom: 60,
+      set:  [ 'camera.focusX=-30', 'camera.focusZ=-24', 'tide.lag=6.21' ],
+    },
+    {
+      name: 'tide-slack',
+      zoom: 60,
+      set:  [ 'camera.focusX=-30', 'camera.focusZ=-24', 'tide.range=0' ],
+    },
+  ],
+
   // The cheap pass: is there a scape at all, and does it survive being drawn.
   quick: [{ name: 'default' }],
 }
@@ -477,6 +512,12 @@ export const STILL = [
   // not weather, so it would go on rising through a dead calm and be a different
   // plume in every frame of a tour.
   'hearth.speed=0',
+
+  // Nothing for the tide, deliberately. It integrates no rate of its own: the
+  // water is a function of `daylight.time` and `season.time`, and both of those
+  // are already stopped at the top of this list — so a still is taken at
+  // whatever state of the sea the pose's hour puts it at, and taken there
+  // again. The moon it is derived from has nothing here for the same reason.
 ]
 
 export interface ShotOptions {
@@ -747,7 +788,8 @@ async function main (): Promise<void> {
       '                        chapel (4, the church and its yard)',
       '                        smokehouse (3, the hut above the harbour)',
       '                        shallows (4, the light on the bottom)',
-      '                        beck (4, the water in the channel) | quick (1)',
+      '                        beck (4, the water in the channel)',
+      '                        tide (3, the sea at both ends of its swing) | quick (1)',
       '  --rot 45 --zoom 70    camera yaw, and view size (tilt is derived from zoom)',
       '  --time 0.42           the day, 0..1',
       '  --season 0.5          the year, 0..1',

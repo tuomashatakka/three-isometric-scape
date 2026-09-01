@@ -97,6 +97,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a solar arc solved from a latitude — a polar night at midwinter, a midnight sun at midsummer — with dusk and night palettes derived from it, plus seasonal growth, leaf turn, lying snow, sea ice, sea smoke, and rain that leaves the ground wet
 - an aurora over the dark half of the year, gated on the night and on how much night the week has
 - a star field that turns one whole revolution a day, with a galactic band across it, and a moon that keeps its own month — full at midnight, new at noon, and riding high over the midwinter sun
+- a semidiurnal tide raised by the moon the night sky already keeps: high water a couple of hours behind its transit, springs on the new moon and the full one, neaps at the quarters, walking the waterline up and down through the wrack band on every rock in the guard
 - sunlight focused into a moving net on the bottom of every shallow in the archipelago — brightest with the sun overhead, gone under the horizon, gone under the ice, and hidden rather than aliased at a zoom that cannot resolve a cell
 - view-reactive fog, a gradient sky, deterministic drifting ground mist, and a sky cloud deck
 - a configurable 3d-lut grade with vignette, miniature tilt-shift, bloom and film grain
@@ -192,6 +193,7 @@ src/
     ├── season.ts                   clock two: growth, turn, snow, ice, sea smoke
     ├── weather.ts                  clock three: the front, what falls, how long it stays wet
     ├── wind.ts                     clock four: one bearing, one gust, one travel every scroll shares
+    ├── tide.ts                     the moon from underneath: how far the sea is off its mean this hour
     ├── rain.ts                     the fall, as one screen-sized column of streaks
     ├── birds.ts                     the gulls, and the rings they wheel on
     ├── hearth.ts                   the smoke over the farmsteads, and the year that banks it
@@ -1107,6 +1109,32 @@ three things decide where it is drawn, and each is a different fact:
 ### and no pose in the scape was pointed at the water
 
 `coast/wash` is the closest any existing pose comes, and it is ninety metres out — a cell is fifteen pixels of a shore fringe a few pixels wide, and the whole archipelago's shallows together move seven hundredths of one per cent of the frame. so `--poses shallows` is the eighth set added for the reason `beacon` and `coast` were, and the first whose subject is not a *thing* at all but a pattern with a size. four frames on the harbour bank: the authored light, noon at the top of the elevation ramp, midwinter where it has to be absent twice over, and a 620 m view which is the guard — the frame that has to come back `same` for "it hides rather than aliases" to be a claim about the code rather than a hope.
+
+## the tide, and the moon that makes it
+
+the sea in this scape stood at one level. `terrain.waterLevel` is -1.25 m and everything that ever asked where the water is asked that: the jetty finder walking out from the yard, the waterway router keeping half a metre under a keel, the beacon's freeboard, the depth the shore mask is baked against, the wrack band on the skerries. every one of those is right to ask it — they are facts about the *ground*, and ground is surveyed against mean water. what was missing is the other half, which is that the sea is only at its mean twice a cycle.
+
+**the tide is not a fifth clock.** the moon is already here: [`nightsky.ts`](src/scene/nightsky.ts) reads the day against the year and gets a month out of the two, and draws the disc from it. [`tide.ts`](src/scene/tide.ts) is that same moon seen from underneath — the hour angle it runs on is `daylight.time - moonPhase(season.time)`, the identical subtraction `moonPlace` makes, so the water is high when the moon that raised it is overhead and the lunar day of 24.84 h falls out of the two clocks rather than being a constant written down anywhere in the file. it inherits the property that gives the moon: turn `daylight.speed` down and the water slows, stop it and the water holds. **there is nothing to add to `STILL`,** and that is not luck — a tide with a rate of its own would have been a sea at a different height in every frame of every capture taken after it landed.
+
+three numbers, and each is a different fact:
+
+- **`tide.range`** is high water to low at springs, in *metres*, and they stay metres — how far the sea drops is not a fact about how wide this world is. it is the switch: 0 is the tideless coast this scape had before, and there is no boolean beside it.
+- **`tide.spring`** is how much the month takes back. springs at new *and* full moon, neaps at both quarters, from `|cos|` at twice the month — the same cosine the terminator is drawn from, at double rate, because the physics is the sun's tide arriving in step with the moon's or across it. the dark of the moon gets the big tides as well as the full one, which is the half that gets left out when a scape ties big water to a bright sky.
+- **`tide.lag`** is the establishment of the port: hours between the moon's transit and high water, because a tide is a wave crossing a shelf rather than a bulge standing under the moon.
+
+**the range is set by the shallowest thing that floats.** `boats.clearance` is 0.42 m — the least water the waterway router will accept under a keel — and the routes were solved against mean water, so half the range is how far below that promise the sea is allowed to go. 0.8 m leaves two centimetres. it is also most of the way through the band `littoral` holds: the wrack sits from 1 m below the waterline to 0.8 m above it, and a tide that could not reach the weed would be a tide nobody could see. both of those are asserted on the shipped config in `tide.test.ts`, because they are claims about the *numbers* rather than about the code, and the code is not what will break them.
+
+**one add, at the one fetch.** the surface reads its bathymetry through `scapeShore`, which both stages already share so that a driver can collapse the two reads into one; the tide goes in there and nowhere else. the mask is baked against mean water, so a flood is the same map read one offset deeper — and the depth tint, the foam trim, the breakers, the caustic net and the ice front all walk up and down the beach together, because after that line none of them ever sees an untided depth. no second tap, no texture, nothing for a tier gate to take away: the phone gets the tide the desktop gets.
+
+**the flood has one honest limit, and it is in the bake.** the mask's depth channel is clamped at zero, because dry ground has no depth to record — so on the strip between mean and high water the shader knows it is wet (it reads the full tide there) but not that it is only *just* wet, and paints that strip a little deeper than it is. what it costs is a foam trim standing a few centimetres inland of the true edge at the top of a spring flood. what it would cost to fix is a signed mask — the terrain's height above water in the same channel, and a rescale of every threshold reading it — for a band 0.4 m wide. the geometry is not affected either way: the plane intersects the ground at the real waterline, so the *edge* is always in the right place and only the paint behind it leans.
+
+**the plane moves with it, and it has to be the same number.** the surface is drawn at `waterLevel + level` and shaded at a depth offset by the same `level`; split those and the trim leaves the waterline. the matrix is recomposed only when the level actually changes, which at a real hour is not most frames. the fleet floats on the same published record rather than resolving the hour a second time — two answers to where the surface is, in one frame, is a hull sitting in a hole in the sea, and it would only show at the two ends of the swing.
+
+**what deliberately does not move is anything that was solved.** a jetty built for whatever tide it happened to be at is a jetty rebuilt twice a cycle, and `scape:map --stats` is the check: the whole structural block is byte-identical to the tideless scape's, which is the statement that this change is drawn rather than surveyed.
+
+### two frames of one shore
+
+a tide is only visible as a difference, and any two frames taken at two *hours* differ by the light as well — which is much the larger signal and would bury the smaller one. so `--poses tide` holds the hour and turns `tide.lag` instead: `ebb` and `flood` are the identical frame of the harbour bank, half a cycle apart, and the only thing that can have moved between them is the water. `tide-slack` is the guard, the same frame at `tide.range=0`, which has to come back `same` as the sea before there was a tide.
 
 ## framing the sea
 

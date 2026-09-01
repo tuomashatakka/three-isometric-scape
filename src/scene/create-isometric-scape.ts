@@ -28,6 +28,7 @@ import { createRuntime } from './runtime.ts'
 import { createVitals } from './vitals.ts'
 import { createWindowLamps } from './windows.ts'
 import type { VitalsSample } from './vitals.ts'
+import { createTide } from './tide.ts'
 import { createWind } from './wind.ts'
 import type { WindState } from './wind.ts'
 
@@ -365,8 +366,14 @@ export function createIsometricScape (
   // wind, resolved once a frame: the grass, the mist, the deck overhead, the
   // fall, the sails, the swell and the ice all read this same record, so a gust
   // is one event crossing the scape rather than five that happen to coincide.
-  const wind       = createWind(readConfig)
-  const landscape  = createLandscape(readConfig, quality, wind.state, skip)
+  const wind = createWind(readConfig)
+
+  // The fifth, and the one that is two of the others read together: the moon is
+  // the day against the year, and the tide is the moon from underneath. The
+  // lake and the fleet both take this record, so the surface a boat floats on
+  // and the surface that is drawn are the same surface.
+  const tide       = createTide(readConfig)
+  const landscape  = createLandscape(readConfig, quality, wind.state, tide.state, skip)
   const atmosphere = createAtmosphereLayer({
     camera,
     config:       readConfig,
@@ -439,6 +446,11 @@ export function createIsometricScape (
     // the wind this resolves. A module that sampled it a second time would be
     // reading a different gust in the same frame.
     wind.module,
+
+    // Before the landscape for the reason the wind is: the lake moves its own
+    // plane from this and the fleet floats on it, in that order, in one frame.
+    tide.module,
+
     landscape.module,
     controls,
     atmosphere.module,
