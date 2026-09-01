@@ -1248,6 +1248,53 @@ export interface ScapeConfig {
      */
     iceBreak: number
   }
+
+  /**
+   * The tide.
+   *
+   * Not a clock of its own: the hour and the week already make a month between
+   * them (see `nightsky.moonPhase`), and the tide is that month read from
+   * underneath. Everything here is metres and hours — a tide is a real-world
+   * quantity, so none of it scales with `archipelago.worldSize`.
+   *
+   * What moves is what is drawn: the lake's own plane and every depth it reads,
+   * and the boats floating on it. What does not move is anything that was
+   * *solved* — the jetty, the routes, the beacon's freeboard and the littoral
+   * band are all surveyed against mean water, and a survey that moved twice a
+   * cycle would be a scape that rebuilt itself twice a cycle.
+   */
+  tide: {
+
+    /**
+     * Metres between low and high water at springs.
+     *
+     * The switch, and the only one: 0 is a tideless coast, the sea this scape
+     * had before this section existed. Bounded from above by `boats.clearance`
+     * — half of this is how far the sea drops below the depth every waterway
+     * was routed to keep, so a range past twice that clearance is a fleet
+     * aground at low water. `tide.test.ts` states that as a fact.
+     */
+    range: number
+
+    /**
+     * How much the month swings the range, 0..1.
+     *
+     * 0 is a coast whose every tide is the same size; 1 is one whose neaps go
+     * flat. In between, springs at new and full moon and neaps at the quarters,
+     * which is the sun's tide arriving with the moon's or across it.
+     */
+    spring: number
+
+    /**
+     * Hours high water lags the moon's transit — the establishment of the port.
+     *
+     * A tide is a wave crossing a shelf, not a bulge standing under the moon,
+     * so the water arrives late and how late is a property of the coast. It is
+     * also the handle a capture uses: turning it by half a cycle puts the same
+     * hour's light on the opposite state of the sea.
+     */
+    lag: number
+  }
   camera: {
     viewSize:    number
     minViewSize: number
@@ -2235,6 +2282,17 @@ export const SCAPE_CONFIG = {
     caustics:       1,
     causticDepth:   2.8,
     causticScale:   2.6,
+  },
+  // The metre class, and it stays metres at any world size. The range is set
+  // against `boats.clearance` at 0.42: half of 0.8 is 0.4, so the lowest spring
+  // tide of the year still leaves two centimetres of water under the shallowest
+  // leg the router would accept. It is also most of the way through the wrack
+  // band `littoral` holds — a tide that cannot reach the weed is a tide that
+  // cannot be seen.
+  tide: {
+    range:  0.8,
+    spring: 0.55,
+    lag:    2.4,
   },
   // The screen-scale class, grown with the world it frames. `maxViewSize` is
   // what the cloud and aurora tiles are sized against, so a world that tripled

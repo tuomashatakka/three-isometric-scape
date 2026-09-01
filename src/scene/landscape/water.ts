@@ -14,6 +14,7 @@ import type { AtmosphereQuality } from '../quality.ts'
 import type { SeasonState } from '../season.ts'
 import type { TextureCatalogue } from '../textures/catalogue.ts'
 import type { WeatherState } from '../weather.ts'
+import type { TideState } from '../tide.ts'
 import type { WindState } from '../wind.ts'
 import type { BoatWakeEmitter } from './boats.ts'
 import type { HeightField } from './height.ts'
@@ -57,6 +58,7 @@ export interface Water {
   update(
     elapsed: number,
     wind: WindState,
+    tide: TideState,
     season: SeasonState,
     weather: WeatherState,
     wakes?: readonly BoatWakeEmitter[],
@@ -130,6 +132,7 @@ const ICE_GLSL = /* glsl */`
   uniform float uIceReach;
   uniform float uIceBreak;
   uniform float uFloeScale;
+  uniform float uTide;
 
   /**
    * The whole mask, in one read: depth in r, the seaward bearing in gb.
@@ -137,9 +140,20 @@ const ICE_GLSL = /* glsl */`
    * Both stages go through here rather than sampling the channels they happen
    * to want, because a driver will only collapse two reads of one sampler at
    * one uv if they are literally the same fetch. See shore-mask.ts.
+   *
+   * The tide goes in here and nowhere else. The mask is baked against mean
+   * water, so a flood is the same map read one offset deeper — and every
+   * consumer downstream, the tint and the trim and the breakers and the ice
+   * front and the net on the bottom, walks up the beach together because none
+   * of them ever sees an untided depth. An add on a fetch the surface was
+   * already making: no second tap, and nothing for a tier gate to take away.
    */
   vec4 scapeShore (vec2 ground) {
-    return texture2D(uShoreMap, ground * uShoreScale + 0.5);
+    vec4 shore = texture2D(uShoreMap, ground * uShoreScale + 0.5);
+
+    shore.r = max(0.0, shore.r + uTide);
+
+    return shore;
   }
 
   float scapeDepth (vec2 ground) {
@@ -801,6 +815,10 @@ export function createWater (
     uSurfExposure: { value: config().water.surfExposure },
     uSurgePhase:   { value: 0 },
 
+    // The state of the sea, in the same fractions of `MAX_DEPTH` the mask's own
+    // channel is in, converted here for the reason `uSurfDepth` is.
+    uTide: { value: 0 },
+
     // Metres in, radians of the net out. `causticScale` is the distance between
     // cells, and one cell is one period of the sheet's first sine — so the
     // conversion is a whole turn per cell, and it happens here rather than in
@@ -866,8 +884,9 @@ export function createWater (
   mesh.renderOrder   = LAYER.water
   mesh.receiveShadow = true
 
-  // The swell is entirely in the shader — the plane itself sits at the
-  // waterline and stays there, so its matrix is composed once and left alone.
+  // The swell is entirely in the shader, so the plane's matrix is composed here
+  // and recomposed only when the tide has actually moved it — which is a float
+  // compare a frame against a matrix the tide holds still for most of an hour.
   mesh.updateMatrix()
   mesh.matrixAutoUpdate = false
 
@@ -903,7 +922,7 @@ export function createWater (
 
     // Read back from the config every frame rather than captured at build, so
     // the tuning overlay can drive the lake without rebuilding the scene.
-    update (elapsed, wind, season, weather, wakes) {
+    update (elapsed, wind, tide, season, weather, wakes) {
       // Rain, without a uniform or a fetch of its own. A shower does two things
       // to a lake and the shader already has a knob for each: it puts the surface
       // into a chop that kills the glitter — a sun lobe needs a facet to hold
@@ -912,6 +931,18 @@ export function createWater (
       // drives, which also means the water's answer to the rain costs nothing
       // per fragment and nothing per tier.
       const fall = weather.fall
+
+      // The state of the sea, in the two places it has to agree: the plane the
+      // surface is drawn on, and the depth every fragment on it reads. Split
+      // between them and the trim leaves the waterline.
+      const surface = config().terrain.waterLevel + tide.level
+
+      if (mesh.position.y !== surface) {
+        mesh.position.y = surface
+        mesh.updateMatrix()
+      }
+
+      uniforms.uTide.value = tide.level / MAX_DEPTH
 
       syncBoatWakes(wakes)
 
