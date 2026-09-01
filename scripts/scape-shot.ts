@@ -507,6 +507,13 @@ export const STILL = [
   'weather.speed=0',
   'weather.fall=0',
 
+  // The far band's march. Already held by `wind.speed=0` above, because the
+  // curtains cross the frame on a share of the wind's own travel rather than on
+  // a rate of their own — named anyway, for the reason `mill.spin` is: a capture
+  // must not depend on a second knob's value to be reproducible, and a squall
+  // somewhere else in every frame is a tour that cannot be diffed.
+  'squall.drift=0',
+
   // The column's own climb. Its wander is already held by `wind.speed=0` above,
   // because the sway is carried by the wind's travel — but the rise is heat and
   // not weather, so it would go on rising through a dead calm and be a different

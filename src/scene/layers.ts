@@ -68,6 +68,27 @@ export const LAYER = {
   hearth: 35,
 
   /**
+   * The shower crossing the open water. Sheets index up from here.
+   *
+   * Over the ground fog and the smoke, although the sheet it is drawn as lies at
+   * the waterline — and that ordering is a finding rather than a preference.
+   * Under the fog, which is where a sheet lying on the sea physically belongs, it
+   * was invisible: this coast's mist collects over exactly the water the shower
+   * crosses, and a squall painted behind it changed 0.00% of the frame at every
+   * pose of the tour. What the sheet actually stands for is not a stain on the
+   * surface but the whole column of rain over it, which reaches from the deck to
+   * the sea and is therefore in front of anything lying in the bottom nine metres
+   * of that column.
+   *
+   * Under the gulls, which fly between the eye and it, and under the fall, which
+   * is falling on the reader rather than out there. And it is the one layer here
+   * with opaque geometry in front of it rather than only behind: the terrain
+   * writes depth, so every island stands out of the shower exactly as far as it
+   * stands out of the sea, and nothing here has to know where the coastline is.
+   */
+  squall: 37,
+
+  /**
    * The gulls.
    *
    * Over the ground fog they fly above and under the rain that falls past them.

@@ -1545,6 +1545,59 @@ export interface ScapeConfig {
      */
     fall: number
   }
+
+  /**
+   * The weather you can see but are not in yet.
+   *
+   * Not a fifth clock and deliberately not one — every knob here is read against
+   * the front `weather` already owns. See `squall.ts`.
+   */
+  squall: {
+
+    /**
+     * How heavily the shower stands on the water it is crossing, 0..1.
+     *
+     * It is also the switch, and the only one: whether there is anything to see
+     * on any given pass of the front is the weather's business, and whether the
+     * frame is far enough back to read it is the zoom's.
+     */
+    strength: number
+
+    /**
+     * How far ahead of the local front the visible squall is, in cycles.
+     *
+     * The idea of the module as a number. 0 puts the shower under the same rain
+     * the ground is already under, which is a squall with nothing to say; a lead
+     * of a tenth of a cycle is weather arriving, and it both places the band and
+     * weighs it without either being animated separately.
+     */
+    lead: number
+
+    /**
+     * How far upwind the shower stands at the height of its approach, in bands.
+     *
+     * The sweep, in the band's own width: at 1 the shower is a full band clear
+     * of the frame's middle when the front is furthest from arriving, and it has
+     * crossed to the same distance downwind by the time the fall is over. 0
+     * parks it over the middle and lets it fade in and out where it stands,
+     * which is a shower that never arrives.
+     */
+    reach: number
+
+    /** How wide the band of shower is, as a fraction of the frame. */
+    span: number
+
+    /**
+     * The share of the wind's travel the stipple itself travels at.
+     *
+     * A share rather than a rate of its own, so there is one wind in the scape
+     * and the surface under the shower moves on the same bearing everything else
+     * does. 0 holds the texture wherever the wind left it — which is what the
+     * captures set, because a shower with a different grain in every frame of a
+     * tour is a tour that cannot be diffed.
+     */
+    drift: number
+  }
   look: {
     grade:     GradeName
     intensity: number
@@ -2378,6 +2431,13 @@ export const SCAPE_CONFIG = {
     rain:  0.9,
     wet:   0.62,
     fall:  17,
+  },
+  squall: {
+    strength: 0.7,
+    lead:     0.1,
+    reach:    1.1,
+    span:     0.75,
+    drift:    0.5,
   },
   look: {
     grade:      'nordic',

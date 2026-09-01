@@ -231,6 +231,21 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         // Under the weather rather than under the ground, because it is the rain
         // that puts it there and the rain's own clock that takes it away again.
         range('weather.wet', 'wet ground', 0, 1, 0.01),
+
+        // The same front, seen from outside it. `lead` is the knob worth
+        // dragging with `weather.time` frozen: it walks the band forwards and
+        // backwards through the squall the coast is about to get.
+        toggled(
+          'far squall',
+          range('squall.strength', 'how heavy it lies', 0, 1, 0.01, quality.squallSheets > 0),
+          0.7,
+          [
+            range('squall.lead', 'how far ahead of here', 0, 0.3, 0.005),
+            range('squall.reach', 'how far it sweeps', 0, 3, 0.05),
+            range('squall.span', 'how wide it runs', 0.05, 1, 0.01),
+            range('squall.drift', 'travel with the wind', 0, 2, 0.01),
+          ],
+        ),
       ],
     },
     {
