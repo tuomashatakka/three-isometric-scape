@@ -318,6 +318,39 @@ export interface ScapeConfig {
      * shaded, which is what the scape looked like before it existed.
      */
     propGrain: number
+
+    /**
+     * How green the ground goes on the faces turned away from the sun, 0..1.
+     *
+     * The switch for the aspect, and half of it: 0 is an island whose two sides
+     * are the same substance, which is what a relief map is. What decides
+     * *which* way is shaded is `daylight.azimuth` — the bearing the sun
+     * transits on — so the mossy side of every hill follows the compass rather
+     * than a hard-coded north. See `landscape/aspect.ts`.
+     */
+    aspectMoss: number
+
+    /**
+     * How far the faces turned into the sun are dried out, 0..1.
+     *
+     * The other half, and not a share of {@link ScapeConfig.terrain.aspectMoss}:
+     * a shaded slope gains something the sunward one merely lacks, and a coast
+     * where the damp side is worth painting and the dry side is not is a real
+     * one. Leans toward `palette.dryGrass`, which is the colour the altitude
+     * bands already use for grass the summer has had.
+     */
+    aspectBleach: number
+
+    /**
+     * Metres above the waterline where the aspect stops mattering.
+     *
+     * **Metres, and they stay metres.** Soil thins with height at a rate set by
+     * the weather, not by how wide the archipelago is — so a wider world must
+     * not scale this. Below the band there is nothing to green either: the
+     * shore is scoured twice a day, and moss painted onto a beach is the same
+     * mistake as a snow line painted onto one.
+     */
+    aspectLine: number
   }
 
   /**
@@ -1558,6 +1591,23 @@ export interface ScapeConfig {
      */
     snowLine: number
 
+    /**
+     * Metres the snow line swings between the sunward face and the shaded one.
+     *
+     * **Metres, and they stay metres.** How far up a hill the last snow of a
+     * thaw survives is set by how much sun that face takes, which is a fact
+     * about the latitude rather than about the world's width or the frame's.
+     *
+     * 0 is the flat contour the scape had — a white line drawn round an island
+     * at one height, which is the read every winter still had left in it after
+     * {@link ScapeConfig.season.snowLine} learned to wander. This is the other
+     * half of that: the shaded side keeps its cover metres lower than the side
+     * the sun has been on, so the thaw eats the south face first and leaves the
+     * north one white, which is what a thaw looks like. Which way is shaded is
+     * `daylight.azimuth`, exactly as it is for `terrain.aspectMoss`.
+     */
+    snowSwing: number
+
     /** How hard the year turns and withers what is green, 0..1. */
     turn: number
 
@@ -1716,6 +1766,18 @@ export interface ScapeConfig {
      * colours. See `ScapeConfig.littoral`.
      */
     wrack: number
+
+    /**
+     * Moss on the shaded side — the ground that never dries out.
+     *
+     * Its own entry rather than a darker `meadow`, and for the reason `wrack`
+     * has one: moss is a different plant from grass, colder and bluer than any
+     * amount of shade would make a sward, and a second name for an existing
+     * tone is how two greens in one scape drift apart on the first retune. The
+     * props already paint from a moss of their own in `props/palette.ts` — this
+     * is the ground's, and the two are deliberately close.
+     */
+    moss: number
 
     /** Mown upland grass — the clearing inside the pasture wall. */
     pasture: number
@@ -1953,6 +2015,28 @@ export const SCAPE_CONFIG = {
     ruggedness:      0.45,
     reliefSmoothing: 0.6,
     propGrain:       0.82,
+
+    // The moss carries further than the bleach because it is the darker move of
+    // the two, and dark reads across a hillside that pale does not.
+    //
+    // Both are stronger than the first pass authored them, and the line is more
+    // than twice as high, because the first pass was measured rather than
+    // guessed at: at 0.34, 0.2 and a five-metre line the whole thing came in
+    // under two per cent of the pixels of a frame *pointed straight at a
+    // hillside* — the ground is only a share of what is on screen, and the trees,
+    // the scatter and the grade take the rest. Eleven metres is the number that
+    // matters most of the three: these hills crown at fifteen, so a line at five
+    // gated the aspect out of exactly the steep upper ground that has the most
+    // of one. The band now gives out on the bare crowns, which is where a
+    // northern hill this size actually loses its cover.
+    //
+    // The other half of the same measurement went into `palette.moss` rather
+    // than here. A lerp can only carry a surface as far as the colour it is
+    // aimed at, and the first moss sat close enough to `meadow` that six tenths
+    // of the way toward it moved the ground by a fiftieth of a channel.
+    aspectMoss:   0.6,
+    aspectBleach: 0.38,
+    aspectLine:   11,
   },
   // Five full holdings, each generated by the same local survey and projected
   // into one world only after its terrain, paths and landings have agreed. Their
@@ -2568,9 +2652,15 @@ export const SCAPE_CONFIG = {
     speed:    0.08,
     snow:     0.85,
     snowLine: 0.6,
-    turn:     0.55,
-    ice:      0.9,
-    seaSmoke: 0.9,
+
+    // Wider than the 1.6 m the line already fades over, so the two sides of a
+    // ridge are separated by more than the softness of the edge between them —
+    // under that and the swing reads as a blurrier contour rather than as two
+    // faces.
+    snowSwing: 2.2,
+    turn:      0.55,
+    ice:       0.9,
+    seaSmoke:  0.9,
   },
   // Opens on the leading edge of the squall rather than in the clear spell, and
   // that is a deliberate break with how the other two clocks are set. Daylight
@@ -2617,6 +2707,7 @@ export const SCAPE_CONFIG = {
     scree:        0x7d7a72,
     lichen:       0x9aa088,
     wrack:        0x3f3a20,
+    moss:         0x3d5a30,
     pasture:      0x76803f,
     streambed:    0x585f57,
     trodden:      0x6c6049,
