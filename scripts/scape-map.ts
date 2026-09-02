@@ -17,6 +17,7 @@ import { STEADING_BUILDINGS } from '../src/scene/landscape/steading.ts'
 import { sampleWaterway } from '../src/scene/landscape/waterway.ts'
 import type { ScapeConfig } from '../src/scene/config.ts'
 import { formatStats } from './scape-map-format.ts'
+import { fjordStats, skerryStats, strandStats } from './scape-map-landforms.ts'
 import { applyOverrides, parseArgs } from './args.ts'
 
 
@@ -202,6 +203,41 @@ export interface MapStats extends CompositionStats {
     lowest:  number
     nearest: number
   }
+
+  /**
+   * The drowned valleys, one entry per island that has one.
+   *
+   * Here for the reason the bar is: a fjord's whole claim is a *relation between
+   * three depths* — the open sea outside the mouth, the sill across it, and the
+   * basin behind — and no still can measure three depths through a depth tint.
+   * A run that retunes the falloff, the shelving or the seabed drop can leave
+   * the picture looking identical while the sill has drowned to the seabed and
+   * the landform has quietly become a bay, so the numbers are the check.
+   *
+   * Every one of them is metres of water, sampled off the *composite* field
+   * rather than off the inlet's own profile. Asking the inlet what it thinks it
+   * is would answer a question nobody has: the floor it asks for is not the
+   * floor the island falloff and the shore shelving leave it with.
+   */
+  fjords: {
+    id:     string
+    length: number
+
+    /** Metres of water in the open sea off the mouth. */
+    sea: number
+
+    /** Metres of water over the shallowest of the way in. */
+    sill: number
+
+    /** Metres of water over the deepest of the basin. */
+    basin: number
+
+    /** Metres the valley floor at the head stands over the waterline. */
+    head: number
+
+    /** Whether the basin is deeper than the sea it opens into. The claim. */
+    overdeepened: boolean
+  }[]
 
   /**
    * The gull colonies, and the birds dealt across them.
@@ -562,6 +598,7 @@ export function surveyStats (
     },
     strand,
     skerries: skerryStats(survey, config),
+    fjords:   fjordStats(survey),
     grazing:  {
       count: flocks.length,
       asked: survey.landmasses.length * config.grazing.flocks,
@@ -743,86 +780,6 @@ export function renderGrid (
     }
 
   return grid.map(row => row.join('')).join('\n')
-}
-
-/**
- * The guard, read off the composite field for the same reason the bar is.
- *
- * `lowest` asks the field how high each rock actually stands rather than asking
- * the survey what freeboard it dealt — the two are the same number here and are
- * only the same number for as long as nothing else ever raises the sea.
- */
-function skerryStats (survey: ArchipelagoSurvey, config: ScapeConfig): MapStats['skerries'] {
-  const { skerries }   = survey.skerries
-  const { waterLevel } = config.terrain
-
-  if (!skerries.length)
-    return { count: 0, guards: 0, widest: 0, lowest: 0, nearest: 0 }
-
-  const freeboard = skerries.map(rock => survey.field.heightAt(rock.x, rock.z) - waterLevel)
-
-  const nearest = Math.min(...skerries.flatMap(rock => survey.landmasses.map(landmass =>
-    Math.max(
-      Math.abs(rock.x - landmass.origin.x),
-      Math.abs(rock.z - landmass.origin.z),
-    ) - landmass.config.terrain.size * 0.5 - rock.radius)))
-
-  return {
-    count:   skerries.length,
-    guards:  survey.skerries.chains,
-    widest:  round(Math.max(...skerries.map(rock => rock.radius)), 1),
-    lowest:  round(Math.min(...freeboard), 2),
-    nearest: round(nearest),
-  }
-}
-
-/**
- * The bar, walked end to end.
- *
- * Sampling the *composite* field rather than the strand's own profile, and that
- * is the whole point of the check: what a walker meets is the maximum of the bar
- * and whatever patch it is over, which is the thing the rest of the scape
- * actually reads. Asking the strand what it thinks it is would answer a question
- * nobody had.
- */
-function strandStats (survey: ArchipelagoSurvey, config: ScapeConfig): MapStats['strand'] {
-  const { strand } = survey
-
-  if (!strand)
-    return null
-
-  const steps = 240
-  const from  = strand.points[0]
-  const to    = strand.points[strand.points.length - 1]
-  let lowest   = Infinity
-
-  for (let step = 0; step <= steps; step += 1) {
-    const t = step / steps
-    const x = from.x + (to.x - from.x) * t
-    const z = from.z + (to.z - from.z) * t
-
-    // Widthwise as well as lengthwise: the centreline wanders, so a straight
-    // walk between the anchors leaves it and comes back. The best the bar offers
-    // across a few metres either side is what a walker would find.
-    let best = -Infinity
-
-    for (let across = -3; across <= 3; across += 1) {
-      const dx = -(to.z - from.z) / strand.length * across * config.strand.width * 0.5
-      const dz = (to.x - from.x) / strand.length * across * config.strand.width * 0.5
-
-      best = Math.max(best, survey.field.heightAt(x + dx, z + dz))
-    }
-
-    lowest = Math.min(lowest, best)
-  }
-
-  return {
-    between:   [ ...config.strand.between ] as [ string, string ],
-    length:    round(strand.length),
-    crest:     config.strand.crest,
-    lowest:    round(lowest - config.terrain.waterLevel),
-    connected: lowest > config.terrain.waterLevel,
-  }
 }
 
 function readLayers (raw: string | undefined): Layers {

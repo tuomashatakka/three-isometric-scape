@@ -1,7 +1,7 @@
 import { smoothstep } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 import { coastWarp, sampleHeight } from '../noise.ts'
-import { MASSIF, distanceToTrack, liftRadiusOf, plotInfluence, remapRelief, sinkToIsland } from './layout.ts'
+import { baseAt, distanceToTrack, plotInfluence, remapRelief, sinkToIsland } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
 
 
@@ -179,13 +179,16 @@ export function createHeightField (config: ScapeConfig, layout: ScapeLayout): He
   const { waterLevel, shoreBand } = config.terrain
   const { yard, track }           = layout
   const corridor                  = track.width * 1.7
-  const lift                      = liftRadiusOf(config)
-
-  const isles = resolveIsles(config)
+  const isles                     = resolveIsles(config)
 
   /** Base fBm, sunk into an island, shelved at the waterline, then levelled. */
   function graded (x: number, z: number): number {
-    let height = sampleHeight(x, z, config.seed, config.terrain.height, lift, MASSIF)
+    // `baseAt` rather than a second `sampleHeight` with the same five arguments.
+    // It was that second call for a long time and it was already a duplicate;
+    // the fjord is what made it a bug waiting to happen, because the carve lives
+    // in the raw ground and a field that read the ground its own way would have
+    // built an island with no inlet in it for searches that had avoided one.
+    let height = baseAt(config, x, z)
 
     // Drown the rim. `sinkToIsland` lives in `layout.ts` because the placement
     // searches there have to agree with this exactly — see its own note.

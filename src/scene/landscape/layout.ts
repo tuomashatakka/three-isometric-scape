@@ -5,6 +5,7 @@ import { CHAPEL_FOOTING, findChapelSite } from './chapel.ts'
 import type { ChapelSite } from './chapel.ts'
 import { createCreek } from './creek.ts'
 import type { Creek } from './creek.ts'
+import { carveFjord } from './fjord.ts'
 import { MILL_FOOTING, findMillSite } from './mill.ts'
 import type { MillSite } from './mill.ts'
 import { distanceToPath, smoothPath } from './path.ts'
@@ -96,8 +97,23 @@ export function liftRadiusOf (config: ScapeConfig): number {
  */
 export const MASSIF = 0.34
 
-function baseAt (config: ScapeConfig, x: number, z: number): number {
-  return sampleHeight(x, z, config.seed, config.terrain.height, liftRadiusOf(config), MASSIF)
+/**
+ * The raw ground, before the island falloff and before anything is levelled.
+ *
+ * The one reading of it in the scape, and exported for that reason: the height
+ * field builds the terrain from this and every placement search in this file
+ * asks it what the ground *will* be before that ground exists. Two readings is
+ * how a landform that only one of them knows about puts a farmyard under water —
+ * which is exactly what a fjord would do, and why the carve is here rather than
+ * folded into the composite field the way the bar and the rocks are.
+ */
+export function baseAt (config: ScapeConfig, x: number, z: number): number {
+  return carveFjord(
+    config,
+    x,
+    z,
+    sampleHeight(x, z, config.seed, config.terrain.height, liftRadiusOf(config), MASSIF),
+  )
 }
 
 /**

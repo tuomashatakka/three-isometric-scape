@@ -138,7 +138,7 @@ url overrides for a device you cannot attach a debugger to: `?debug` adds live v
 
 the intended first edit is [`src/scene/config.ts`](src/scene/config.ts). `SCAPE_CONFIG` owns the seed, terrain extent and waterline, the islets, the beck, the footpaths, the dressing budgets, camera framing and zoom limits, all three clocks, the whole light and atmosphere rig, the optical chain, and the complete palette.
 
-a knob that is **visual and read per frame** also belongs in [`ui/scape-controls.ts`](src/ui/scape-controls.ts) as a dotted path, which makes it persist, reset and become url-addressable for free. a knob that needs a **rebuild** to be seen — `layout.*`, `creek.*`, `footpath.*`, `cartRuts.*`, `dressing.*`, `strand.*`, `skerries.*`, `littoral.*`, and `beck.depth`/`beck.fill` — stays out of the overlay, because a slider that lies about what it does is worse than no slider.
+a knob that is **visual and read per frame** also belongs in [`ui/scape-controls.ts`](src/ui/scape-controls.ts) as a dotted path, which makes it persist, reset and become url-addressable for free. a knob that needs a **rebuild** to be seen — `layout.*`, `creek.*`, `footpath.*`, `cartRuts.*`, `dressing.*`, `strand.*`, `skerries.*`, `littoral.*`, `terrain.fjord.*`, and `beck.depth`/`beck.fill` — stays out of the overlay, because a slider that lies about what it does is worse than no slider.
 
 `camera.focusX` and `camera.focusZ` are where the camera *opens*, read once when the controls are built and live state from then on. they default to the middle of the world, which is open sea — set them to put the opening view on the farm, and set them from a url to capture anything on the ground at all.
 
@@ -224,6 +224,7 @@ src/
     │   ├── creek.ts                the beck: descent trace, channel, tidal mouth
     │   ├── beck.ts                 the water standing in that channel, and the white it breaks
     │   ├── skerry.ts               the bare rocks standing in the water between the islands
+    │   ├── fjord.ts                the drowned valley cut through one island's coast
     │   ├── beacon.ts               the outer rock a light would stand on
     │   ├── colony.ts              the open water a flock can wheel over without crossing land
     │   ├── grazing.ts             the rough ground a farm turns its stock out onto
@@ -281,6 +282,7 @@ scripts/
 ├── prop-map.ts                     one prop as ascii, from six angles
 ├── scape-map.ts                    the whole composition as ascii
 ├── scape-map-format.ts             the stats block, as the run reads it
+├── scape-map-landforms.ts          the bar, the guard and the fjords, walked and measured
 ├── scape-shot.ts                   headless stills, posed and pinned
 ├── scape-diff.ts                   what a change did to the picture, in numbers
 └── setup.ts                        what a run has before it starts thinking
@@ -572,6 +574,34 @@ forty-nine rocks stood in the open sea with nothing on them. the guard had solve
 **two props, two instanced draws, and no texture memory.** [`props/littoral.ts`](src/scene/props/littoral.ts) is its own file for the reason `shore.ts` and `upland.ts` are: nothing else in the scape grows where these do, and nothing in `vegetation.ts` would last a tide. the wrack is five straps bent past a half turn so the clump finishes *below* its own holdfast — a frond bent by less than that still spends most of its length going up, and the first cut read as grass standing in the sea. `littoral.test.ts` states the resulting silhouette, broader than it is tall, as the fact that separates the two. the lichen is four discs two centimetres proud, which is a stain rather than a thing standing on the rock, and one patch in four is drawn rust so the crust is not one flat colour repeated forty-nine times.
 
 **every tier gets it.** the counts go through `quality.scatterScale`, so `minimal` takes 16% of them and `ultra` 150%, and the geometry is small enough that the cheapest device still gets weed on its rocks rather than a coarse substitute.
+
+## the drowned valley in the sound
+
+five islands, and every one of them the same idea: a warped disc with a farm in the middle of it. the coastlines differ in how ragged they are and not in what kind of thing they are, and at the two pulled-out poses — which is four of the tour's six frames — that reads as a set rather than as a place.
+
+`terrain.fjord` cuts an inlet through two of them, in [`landscape/fjord.ts`](src/scene/landscape/fjord.ts). the sound gets one — the island whose name was already asking for it — and the fell the other; the remaining three inherit `depth: 0`, and there is no second flag anywhere saying they have no inlet. the section is on `terrain` rather than at the top level because a fjord belongs to a *coast*, and `landmassTerrain` is the machinery that already knows how to give one island a different answer about its own ground.
+
+**it is the first landform in the scape that is cut into an island rather than added between them.** the bar and the guard are world-space terms folded into the composite field *after* it has dispatched, because they lie in water no patch owns and nothing is ever surveyed there. an inlet is the opposite: it is in the one part of the world where everything is surveyed. so it cannot be a term on the field — by the time the field exists the yard, the plots, the track, the pasture, the beck, the paths and the jetty have all already been sited on a hillside that did not have a trench in it.
+
+so the carve goes into **`baseAt`, the raw ground**, which `layout.ts` exports and which every placement search and the height field both read. that reading was already duplicated: `height.ts` had its own `sampleHeight` call with the same five arguments, and the two agreed only because nobody had yet given them a reason not to. the fjord is that reason, and the fix is the one the file's own note has always asked for — one reading of the ground, and the searches avoid the water for nothing. `fjord.test.ts` states it as a fact about the survey: the yard, every plot, all nine steading buildings and the jetty are on dry land.
+
+**the shape is a real one.** a glacier cuts deepest where it was thickest and drops its moraine where it stopped, so a fjord is not a ramp — it is an overdeepened basin behind a bar at the mouth, with a dry valley climbing out at the head. `--stats` reports the depths that say so:
+
+```text
+fjord sound  len 115m  sea 11.7m  sill 5.5m  basin 16.3m  head +2.8m  OVERDEEPENED
+```
+
+**the sill had to be measured from the shore rather than from the mouth**, and that was the one thing about this shape that could not be authored. the profile was first written at fractions of the inlet's own length, which put the bar out in the falloff band — where the island drowns everything toward the seabed, the trench floor included. the bar was pulled down with the hillside around it and the scape had a fjord with nothing across its mouth. `shoreShareOf` is how much of the length is spent crossing that band, and every number in the profile is measured inland from there.
+
+**both lengths are measured, not chosen, and by different constraints.** the sound's harbour bank sits 43 m out on the same side, and the smokehouse on it needs half a metre of dry ground under all four corners of its footing: an inlet reaching past about 125 m cuts into that bank, the harbour moves a metre, and the island loses its smokehouse — which is a green build, an unchanged screenshot at every pose the tour takes, and a finding only `smokehouse.test.ts` and `--stats` would ever have made. on the fell it is the landing search instead: `findLanding` walks out from the yard for the nearest bank with navigable water off it, and an inlet reaching further inland *becomes* that bank, which moves the jetty into the fjord and takes the harbour, the gull ring and a ferry leg with it. at 115 m both islands keep the whole composition they had — same jetty, same harbour, same smokehouse, same mill, same pasture, same chapel, same peak.
+
+**it costs nothing.** there is no geometry: the trench is a hole in a terrain patch that was going to be built anyway, so the draw calls, the instance counts and the texture memory are all unchanged on every tier, and the mobile tier draws the same island with a bay in it. what it costs at *build* is two dot products and a smoothstep pair per ground query on the three islands that have no fjord — which is why `depth <= 0` returns on the first line.
+
+**what it does not do is show up in the water's colour.** the depth channel of the bathymetry mask saturates at `MAX_DEPTH`, a few metres, so the sill, the basin and the open sea are painted the same blue however far apart they are in metres — and `createCompositeField` floors the composite at the seabed anyway, because the guard answers with the seabed wherever it has no rock. neither matters to anything today, and both are why `fjordStats` reads the island's own field. a run that wanted the sill to read *pale* would be a run about the depth response, not about the landform.
+
+**the scatter across the whole archipelago re-dealt itself, and that is worth knowing about.** `createSpotSampler` is one rejection-sampling stream shared by every island, so removing land in the far south changes which darts are accepted and re-deals every tuft, stone and sapling drawn after it. the home farmyard at ten metres is 15% different pixels for that reason alone — buildings, fences and ground identical, grass moved — and it is also most of what the `fjord` poses measure, so those percentages are not a clean reading of the landform. forking the sampler per landmass is the fix and it would re-deal everything exactly once more, which is a run of its own.
+
+**`--poses fjord` is turned off the default heading, and that was measured too.** an inlet photographed along its own axis is foreshortened into a nick in the coast, which is what the first cut of these poses came back as. four of the five sit at 135°, where the sound's trench is broadside and its walls are in the light; the fell's runs the other way and its frame is the one left at 45°.
 
 ## the beck, and the inlet it cuts
 
