@@ -175,6 +175,7 @@ bun run scape:shot --poses beck                     # the water in the channel, 
 bun run scape:shot --poses smokehouse               # the hut above the harbour, 3 frames
 bun run scape:shot --poses tide                     # the sea at both ends of its swing, 3 frames
 bun run scape:shot --poses fjord                    # the drowned valley in the sound, 4 frames
+bun run scape:shot --poses aspect                   # two sides of one hill, 4 frames
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain
@@ -193,6 +194,8 @@ bun run scape:shot --skip post                      # drop the optical chain
 `beck` is the ninth set, and it is aimed at the one surface in the scape that is neither the sea nor the ground: the sheet of water standing in the channel. four frames on the home island's course — `beck` at the middle reach where the fall is steepest and the white water is, `beck-mouth` at the estuary, which is the only frame that shows the sheet meeting the sea rather than ending in the air above it, `beck-winter` at midwinter, where a beck that runs later than the sound freezes has to still be running when the bay beside it has shut, and `beck-far` at a 320 m view, the *guard*: the surface texture is a metre-scaled procedural pattern with no mipmap behind it. the course is sixty metres off the world origin every pose in `tour` is aimed at and three metres wide where it starts, so it is a hairline at `default` and off the bottom of the frame at `near`. reach for it whenever the change touches `beck.*`, `creek.*`, or the ground either of them is cut into.
 
 `tide` is the tenth set, and the first whose subject is a *difference* rather than a place. a tide is only ever visible as two frames of one shore, and two frames taken at two hours of the day differ by the light as well — which is the larger signal and would drown the smaller one. so the hour is held and `tide.lag` is turned instead: `ebb` and `flood` are the identical frame of the harbour bank west of the landing, half a cycle of lag apart, and the only thing that can have moved between them is the water. `tide-slack` is the *guard* — the same frame at `tide.range=0`, which has to come back `same` as the tideless scape, or the range is not the switch the section says it is. reach for it whenever the change touches `tide.*`, the waterline, or anything floating on it.
+
+`aspect` is aimed at the one subject the tour has never had in frame at a size worth measuring: an open hillside. four frames — `aspect` and `aspect-turned` are the fell from opposite headings, which is the claim in two pictures, since the face that is dark and green from one is pale from the other; `aspect-thaw` is the week the snow line's swing lives in, a *thaw* at `season: 0.16` rather than midwinter, because at full cover a line that has run off the top of the island cannot be seen to swing; `aspect-home` is the home island's own upland, where the effect has to survive being seen next to a farm. the fell is the subject because it is the steepest ground in the archipelago and the least built on. reach for it whenever the change touches `terrain.aspect*`, `season.snowSwing`, `palette.moss`, or anything else that repaints ground rather than adding a thing to it — and reach for `--tolerance 0.04` with it, because a wide, low-amplitude repaint is precisely what the default per-pixel tolerance of 0.1 is not built to see.
 
 `beacon` is the second set: the light itself, at night, from four headings 90° apart, aimed by `camera.focusX`/`focusZ` rather than by zoom. it exists because the beams' bug was a render-order tie broken by *projected depth*, and that flips with yaw — one heading can only ever photograph one side of the flip, and no pose in `tour` has the tower in frame at all. reach for it whenever the change touches the transparent stack.
 
@@ -361,6 +364,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `mill.ts` | the exposed shoulder a windmill stands on, and the doorstep at the foot of its stair |
 | `mill-sails.ts` | every mill's wheel in one dynamic `InstancedMesh`, geared off `wind.strength` |
 | `terrain.ts` | shared archipelago geometry, height/slope banded colour, path wear painted in |
+| `aspect.ts` | which way a slope is turned, and the moss, the bleach and the snow line that follow from it |
 | `water.ts` | baked bathymetry, swell, foam, glitter, winter ice and shader boat wakes |
 | `water-caustics.ts` | the net the sun draws on the bottom of the shallows, and how bright it is today |
 | `beck.ts` | the sheet of water standing in every island's channel, its fall, its white water and the week it locks |

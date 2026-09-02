@@ -4,6 +4,8 @@ import { kitMaterial, markShared } from 'threejs-scene/modules/assets'
 import { NOTHING_SKIPPED } from '../audit.ts'
 import type { ScapeSkips } from '../audit.ts'
 import type { LiveConfig } from '../config.ts'
+import { shadeDirection } from '../landscape/aspect.ts'
+import type { Vec2 } from '../landscape/path.ts'
 import type { SeasonState } from '../season.ts'
 import { createTextureCatalogue } from '../textures/catalogue.ts'
 import type { TextureCatalogue } from '../textures/catalogue.ts'
@@ -82,7 +84,7 @@ const CLOUD_FRAGMENT = /* glsl */`
 `
 
 /**
- * The surface normal's `y`, and only where something reads it.
+ * Which way the surface is turned, and only where something reads it.
  *
  * Emitted with the ground pass rather than with the cloud shadow, because the
  * ground is the only reader and foliage never receives it — a varying that is
@@ -90,12 +92,25 @@ const CLOUD_FRAGMENT = /* glsl */`
  * before they eliminate. Worth doing on principle; not, as it turned out, what
  * the handset was dying of.
  *
- * Two readers now: the grain weights itself by how horizontal the surface is,
- * and so does lying snow. Both are the same question — is this face pointing at
- * the sky — so both are answered by the same interpolated float.
+ * `x` is how far the face points at the sky. Three readers: the grain weights
+ * itself by how horizontal the surface is, and so do lying snow and standing
+ * rain. All three are the same question, so all three are answered by the same
+ * interpolated float.
+ *
+ * `y` is how far it is turned *away from the sun*, -1..1, and it is the second
+ * component of one `vec2` rather than a second varying on purpose — a driver
+ * that packs before it eliminates gives a `float` a whole slot, so a companion
+ * float would have cost four times what riding along here does. A bearing times
+ * a shaped steepness rather than a raw dot against the horizontal normal: level
+ * ground still has no aspect, but this island runs at a fifth of a grade nearly
+ * everywhere and a raw dot gives all of it a fifth of the aspect it has. The cpu
+ * half of the same rule — the moss the ground colour is built with — is
+ * `shadeAmount` in `landscape/aspect.ts`, and the two constants below are that
+ * module's `LEAN_FLOOR` and `LEAN_FULL`. They have to agree.
  */
 const UP_PARS_VERTEX = /* glsl */`
-  varying float vScapeUp;
+  varying vec2 vScapeFace;
+  uniform vec2 uShadeDir;
 `
 
 const UP_WORLD_VERTEX = /* glsl */`
@@ -103,11 +118,16 @@ const UP_WORLD_VERTEX = /* glsl */`
   #ifdef USE_INSTANCING
     scapeNormal = mat3(instanceMatrix) * scapeNormal;
   #endif
-  vScapeUp = normalize(mat3(modelMatrix) * scapeNormal).y;
+  vec3 scapeWorldNormal = normalize(mat3(modelMatrix) * scapeNormal);
+  float scapeLean = max(length(scapeWorldNormal.xz), 1e-4);
+  vScapeFace = vec2(
+    scapeWorldNormal.y,
+    dot(scapeWorldNormal.xz / scapeLean, uShadeDir) * smoothstep(0.02, 0.18, scapeLean)
+  );
 `
 
 const UP_PARS_FRAGMENT = /* glsl */`
-  varying float vScapeUp;
+  varying vec2 vScapeFace;
 `
 
 /**
@@ -307,7 +327,7 @@ const PROP_GRAIN_FRAGMENT = /* glsl */`
  */
 const DETAIL_FRAGMENT_LITE = /* glsl */`
   #include <normal_fragment_begin>
-  float scapeFlat = smoothstep(0.3, 0.9, vScapeUp);
+  float scapeFlat = smoothstep(0.3, 0.9, vScapeFace.x);
   float scapeAmt  = uDetailStrength * scapeFlat;
   float grain     = texture2D(uDetailMap, vScapeGround * uDetailScale).r;
 
@@ -323,7 +343,7 @@ ${PROP_GRAIN_FRAGMENT}
 function detailFragment (steps: number): string {
   return /* glsl */`
   #include <normal_fragment_begin>
-  float scapeFlat = smoothstep(0.3, 0.9, vScapeUp);
+  float scapeFlat = smoothstep(0.3, 0.9, vScapeFace.x);
   float scapeAmt  = uDetailStrength * scapeFlat;
   vec2 scapeUv    = vScapeGround * uDetailScale;
 ${steps > 0 ? `  if (scapeAmt > 0.001) {${reliefFragment(steps)}  }\n` : ''}
@@ -375,6 +395,7 @@ const SEASON_PARS_FRAGMENT = /* glsl */`
   uniform vec3 uSeasonSnow;
   uniform float uSeasonSnowAmount;
   uniform float uSeasonSnowLine;
+  uniform float uSeasonAspect;
 `
 
 /**
@@ -401,7 +422,7 @@ const SEASON_PARS_FRAGMENT = /* glsl */`
  * face angle; foliage has no normal varying and takes a constant, because a
  * grass tuft under snow reads as a white lump from every angle this camera has.
  */
-function seasonFragment (lie: string): string {
+function seasonFragment (lie: string, aspect: string): string {
   return /* glsl */`
   float scapeGreen = clamp(
     (diffuseColor.g * 2.0 - diffuseColor.r - diffuseColor.b) / (diffuseColor.g + 0.05),
@@ -416,9 +437,16 @@ function seasonFragment (lie: string): string {
   // Snow arrives as a wandering line rather than as a thinning sheet — a fixed
   // contour round an island reads as a stripe someone painted on it.
   float scapeDrift = sin(vScapeGround.x * 0.37) * cos(vScapeGround.y * 0.29);
-  float scapeLies  = smoothstep(
-    uSeasonSnowLine,
-    uSeasonSnowLine + 1.6,
+
+  // And it comes down the shaded side further than the sunward one. The line
+  // itself moves rather than the cover thinning: a thaw does not fade a snow
+  // field out, it eats it from the bottom, and it eats the face that has been
+  // in the sun first. Subtracted because a positive aspect is a face turned
+  // away from the sun, so the shaded side gets the *lower* line.
+  float scapeLine = uSeasonSnowLine - uSeasonAspect * (${aspect});
+  float scapeLies = smoothstep(
+    scapeLine,
+    scapeLine + 1.6,
     scapeAltitude + scapeDrift * 0.85
   );
   float scapeSnow = uSeasonSnowAmount * scapeLies * (${lie});
@@ -458,10 +486,24 @@ function wetFragment (lie: string): string {
 }
 
 /** Lying snow settles on what faces the sky, and slides off what does not. */
-const GROUND_LIE = 'smoothstep(0.22, 0.72, vScapeUp)'
+const GROUND_LIE = 'smoothstep(0.22, 0.72, vScapeFace.x)'
 
 /** A tuft or a bough holds snow whichever way its facets happen to point. */
 const FOLIAGE_LIE = '0.55'
+
+/** The ground knows which way it is turned, so its snow line swings with it. */
+const GROUND_ASPECT = 'vScapeFace.y'
+
+/**
+ * Foliage does not.
+ *
+ * Not an omission: a grass tuft is a billboarded scatter whose facets point
+ * every way at once, so it has no aspect to read — and it does not declare the
+ * varying that would carry one either. A hillside of grass still changes with
+ * the aspect, because the ground it stands in does and the tufts are the
+ * shorter thing.
+ */
+const FOLIAGE_ASPECT = '0.0'
 
 /**
  * Cloud-map UV travelled per unit of wind travel.
@@ -500,11 +542,18 @@ export function createScapeMaterials (
   const barkMap   = textures.get('prop.bark')
 
   const cloudOffset: IUniform<Vector2>   = { value: new Vector2() }
+
+  // The compass, and the one uniform the vertex stage reads. Shared rather than
+  // filed with the year, because it is the same bearing for anything that emits
+  // the face varying whether or not that material has a season.
+  const shadeDir: IUniform<Vector2>      = { value: new Vector2() }
+  const shadeScratch: Vec2               = { x: 0, z: 0 }
   const shared: Record<string, IUniform> = {
     uCloudMap:      { value: cloudMap },
     uCloudOffset:   cloudOffset,
     uCloudScale:    { value: 1 / Math.max(1, config().atmosphere.cloudScale) },
     uCloudStrength: { value: config().atmosphere.cloudShadow },
+    uShadeDir:      shadeDir,
   }
   const windDir: IUniform<Vector2>     = { value: new Vector2(1, 0) }
   const wind: Record<string, IUniform> = {
@@ -534,6 +583,7 @@ export function createScapeMaterials (
     uSeasonSnow:       seasonSnow,
     uSeasonSnowAmount: { value: 0 },
     uSeasonSnowLine:   { value: config().terrain.waterLevel },
+    uSeasonAspect:     { value: config().season.snowSwing },
   }
 
   // Its own record rather than a field of `season`, because it is its own clock.
@@ -554,10 +604,15 @@ export function createScapeMaterials (
     // on the ground: the grain needs it, and so does snow. Foliage has neither,
     // and still declares nothing.
     const up             = Boolean(extra.detail) || extra.lie === GROUND_LIE
+
+    // Tied to the varying rather than chosen alongside it: the aspect lives in
+    // `vScapeFace.y`, so a material that does not emit the varying cannot read
+    // one, and there is no third state where the two disagree.
+    const aspect         = up ? GROUND_ASPECT : FOLIAGE_ASPECT
     const normalFragment = [
       extra.detail ? injected : '#include <normal_fragment_begin>',
       extra.lie ? wetFragment(extra.lie) : '',
-      extra.lie ? seasonFragment(extra.lie) : '',
+      extra.lie ? seasonFragment(extra.lie, aspect) : '',
     ].join('\n')
 
     // Resolved out here rather than inside the closure. Which uniforms the
@@ -670,7 +725,15 @@ export function createScapeMaterials (
       season.uSeasonTintAmount.value = year.tintAmount
       season.uSeasonSnowAmount.value = year.snow
       season.uSeasonSnowLine.value   = year.snowLine
+      season.uSeasonAspect.value     = config().season.snowSwing
       weather.uWetAmount.value       = sky.wet
+
+      // Read here rather than resolved once at build, for the reason every
+      // other line in this function is: `daylight.azimuth` is a slider, and a
+      // scape whose sun can be swung round without the moss and the snow
+      // following it has two compasses.
+      shadeDirection(config().daylight.azimuth, shadeScratch)
+      shadeDir.value.set(shadeScratch.x, shadeScratch.z)
     },
 
     dispose () {

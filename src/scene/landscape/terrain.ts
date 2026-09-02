@@ -4,10 +4,11 @@ import { hash2, smoothstep } from 'threejs-scene'
 import { createSurfaceRibbon, mergeGeometryList } from 'threejs-scene/modules/assets'
 import type { ScapeConfig } from '../config.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
+import { dampBand, shadeAmount, shadeDirection } from './aspect.ts'
 import { cartRutGeometry, trafficAt } from './cart-ruts.ts'
 import type { Footpaths } from './footpath.ts'
 import { surfaceQueries } from './height.ts'
-import type { HeightField } from './height.ts'
+import type { GroundNormal, HeightField } from './height.ts'
 import { distanceToTrack, pastureInfluence, plotInfluence } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
 import type { Vec2 } from './path.ts'
@@ -64,6 +65,7 @@ export function createTerrainPainter (
   config: ScapeConfig,
   layout: ScapeLayout,
   paths:  Footpaths,
+  field:  HeightField,
 ): TerrainPainter {
   const { palette }    = config
   const { waterLevel } = config.terrain
@@ -86,6 +88,19 @@ export function createTerrainPainter (
   const pasture   = new Color(palette.pasture)
   const streambed = new Color(palette.streambed)
   const trodden   = new Color(palette.trodden)
+  const moss      = new Color(palette.moss)
+  const sunned    = new Color(palette.dryGrass)
+
+  // The compass, resolved once. Which way is shaded is the bearing the sun
+  // transits on, and a build reads it the same way every other build-time knob
+  // is read — from the config it was handed.
+  const shade                = shadeDirection(config.daylight.azimuth)
+  const facing: GroundNormal = { x: 0, y: 1, z: 0 }
+  const aspect               = {
+    moss:   config.terrain.aspectMoss,
+    bleach: config.terrain.aspectBleach,
+    line:   config.terrain.aspectLine,
+  }
 
   // The same colour the ribbon darkens toward, and it has to be: the two lerp
   // at the same target from either side of the seam, so the corridor's soiling
@@ -97,6 +112,24 @@ export function createTerrainPainter (
   /** Share of the rut wear the broad soiling carries. The lines keep the rest. */
   const soil = config.cartRuts.wear * 0.34
 
+  /**
+   * The aspect, laid over a colour the bands have already decided.
+   *
+   * Two lerps rather than one against a signed amount, because the two sides of
+   * a hill are not one gradient: the shaded face *gains* moss and the sunward
+   * one merely loses its damp, so they lean toward different colours by
+   * different amounts and neither is the other's negative.
+   */
+  function turned (target: Color, relative: number, x: number, z: number): void {
+    const lean = shadeAmount(field.normalAt(x, z, facing), shade)
+    const damp = dampBand(relative, aspect.line)
+
+    if (lean > 0)
+      target.lerp(moss, lean * damp * aspect.moss)
+    else
+      target.lerp(sunned, -lean * damp * aspect.bleach)
+  }
+
   return {
     paint (height, slope, x, z, target) {
       const relative = height - waterLevel
@@ -106,6 +139,12 @@ export function createTerrainPainter (
       const exposed = smoothstep(0.34, 0.78, slope)
       if (exposed > 0)
         target.lerp(scree, exposed * 0.82)
+
+      // Which way the ground is turned, over the bands and under everything
+      // people made. A cart road, a tilled plot and a trodden path are all
+      // ground with the plants taken off it, so none of them has an aspect to
+      // read — they are painted over this rather than tinted by it.
+      turned(target, relative, x, z)
 
       for (const plot of layout.plots) {
         const claim = plotInfluence(plot, x, z)
@@ -248,7 +287,7 @@ function terrainGeometry (
 
   const positions = geometry.getAttribute('position')
   const colors    = new Float32Array(positions.count * 3)
-  const painter   = createTerrainPainter(config, layout, paths)
+  const painter   = createTerrainPainter(config, layout, paths, field)
   const color     = new Color()
 
   for (let index = 0; index < positions.count; index += 1) {
@@ -279,7 +318,7 @@ function cartRutPatch (
   paths:    Footpaths,
   segments: number,
 ): BufferGeometry | null {
-  const painter = createTerrainPainter(config, layout, paths)
+  const painter = createTerrainPainter(config, layout, paths, field)
   const surface = drawnSurfaceOf(field, config.terrain.size, segments)
 
   return cartRutGeometry({

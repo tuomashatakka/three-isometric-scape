@@ -9,6 +9,9 @@ import type { Args } from './args.ts'
 /** The middle of the sound's inlet, which four of the `fjord` poses sit on. */
 const SOUND_INLET = [ 'camera.focusX=-306', 'camera.focusZ=-374' ]
 
+/** The crown of the fell, which is the steepest and least built-on ground there is. */
+const FELL_CROWN = [ 'camera.focusX=300', 'camera.focusZ=-480' ]
+
 /** One camera and clock the scape gets photographed from. */
 export interface Pose {
   name:    string
@@ -215,6 +218,37 @@ export const TOURS: Record<string, Pose[]> = {
     { name: 'fjord-noon', rot: 135, zoom: 200, time: 0.5, set: SOUND_INLET },
     { name: 'fjord-winter', rot: 135, zoom: 200, season: 0.02, set: SOUND_INLET },
     { name: 'fjord-fell', rot: 45, zoom: 200, set: [ 'camera.focusX=222', 'camera.focusZ=-402' ]},
+  ],
+
+  /**
+   * Two sides of one hill.
+   *
+   * Added for the reason `fjord` and `coast` were, and it is the same reason
+   * again: the aspect — the moss on the shaded faces, the bleach on the sunward
+   * ones and the snow line that swings between them — landed measuring `same` at
+   * every pose in the tour, and the tour was right. `default` and `far` frame
+   * the whole archipelago, where an island is forty pixels across; `near` at ten
+   * metres stands in the farmyard, which is level ground painted over by the
+   * yard, the track and a thousand instances of grass. The one thing in the tour
+   * that could have seen a hillside is the thing none of its six frames contains.
+   *
+   * The fell is the subject because it is the steepest ground in the
+   * archipelago — a 15 m crown over a 100 m island — and the least built on, so
+   * what is in frame is ground rather than farm. `aspect` and `aspect-turned`
+   * are the same hill from opposite headings, which is the whole claim in two
+   * pictures: the face that is dark and green from one is pale from the other.
+   * `aspect-thaw` is the week the snow line's swing lives in — a *thaw* rather
+   * than midwinter, because at `season: 0.02` the cover is 1.0 and a line that
+   * has run off the top of the island cannot be seen to swing; 0.16 leaves
+   * roughly two thirds of it, which is when where the line falls is the whole
+   * picture. `aspect-home` is the home island's own upland, where the effect has
+   * to survive being seen next to a farm.
+   */
+  aspect: [
+    { name: 'aspect', rot: 45, zoom: 170, time: 0.5, set: FELL_CROWN },
+    { name: 'aspect-turned', rot: 225, zoom: 170, time: 0.5, set: FELL_CROWN },
+    { name: 'aspect-thaw', rot: 45, zoom: 170, time: 0.5, season: 0.16, set: FELL_CROWN },
+    { name: 'aspect-home', rot: 45, zoom: 90, time: 0.5, set: [ 'camera.focusX=24', 'camera.focusZ=8' ]},
   ],
 
   /**

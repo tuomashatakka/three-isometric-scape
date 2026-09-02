@@ -239,6 +239,7 @@ src/
     │   ├── boats.ts                the fleet, and the wake it leaves
     │   ├── boat-motion.ts          one shared departure clock, one leg each
     │   ├── terrain.ts              geometry, banded colour, path wear and cart soil painted in, ruts merged on
+    │   ├── aspect.ts               which way a slope is turned, and the moss and snow that follow from it
     │   ├── shore-mask.ts           the baked bathymetry, and which way each coast faces
     │   ├── water.ts                swell, surf, foam, glitter, winter ice
     │   ├── water-caustics.ts      the sun's net on the bottom of the shallows
@@ -254,7 +255,7 @@ src/
     └── props/
         ├── index.ts                the roster, hero vs scattered
         ├── palette.ts              the nordic colour vocabulary
-        ├── material.ts             shared materials, cloud shadow, wind, ground relief, wetness, snow
+        ├── material.ts             shared materials, cloud shadow, wind, ground relief, wetness, snow, aspect
         ├── ploppable.ts            2d placement with a ground-following foundation
         ├── fence.ts / wall.ts      continuous ground-following runs
         ├── lamp.ts                 the pane in the reveal and the haze in front of it
@@ -1201,6 +1202,34 @@ an orthographic camera's distance along its view axis changes nothing you can se
 [`camera-controls.ts`](src/scene/camera-controls.ts) therefore lifts the camera with the zoom rather than sitting at a fixed radius. it costs nothing — the projection is unchanged.
 
 that distance carries a second, non-obvious load: the atmosphere reads it to place the fog, as `near = radius - viewSize * 0.9`. clearing the waterline needs *less* distance the steeper the view gets, so once tilt became a function of zoom the lift began to swing — and with it the fog band, which collapsed onto the camera and washed the frame grey at high elevations. the lift now has a floor proportional to `viewSize`.
+
+## the two sides of a hill
+
+the ground knew how *steep* it was and never which way it was **turned**. slope magnitude has been in the height field since the first terrain — it is what puts granite on anything too steep to hold soil — and at this latitude the bearing is the stronger of the two facts about a hillside. a sun that transits at 45° in june and never clears the horizon in december throws a face turned away from it into shade for the whole year: it stays damp, it grows moss rather than grass, and it holds its snow for weeks after the opposite side has lost it. an island lit from one side and *coloured* from none reads as a relief map with a lamp on it.
+
+[`landscape/aspect.ts`](src/scene/landscape/aspect.ts) is the whole rule, and it is three small pure functions: which way a shaded face points, how shaded a given normal is, and what band of altitude holds the damp. the two halves that consume it are deliberately far apart — the ground colour is built once on the cpu, the snow line is resolved per fragment on the gpu — and neither is the other's authority. they agree because they run the same arithmetic on the same two inputs.
+
+**which way is shaded is `daylight.azimuth`, not a hard-coded north.** the scape's compass is that knob and nothing else, so swinging the sun round swings the mossy side of every hill with it. it is deliberately the *season's* sun rather than this instant's: lying snow and standing moss are both the average of a year's light, and an aspect that tracked the hour would be a hillside changing substance between breakfast and noon.
+
+**the ground gains moss on one side and loses its damp on the other, and those are not the same move.** `terrain.aspectMoss` leans the shaded faces toward `palette.moss`; `terrain.aspectBleach` leans the sunward ones toward `dryGrass`, which is the colour the altitude bands already use for grass the summer has had. two lerps rather than one against a signed amount, because a shaded slope *gains* something the sunward one merely lacks. both run over the altitude bands and **under** everything people made: a cart road, a tilled plot and a trodden path are all ground with the plants taken off it, so none of them has an aspect to read.
+
+**the snow line swings rather than the cover thinning.** `season.snowSwing` is metres, and they stay metres — how far up a hill the last snow survives is a fact about the latitude, not about the world's width or the frame's. the shaded face keeps its cover that much lower than the side the sun has been on, so a thaw eats the south face first and leaves the north one white, which is what a thaw looks like. fading the cover instead would have been a snow field going transparent, which is what nothing does.
+
+**it rides in a varying that already existed.** `vScapeUp` was one float carrying the normal's `y` for the grain and for lying snow; it is now `vScapeFace`, a `vec2` whose second component is the aspect. a driver that packs before it eliminates gives a lone float a whole slot, so the companion float this could have been would have cost four times what riding along here does. foliage declares neither: a grass tuft is a scatter whose facets point every way at once, so its season resolves the aspect to a constant — and a hillside of grass still changes with the aspect, because the ground it stands in does.
+
+### it is a bearing times a steepness, not a dot against the normal
+
+the first cut dotted straight against the horizontal part of the world normal, which carries the steepness for free and is elegant and wrong at this scale. this island crowns at nine metres over a forty-metre radius: it runs at about a fifth of a grade nearly everywhere, so *everything* came out at a fifth of the aspect it should have had and the entire pass measured `same` at every pose. the steepness still gates the answer — level ground has no aspect and must not be given one — but it gates it over `0.02..0.18`, which is the range this ground actually occupies, rather than over the whole way to a cliff.
+
+the same measurement moved two other numbers. `terrain.aspectLine` was five metres, chosen so the moss handed over to the heath band; these hills crown at fifteen, so a line at five gated the aspect out of exactly the steep upper ground that has the most of one, and it is eleven now — the band gives out on the bare crowns, which is where a northern hill this size actually loses its cover. and `palette.moss` was authored close enough to `meadow` that six tenths of the way toward it moved the ground by a fiftieth of a channel: **a lerp can only carry a surface as far as the colour it is aimed at**, and no amount of strength knob substitutes for a target worth reaching.
+
+### and the tour could not see any of it
+
+the third time this has been written down, and the same lesson each time. `--poses tour` came back `same` at all six frames on a change that repaints every hillside in the archipelago — and the tour was right. `default` and `far` frame the whole world, where an island is forty pixels across; `near` at ten metres stands in the farmyard, which is level ground painted over by the yard, the track and a thousand instances of grass; `night` is a diffuse-colour change on ground nobody can see. the one subject that could have shown it — an open hillside — is in none of the six.
+
+`--poses aspect` is one more set added for this reason. the fell is the subject because it is the steepest ground in the archipelago and the least built on, so what is in frame is ground rather than farm. `aspect` and `aspect-turned` are the same hill from opposite headings, which is the claim in two pictures: the face that is dark and green from one is pale from the other. `aspect-thaw` is a *thaw* rather than midwinter — at `season: 0.02` the cover is 1.0 and a line that has run off the top of the island cannot be seen to swing, where 0.16 leaves two thirds of it and where the line falls is the whole picture.
+
+one number in the instrument had to be named rather than trusted, too. the ground tint is a **wide, low-amplitude** change — every slope on five islands, none of it by much — and `scape:diff` defaults to a per-pixel tolerance of 0.1, which is a tenth of the full colour range and is built to catch a thing appearing rather than a surface leaning. at `--tolerance 0.04` all four aspect poses report `CHANGED` with blocks up to 75%; at the default only the snow line's swing clears it. both readings are in the pull request, because quoting only the flattering one is how a tolerance becomes a way of not looking.
 
 ## ground that casts
 

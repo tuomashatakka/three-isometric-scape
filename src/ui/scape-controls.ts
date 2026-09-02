@@ -198,6 +198,7 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         toggled('year cycle', range('season.speed', 'years per minute', 0, 1, 0.01), 0.08),
         toggled('snow', range('season.snow', 'cover', 0, 1, 0.01), 0.85),
         range('season.snowLine', 'snow line', -1, 6, 0.1),
+        range('season.snowSwing', 'aspect', 0, 4, 0.1),
         range('season.turn', 'leaf turn', 0, 1, 0.01),
         toggled(
           'sea ice',

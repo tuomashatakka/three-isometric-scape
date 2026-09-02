@@ -7,6 +7,7 @@ import { SCAPE_CONFIG } from '../config.ts'
 import { cartRutGeometry, trafficAt } from './cart-ruts.ts'
 import type { CartRutsOptions } from './cart-ruts.ts'
 import type { Footpaths } from './footpath.ts'
+import { createHeightField } from './height.ts'
 import { createScapeLayout, distanceToTrack } from './layout.ts'
 import type { Vec2 } from './path.ts'
 import { createTerrainPainter } from './terrain.ts'
@@ -191,6 +192,7 @@ describe('the traffic the wear is measured in', () => {
 describe('the dirt the ruts run in', () => {
   const layout           = createScapeLayout(SCAPE_CONFIG)
   const paths: Footpaths = { paths: [], wearAt: () => 0 }
+  const field            = createHeightField(SCAPE_CONFIG, layout)
 
   // The same scape twice, once with the traffic taken off it. Everything the
   // painter does apart from the soiling is identical between the two, so the
@@ -199,8 +201,9 @@ describe('the dirt the ruts run in', () => {
     { ...SCAPE_CONFIG, cartRuts: { ...SCAPE_CONFIG.cartRuts, wear: 0 }},
     layout,
     paths,
+    field,
   )
-  const worn = createTerrainPainter(SCAPE_CONFIG, layout, paths)
+  const worn = createTerrainPainter(SCAPE_CONFIG, layout, paths, field)
 
   const lit = (color: Color): number => (color.r + color.g + color.b) / 3
 
@@ -276,6 +279,7 @@ describe('the dirt the ruts run in', () => {
       { ...SCAPE_CONFIG, cartRuts: { ...SCAPE_CONFIG.cartRuts, reach: far.from * 0.5 }},
       layout,
       paths,
+      field,
     )
 
     expect(soilShare(far.x, far.z)).toBeGreaterThan(0.02)

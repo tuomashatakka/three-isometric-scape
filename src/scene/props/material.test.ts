@@ -95,3 +95,71 @@ describe('what the ground material actually compiles', () => {
     expect(fragment.indexOf('scapeStep')).toBeLessThan(fragment.indexOf('texture2D(uWearMap'))
   })
 })
+
+/** Both programs, and the uniforms three would be handed with each. */
+function compiledPair () {
+  const materials = createScapeMaterials(() => SCAPE_CONFIG, NOTHING_SKIPPED, 6, undefined, 6)
+
+  const read = (material: MeshStandardMaterial) => {
+    const program = {
+      uniforms:       {} as Record<string, unknown>,
+      vertexShader:   '#include <common>\n#include <project_vertex>\n#include <begin_vertex>',
+      fragmentShader: '#include <common>\n#include <color_fragment>\n#include <normal_fragment_begin>',
+    }
+
+    material.onBeforeCompile?.(program as unknown as WebGLProgramParametersWithUniforms, undefined as never)
+
+    return program
+  }
+
+  const answer = {
+    ground:  read(materials.ground),
+    foliage: read(materials.foliage),
+  }
+
+  materials.dispose()
+  return answer
+}
+
+
+describe('the aspect the snow line swings on', () => {
+  test('rides in the varying the ground already emits, rather than a second one', () => {
+    const { ground } = compiledPair()
+
+    // One `vec2` and no companion float: a driver that packs before it
+    // eliminates gives a lone float a whole slot, so the second component is
+    // free where a second varying would not have been.
+    expect(ground.vertexShader).toContain('varying vec2 vScapeFace;')
+    expect(ground.vertexShader).not.toContain('varying float vScape')
+    expect(ground.fragmentShader).toContain('varying vec2 vScapeFace;')
+  })
+
+  test('moves the line itself, so a thaw eats the sunward face first', () => {
+    const { ground } = compiledPair()
+
+    // The claim: the aspect shifts the height snow starts at, and it is not a
+    // second multiplier on the cover. A `mix` against `scapeSnow` would fade a
+    // snow field out where this eats it from the bottom.
+    expect(ground.fragmentShader).toContain('float scapeLine = uSeasonSnowLine - uSeasonAspect * (vScapeFace.y);')
+    expect(ground.fragmentShader).toContain('smoothstep(\n    scapeLine,\n    scapeLine + 1.6,')
+  })
+
+  test('is read by nothing that cannot answer it', () => {
+    const { foliage } = compiledPair()
+
+    // Foliage has no normal varying and never declares one, so its season has
+    // to resolve the aspect to a constant rather than to a name that is not
+    // there. A shader that referenced it would not link at all.
+    expect(foliage.vertexShader).not.toContain('vScapeFace')
+    expect(foliage.fragmentShader).not.toContain('vScapeFace')
+    expect(foliage.fragmentShader).toContain('uSeasonAspect * (0.0)')
+  })
+
+  test('has a compass on both programs, because the vertex stage is what reads it', () => {
+    const { ground, foliage } = compiledPair()
+
+    expect(ground.uniforms.uShadeDir).toBeDefined()
+    expect(foliage.uniforms.uShadeDir).toBeDefined()
+    expect(ground.vertexShader).toContain('uniform vec2 uShadeDir;')
+  })
+})
