@@ -78,8 +78,10 @@ export interface LandmassSpec {
 }
 
 /** The part of `terrain` an island is allowed its own answer to. */
-export type LandmassTerrain =
-  Pick<ScapeConfig['terrain'], 'size' | 'height' | 'shoreBand' | 'islandInner' | 'islandOuter' | 'ruggedness' | 'reliefSmoothing'>
+export type LandmassTerrain = Pick<
+  ScapeConfig['terrain'],
+  'size' | 'height' | 'shoreBand' | 'islandInner' | 'islandOuter' | 'ruggedness' | 'reliefSmoothing' | 'fjord'
+>
 
 /** The part of `layout` an island is allowed its own answer to. */
 export type LandmassLayout = Pick<
@@ -230,6 +232,81 @@ export interface ScapeConfig {
      * softens the ground that the ruggedness mask has already chosen.
      */
     reliefSmoothing: number
+
+    /**
+     * The drowned valley cut into this island.
+     *
+     * Per-island rather than per-archipelago, and the one section of `terrain`
+     * that is a whole landform rather than a number about the ground: an inlet
+     * belongs to the coast it is cut into, and the four islands without one say
+     * so by inheriting `depth: 0`. See `landscape/fjord.ts` for the shape and
+     * why the carve happens in the raw ground rather than in the composite
+     * field the bar and the rocks are folded into.
+     *
+     * Build-time, all six, and absent from the tuning overlay for the reason
+     * `creek` and `strand` are: the trench is cut into the terrain mesh, baked
+     * into the bathymetry mask and surveyed *around* by the yard, the plots and
+     * the paths, so nothing here can move without the scape being generated
+     * again.
+     *
+     * **Every length here is metres and stays metres.** A drowned valley is the
+     * size the ice that cut it made it, so none of this is a fraction of
+     * `archipelago.worldSize` or of the live `viewSize`. The one number that is
+     * a fraction — where the mouth is anchored — is read off `islandOuter`
+     * rather than written here, so an island that grows takes its inlet's mouth
+     * out to its new coast without this section being touched.
+     */
+    fjord: {
+
+      /**
+       * Metres below mean water at the deepest of the basin.
+       *
+       * The switch, and the only one: 0 is an island the ice never reached, and
+       * there is no boolean beside it. Deeper than `seabedDrop` on purpose —
+       * an overdeepened basin is the whole signature of a fjord, and one no
+       * deeper than the sea outside it is a bay.
+       */
+      depth: number
+
+      /**
+       * How much of that depth the sill at the mouth stands up into, 0..1.
+       *
+       * The moraine the glacier left where it stopped. 1 is a trench of one
+       * depth, which is a canal; at a third of the depth the bar stands shallow
+       * enough to read as a shelf at the entrance rather than as more blue. It
+       * is not what makes the inlet visible — the coastline it cuts is — because
+       * the depth channel of the shore mask saturates well above any of these
+       * three depths. See `landscape/fjord.ts`.
+       */
+      sill: number
+
+      /** Mouth to head, in metres. */
+      length: number
+
+      /**
+       * Half-width of the trench at the mouth, in metres.
+       *
+       * The floor is the middle of it and the walls are the rest — see
+       * `FLOOR_SHARE` in `landscape/fjord.ts`. It narrows toward the head.
+       */
+      width: number
+
+      /**
+       * The direction the mouth faces from the island's middle, in degrees.
+       *
+       * Measured from `+x` toward `+z`, which is the convention `yawAlong` and
+       * `layout.harbourSpread` are written against.
+       */
+      bearing: number
+
+      /**
+       * Lateral wander of the centreline, as a multiple of the width.
+       *
+       * 0 is a straight trench, which reads as authored however well the walls
+       * are cut. A glacier follows the rock it found.
+       */
+      bend: number
+    }
 
     /**
      * Grain on everything the ground grain cannot reach, 0..1.
@@ -1855,9 +1932,24 @@ export const SCAPE_CONFIG = {
       { x: -0.577, z: 0.643, radius: 0.045, height: 2.5 },
       { x: 0.372, z: 0.735, radius: 0.042, height: 2.4 },
     ],
-    detailScale:     7.5,
-    detailGrain:     0.34,
-    detailMacro:     0.62,
+    detailScale: 7.5,
+    detailGrain: 0.34,
+    detailMacro: 0.62,
+
+    // The home island has no fjord, and `depth: 0` is how it says so — every
+    // island that omits the section inherits this one, so an archipelago is
+    // ice-free until a coast asks for otherwise. The other five are the shape an
+    // inlet would take on this island if one were switched on, which keeps the
+    // section readable rather than a row of zeroes nobody could size.
+    fjord: {
+      depth:   0,
+      sill:    0.34,
+      length:  76,
+      width:   16,
+      bearing: 90,
+      bend:    0.55,
+    },
+
     ruggedness:      0.45,
     reliefSmoothing: 0.6,
     propGrain:       0.82,
@@ -1956,6 +2048,39 @@ export const SCAPE_CONFIG = {
           shoreBand:   1.2,
           islandInner: 0.5,
           islandOuter: 0.66,
+
+          // The one island the ice reached, and the one whose name asked for it.
+          // 115 m of inlet from a mouth 164 m out puts the head about 49 m from
+          // the island's middle — a third of the way across a landmass 300 m of
+          // dry ground wide, which is a fjord rather than a nick in the coast
+          // and still leaves the farm the whole of the ground behind it.
+          //
+          // The length is the one number here that was measured rather than
+          // chosen. This island's harbour bank sits 43 m out on the same side,
+          // and the smokehouse standing on it needs half a metre of dry ground
+          // under all four corners of its footing: an inlet reaching past about
+          // 125 m cuts into that bank, the harbour shifts a metre, and the sound
+          // loses its smokehouse. At 115 the whole of the existing composition —
+          // jetty, harbour, smokehouse, mill, pasture, chapel — is exactly where
+          // it was, and `smokehouse.test.ts` is what says so.
+          //
+          // It opens at 90°, toward `+z`, which is the side facing the middle of
+          // the archipelago: the basin is in frame at every pose the tour takes
+          // of the whole world rather than hidden round the back of the island.
+          //
+          // 12.5 m of basin against a `seabedDrop` of 9 is the overdeepening —
+          // the trench is deeper than the sea it opens into, which is what a
+          // glacier does and a bay does not. The sill at a third of that leaves
+          // about 5.5 m of water over the bar. Neither is a *look*: both are read
+          // by `scape:map --stats` and by nothing the camera can see.
+          fjord: {
+            depth:   12.5,
+            sill:    0.34,
+            length:  115,
+            width:   24,
+            bearing: 90,
+            bend:    0.55,
+          },
         },
         layout: {
           yardRadius:    16,
@@ -1979,6 +2104,34 @@ export const SCAPE_CONFIG = {
           shoreBand:   0.95,
           islandInner: 0.47,
           islandOuter: 0.68,
+
+          // The second inlet, and the reason the section is per-island rather
+          // than per-archipelago: the same six numbers on a different coast are
+          // a different fjord, and two of them make the pair of great southern
+          // landmasses read as one glaciated coast rather than as one island
+          // with a bay in it.
+          //
+          // It opens at 135°, which is the corner of this island facing the
+          // middle of the archipelago and 45° clear of both the strand's
+          // landfall to the west and the harbour bank to the north-east. The
+          // bend is turned the other way from the sound's on purpose — two
+          // inlets curving the same way read as one shape stamped twice.
+          //
+          // 115 m here for the sound's reason rather than by copying it: this
+          // island's landing search walks out from the yard for the nearest bank
+          // with navigable water off it, and an inlet reaching much further
+          // inland becomes that bank — which moves the jetty into the fjord and
+          // the harbour, the gull ring and a ferry leg with it. At 115 the
+          // trench stops short of the ground the search prefers, and the whole
+          // of this island's composition stays where it was.
+          fjord: {
+            depth:   12.5,
+            sill:    0.34,
+            length:  115,
+            width:   22,
+            bearing: 135,
+            bend:    -0.55,
+          },
         },
         layout: {
           yardRadius:    15,

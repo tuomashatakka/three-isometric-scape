@@ -117,6 +117,8 @@ gulls 4/4 colonies  home/harbour (-53,-63) r24.1  home/rock (71,46) r28  ridge/h
 
 `beacon NONE` is the same kind of answer: the light goes on the *outermost* islet in the ring that is broad enough for masonry and has eight dry bearings at its footing, so an archipelago whose skerries are all too small gets no lighthouse. a beacon that moved isle on a run that did not touch `beacon.minRock`, `beacon.freeboard` or `terrain.isles` is a finding.
 
+`fjord <id>` is one line per island with an inlet cut into it, and it is four depths rather than a position because the landform's whole claim is a *relation* between them: the sea outside the mouth, the sill across it, the basin behind it, and how far the valley floor at the head stands over the water. `OVERDEEPENED` means the basin is deeper than the sea it opens into, which is what separates a fjord from a bay. none of it can be read from a still — the depth channel of the bathymetry mask saturates a few metres down and paints all three the same blue — so a run that retunes the falloff, the shore shelving or `seabedDrop` and quietly drowns a sill has this line and nothing else. it is measured off the island's *own* field, not the composite one: the guard answers with the seabed wherever it has no rock, so the composite is floored nine metres down and cannot see a trench.
+
 `gulls 4/4 colonies` is the flock line, and the two numbers are the finding: the second is what the islands *offered* — one landing each, plus an outer rock where a light was built — and the first is how many of those found open water wide enough to fit a whole ring over. `3/4` on a run that did not touch `birds.spread`, the coastline or the landings means a bank closed up. this is here rather than in a screenshot because a flock is four pixels wide at the default pose.
 
 `hearths 10  lowest mouth 5.5m over the ground` is the chimney line, and `lowest` is the whole check: two stacks a holding, and the tightest clearance between any mouth and the ground under it. a building is levelled onto the *highest* ground beneath its footprint while its chimney stands 2.6 m off the middle of that footprint, so on a slope the two are measured against different heights — anything under about three metres means a stack has been placed against a floor it does not stand on, and the map says so in the line. here rather than in a still because a plume is three pixels at the default pose.
@@ -172,6 +174,7 @@ bun run scape:shot --poses shallows                 # the light on the bottom, 4
 bun run scape:shot --poses beck                     # the water in the channel, 4 frames
 bun run scape:shot --poses smokehouse               # the hut above the harbour, 3 frames
 bun run scape:shot --poses tide                     # the sea at both ends of its swing, 3 frames
+bun run scape:shot --poses fjord                    # the drowned valley in the sound, 4 frames
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain

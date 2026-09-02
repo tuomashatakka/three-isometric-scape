@@ -6,6 +6,9 @@ import { parseArgs } from './args.ts'
 import type { Args } from './args.ts'
 
 
+/** The middle of the sound's inlet, which four of the `fjord` poses sit on. */
+const SOUND_INLET = [ 'camera.focusX=-306', 'camera.focusZ=-374' ]
+
 /** One camera and clock the scape gets photographed from. */
 export interface Pose {
   name:    string
@@ -181,6 +184,37 @@ export const TOURS: Record<string, Pose[]> = {
       season: 0.02,
       set:    [ 'camera.focusX=305', 'camera.focusZ=-99' ],
     },
+  ],
+
+  /**
+   * The drowned valley in the sound, and the bar across its mouth.
+   *
+   * Added for the reason `beacon`, `coast`, `steading` and `guard` were, and it
+   * is the same reason a sixth time. The inlet is 300 m out on the far side of
+   * the archipelago, so the four whole-world poses in the tour carry it at about
+   * fifty pixels a side — enough to move `maxblock` and nowhere near enough to
+   * judge.
+   *
+   * All five are turned off the default 45°, and that is the one thing about
+   * this set that was measured rather than chosen: an inlet photographed along
+   * its own axis is foreshortened into a nick in the coast. 135° puts the
+   * sound's trench broadside and its walls in the light; the fell's runs the
+   * other way, so its frame is the one pose here left at 45°.
+   *
+   * `fjord` holds the whole of the sound's, mouth to head, with the ground
+   * either side. `fjord-sill` sits on the entrance at a zoom where the bar
+   * across it is a shelf rather than a shade of blue. `fjord-noon` is the light
+   * the shape reads best under, and `fjord-winter` the frame where the ice
+   * front — which follows depth — has to treat the trench differently from the
+   * shallows over its bar. `fjord-fell` is the second inlet, on the other great
+   * southern landmass, which is what says the section is per-island.
+   */
+  fjord: [
+    { name: 'fjord', rot: 135, zoom: 200, set: SOUND_INLET },
+    { name: 'fjord-sill', rot: 135, zoom: 80, set: [ 'camera.focusX=-312', 'camera.focusZ=-372' ]},
+    { name: 'fjord-noon', rot: 135, zoom: 200, time: 0.5, set: SOUND_INLET },
+    { name: 'fjord-winter', rot: 135, zoom: 200, season: 0.02, set: SOUND_INLET },
+    { name: 'fjord-fell', rot: 45, zoom: 200, set: [ 'camera.focusX=222', 'camera.focusZ=-402' ]},
   ],
 
   /**
@@ -796,7 +830,8 @@ async function main (): Promise<void> {
       '                        smokehouse (3, the hut above the harbour)',
       '                        shallows (4, the light on the bottom)',
       '                        beck (4, the water in the channel)',
-      '                        tide (3, the sea at both ends of its swing) | quick (1)',
+      '                        tide (3, the sea at both ends of its swing)',
+      '                        fjord (4, the drowned valley in the sound) | quick (1)',
       '  --rot 45 --zoom 70    camera yaw, and view size (tilt is derived from zoom)',
       '  --time 0.42           the day, 0..1',
       '  --season 0.5          the year, 0..1',

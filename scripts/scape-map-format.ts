@@ -157,6 +157,10 @@ export function formatStats (stats: MapStats): string {
         `${stats.strand.connected ? 'CONNECTED' : 'DROWNED'}`
       : 'strand NONE  <- no pair of islands is named, or the crest is zero',
     skerryLine(stats.skerries),
+    ...stats.fjords.map(fjord =>
+      `fjord ${fjord.id}  len ${fjord.length}m  sea ${fjord.sea}m  ` +
+      `sill ${fjord.sill}m  basin ${fjord.basin}m  head +${fjord.head}m  ` +
+      `${fjord.overdeepened ? 'OVERDEEPENED' : 'SHALLOWER THAN THE SEA IT OPENS INTO'}`),
     `hearths ${stats.hearths.count}  lowest mouth ${stats.hearths.lowest}m over the ground` +
       (stats.hearths.lowest < 3 ? '  <- a stack is standing in its own roof' : ''),
     windowLine(stats.windows),
