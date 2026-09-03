@@ -103,6 +103,40 @@ function waterLines (stats: MapStats): string[] {
   ]
 }
 
+/**
+ * The four sited buildings that are not part of the farmyard, as four lines.
+ *
+ * Their own function for the reason `waterLines` is one, and the croft is what
+ * made it necessary: each of these is a search that is allowed to come back with
+ * nothing, so each is a ternary, and a fifth of them inline took `formatStats`
+ * past the complexity ceiling. Which the lint config is right about — the block
+ * is the run's whole structural readout, and every conditional inlined into it
+ * makes the rest of it harder to read past.
+ */
+function sitedLines (stats: MapStats): string[] {
+  return [
+    stats.mill
+      ? `mill (${stats.mill.x},${stats.mill.z}) prominence ${stats.mill.prominence}m`
+      : 'mill NONE  <- no shoulder stood proud enough',
+    stats.chapel
+      ? `chapel (${stats.chapel.x},${stats.chapel.z}) prominence ${stats.chapel.prominence}m  ` +
+        `${stats.chapel.fromYard}m from the yard`
+      : 'chapel NONE  <- no knoll near enough to the farm',
+    stats.smokehouse
+      ? `smokehouse (${stats.smokehouse.x},${stats.smokehouse.z}) ` +
+        `${stats.smokehouse.fromBank}m up the bank`
+      : 'smokehouse NONE  <- no dry ground behind the harbour',
+    stats.beacon
+      ? `beacon (${stats.beacon.x},${stats.beacon.z}) isle ${stats.beacon.isle} ` +
+        `freeboard ${stats.beacon.freeboard}m  reach ${stats.beacon.reach}m`
+      : 'beacon NONE  <- no rock was broad enough to build on',
+    stats.croft
+      ? `croft (${stats.croft.x},${stats.croft.z}) isle ${stats.croft.isle}  ` +
+        `freeboard ${stats.croft.freeboard}m  ${stats.croft.fromHarbour}m from the harbour`
+      : 'croft NONE  <- no free islet was broad, dry and level enough',
+  ]
+}
+
 /** The stats block, as the run reads it. */
 export function formatStats (stats: MapStats): string {
   const steading = Object.entries(stats.steading)
@@ -123,21 +157,7 @@ export function formatStats (stats: MapStats): string {
       : 'pasture NONE') +
       `   plots ${stats.plots}   ridges ${stats.ridges}   ` +
       `isles ${stats.isles.surfacing}/${stats.isles.total} surfacing`,
-    stats.mill
-      ? `mill (${stats.mill.x},${stats.mill.z}) prominence ${stats.mill.prominence}m`
-      : 'mill NONE  <- no shoulder stood proud enough',
-    stats.chapel
-      ? `chapel (${stats.chapel.x},${stats.chapel.z}) prominence ${stats.chapel.prominence}m  ` +
-        `${stats.chapel.fromYard}m from the yard`
-      : 'chapel NONE  <- no knoll near enough to the farm',
-    stats.smokehouse
-      ? `smokehouse (${stats.smokehouse.x},${stats.smokehouse.z}) ` +
-        `${stats.smokehouse.fromBank}m up the bank`
-      : 'smokehouse NONE  <- no dry ground behind the harbour',
-    stats.beacon
-      ? `beacon (${stats.beacon.x},${stats.beacon.z}) isle ${stats.beacon.isle} ` +
-        `freeboard ${stats.beacon.freeboard}m  reach ${stats.beacon.reach}m`
-      : 'beacon NONE  <- no rock was broad enough to build on',
+    ...sitedLines(stats),
     `steading  ${steading}`,
     `landing ${stats.landing ? `(${stats.landing})` : 'NONE'}  ` +
       `harbour ${stats.harbour ? `(${stats.harbour})` : 'NONE'}`,

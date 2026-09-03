@@ -316,6 +316,46 @@ export const TOURS: Record<string, Pose[]> = {
   ],
 
   /**
+   * The croft, and the water it is cut off by.
+   *
+   * The lesson `smokehouse` and `chapel` both wrote down, applied before the
+   * fact rather than after it: this hut is 3.8 m long and it stands 66 m out
+   * from the island's middle, so at the tour's default frame it is two pixels of
+   * turf against open water and at `near` it is off the edge entirely.
+   *
+   * `croft` reads the building — the boarded walls, the stone flue, the oars
+   * against the blind gable. `croft-reach` pulls back far enough to hold the
+   * hut, the harbour it is worked from and the water between them in one frame,
+   * which is the claim the siting actually makes and the only way to see whether
+   * the search picked a short row or the prettiest rock. `croft-evening` is the
+   * hut after dark: the silhouette, the plume standing over it, and whichever of
+   * its two panes the occupancy roll has lit. It is deliberately the *evening*
+   * rather than the tour's small hours, for `yard-evening`'s reason — a
+   * household that turned in hours ago has its lamps banked, and a pose that
+   * only ever saw them banked cannot tell a lit window from an unglazed one.
+   *
+   * Whether either pane is lit is a roll rather than a promise. At the default
+   * seed both of the croft's come up dark, which is a hut whose people are
+   * ashore — the same answer `windows.occupancy` gives four windows in ten
+   * everywhere else in the archipelago, and not a thing to tune a weight
+   * around.
+   */
+  croft: [
+    { name: 'croft', zoom: 26, set: [ 'camera.focusX=-66.2', 'camera.focusZ=-37' ]},
+    { name: 'croft-reach', zoom: 110, set: [ 'camera.focusX=-40', 'camera.focusZ=-33' ]},
+    {
+      // Nine in the evening in late autumn, which is `window-evening`'s hour and
+      // for its reason: the sun runs a seasonal arc, so an unqualified late hour
+      // in the default midsummer year photographs broad daylight.
+      name:   'croft-evening',
+      zoom:   24,
+      time:   0.875,
+      season: 0.78,
+      set:    [ 'camera.focusX=-66.2', 'camera.focusZ=-37' ],
+    },
+  ],
+
+  /**
    * One farmhouse wall, from close enough to see a window as a window.
    *
    * The sixth set added for the reason the first five were, and the smallest
@@ -901,6 +941,7 @@ async function main (): Promise<void> {
       '                        guard (4, the rocks in the open sea)',
       '                        chapel (4, the church and its yard)',
       '                        smokehouse (3, the hut above the harbour)',
+      '                        croft (3, the holding out on the islets)',
       '                        shallows (4, the light on the bottom)',
       '                        beck (4, the water in the channel)',
       '                        tide (3, the sea at both ends of its swing)',

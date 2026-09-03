@@ -88,10 +88,11 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a limewashed chapel on a knoll above the farm — a bell tower with an open belfry and a spire, a stepped chancel, and a walled churchyard with twelve leaning markers in it
 - juniper bushes out on the dry upland heath — a low, spreading evergreen that reads apart from the conifers and answers to the same one wind
 - a lighthouse on the outermost rock of the ring, throwing beams that sweep the water from dusk until dawn
+- a croft out on the islets — a boarded, turf-roofed hut with a stone flue and a pair of oars against its blind gable, on the nearest free rock to the harbour it is worked from, glazed on two walls and smoking
 - sheep on the rough grazing outside every farm: two flocks to a farm, sited by a search out from the yard, feeding on the open ground between the crop plots and the moor — and outside the hay meadow's wall, which is what the wall is for
 - gull colonies wheeling over every harbour mouth and over the outer rock, banking into the turn, down at night and mostly down in a squall
 - wood smoke standing over every farmhouse chimney and sauna flue in the archipelago, leaning on the same one wind as the grass and banked harder the colder the week
-- lamplight in ninety-three windows: sixty-five farmstead panes lit at dusk, banked to a stove glow once the household turns in, and back up before dawn — the chapels' twenty-eight burning fainter, because nobody sleeps in one — while the lighthouse burns straight through, because a lighthouse is a machine and a farm is not
+- lamplight in ninety-five windows: sixty-five farmstead panes lit at dusk, banked to a stove glow once the household turns in, and back up before dawn — the chapels' twenty-eight burning fainter, because nobody sleeps in one, and the croft's two out on the rock taking the same occupancy roll as the rest — while the lighthouse burns straight through, because a lighthouse is a machine and a farm is not
 - a beck traced downhill from a spring, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself — with water standing in it, lying flat across the channel, falling with the ground, breaking white where the hill drops, and freezing later than the sea it runs into
 - a tarn on the high ground of every island whose spare upland is flat enough to hold one — sited by a search for the least tilted acre the farm has not already claimed, standing at the lowest point of its own rim, edged with reeds, and locking into ice weeks before the sound below it does
 - showers standing out on the open water, crossing the archipelago from upwind ahead of the front that will reach the farm shortly after — read off the same clock the fall is, one lead ahead of it, and cut off at every coastline by the land it cannot rain on
@@ -237,6 +238,7 @@ src/
     │   ├── fixtures.ts            carrying a point out of a raised building's own frame
     │   ├── chapel.ts               the knoll a chapel would stand on, and the yaw its door is turned by
     │   ├── smokehouse.ts           the patch of bank above the harbour the smokehouse is built on
+    │   ├── croft.ts                the free islet the croft is built on, and the row home that picked it
     │   ├── mill.ts                 the exposed shoulder a windmill would stand on
     │   ├── mill-sails.ts           every mill's wheel, turning in one instanced draw
     │   ├── waterway.ts             the navigable water between the ports
@@ -273,6 +275,7 @@ src/
         ├── beacon.ts               the lighthouse tower, and the optic that turns in it
         ├── shore.ts                boathouse and slipway, net rack, mooring stakes
         ├── smokehouse.ts           the smokehouse — log walls, turf roof, ridge cowl
+        ├── croft.ts                the croft — boarded walls, turf roof, stone flue, oars at the gable
         ├── objects.ts              rowboat, bales, firewood, barrel, mailbox, driftwood
         ├── stone.ts                erratics, field stones, cobbles, cairns
         ├── littoral.ts             bladderwrack and rock lichen — the tidal band
@@ -807,6 +810,24 @@ which pins mobile, still reads `same` on all six poses. no new pass, no new geom
 
 **while the sun is up the system is not drawn at all**, rather than drawn at zero opacity: a transparent mesh still costs a sorted draw, and the beams are most of a hundred metres of fill. `quality.beaconBlades` is the tier's answer and 0 is a graceful absence — the lantern still glows, it simply throws nothing, which is a fixed harbour lamp rather than a broken sweeping one. `beacon.turn` is turns per minute and 0 stops the sweep where it stands, which is what puts it in `STILL` and lets a capture be taken twice the same way.
 
+## the croft on the outer isle
+
+on the nearest rock to the harbour that the light is not already standing on, somebody lives. the croft is a boarded, tarred hut on a course of dry-laid stone, roofed in turf like the smokehouse, with a stone flue standing through the ridge, two small windows and a pair of oars leaned against its blind gable. the geometry is [`props/croft.ts`](src/scene/props/croft.ts), where it stands is [`landscape/croft.ts`](src/scene/landscape/croft.ts), and both the plume and the lamplight are the systems that already existed.
+
+**it is the first building in the archipelago that is not on an island.** everything built before it answers to a steading: the five farmstead buildings are arranged around the yard, the smokehouse to the harbour behind it, the chapel to a knoll within walking distance, the mill to a shoulder with wind on it. the croft answers to the *fishing*, which is offshore — so it stands out in the ring with no path to it, reached the way the seamark is, by boat. nothing ashore is routed to it and it is handed to nothing as an obstacle, for exactly the reason the lighthouse is not.
+
+**the two offshore searches want opposite things out of the same list of rocks, which is why they are two searches.** `beacon.ts` scores *reach*: a light goes on the last thing a boat passes, so further out is better and nothing else counts. a croft is somewhere you row home from in the dark, so what it scores is the shortness of that row — measured from the harbour bank rather than from the island's centre — and the rock the light is already on is struck off the list before anything is measured. their two footings do not both fit on anything in this ring, and a tower and a hut on one rock is a hamlet.
+
+**every candidate islet is searched, not only the nearest one.** the obvious shape — pick the closest qualifying rock, then look for ground on it — loses the croft entirely whenever that rock happens to be a dome with no flat on it, which is most of them. so the row home is a *term in the score* rather than a gate, and the sweep runs over the crown of every islet that clears `croft.minIsle`. only the inner 42% of a radius is walked: an islet is a dome with a warped coast, so its outer third is the part that shelves into the water, and a hut sited there fails the freeboard test on most seeds and stands on a lucky ledge on the rest.
+
+**it is merged rather than plopped, and that is what made `mergedFloor` necessary.** an islet is a dome a few metres across; a plopped foundation would cut a shelf into most of one. so the croft is baked into the same merged settlement draw as the mill and the lighthouse, translated once to `heightAt(x, z)` less its own sink — and its own 0.32 m of dry-laid stone takes up the fall the site search already refused to exceed, which is why `croft.freeboard` is stricter than the smokehouse's and the fall it tolerates is looser than nothing.
+
+that difference is not cosmetic. [`fixtures.ts`](src/scene/landscape/fixtures.ts) had exactly one rule for where a building's `y = 0` ended up — the *highest* ground under its footprint, less a plop sink — because until now every building carrying a chimney or a pane was plopped. a merged building on a shelving rock sits at the ground under its origin instead, and the two answers differ by the whole fall across the site. left on the default, the croft's flue and both its windows would hang a third of a metre off the building they belong to. `floorUnder` and `mergedFloor` are now the two rules, named as two rules.
+
+**it is glazed on two different walls on purpose.** the camera is a fixed dimetric heading the reader can spin, so a hut with glass in one wall shows a blank end from half of them — and this is the only glass in the archipelago that is not part of a farm or a chapel. whether a lamp is burning behind either pane is the same occupancy roll every other window takes, and at the default seed both of the croft's come up dark: a hut whose people are ashore, not a weight to retune. one pane beside the door, one in the seaward gable, and `props/timber.test.ts` states for this building what it states for the other four: at the middle of every published pane, the outermost surface of the geometry is its glass. the oars are stood against the *chimney* gable rather than the glazed one for that reason and no other.
+
+**`null` is an answer, the way it is for the mill, the chapel and the smokehouse.** only the home island has a ring of islets at all — `terrain.isles` is empty on the other four — so four of the five landmasses have no croft and that is the ordinary outcome rather than the exceptional one. raising `croft.minIsle` past the largest free rock is the supported way to take it back out of the scape; there is no separate switch, for the same reason nothing else here has one. `scape:map --stats` reports the rock, its freeboard and the row home, or says which of those it could not find, and stamps it `C`.
+
 ## the boat harbour
 
 a boathouse stands in the next cove along from the landing, a net rack dries gear on the bank behind it, and stakes are driven into the shallows off both.
@@ -839,7 +860,7 @@ over every harbour mouth in the archipelago, and over the rock the light stands 
 
 ## the smoke over the farmsteads
 
-every holding in the archipelago keeps three fires — the farmhouse's brick chimney, the sauna's iron flue and the cowl on the smokehouse down at the harbour — and every one of them smokes. the third is conditional where the other two are not, and that is a fact about the ground rather than about the building: a harbour with no dry bank behind it has no smokehouse to smoke. where the stacks stand is [`landscape/hearths.ts`](src/scene/landscape/hearths.ts); the plume that rises out of them is [`scene/hearth.ts`](src/scene/hearth.ts).
+every holding in the archipelago keeps three fires — the farmhouse's brick chimney, the sauna's iron flue and the cowl on the smokehouse down at the harbour — and the home island keeps a fourth, the croft's stone flue out on the islets. every one of them smokes. the last two are conditional where the first two are not, and that is a fact about the ground rather than about the buildings: a harbour with no dry bank behind it has no smokehouse to smoke, and a ring with no free rock in it has nobody living out there. where the stacks stand is [`landscape/hearths.ts`](src/scene/landscape/hearths.ts); the plume that rises out of them is [`scene/hearth.ts`](src/scene/hearth.ts).
 
 **the mouth is the prop's own answer, not a second copy of it.** `FARMHOUSE_CHIMNEY` and `SAUNA_FLUE` are exported from [`props/buildings.ts`](src/scene/props/buildings.ts) and the masonry is placed *from* them — the cap course sits at `mouth.y - thickness/2` rather than beside a repeated `-2.6`. the same seam the lantern hubs and the mill's wheels are on, and for the same reason: two numbers for where a chimney is, is a plume hanging beside its own brick the first time either moves.
 

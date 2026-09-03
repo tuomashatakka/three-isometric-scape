@@ -61,17 +61,50 @@ export function floorUnder (field: HeightField, place: Standing, x: number, z: n
 }
 
 /**
+ * The floor a **merged** building was translated to.
+ *
+ * The counterpart of {@link floorUnder}, and the reason both exist. A plopped
+ * building resolves its own floor from its footprint and grows a foundation down
+ * onto whatever is under it, so the height that matters is the *highest* ground
+ * it covers. A merged one is baked at build time and translated once — see
+ * `placeHero` in `dressing.ts` — so the height that matters is the ground under
+ * its origin and nothing else. Two rules, and a fixture that took the wrong one
+ * is a chimney or a window hanging off the building it belongs to.
+ */
+export function mergedFloor (
+  field:  HeightField,
+  place:  Vec2,
+  origin: Vec2,
+  sink:   number,
+): number {
+  return field.heightAt(place.x + origin.x, place.z + origin.z) - sink
+}
+
+/**
  * One feature of a raised building, in world metres.
  *
  * The rotation is the same `rotateY` the building is raised with: it takes local
  * `+z` to `(sin θ, cos θ)` and local `+x` to `(cos θ, -sin θ)`, which is the
  * convention `steading.ts` faces every door by.
+ *
+ * @param floor The height the building's own `y = 0` ended up at, when the
+ *   caller already knows it. Defaulted to the plopped answer — the highest
+ *   ground under the footprint, less {@link PLOP_SINK} — because that is what
+ *   every building in the yard is raised by.
+ *
+ *   A **merged** building is not raised that way and has to say so. `dressing.ts`
+ *   translates one straight to `heightAt(x, z)` less its own sink, so the floor
+ *   is the ground under the origin rather than under the high corner, and the
+ *   two answers differ by the whole fall across the site. Left to default, a
+ *   croft on a shelving islet gets its chimney and its windows lifted a third of
+ *   a metre off the building they belong to.
  */
 export function fixtureAt (
   field:  HeightField,
   place:  Standing,
   local:  LocalPoint,
   origin: Vec2,
+  floor?: number,
 ): LocalPoint {
   const cos = Math.cos(place.angle)
   const sin = Math.sin(place.angle)
@@ -80,7 +113,7 @@ export function fixtureAt (
 
   return {
     x: x + local.x * cos + local.z * sin,
-    y: floorUnder(field, place, x, z) - PLOP_SINK + local.y,
+    y: (floor ?? floorUnder(field, place, x, z) - PLOP_SINK) + local.y,
     z: z - local.x * sin + local.z * cos,
   }
 }

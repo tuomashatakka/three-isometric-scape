@@ -11,11 +11,13 @@ import type { ScapeMaterials } from '../props/material.ts'
 import { Ploppable, baseFootprint } from '../props/ploppable.ts'
 import type { Footprint } from '../props/ploppable.ts'
 import { BEACON_SINK } from '../props/beacon.ts'
+import { CROFT_SINK } from '../props/croft.ts'
 import { MILL_SINK } from '../props/mill.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import type { TiltWeight } from './align.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from './archipelago.ts'
 import { BEACON_FOOTING } from './beacon.ts'
+import { CROFT_FOOTING } from './croft.ts'
 import { BOATHOUSE_CLEARING, NET_RACK_CLEARING, boathouseSpot, netRackSpot } from './landing.ts'
 import type { Spot } from './landing.ts'
 import { createGroundContact, findCrossing, isFoliage, trackPointNear } from './dressing-helpers.ts'
@@ -516,6 +518,20 @@ export function createDressing (
 
       placeHero('lighthouse', beaconX, beaconZ, yawAlong(survey.beacon.bearing), BEACON_SINK)
       solver.reserve(beaconX, beaconZ, BEACON_FOOTING + 1.2)
+    }
+
+    // The croft, on whichever rock the survey found the shortest row to. Merged
+    // like the light beside it and for the same reason: an islet is a dome a few
+    // metres across, and a plopped foundation would cut a shelf into most of it.
+    // Its own socle takes up the fall the site search already refused to exceed.
+    // The angle is the site's own — a `Standing`, aimed at the harbour by
+    // `faceToward`, so it needs no `yawAlong`.
+    if (survey.croft) {
+      const croftX = survey.croft.x + ox
+      const croftZ = survey.croft.z + oz
+
+      placeHero('croft', croftX, croftZ, survey.croft.angle, CROFT_SINK)
+      solver.reserve(croftX, croftZ, CROFT_FOOTING + 1)
     }
 
     // A bridge only earns its place where the track has something to cross.

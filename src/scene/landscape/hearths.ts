@@ -1,9 +1,10 @@
 import type { HearthStack } from '../hearth.ts'
 import { FARMHOUSE_CHIMNEY, SAUNA_FLUE } from '../props/buildings.ts'
 import type { StackMouth } from '../props/buildings.ts'
+import { CROFT_SINK, CROFT_VENT } from '../props/croft.ts'
 import { SMOKEHOUSE_VENT } from '../props/smokehouse.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
-import { fixtureAt } from './fixtures.ts'
+import { fixtureAt, mergedFloor } from './fixtures.ts'
 import type { HeightField } from './height.ts'
 import type { Vec2 } from './path.ts'
 import type { Standing } from './steading.ts'
@@ -17,15 +18,16 @@ import type { Standing } from './steading.ts'
  * plume that rises out of these lives in `scene/hearth.ts`, and neither of them
  * has to know how the other works.
  *
- * Three stacks a holding — the farmhouse's brick chimney, the sauna's iron flue
- * and the ridge cowl on the smokehouse down at the harbour — because those are
- * the three buildings in the kit that were modelled with one. The barn, the
- * aitta and the woodshed have no fire in them, and giving them a plume apiece
- * would be smoke coming out of a hay loft.
+ * Four stacks a holding — the farmhouse's brick chimney, the sauna's iron flue,
+ * the ridge cowl on the smokehouse down at the harbour and the croft's stone
+ * flue out on the islets — because those are the four buildings in the kit that
+ * were modelled with one. The barn, the aitta and the woodshed have no fire in
+ * them, and giving them a plume apiece would be smoke coming out of a hay loft.
  *
- * The smokehouse's is conditional where the other two are not, and that is a
- * fact about the ground rather than about the building: a harbour with no dry
- * bank behind it has no smokehouse to smoke.
+ * The last two are conditional where the first two are not, and that is a fact
+ * about the ground rather than about the buildings: a harbour with no dry bank
+ * behind it has no smokehouse to smoke, and a ring with no free islet in it has
+ * nobody living out there.
  *
  * The transform out of the prop's frame is [`fixtures.ts`](fixtures.ts), shared
  * with the lamplight in the windows of the same two buildings.
@@ -43,8 +45,9 @@ export function stackAt (
   place:  Standing,
   mouth:  StackMouth,
   origin: Vec2,
+  floor?: number,
 ): HearthStack {
-  return fixtureAt(field, place, mouth, origin)
+  return fixtureAt(field, place, mouth, origin, floor)
 }
 
 /** Every chimney and flue in the archipelago, at the mouth and in world space. */
@@ -52,12 +55,20 @@ export function surveyHearths (archipelago: ArchipelagoSurvey): HearthStack[] {
   const { field } = archipelago
 
   return archipelago.landmasses.flatMap(landmass => {
-    const { places, smokehouse } = landmass.survey
+    const { croft, places, smokehouse } = landmass.survey
 
     return [
       stackAt(field, places.farmhouse, FARMHOUSE_CHIMNEY, landmass.origin),
       stackAt(field, places.sauna, SAUNA_FLUE, landmass.origin),
       ...smokehouse ? [ stackAt(field, smokehouse, SMOKEHOUSE_VENT, landmass.origin) ] : [],
+      // The croft is merged rather than plopped, so it names the floor it was
+      // actually translated to instead of taking the plopped default.
+      ...croft
+        ? [ stackAt(
+          field, croft, CROFT_VENT, landmass.origin,
+          mergedFloor(field, croft, landmass.origin, CROFT_SINK),
+        ) ]
+        : [],
     ]
   })
 }
