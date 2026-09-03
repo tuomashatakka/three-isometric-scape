@@ -53,6 +53,7 @@ mill (35.9,-8.1) prominence 6.85m
 chapel (26.8,15.1) prominence 1.56m  46.6m from the yard
 smokehouse (-8.5,-10.3) 18m up the bank
 beacon (60.9,39.3) isle 5 freeboard 6.69m  reach 74.7m
+croft (-66.2,-37) isle 10  freeboard 3.95m  53.9m from the harbour
 steading  farmhouse(-8,3) barn(-16,-14) aitta(-27,6) woodshed(-28,-7) sauna(-17,16)
 landing (-26,-17)  harbour (-13,-28)
 landmasses 5
@@ -136,6 +137,7 @@ mill (35.9,-8.1) prominence 6.85m
 chapel (26.8,15.1) prominence 1.56m  46.6m from the yard
 smokehouse (-8.5,-10.3) 18m up the bank
 beacon (60.9,39.3) isle 5 freeboard 6.69m  reach 74.7m
+croft (-66.2,-37) isle 10  freeboard 3.95m  53.9m from the harbour
 steading  farmhouse(-8,3) barn(-16,-14) aitta(-27,6) woodshed(-28,-7) sauna(-17,16)
 landing (-26,-17)  harbour (-13,-28)
 landmasses 5
@@ -218,6 +220,7 @@ bun run scape:shot --poses grazing                  # the flocks on the rough gr
 bun run scape:shot --poses shallows                 # the light on the bottom, 4 frames
 bun run scape:shot --poses beck                     # the water in the channel, 4 frames
 bun run scape:shot --poses smokehouse               # the hut above the harbour, 3 frames
+bun run scape:shot --poses croft                    # the holding out on the islets, 3 frames
 bun run scape:shot --poses tide                     # the sea at both ends of its swing, 3 frames
 bun run scape:shot --poses fjord                    # the drowned valley in the sound, 4 frames
 bun run scape:shot --poses aspect                   # two sides of one hill, 4 frames
@@ -367,6 +370,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `structures.ts` | jetty, well, hay rack, gate, bridge, cart |
 | `shore.ts` | boathouse and slipway, net rack, mooring stakes |
 | `smokehouse.ts` | the smokehouse — log walls, turf roof, ridge cowl, and `SMOKEHOUSE_VENT` |
+| `croft.ts` | the croft — boarded walls, turf roof, stone flue, oars at the blind gable, and `CROFT_VENT` / `CROFT_WINDOWS` / `CROFT_SINK` |
 | `upland.ts` | meadow barn, hay drying poles |
 | `chapel.ts` | the chapel — nave, stepped chancel, open belfry, spire — and the grave markers. **fronted on `-x`, not `+z`** |
 | `mill.ts` | the post mill and its trestle, plus the sail wheel — **the one geometry not based at `y = 0`** |
@@ -404,9 +408,10 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `grazing.ts` | the rough ground each farm turns stock out onto, and the one predicate that both sites a flock and accepts a sheep |
 | `hearths.ts` | every chimney, flue and ridge cowl in the archipelago, carried from the prop's own frame out to the mouth |
 | `windows.ts` | every glazed pane, carried out the same way and turned to its wall's outward bearing |
-| `fixtures.ts` | the transform both of those share: a point in a raised building's own frame, in world metres |
+| `fixtures.ts` | the transform both of those share: a point in a raised building's own frame, in world metres — plus the two floor rules, `floorUnder` for a plopped building and `mergedFloor` for a merged one |
 | `chapel.ts` | the knoll a chapel stands on, its doorstep, and `chapelYaw` — the one yaw `yawAlong` cannot give |
 | `smokehouse.ts` | the patch of bank above the harbour a smokehouse is built on |
+| `croft.ts` | the free islet a croft is built on — scored on the row home from the harbour, and never the rock the light is already on |
 | `mill.ts` | the exposed shoulder a windmill stands on, and the doorstep at the foot of its stair |
 | `mill-sails.ts` | every mill's wheel in one dynamic `InstancedMesh`, geared off `wind.strength` |
 | `terrain.ts` | shared archipelago geometry, height/slope banded colour, path wear painted in |

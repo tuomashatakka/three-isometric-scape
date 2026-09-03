@@ -969,6 +969,47 @@ export interface ScapeConfig {
   }
 
   /**
+   * The croft out on the islets — the one holding that is not on the island.
+   *
+   * All three are read once, at build time, and none of them belong in the
+   * overlay: moving a building is a rebuild, and a slider that needs one lies
+   * about what a slider does. Every number here is **metres** and stays metres —
+   * a hut is the size a hut is, and `reach` is how far somebody will row rather
+   * than a fraction of a world that has grown twice already.
+   */
+  croft: {
+
+    /**
+     * Metres of islet radius before a rock is big enough to be lived on.
+     *
+     * The switch, and the same shape as `beacon.minRock` seen from the other
+     * end. Raising it past the largest islet the light is not already on takes
+     * the croft back out of the scape.
+     */
+    minIsle: number
+
+    /**
+     * Metres of dry rock the sill needs under it, at the middle and at all four
+     * corners of the walls.
+     *
+     * Higher than the smokehouse asks for, and a fact about the site rather than
+     * about caution: a bank behind a harbour is sheltered, and an islet in open
+     * water takes the whole of the swell that `water.surf` breaks on it.
+     */
+    freeboard: number
+
+    /**
+     * Furthest from the harbour the search will row, in metres.
+     *
+     * A croft is worked from the home harbour, so past this the rock is somewhere
+     * a boat visits rather than somewhere anybody lives on. It bounds which
+     * islets are candidates; which of them wins is the score in
+     * `landscape/croft.ts`.
+     */
+    reach: number
+  }
+
+  /**
    * The seamark on the outer rock, and the light it turns.
    *
    * Split the way `mill` is: the first two decide which islet the tower is built
@@ -2294,6 +2335,19 @@ export const SCAPE_CONFIG = {
     setback:   5,
     reach:     18,
     freeboard: 0.6,
+  },
+
+  // Sized against the ring the home island actually has. Its islets run from
+  // 2.5 m of skerry up to 8.6 m, the light is already on the largest, and 5.5
+  // leaves the four next-biggest as candidates rather than one — which is what
+  // keeps the answer a search instead of a hard-coded rock. 0.9 m of freeboard
+  // is half a metre more than the swell reaches up a shelving crown, and 80 m
+  // of reach is the width of the water between the home harbour and the near
+  // clusters: past that the boats are on the ferry route, not going home.
+  croft: {
+    minIsle:   5.5,
+    freeboard: 0.9,
+    reach:     80,
   },
   beacon: {
     minRock:   6,

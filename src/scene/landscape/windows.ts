@@ -1,10 +1,11 @@
 import { BARN_WINDOWS, FARMHOUSE_WINDOWS, SAUNA_WINDOWS } from '../props/buildings.ts'
 import type { WindowPane } from '../props/buildings.ts'
 import { CHAPEL_DWELLING, CHAPEL_WINDOWS } from '../props/chapel.ts'
+import { CROFT_SINK, CROFT_WINDOWS } from '../props/croft.ts'
 import { chapelStanding } from './chapel.ts'
 import type { WindowLight } from '../windows.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
-import { fixtureAt } from './fixtures.ts'
+import { fixtureAt, mergedFloor } from './fixtures.ts'
 import type { HeightField } from './height.ts'
 import type { Vec2 } from './path.ts'
 import type { Standing } from './steading.ts'
@@ -25,6 +26,11 @@ import type { Standing } from './steading.ts'
  * that is not in the yard — it is glazed off its own site rather than off
  * `SteadingPlaces`, through the standing `chapel.ts` resolves for both this and
  * the dressing that raises it.
+ *
+ * The croft is the fifth and the only one that is not on an island at all. It is
+ * also the only glazed building in the kit that is **merged** rather than
+ * plopped, which is why its panes are carried through an explicit floor — see
+ * `mergedFloor` in [`fixtures.ts`](fixtures.ts).
  */
 
 /**
@@ -39,6 +45,13 @@ const DWELLING = {
   farmhouse: 1,
   sauna:     0.55,
   barn:      0.3,
+
+  // Between the house and the sauna, and it is a weight rather than a promise:
+  // somebody sleeps out there in the season and nobody does in the winter. At
+  // the default seed both of the croft's panes roll dark, which is a hut whose
+  // people are ashore — the answer `windows.occupancy` gives four windows in ten
+  // everywhere else, and not a reason to move this number.
+  croft: 0.7,
 } as const
 
 /**
@@ -55,8 +68,9 @@ export function paneAt (
   pane:     WindowPane,
   origin:   Vec2,
   dwelling: number,
+  floor?:   number,
 ): WindowLight {
-  const at = fixtureAt(field, place, pane, origin)
+  const at = fixtureAt(field, place, pane, origin, floor)
 
   // The wall's own bearing before the pane's side of it is applied. A gable is
   // the long wall turned a quarter circle, which falls straight out of the
@@ -82,7 +96,7 @@ export function surveyWindows (archipelago: ArchipelagoSurvey): WindowLight[] {
   const { field } = archipelago
 
   return archipelago.landmasses.flatMap(landmass => {
-    const { places } = landmass.survey
+    const { croft, places } = landmass.survey
 
     const { chapel } = landmass.survey.layout
 
@@ -95,11 +109,19 @@ export function surveyWindows (archipelago: ArchipelagoSurvey): WindowLight[] {
         paneAt(field, chapelStanding(chapel, landmass.origin), pane, ORIGIN, CHAPEL_DWELLING))
       : []
 
+    const croftPanes = croft
+      ? CROFT_WINDOWS.map(pane => paneAt(
+        field, croft, pane, landmass.origin, DWELLING.croft,
+        mergedFloor(field, croft, landmass.origin, CROFT_SINK),
+      ))
+      : []
+
     return [
       ...FARMHOUSE_WINDOWS.map(pane => paneAt(field, places.farmhouse, pane, landmass.origin, DWELLING.farmhouse)),
       ...SAUNA_WINDOWS.map(pane => paneAt(field, places.sauna, pane, landmass.origin, DWELLING.sauna)),
       ...BARN_WINDOWS.map(pane => paneAt(field, places.barn, pane, landmass.origin, DWELLING.barn)),
       ...chapelPanes,
+      ...croftPanes,
     ]
   })
 }

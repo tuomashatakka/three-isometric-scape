@@ -11,6 +11,7 @@ import {
 } from './buildings.ts'
 import type { WindowPane } from './buildings.ts'
 import { CHAPEL_WINDOWS, buildChapel } from './chapel.ts'
+import { CROFT_WINDOWS, buildCroft } from './croft.ts'
 import { resolvePalette } from './palette.ts'
 import {
   WINDOW_FRAME_PROUD,
@@ -250,6 +251,7 @@ describe('a window is a hole with glass in it', () => {
     [ 'barn', buildBarn, BARN_WINDOWS ],
     [ 'sauna', buildSauna, SAUNA_WINDOWS ],
     [ 'chapel', buildChapel, CHAPEL_WINDOWS ],
+    [ 'croft', buildCroft, CROFT_WINDOWS ],
   ] as const
 
   test.each(glazed)('%s: every pane is glass the eye can reach', (_name, build, panes) => {

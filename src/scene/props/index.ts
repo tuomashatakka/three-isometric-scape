@@ -3,6 +3,7 @@ import type { SeededRng } from 'threejs-scene'
 import { buildLighthouse } from './beacon.ts'
 import { buildAitta, buildBarn, buildFarmhouse, buildSauna, buildWoodshed } from './buildings.ts'
 import { buildChapel, buildGraveMarker } from './chapel.ts'
+import { buildCroft } from './croft.ts'
 import { buildWindmill } from './mill.ts'
 import { buildBladderwrack, buildRockLichen } from './littoral.ts'
 import { buildLamb, buildSheep } from './livestock.ts'
@@ -63,6 +64,7 @@ export const PROPS = {
   chapel:      buildChapel,
   graveMarker: buildGraveMarker,
   smokehouse:  buildSmokehouse,
+  croft:       buildCroft,
 
   jetty:     buildJetty,
   boathouse: buildBoathouse,
@@ -116,7 +118,7 @@ export type PropName = keyof typeof PROPS
 /** Placed once, by hand, then merged into the steading draw. */
 export const HERO_PROPS = [
   'barn', 'farmhouse', 'sauna', 'aitta', 'woodshed', 'meadowBarn', 'windmill', 'lighthouse',
-  'chapel', 'graveMarker', 'smokehouse',
+  'chapel', 'graveMarker', 'smokehouse', 'croft',
   'jetty', 'boathouse', 'netRack', 'well', 'hayRack', 'logPile', 'flagpole',
   'bridge', 'cart', 'gate', 'rowboat', 'mailbox',
 ] as const satisfies readonly PropName[]

@@ -14,6 +14,7 @@ import { surveyHearths } from '../src/scene/landscape/hearths.ts'
 import { surveyWindows } from '../src/scene/landscape/windows.ts'
 import { distanceToTrack } from '../src/scene/landscape/layout.ts'
 import { createPathQuery, pathLength } from '../src/scene/landscape/path.ts'
+import type { CroftSite } from '../src/scene/landscape/croft.ts'
 import type { SmokehouseSite } from '../src/scene/landscape/smokehouse.ts'
 import { STEADING_BUILDINGS } from '../src/scene/landscape/steading.ts'
 import { sampleWaterway } from '../src/scene/landscape/waterway.ts'
@@ -43,7 +44,7 @@ export const LEGEND =
   '~ deep  - shallow  . shore  : low  = mid  + upper  * high  # peak\n' +
   ', footpath  ≡ track  · waterway  b boat  s beck  ≈ tarn  ' +
   'F/B/A/W/S steading  o well  J jetty  H harbour  V smokehouse  ' +
-  'W mill  K chapel  L light  p plot  ^ ridge'
+  'W mill  K chapel  L light  C croft  p plot  ^ ridge'
 
 export interface Layers {
   height:    boolean
@@ -146,6 +147,7 @@ interface CompositionStats {
    */
   smokehouse: { x: number, z: number, fromBank: number } | null
   beacon:     { x: number, z: number, freeboard: number, reach: number, isle: number } | null
+  croft:      { x: number, z: number, freeboard: number, isle: number, fromHarbour: number } | null
   plots:      number
   ridges:     number
   isles:      { total: number, surfacing: number }
@@ -411,6 +413,27 @@ function smokehouseOf (
 }
 
 /**
+ * The hut on the outer rock, as the stats line reports it.
+ *
+ * Its own function beside `smokehouseOf` and for exactly the same reason: the
+ * record is a projection plus two measurements, and a fifth null-guarded block
+ * inside `compositionStats` is one the lint config's complexity ceiling refuses.
+ */
+function croftOf (
+  site:   CroftSite | null,
+  worldX: (x: number) => number,
+  worldZ: (z: number) => number,
+): CompositionStats['croft'] {
+  return site && {
+    x:           round(worldX(site.x)),
+    z:           round(worldZ(site.z)),
+    freeboard:   round(site.freeboard, 2),
+    isle:        site.isle,
+    fromHarbour: round(site.fromHarbour),
+  }
+}
+
+/**
  * The pool, in world metres, and how much water is actually in it.
  *
  * Its own function beside `beaconOf` and `smokehouseOf` for the reason those
@@ -532,6 +555,7 @@ function compositionStats (landmass: LandmassSurvey, w: number, h: number): Comp
       fromYard:   round(layout.chapel.fromYard),
     },
     smokehouse: smokehouseOf(survey.smokehouse, worldX, worldZ),
+    croft:      croftOf(survey.croft, worldX, worldZ),
     beacon:     survey.beacon && {
       x:         round(worldX(survey.beacon.x)),
       z:         round(worldZ(survey.beacon.z)),
@@ -684,6 +708,12 @@ export function surveyStats (
  * laid down, then the things that stand on it. A building is never hidden by a
  * path, because a path that ran under a barn would be the bug worth seeing.
  */
+/** Anything the grid stamps by position alone. */
+interface MapPoint {
+  x: number
+  z: number
+}
+
 export function renderGrid (
   config:       ScapeConfig,
   archipelago:  ArchipelagoSurvey,
@@ -805,9 +835,9 @@ export function renderGrid (
 
   if (layers.buildings)
     for (const landmass of archipelago.landmasses) {
-      const { layout, places, landing, harbour, beacon, smokehouse } = landmass.survey
-      const worldX                                                   = (x: number): number => x + landmass.origin.x
-      const worldZ                                                   = (z: number): number => z + landmass.origin.z
+      const { layout, places, landing, harbour, beacon, croft, smokehouse } = landmass.survey
+      const worldX                                                          = (x: number): number => x + landmass.origin.x
+      const worldZ                                                          = (z: number): number => z + landmass.origin.z
 
       for (const ridge of layout.ridges)
         stamp(worldX(ridge.x), worldZ(ridge.z), '^')
@@ -820,23 +850,24 @@ export function renderGrid (
 
       stamp(worldX(places.well.x), worldZ(places.well.z), 'o')
 
-      if (layout.mill)
-        stamp(worldX(layout.mill.x), worldZ(layout.mill.z), 'W')
+      // Every place the survey is allowed to come back with nothing for, as a
+      // table rather than as seven guards. The croft is the seventh, and seven
+      // `if`s in a row is what took this function past the complexity ceiling —
+      // which the lint config is right about: the branches were never the
+      // interesting part, the glyphs are.
+      const sited: [ MapPoint | null, string ][] = [
+        [ layout.mill, 'W' ],
+        [ layout.chapel, 'K' ],
+        [ smokehouse, 'V' ],
+        [ beacon, 'L' ],
+        [ croft, 'C' ],
+        [ landing, 'J' ],
+        [ harbour, 'H' ],
+      ]
 
-      if (layout.chapel)
-        stamp(worldX(layout.chapel.x), worldZ(layout.chapel.z), 'K')
-
-      if (smokehouse)
-        stamp(worldX(smokehouse.x), worldZ(smokehouse.z), 'V')
-
-      if (beacon)
-        stamp(worldX(beacon.x), worldZ(beacon.z), 'L')
-
-      if (landing)
-        stamp(worldX(landing.x), worldZ(landing.z), 'J')
-
-      if (harbour)
-        stamp(worldX(harbour.x), worldZ(harbour.z), 'H')
+      for (const [ place, glyph ] of sited)
+        if (place)
+          stamp(worldX(place.x), worldZ(place.z), glyph)
     }
 
   if (layers.boats)

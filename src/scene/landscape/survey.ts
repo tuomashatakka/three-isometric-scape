@@ -3,9 +3,11 @@ import type { ScapeConfig } from '../config.ts'
 import { findBeaconSite } from './beacon.ts'
 import type { BeaconSite } from './beacon.ts'
 import { CHAPEL_FOOTING } from './chapel.ts'
+import { findCroftSite } from './croft.ts'
+import type { CroftSite } from './croft.ts'
 import { createFootpaths } from './footpath.ts'
 import type { Footpaths, Obstacle } from './footpath.ts'
-import { createHeightField } from './height.ts'
+import { createHeightField, resolveIsles } from './height.ts'
 import type { HeightField } from './height.ts'
 import { BOATHOUSE_FOOTING, NET_RACK_FOOTING, boathouseSpot, findHarbourBank, findLanding, netRackSpot } from './landing.ts'
 import type { Spot } from './landing.ts'
@@ -43,6 +45,9 @@ export interface ScapeSurvey {
 
   /** The outer rock the light stands on, or `null` on an island with no rocks. */
   beacon: BeaconSite | null
+
+  /** The rock the croft is on, or `null` when nothing in the ring is free and level. */
+  croft: CroftSite | null
 
   /** The bank above the harbour the smokehouse stands on, or `null` if none is dry. */
   smokehouse: SmokehouseSite | null
@@ -88,6 +93,26 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
   // ashore nor is moved by it. Nothing is routed to it — a seamark is reached by
   // boat — which is why it stays out of `avoid` and out of the network below.
   const beacon = findBeaconSite(config, field)
+
+  // The other building out on the rocks, and sited after the light because it is
+  // sited *around* it: the ring is small enough that the largest islet is often
+  // the only one either search would want, and a hut on the seamark's rock would
+  // stand inside its storm boulders. Anchored on the harbour rather than on the
+  // island's centre — a croft answers to the boats, and so does the walk from the
+  // one that carried you there. Nothing ashore is routed to it for the reason
+  // nothing is routed to the light.
+  const croft = harbour && findCroftSite(
+    {
+      ground:     field.heightAt,
+      waterLevel: config.terrain.waterLevel,
+      freeboard:  config.croft.freeboard,
+      minIsle:    config.croft.minIsle,
+      reach:      config.croft.reach,
+    },
+    resolveIsles(config),
+    harbour,
+    beacon?.isle ?? null,
+  )
 
   // Everything already standing when the smokehouse is sited, and everything a
   // footpath then has to bend round. Resolved before the search rather than
@@ -165,5 +190,5 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
       distanceToTrack(layout, x, z) < layout.track.width * 1.3,
   })
 
-  return { layout, field, places, landing, harbour, beacon, smokehouse, tarn, network, paths }
+  return { layout, field, places, landing, harbour, beacon, croft, smokehouse, tarn, network, paths }
 }

@@ -6,6 +6,7 @@ import { surveyArchipelago } from './landscape/archipelago.ts'
 import { surveyWindows } from './landscape/windows.ts'
 import { BARN_WINDOWS, FARMHOUSE_WINDOWS, SAUNA_WINDOWS } from './props/buildings.ts'
 import { CHAPEL_WINDOWS } from './props/chapel.ts'
+import { CROFT_WINDOWS } from './props/croft.ts'
 import { createWindowLamps, householdWake, isLit, lampLevel } from './windows.ts'
 import { LADDER, atmosphereQuality } from './quality.ts'
 
@@ -18,6 +19,9 @@ const A_HOLDING = FARMHOUSE_WINDOWS.length + SAUNA_WINDOWS.length + BARN_WINDOWS
 /** How many of the five islands the survey found a knoll to put a chapel on. */
 const CHAPELS = survey.landmasses.filter(landmass => landmass.survey.layout.chapel).length
 
+/** And how many found a free islet out in the ring to put a croft on. */
+const CROFTS = survey.landmasses.filter(landmass => landmass.survey.croft).length
+
 /** Enough of a sky for the one path that never reads it. See the absence test. */
 const DAYLIGHT = createDaylight(() => SCAPE_CONFIG).state
 
@@ -28,17 +32,24 @@ function tuned (windows: Partial<ScapeConfig['windows']>): ScapeConfig {
 
 
 describe('where the lamps are', () => {
-  test('is every glazed pane on every holding, and in every chapel', () => {
-    expect(panes.length)
-      .toBe(SCAPE_CONFIG.archipelago.landmasses.length * A_HOLDING + CHAPELS * CHAPEL_WINDOWS.length)
+  test('is every glazed pane on every holding, in every chapel and in every croft', () => {
+    expect(panes.length).toBe(
+      SCAPE_CONFIG.archipelago.landmasses.length * A_HOLDING +
+      CHAPELS * CHAPEL_WINDOWS.length +
+      CROFTS * CROFT_WINDOWS.length,
+    )
     expect(A_HOLDING).toBe(13)
     expect(CHAPEL_WINDOWS.length).toBe(7)
+    expect(CROFT_WINDOWS.length).toBe(2)
 
-    // Not every island carries one — the ridge has no knoll near enough to its
-    // farm — so a count that assumed one per landmass would be wrong on the
-    // seed this scape actually opens at.
-    expect(CHAPELS).toBeGreaterThan(0)
-    expect(CHAPELS).toBeLessThan(SCAPE_CONFIG.archipelago.landmasses.length)
+    // Neither of the two is on every island — the ridge has no knoll near enough
+    // to its farm, and only the home island has a ring of islets at all — so a
+    // count that assumed one per landmass would be wrong on the seed this scape
+    // actually opens at.
+    for (const some of [ CHAPELS, CROFTS ]) {
+      expect(some).toBeGreaterThan(0)
+      expect(some).toBeLessThan(SCAPE_CONFIG.archipelago.landmasses.length)
+    }
   })
 
   /**
