@@ -220,6 +220,17 @@ export interface AtmosphereQuality {
    */
   beckRipples: number
 
+  /**
+   * Sides on the ring of water up on the fell — see `landscape/tarn-water.ts`.
+   *
+   * A polygon count rather than a switch, because the pool is one draw of a
+   * couple of hundred vertices on every tier and there is nothing in it worth
+   * turning off. What a cheap tier gets is a coarser edge against the bank,
+   * which at the distance the pools sit from the camera is a shoreline drawn in
+   * twenty facets rather than fifty-six.
+   */
+  tarnSectors: number
+
   /** Lake plane subdivisions per side. */
   waterSegments: number
 
@@ -283,6 +294,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     detailTaps:      1,
     reliefSteps:     0,
     beckRipples:     0,
+    tarnSectors:     20,
     waterSegments:   24,
     waterSpan:       2.2,
     shoreMask:       384,
@@ -328,6 +340,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     detailTaps:    1,
     reliefSteps:   0,
     beckRipples:   1,
+    tarnSectors:   28,
     waterSegments: 48,
     waterSpan:     3,
     shoreMask:     768,
@@ -371,6 +384,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     detailTaps:      6,
     reliefSteps:     6,
     beckRipples:     2,
+    tarnSectors:     44,
     waterSegments:   96,
     waterSpan:       8,
     shoreMask:       1_024,
@@ -407,6 +421,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     detailTaps:      6,
     reliefSteps:     12,
     beckRipples:     3,
+    tarnSectors:     56,
     waterSegments:   128,
     waterSpan:       8,
     shoreMask:       1_536,

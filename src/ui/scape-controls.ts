@@ -342,6 +342,17 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           1.1,
           [ range('beck.riffle', 'white water', 0, 1.5, 0.01, quality.beckRipples > 0) ],
         ),
+        // Filed under the water for the reason the beck is, and with the same
+        // two-knob restraint: where a pool stands and how deep its basin is cut
+        // are folded into the ground at build time, so what is here is what a
+        // frame can actually change — how much sky the surface gives back, and
+        // how far ahead of the sound it locks.
+        toggled(
+          'the tarns',
+          range('tarn.mirror', 'mirror', 0, 1, 0.01),
+          0.86,
+          [ range('tarn.frost', 'frost, ahead of the sea', 0, 1, 0.01) ],
+        ),
         // Which hour the water is at is the day's and the month's, the same way
         // the surf's heading is the wind's. What is here is how far it swings,
         // how much of that the month takes back, and how late it arrives.

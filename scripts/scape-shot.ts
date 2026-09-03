@@ -470,6 +470,45 @@ export const TOURS: Record<string, Pose[]> = {
   ],
 
   /**
+   * The pool on the home island's shoulder, and one of the far ones.
+   *
+   * Added for the reason `beacon`, `chapel` and `beck` were, and it is the same
+   * reason again: the home tarn is 33 m east of the origin and about twelve
+   * across, so `near` at ten metres is standing in the farmyard with the yard
+   * wall between it and the water, and `default` renders the whole pool in
+   * roughly the area of a full stop.
+   *
+   * `tarn` is the pool itself, close enough to read the depth tint and the reed
+   * bed at its margin. `tarn-far` is the claim about the *composition* — the
+   * water up on the shoulder with the farm below it, which is the frame that
+   * says whether the search put it somewhere a place would have one.
+   * `tarn-winter` is the difference this water has from every other surface in
+   * the scape: it locks weeks ahead of the sound, so it is pinned at a week the
+   * sea is still open — and at noon, because an unqualified midwinter frame at
+   * 68° north is a polar night and a frame with no light in it cannot say
+   * whether the water in it has frozen. `tarn-fell` is the second pool, on the
+   * biggest landmass and turned 45° off the default heading, because a basin
+   * photographed down its own slope is a nick in a hillside.
+   */
+  tarn: [
+    { name: 'tarn', zoom: 40, set: [ 'camera.focusX=33', 'camera.focusZ=3.7' ]},
+    { name: 'tarn-far', zoom: 130, set: [ 'camera.focusX=12', 'camera.focusZ=2' ]},
+    {
+      name:   'tarn-winter',
+      zoom:   40,
+      time:   0.5,
+      season: 0.06,
+      set:    [ 'camera.focusX=33', 'camera.focusZ=3.7' ],
+    },
+    {
+      name: 'tarn-fell',
+      rot:  45,
+      zoom: 60,
+      set:  [ 'camera.focusX=319', 'camera.focusZ=-524' ],
+    },
+  ],
+
+  /**
    * The state of the sea, twice, in the same light.
    *
    * The tenth set, and the first whose subject is a *difference* rather than a

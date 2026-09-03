@@ -35,6 +35,8 @@ import { yawAlong } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
 import { createMillSails } from './mill-sails.ts'
 import type { MillHub, MillSails } from './mill-sails.ts'
+import { createTarnWater } from './tarn-water.ts'
+import type { TarnWater } from './tarn-water.ts'
 import { createArchipelagoTerrain } from './terrain.ts'
 import { createWater } from './water.ts'
 import type { Water } from './water.ts'
@@ -143,6 +145,7 @@ export function createLandscape (
   let sails: MillSails | null          = null
   let water: Water | null              = null
   let beck: Beck | null                = null
+  let tarns: TarnWater | null          = null
 
   /**
    * Every mill's wheel, in world space.
@@ -257,6 +260,14 @@ export function createLandscape (
 
         if (beck)
           root.add(beck.mesh)
+
+        // Same reasoning, one storey up: the pools are read against the ground
+        // as the patch renders it, because that is the surface their banks are
+        // going to occlude them with.
+        tarns = createTarnWater(config, archipelago, quality, quality.terrainSegments)
+
+        if (tarns)
+          root.add(tarns.mesh)
       }
 
       if (!skip.has('dressing')) {
@@ -307,6 +318,7 @@ export function createLandscape (
       sails?.update(frame.delta, wind.strength)
       materials?.update(wind, now, front)
       beck?.update(frame.delta, now)
+      tarns?.update(now)
       water?.update(frame.elapsed, wind, tide, now, front, fleet?.wakeEmitters)
     },
 
@@ -316,6 +328,7 @@ export function createLandscape (
       sails?.dispose()
       water?.dispose()
       beck?.dispose()
+      tarns?.dispose()
 
       if (root) {
         root.removeFromParent()
@@ -335,6 +348,8 @@ export function createLandscape (
       fleet     = null
       sails     = null
       water     = null
+      beck      = null
+      tarns     = null
       materials = null
     },
   })
@@ -355,6 +370,7 @@ export function createLandscape (
   }
 }
 
-// perf: one merged terrain draw, one water draw, one beck draw, one merged settlement draw,
+// perf: one merged terrain draw, one water draw, one beck draw, one tarn draw,
+// one merged settlement draw,
 // one moving fleet draw, one turning sail draw, and one InstancedMesh per
 // scattered prop type.

@@ -18,6 +18,8 @@ import { SMOKEHOUSE_FOOTING, findSmokehouseSite } from './smokehouse.ts'
 import type { SmokehouseSite } from './smokehouse.ts'
 import { STEADING_BUILDINGS, doorstepOf, steadingPlaces } from './steading.ts'
 import type { SteadingPlaces } from './steading.ts'
+import { solveTarn } from './tarn.ts'
+import type { Tarn } from './tarn.ts'
 
 
 /**
@@ -45,6 +47,9 @@ export interface ScapeSurvey {
   /** The bank above the harbour the smokehouse stands on, or `null` if none is dry. */
   smokehouse: SmokehouseSite | null
 
+  /** The pool above the beck's spring, or `null` if no hollow up there holds one. */
+  tarn: Tarn | null
+
   /** The street plan: every place walked to, and every leg planned between them. */
   network: FarmNetwork
   paths:   Footpaths
@@ -66,8 +71,14 @@ export interface ScapeSurvey {
  * about sixteen milliseconds, with no browser anywhere near it.
  */
 export function surveyScape (config: ScapeConfig): ScapeSurvey {
-  const layout             = createScapeLayout(config)
-  const field: HeightField = createHeightField(config, layout)
+  const layout = createScapeLayout(config)
+
+  // The pool has to be sited against a ground that has no pool in it, and every
+  // reader downstream has to see the ground that does. So the field is built
+  // twice around the one solve — see `createHeightField`'s own note on why that
+  // is cheaper than the alternative.
+  const tarn               = solveTarn(config, layout, createHeightField(config, layout).heightAt)
+  const field: HeightField = createHeightField(config, layout, tarn)
   const places             = steadingPlaces(layout.yard)
   const landing            = findLanding(layout, field, config)
   const harbour            = landing && findHarbourBank(layout, field, config, landing)
@@ -92,6 +103,10 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     // a leg that cut the corner off the churchyard would be a path through the
     // graves and out over the wall.
     ...layout.chapel ? [{ x: layout.chapel.x, z: layout.chapel.z, radius: CHAPEL_FOOTING }] : [],
+    // Standing water is a thing to walk round, and the only obstacle here that
+    // is not a building. A leg that took the short line across the pool would be
+    // a footpath along the bottom of it.
+    ...tarn ? [{ x: tarn.x, z: tarn.z, radius: tarn.radius }] : [],
   ]
 
   // Against the harbour rather than against the farm, and after everything else
@@ -150,5 +165,5 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
       distanceToTrack(layout, x, z) < layout.track.width * 1.3,
   })
 
-  return { layout, field, places, landing, harbour, beacon, smokehouse, network, paths }
+  return { layout, field, places, landing, harbour, beacon, smokehouse, tarn, network, paths }
 }
