@@ -96,6 +96,10 @@ function waterLines (stats: MapStats): string[] {
     stats.beck
       ? `beck  ${stats.beck.wetted}m wetted, ${stats.beck.fall}m of fall`
       : 'beck  DRY  <- no water standing in the channel',
+    stats.tarn
+      ? `tarn  (${stats.tarn.x},${stats.tarn.z}) surface ${stats.tarn.level}m  ` +
+        `wetted r${stats.tarn.wetted}m  rim ${stats.tarn.spread}m`
+      : 'tarn  NONE  <- no upland flat enough to hold one',
   ]
 }
 

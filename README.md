@@ -93,6 +93,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - wood smoke standing over every farmhouse chimney and sauna flue in the archipelago, leaning on the same one wind as the grass and banked harder the colder the week
 - lamplight in ninety-three windows: sixty-five farmstead panes lit at dusk, banked to a stove glow once the household turns in, and back up before dawn — the chapels' twenty-eight burning fainter, because nobody sleeps in one — while the lighthouse burns straight through, because a lighthouse is a machine and a farm is not
 - a beck traced downhill from a spring, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself — with water standing in it, lying flat across the channel, falling with the ground, breaking white where the hill drops, and freezing later than the sea it runs into
+- a tarn on the high ground of every island whose spare upland is flat enough to hold one — sited by a search for the least tilted acre the farm has not already claimed, standing at the lowest point of its own rim, edged with reeds, and locking into ice weeks before the sound below it does
 - showers standing out on the open water, crossing the archipelago from upwind ahead of the front that will reach the farm shortly after — read off the same clock the fall is, one lead ahead of it, and cut off at every coastline by the land it cannot rain on
 - **three clocks** — a day, a year, and a weather front — each a phase and a speed, each deriving everything else from that phase
 - a solar arc solved from a latitude — a polar night at midwinter, a midnight sun at midsummer — with dusk and night palettes derived from it, plus seasonal growth, leaf turn, lying snow, sea ice, sea smoke, and rain that leaves the ground wet
@@ -107,7 +108,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a scape that survives a lost webgl context: it rebuilds one tier cheaper rather than asking you to reload, and remembers the verdict
 - an on-page diagnostics log that survives a reload, because a phone has no devtools
 - an orthographic dimetric camera, click-to-focus with an eased landing, full keyboard equivalents
-- one terrain draw, one water draw, one beck draw, one merged steading draw, and one `InstancedMesh` per scattered prop type
+- one terrain draw, one water draw, one beck draw, one tarn draw, one merged steading draw, and one `InstancedMesh` per scattered prop type
 
 there is deliberately no chat surface, llm schema, prop authoring tool or hidden app service. the only persisted state is the graphics overlay's own snapshot, under one key.
 
@@ -187,6 +188,7 @@ src/
     ├── beacon.ts                   the coastal light: the lamp, and the beams it sweeps
     ├── clouds.ts                   sky deck, faded in as the view pulls back
     ├── config.ts                   the public tuning surface
+    ├── config-landmasses.ts        the five holdings, as a table rather than as schema
     ├── config-access.ts            who owns the config, before and after the mount
     ├── state-path.ts               writePath with structural sharing
     ├── create-isometric-scape.ts   app/module composition root
@@ -223,6 +225,8 @@ src/
     │   ├── cart-ruts.ts            the wheel lines worn down the cart track
     │   ├── creek.ts                the beck: descent trace, channel, tidal mouth
     │   ├── beck.ts                 the water standing in that channel, and the white it breaks
+    │   ├── tarn.ts                 the flattest upland the farm has not taken, and the basin cut into it
+    │   ├── tarn-water.ts           the still sheet lying in that basin, and the winter it gets first
     │   ├── skerry.ts               the bare rocks standing in the water between the islands
     │   ├── fjord.ts                the drowned valley cut through one island's coast
     │   ├── beacon.ts               the outer rock a light would stand on
@@ -649,6 +653,34 @@ the channel was cut for six runs before anything was standing in it. the terrain
 **the tier decides the texture, never the water.** every device gets the sheet — two thousand vertices in one draw is not a thing a phone cannot afford. what scales is `quality.beckRipples`, the octaves of value noise on top: `minimal` gets **zero** and compiles a beck that runs smooth, with no hash in its shader at all, and ultra gets three.
 
 `beck.depth` at zero is a dry bed, and there is no geometry rather than a sheet drawn at nothing. it is the switch, and the only one.
+
+## the pool on the high ground
+
+the beck was the scape's one *found* landform: a steepest-descent walk that obeys the ground because water only ever goes one way. this is the other half of that sentence. standing water goes nowhere at all, so a tarn is not traced — it is **sited**, the way the pasture and the plots are, and what it needs from the ground is not a line downhill but a piece of upland flat enough to hold what is cut into it.
+
+[`tarn.ts`](src/scene/landscape/tarn.ts) is the search and the carve; [`tarn-water.ts`](src/scene/landscape/tarn-water.ts) is the sheet lying in it — every island's pool merged into **one draw**, 177 vertices apiece on the desktop tier.
+
+**the search is for flatness, and the surface is not chosen.** twenty-four bearings are read round a candidate at `tarn.radius`, and the water stands at the *lowest* of them, because that is the first height it could run out over. the score is the rim's relief, less a small bribe for altitude — `HEIGHT_WORTH`, the same shape of term as the beck's `HEADING_WORTH` and there for a related reason: the flattest ground most of these islands have is the ground nearest the waterline, and a pool sited there is a lagoon. `tarn.lift` is the other half of that guard.
+
+**the ridge has no tarn, and that is the answer rather than a gap.** it is the smallest holding in the archipelago and the farm on it has already taken every level acre; what is left is hillside. the search refuses any site whose rim relief exceeds `tarn.spread`, and loosening that until the ridge got a pool would be putting standing water on a slope. four islands of five hold one.
+
+**the carve only ever goes down.** `carveTarn` cuts a dished bowl — `BOWL_POWER` above 1, so the basin is deepest across a broad middle rather than funnelled to a point — and blends it back into the hillside over the outer quarter of the radius. that blend is what makes the pool sit *in* the ground instead of on it, and it is also what gives the water an irregular edge, because the ground it blends into is a different height on every bearing. going down only is what keeps the rim a **containment** rather than an earthwork: every point on the circle the search measured is left exactly where it was found, and the search only ever accepted a circle whose lowest point is the water level.
+
+**the shoreline is not drawn.** the sheet is a flat disc out to the full radius, and the bank simply stands in front of it — exactly the way the sea's one plane meets every coast in the archipelago. that is what makes the edge right at any terrain resolution: the waterline is wherever the ground *the terrain actually drew* crosses the level, rather than wherever a solver in the mesh builder guessed it would. the fell is drawn at nineteen metres to a quad and the home island at seven, and neither needs a special case. the whole cost is a pair of nearly coplanar surfaces where a bank comes in flat, and two centimetres of bias settles that.
+
+**which is why `scape:map` grew a line.** a basin that stops holding water draws exactly as it did before and vanishes behind its own bank, so `tarn (33,3.7) surface 2.59m wetted r5.9m rim 2.34m` is the only place a reader can see it. `wetted` is measured with `tarnWetted` against the carved field — the same ground the bank occludes the sheet with — and `wetted r0m` on an island that still reports a tarn is the finding.
+
+**nothing walks into it.** the pool is an obstacle in the survey's `standing` list, so footpaths bend round it; `dressing-zones.ts` gained `onTarn`, which `clear` and the stone rule both consult, so grass, heather, trees, boulders — and the flocks, which are sited through the same `clear` — stay out of the water. the home island's eastern outfield moved from `(32,12)` to `(24,23)` on the run that landed this, which is the flock declining to graze the bottom of a pond.
+
+**and reeds grow at both waterlines.** the reed rule used to be one height band round the sea; it is now that band *or* the margin of a pool four metres above it. the same plant in both places is the point — a reed bed is what tells a reader at the far zoom that the disc up on the shoulder is water at all.
+
+**it freezes weeks before the sound does.** a pool a stone's throw across and knee deep on a fell has no fetch, no swell and almost no thermal mass. `tarnFreeze` runs the one `season.freeze` the lake and the beck already read through `tarn.frost`, so there is still exactly one winter in the scape and this water simply gives up sooner — and once it is ice it goes matte, because ice is not a mirror, and it takes lying snow on top.
+
+**it does not move, and that is a decision.** nothing on a fell has the fetch to raise a wave on water you could throw a stone across, so the surface is flat and still. that also means it has no speed to add to `STILL` in [`scape-shot.ts`](scripts/scape-shot.ts) — a system with nothing to stop is a system every capture can already see.
+
+**the two live knobs are the two a frame can honour.** `tarn.mirror` is the whole character of the thing and moves the material's roughness the other way; `tarn.frost` is how far ahead of the sea it locks. both are in the overlay. `radius`, `depth`, `lift` and `spread` are folded into the composite height field at build time and are deliberately not, for the reason `creek` and `strand` are not: a slider that needs a rebuild lies about what a slider does.
+
+`tarn.depth` at zero is a basin with nothing to cut and no pool to draw. it is the switch, and the only one.
 
 ## the upland pasture
 

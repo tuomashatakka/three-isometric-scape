@@ -3,6 +3,8 @@ import type { ScapeConfig } from '../config.ts'
 import { coastWarp, sampleHeight } from '../noise.ts'
 import { baseAt, distanceToTrack, plotInfluence, remapRelief, sinkToIsland } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
+import { carveTarn } from './tarn.ts'
+import type { Tarn } from './tarn.ts'
 
 
 /**
@@ -175,7 +177,21 @@ export function resolveIsles (config: ScapeConfig): IsleSite[] {
   }))
 }
 
-export function createHeightField (config: ScapeConfig, layout: ScapeLayout): HeightField {
+/**
+ * @param tarn The pool above the spring, once it has been solved.
+ *
+ *   Optional because it cannot be solved without a field to measure: the rim
+ *   test reads the graded ground, so the survey builds a bare field first, sites
+ *   the pool against it, and builds the field it keeps with the answer. That is
+ *   two closures and two smoothed profiles over forty points, which is cheaper
+ *   than the alternative — a second approximation of the ground, inside the
+ *   solver, that would drift out of agreement with this one.
+ */
+export function createHeightField (
+  config: ScapeConfig,
+  layout: ScapeLayout,
+  tarn:   Tarn | null = null,
+): HeightField {
   const { waterLevel, shoreBand } = config.terrain
   const { yard, track }           = layout
   const corridor                  = track.width * 1.7
@@ -251,7 +267,11 @@ export function createHeightField (config: ScapeConfig, layout: ScapeLayout): He
     if (onYard > 0)
       height += (yard.level - height) * onYard * YARD_STRENGTH
 
-    return height
+    // The basin last, and inside `graded` rather than beside the beck's carve
+    // below. The beck's long profile is sampled from *this* function, so a pool
+    // cut afterwards would be a pool the channel leaving it had never seen —
+    // and the outflow would sit a metre and a half above its own water.
+    return carveTarn(tarn, x, z, height)
   }
 
   // The road grade is sampled from the already-levelled ground and smoothed, so

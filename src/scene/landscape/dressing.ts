@@ -249,7 +249,8 @@ export function createDressing (
 
   // ---- feature tests -------------------------------------------------------
 
-  const { onYard, onTrack, onPath, onPlot, onPasture, onBeacon, clear } = createZoneTests(archipelago)
+  const zones                                                       = createZoneTests(archipelago)
+  const { onTrack, onPath, onPlot, onPasture, atTarnMargin, clear } = zones
 
   // ---- hero props ----------------------------------------------------------
 
@@ -639,15 +640,6 @@ export function createDressing (
     return null
   }
 
-  const zones = {
-    onYard,
-    onTrack,
-    onPath,
-    onPlot,
-    onPasture,
-    onBeacon,
-    clear,
-  }
   const {
     conifer, stoneRule, openGround, beachRule, birchRule, juniperRule, plotEdge, inPasture, inYard,
   } = createScatterRules(config, archipelago, field, rng, zones)
@@ -762,9 +754,13 @@ export function createDressing (
     if (sampleTread)
       scatterCover('cobble', config.dressing.pathStone, onPath, 0.42, 0.95, 0, 4, false, sampleTread, TILT.loose)
 
+    // Two waterlines now, and the rule says so rather than pretending there is
+    // one: the sea's own band, and the band round a pool four metres above it.
+    // The same plant grows in both, which is the point — a reed bed is what
+    // tells a reader that the disc up on the shoulder is water at all.
     scatterCover('reeds', config.dressing.reeds, (x, z) => {
       const height = heightAt(x, z)
-      return height > water - 0.55 && height < water + 0.3
+      return height > water - 0.55 && height < water + 0.3 || atTarnMargin(x, z)
     }, 0.7, 1.5, 0, 30, true, sampleSpot, TILT.rooted)
 
     scatterCover('lilyPads', config.dressing.lilyPads, (x, z) => {

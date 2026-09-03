@@ -4,6 +4,8 @@ import { surveyArchipelago } from '../src/scene/landscape/archipelago.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from '../src/scene/landscape/archipelago.ts'
 import { scheduledFleetMinimumSeparation } from '../src/scene/landscape/boat-motion.ts'
 import { beckGeometry } from '../src/scene/landscape/beck.ts'
+import { tarnWetted } from '../src/scene/landscape/tarn.ts'
+import type { Tarn } from '../src/scene/landscape/tarn.ts'
 import type { Creek } from '../src/scene/landscape/creek.ts'
 import type { HeightField } from '../src/scene/landscape/height.ts'
 import { planColonies } from '../src/scene/landscape/colony.ts'
@@ -39,7 +41,7 @@ const SHALLOW = 0.45
 
 export const LEGEND =
   '~ deep  - shallow  . shore  : low  = mid  + upper  * high  # peak\n' +
-  ', footpath  ≡ track  · waterway  b boat  s beck  ' +
+  ', footpath  ≡ track  · waterway  b boat  s beck  ≈ tarn  ' +
   'F/B/A/W/S steading  o well  J jetty  H harbour  V smokehouse  ' +
   'W mill  K chapel  L light  p plot  ^ ridge'
 
@@ -118,7 +120,18 @@ interface CompositionStats {
    * for: a beck that stopped surfacing reads as `NONE` here, and a course that
    * drowned under a retuned falloff reads as a wetted reach that collapsed.
    */
-  beck:    { wetted: number, fall: number } | null
+  beck: { wetted: number, fall: number } | null
+
+  /**
+   * The pool up on the high ground: where it stands, how far the water reaches
+   * and how level the rim the search chose is.
+   *
+   * `wetted` is the line worth reading. The sheet is drawn to the full radius
+   * and occluded by the bank, so a basin that stopped holding any water at all
+   * — a retuned falloff, a shifted yard, a carve that lost its containment —
+   * draws exactly as it did and shows up nowhere except here.
+   */
+  tarn:    { x: number, z: number, level: number, wetted: number, spread: number } | null
   pasture: { x: number, z: number, radius: number } | null
   mill:    { x: number, z: number, prominence: number } | null
   chapel:  { x: number, z: number, prominence: number, fromYard: number } | null
@@ -398,6 +411,28 @@ function smokehouseOf (
 }
 
 /**
+ * The pool, in world metres, and how much water is actually in it.
+ *
+ * Its own function beside `beaconOf` and `smokehouseOf` for the reason those
+ * have one: the record is a projection plus a measurement, and inlining a third
+ * of those took `compositionStats` past its complexity ceiling.
+ */
+function tarnOf (
+  tarn:   Tarn | null,
+  field:  HeightField,
+  worldX: (value: number) => number,
+  worldZ: (value: number) => number,
+): CompositionStats['tarn'] {
+  return tarn && {
+    x:      round(worldX(tarn.x)),
+    z:      round(worldZ(tarn.z)),
+    level:  round(tarn.level, 2),
+    wetted: round(tarnWetted(tarn, field.heightAt), 1),
+    spread: round(tarn.spread, 2),
+  }
+}
+
+/**
  * Everything the grid cannot say.
  *
  * The picture is for a person; this is for the run. A creek that failed to
@@ -479,6 +514,7 @@ function compositionStats (landmass: LandmassSurvey, w: number, h: number): Comp
       length: round(layout.creek.length),
     },
     beck:    beckOf(config, layout.creek, field),
+    tarn:    tarnOf(survey.tarn, field, worldX, worldZ),
     pasture: layout.pasture && {
       x:      round(worldX(layout.pasture.x)),
       z:      round(worldZ(layout.pasture.z)),
@@ -669,7 +705,15 @@ export function renderGrid (
     Math.floor((z - window.z + half) / cellZ),
   ]
 
-  function overlayAt (
+  /**
+   * Running water and standing water, on one layer.
+   *
+   * Split out of {@link overlayAt} to keep that function under the complexity
+   * ceiling, and it splits cleanly: both are the scape's own tests asked at a
+   * cell centre — the channel's claim, and whether the ground here is under a
+   * pool's surface.
+   */
+  function waterAt (
     x:        number,
     z:        number,
     landmass: LandmassSurvey | null,
@@ -678,8 +722,30 @@ export function renderGrid (
   ): string | null {
     const creek = landmass?.survey.layout.creek
 
-    if (layers.creek && creek && creek.claimAt(localX, localZ) > 0.35)
+    if (creek && creek.claimAt(localX, localZ) > 0.35)
       return 's'
+
+    // At the default world grid a pool is a character or two — which is the
+    // right size for it, and enough to notice when it is gone.
+    const tarn = landmass?.survey.tarn
+
+    if (tarn && field.heightAt(x, z) < tarn.level && tarn.claimAt(localX, localZ) > 0)
+      return '≈'
+
+    return null
+  }
+
+  function overlayAt (
+    x:        number,
+    z:        number,
+    landmass: LandmassSurvey | null,
+    localX:   number,
+    localZ:   number,
+  ): string | null {
+    const water = layers.creek ? waterAt(x, z, landmass, localX, localZ) : null
+
+    if (water)
+      return water
 
     if (layers.paths && paths.wearAt(x, z) > 0.25)
       return ','

@@ -40,7 +40,37 @@ themes      the rules the tools now enforce
             ...
 api digest  matches threejs-scene@0.5.0 · 59/390 exports used
 open prs    none open — clear to branch
-scape:map   seed 7319  world 520m  home 196m  ...
+scape:map   seed 7319  world 1520m  home 196m  water -1.25m  grid 96x48  15.83x31.67 m/cell
+
+land 18.3%  above snowline 72.6%  peak 8.63m @ (9, 18)
+yard (-17,-0.7) r19    track 27pts 48.8m    landRadius 44
+footpaths 19 routes, 245.8m total, longest 22.3m
+creek OK  head (19,23) 6.49m -> mouth (36,56) -14.3m  len 38m
+beck  15.9m wetted, 8m of fall
+tarn  (33,3.7) surface 2.59m  wetted r5.9m  rim 2.34m
+pasture (24.5,3.9) r6   plots 4   ridges 5   isles 15/15 surfacing
+mill (35.9,-8.1) prominence 6.85m
+chapel (26.8,15.1) prominence 1.56m  46.6m from the yard
+smokehouse (-8.5,-10.3) 18m up the bank
+beacon (60.9,39.3) isle 5 freeboard 6.69m  reach 74.7m
+steading  farmhouse(-8,3) barn(-16,-14) aitta(-27,6) woodshed(-28,-7) sauna(-17,16)
+landing (-26,-17)  harbour (-13,-28)
+landmasses 5
+home/home @ (0,0)  land 18.3% peak 8.63m  paths 19  jetty (-26,-17)  mill (35.9,-8.1)
+ridge/ridge @ (-178,128)  land 14.3% peak 6.5m  paths 12  jetty (-151,138)  mill NONE
+meadow/meadow @ (178,128)  land 27% peak 5.68m  paths 16  jetty (151,126)  mill (168.2,157.5)
+sound/sound @ (-300,-480)  land 15.5% peak 12.62m  paths 16  jetty (-362,-396)  mill (-282.7,-482.5)
+fell/fell @ (300,-480)  land 13.9% peak 14.94m  paths 15  jetty (322,-393)  mill (339.3,-515.2)
+waterways 5 legs 2515.5m  connected OK  wet OK  clearance 0.55m
+boats 5  separation 115.79m  conflicts 0
+strand sound<->fell  len 450m  crest 1.1m  lowest 0.4m  CONNECTED
+skerries 49 in 16 guards  widest 22m  lowest 0.8m over the water  nearest island 79.9m
+fjord sound  len 115m  sea 11.7m  sill 5.5m  basin 16.3m  head +2.8m  OVERDEEPENED
+fjord fell  len 115m  sea 11.7m  sill 6m  basin 16.3m  head +3.8m  OVERDEEPENED
+hearths 15  lowest mouth 4.35m over the ground
+windows 93  lowest pane 0.73m over the ground  facing out 93/93
+grazing 7/10 flocks  thinnest cover 0.72  home/outfield (32,-14) r7  home/outfield (24,23) r7  meadow/infield (158,146) r7  sound/infield (-329,-518) r7  sound/outfield (-266,-443) r7  fell/infield (311,-424) r7  fell/outfield (322,-541) r7
+gulls 6/6 colonies  home/harbour (-53,-63) r24.1  home/rock (71,46) r28  ridge/harbour (-116,147) r28  meadow/harbour (103,132) r28  sound/harbour (-373,-353) r28  fell/harbour (322,-361) r13.2
 ```
 
 everything it prints is derived from this working tree, and none of it is committed — a generated file that churns on every commit is just a second thing for every
@@ -78,7 +108,7 @@ not see — a gesture rig, a renderer bootstrap, three copies of one ribbon buil
 
 ### `bun run scape:map` — the whole composition, as ascii
 
-no browser, no gpu, no dependency. [`landscape/archipelago.ts`](src/scene/landscape/archipelago.ts) resolves three local surveys, projects their paths and ports, and plans the water-only route without building a vertex; this renders the combined result.
+no browser, no gpu, no dependency. [`landscape/archipelago.ts`](src/scene/landscape/archipelago.ts) resolves five local surveys, projects their paths and ports, and plans the water-only route without building a vertex; this renders the combined result.
 
 ```sh
 bun run scape:map                      # grid + stats
@@ -93,33 +123,48 @@ bun run scape:map --json               # for scripting
 the stats block is the check that catches what a still cannot — a beck that stopped tracing, an island that drowned, a pasture that never found room, a mill that lost its shoulder, footpaths that collapsed to zero, a route that crossed land or a fleet that collided. the first block is the legacy home-island shape; the landmass, waterway and boat blocks cover the full world. **read it before and after every change.**
 
 ```text
-seed 7319  world 520m  home 196m  water -1.25m  grid 96x48  5.42x10.83 m/cell
+seed 7319  world 1520m  home 196m  water -1.25m  grid 96x48  15.83x31.67 m/cell
 
-land 19.6%  above snowline 82%  peak 9.09m @ (17, 18)
+land 18.3%  above snowline 72.6%  peak 8.63m @ (9, 18)
 yard (-17,-0.7) r19    track 27pts 48.8m    landRadius 44
-footpaths 17 routes, 220m total, longest 23m
-creek OK  head (19,23) 7.88m -> mouth (47,46) -14.3m  len 38.7m
-pasture (34.9,-9) r6   plots 4   ridges 5   isles 15/15 surfacing
-mill (29,-19.7) prominence 6.52m
+footpaths 19 routes, 245.8m total, longest 22.3m
+creek OK  head (19,23) 6.49m -> mouth (36,56) -14.3m  len 38m
+beck  15.9m wetted, 8m of fall
+tarn  (33,3.7) surface 2.59m  wetted r5.9m  rim 2.34m
+pasture (24.5,3.9) r6   plots 4   ridges 5   isles 15/15 surfacing
+mill (35.9,-8.1) prominence 6.85m
+chapel (26.8,15.1) prominence 1.56m  46.6m from the yard
+smokehouse (-8.5,-10.3) 18m up the bank
 beacon (60.9,39.3) isle 5 freeboard 6.69m  reach 74.7m
 steading  farmhouse(-8,3) barn(-16,-14) aitta(-27,6) woodshed(-28,-7) sauna(-17,16)
 landing (-26,-17)  harbour (-13,-28)
-landmasses 3
-home/home @ (0,0)  land 19.6% peak 9.09m  paths 17  jetty (-26,-17)  mill (29,-19.7)
-ridge/ridge @ (-178,128)  land 15.1% peak 9.8m  paths 11  jetty (-151,138)  mill NONE
-meadow/meadow @ (178,128)  land 27% peak 5.68m  paths 13  jetty (151,126)  mill (168.2,157.5)
-waterways 3 legs 809.7m  connected OK  wet OK  clearance 0.67m
-boats 3  separation 115.79m  conflicts 0
-gulls 4/4 colonies  home/harbour (-53,-63) r24.1  home/rock (71,46) r28  ridge/harbour (-116,147) r28  meadow/harbour (103,132) r28
+landmasses 5
+home/home @ (0,0)  land 18.3% peak 8.63m  paths 19  jetty (-26,-17)  mill (35.9,-8.1)
+ridge/ridge @ (-178,128)  land 14.3% peak 6.5m  paths 12  jetty (-151,138)  mill NONE
+meadow/meadow @ (178,128)  land 27% peak 5.68m  paths 16  jetty (151,126)  mill (168.2,157.5)
+sound/sound @ (-300,-480)  land 15.5% peak 12.62m  paths 16  jetty (-362,-396)  mill (-282.7,-482.5)
+fell/fell @ (300,-480)  land 13.9% peak 14.94m  paths 15  jetty (322,-393)  mill (339.3,-515.2)
+waterways 5 legs 2515.5m  connected OK  wet OK  clearance 0.55m
+boats 5  separation 115.79m  conflicts 0
+strand sound<->fell  len 450m  crest 1.1m  lowest 0.4m  CONNECTED
+skerries 49 in 16 guards  widest 22m  lowest 0.8m over the water  nearest island 79.9m
+fjord sound  len 115m  sea 11.7m  sill 5.5m  basin 16.3m  head +2.8m  OVERDEEPENED
+fjord fell  len 115m  sea 11.7m  sill 6m  basin 16.3m  head +3.8m  OVERDEEPENED
+hearths 15  lowest mouth 4.35m over the ground
+windows 93  lowest pane 0.73m over the ground  facing out 93/93
+grazing 7/10 flocks  thinnest cover 0.72  home/outfield (32,-14) r7  home/outfield (24,23) r7  meadow/infield (158,146) r7  sound/infield (-329,-518) r7  sound/outfield (-266,-443) r7  fell/infield (311,-424) r7  fell/outfield (322,-541) r7
+gulls 6/6 colonies  home/harbour (-53,-63) r24.1  home/rock (71,46) r28  ridge/harbour (-116,147) r28  meadow/harbour (103,132) r28  sound/harbour (-373,-353) r28  fell/harbour (322,-361) r13.2
 ```
 
 `chapel NONE` is the same kind of answer with an extra clause: a chapel needs a rise *and* a rise inside `chapel.reach` metres of its own yard, so an island whose only knolls are out on a headland gets no church rather than one nobody walks to. the line carries the distance from the yard beside the prominence for that reason — a chapel that moved on a run which touched neither `chapel.prominence` nor `chapel.reach` is a finding, and so is one whose `from the yard` crept toward the reach.
+
+`tarn NONE` is that answer for standing water. a pool is *sited* rather than traced — the search takes the flattest upland the holding has not already claimed, and the surface it draws is the lowest point of that rim, because that is the first place the water would run out over. so an island whose spare ground is all hillside gets no pool, and the ridge is exactly that island. the two numbers beside the position are the finding: `wetted` is how far the water actually reaches once the basin is cut, measured against the same field the bank occludes the sheet with, and `rim` is the relief the search settled for. `wetted r0m` on an island that still reports a tarn means a basin that stopped holding water — invisible in every still, because the sheet is drawn to the full radius either way and simply disappears behind its own bank.
 
 `beacon NONE` is the same kind of answer: the light goes on the *outermost* islet in the ring that is broad enough for masonry and has eight dry bearings at its footing, so an archipelago whose skerries are all too small gets no lighthouse. a beacon that moved isle on a run that did not touch `beacon.minRock`, `beacon.freeboard` or `terrain.isles` is a finding.
 
 `fjord <id>` is one line per island with an inlet cut into it, and it is four depths rather than a position because the landform's whole claim is a *relation* between them: the sea outside the mouth, the sill across it, the basin behind it, and how far the valley floor at the head stands over the water. `OVERDEEPENED` means the basin is deeper than the sea it opens into, which is what separates a fjord from a bay. none of it can be read from a still — the depth channel of the bathymetry mask saturates a few metres down and paints all three the same blue — so a run that retunes the falloff, the shore shelving or `seabedDrop` and quietly drowns a sill has this line and nothing else. it is measured off the island's *own* field, not the composite one: the guard answers with the seabed wherever it has no rock, so the composite is floored nine metres down and cannot see a trench.
 
-`gulls 4/4 colonies` is the flock line, and the two numbers are the finding: the second is what the islands *offered* — one landing each, plus an outer rock where a light was built — and the first is how many of those found open water wide enough to fit a whole ring over. `3/4` on a run that did not touch `birds.spread`, the coastline or the landings means a bank closed up. this is here rather than in a screenshot because a flock is four pixels wide at the default pose.
+`gulls 6/6 colonies` is the flock line, and the two numbers are the finding: the second is what the islands *offered* — one landing each, plus an outer rock where a light was built — and the first is how many of those found open water wide enough to fit a whole ring over. `5/6` on a run that did not touch `birds.spread`, the coastline or the landings means a bank closed up. this is here rather than in a screenshot because a flock is four pixels wide at the default pose.
 
 `hearths 10  lowest mouth 5.5m over the ground` is the chimney line, and `lowest` is the whole check: two stacks a holding, and the tightest clearance between any mouth and the ground under it. a building is levelled onto the *highest* ground beneath its footprint while its chimney stands 2.6 m off the middle of that footprint, so on a slope the two are measured against different heights — anything under about three metres means a stack has been placed against a floor it does not stand on, and the map says so in the line. here rather than in a still because a plume is three pixels at the default pose.
 
@@ -176,6 +221,7 @@ bun run scape:shot --poses smokehouse               # the hut above the harbour,
 bun run scape:shot --poses tide                     # the sea at both ends of its swing, 3 frames
 bun run scape:shot --poses fjord                    # the drowned valley in the sound, 4 frames
 bun run scape:shot --poses aspect                   # two sides of one hill, 4 frames
+bun run scape:shot --poses tarn                     # the pool on the high ground, 4 frames
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain
@@ -368,6 +414,8 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `water.ts` | baked bathymetry, swell, foam, glitter, winter ice and shader boat wakes |
 | `water-caustics.ts` | the net the sun draws on the bottom of the shallows, and how bright it is today |
 | `beck.ts` | the sheet of water standing in every island's channel, its fall, its white water and the week it locks |
+| `tarn.ts` | the search for upland flat enough to hold standing water, the basin carved into it, and the reach it holds |
+| `tarn-water.ts` | every island's pool in one still draw, its depth tint, and the winter it gets weeks before the sea |
 | `samplers.ts` | where the dressing throws its darts — island, disc, tread, skerry |
 | `dressing-zones.ts` | world-space keep-outs and pure scatter acceptance rules |
 | `dressing-helpers.ts` | hand-placed runs and helpers shared by each holding |
@@ -376,6 +424,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `littoral.test.ts` | the tidal band on the guard: the sampler lands on rock, the two zones do not overlap, and both reach every rock |
 | `water-caustics.test.ts` | the net is a daylight effect: nothing under the horizon, nothing in the polar night, a ramp rather than a step, and rain dims it without putting it out |
 | `beck.test.ts` | the sheet never runs uphill, lies flat across the channel, opens out with it, stops at the tideline, and locks after the sea does |
+| `tarn.test.ts` | no rim point stands below the water, the carve only goes down and only inside its radius, water actually stands in every basin, the pool is off the farm, and it locks ahead of the sea |
 | `index.ts` | the scene module, and what raycasts |
 | `tide.test.ts` (in `src/scene/`) | two highs a lunar day, springs on new *and* full, a mean of zero over a cycle, a flat sea at range zero — and the shipped range fits under the router's clearance and inside the wrack band |
 

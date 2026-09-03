@@ -9,6 +9,17 @@ import { distanceToTrack, pastureInfluence, plotInfluence, ridgeInfluence } from
 /** The bare middle of a worn path, excluding its thinning verge. */
 const TREAD = 0.55
 
+/**
+ * How deep and how high a pool's reed band reaches, in metres of water.
+ *
+ * The same shape of rule as the sea's own reed band, at a tarn's scale: reeds
+ * stand in the shallows and a little way up the wet bank, and nowhere else.
+ * Shallower than the sea's band because the pool is — half a metre of water is
+ * the middle of this one, not its margin.
+ */
+const MARGIN_DEPTH = 0.4
+const MARGIN_RISE  = 0.15
+
 export interface DressingZones {
   onYard(x: number, z: number): number
   onTrack(x: number, z: number): boolean
@@ -18,6 +29,16 @@ export interface DressingZones {
 
   /** Inside the light's footing — its plinth, and the storm boulders round it. */
   onBeacon(x: number, z: number): boolean
+
+  /** Inside a tarn's own ground: the water, and the wet ring it stands in. */
+  onTarn(x: number, z: number): boolean
+
+  /**
+   * The band round a pool where the ground is at the waterline give or take a
+   * boot — the only ground in the scape that is neither dry nor the sea.
+   */
+  atTarnMargin(x: number, z: number): boolean
+
   clear(x: number, z: number): boolean
 }
 
@@ -92,12 +113,37 @@ export function createZoneTests (archipelago: ArchipelagoSurvey): DressingZones 
     ) < BEACON_FOOTING
   }
 
+  // The pool and the ring of wet ground it sits in. Nothing that scatters asks
+  // the placement solver anything, so without this the grass, the heather and
+  // the flock's own grazing test all walk straight out onto the water.
+  const onTarn = (x: number, z: number): boolean => {
+    const landmass = archipelago.field.landmassAt(x, z)
+    const tarn     = landmass?.survey.tarn
+
+    if (!tarn)
+      return false
+
+    return tarn.claimAt(x - landmass.origin.x, z - landmass.origin.z) > 0
+  }
+
+  const atTarnMargin = (x: number, z: number): boolean => {
+    const landmass = archipelago.field.landmassAt(x, z)
+    const tarn     = landmass?.survey.tarn
+
+    if (!tarn || tarn.claimAt(x - landmass.origin.x, z - landmass.origin.z) <= 0)
+      return false
+
+    const over = archipelago.field.heightAt(x, z) - tarn.level
+
+    return over > -MARGIN_DEPTH && over < MARGIN_RISE
+  }
+
   // The tread is spoken-for ground, not merely a stripe of terrain paint.
   const clear = (x: number, z: number): boolean =>
     onYard(x, z) === 0 && !onTrack(x, z) && !onPath(x, z) &&
-    onPlot(x, z) === 0 && onPasture(x, z) === 0 && !onBeacon(x, z)
+    onPlot(x, z) === 0 && onPasture(x, z) === 0 && !onBeacon(x, z) && !onTarn(x, z)
 
-  return { onYard, onTrack, onPath, onPlot, onPasture, onBeacon, clear }
+  return { onYard, onTrack, onPath, onPlot, onPasture, onBeacon, onTarn, atTarnMargin, clear }
 }
 
 /** Pure acceptance rules shared by every archipelago-wide scatter batch. */
@@ -108,9 +154,9 @@ export function createScatterRules (
   rng:         SeededRng,
   zones:       DressingZones,
 ) {
-  const { onYard, onTrack, onPath, onPlot, onPasture, onBeacon, clear } = zones
-  const heightAt                                                        = field.heightAt
-  const water                                                           = config.terrain.waterLevel
+  const { onYard, onTrack, onPath, onPlot, onPasture, onBeacon, onTarn, clear } = zones
+  const heightAt                                                                = field.heightAt
+  const water                                                                   = config.terrain.waterLevel
 
   return {
     conifer: (biasScale: number, minLift: number, maxSlope: number) =>
@@ -136,7 +182,7 @@ export function createScatterRules (
     // Stones stay out of the pasture: the ones that were in it are the wall.
     stoneRule: (minLift: number) => (x: number, z: number): boolean =>
       onYard(x, z) === 0 && !onTrack(x, z) && !onPath(x, z) && onPasture(x, z) === 0 &&
-      !onBeacon(x, z) && heightAt(x, z) > water + minLift,
+      !onBeacon(x, z) && !onTarn(x, z) && heightAt(x, z) > water + minLift,
 
     openGround: (minLift: number, maxSlope: number) => (x: number, z: number): boolean =>
       clear(x, z) && heightAt(x, z) > water + minLift && field.slopeAt(x, z) < maxSlope,

@@ -1,4 +1,5 @@
 import type { AppModule } from 'threejs-scene'
+import { SCAPE_LANDMASSES } from './config-landmasses.ts'
 import type { QualityEffects } from './quality.ts'
 
 
@@ -520,6 +521,83 @@ export interface ScapeConfig {
      * rapids on a pool. Zero is a beck that runs black over every step in it.
      */
     riffle: number
+  }
+
+  /**
+   * The pool up on the high ground.
+   *
+   * Four build-time numbers and two the frame reads. The shape of the basin is
+   * folded into the composite height field, so `radius`, `depth`, `lift` and
+   * `spread` are absent from the tuning overlay for the reason `creek` and
+   * `strand` are: nothing there can move without the scape being generated
+   * again, and a slider that lies about that is worse than no slider.
+   *
+   * Where the pool stands is not here and cannot be: the surface is the lowest
+   * point of the rim the search found — see `landscape/tarn.ts`.
+   */
+  tarn: {
+
+    /**
+     * Wetted radius of the pool, in metres.
+     *
+     * **Metres, and they stay metres.** A tarn is a real-world thing the size
+     * of a field, not a fraction of the island it sits on — the fell is three
+     * times the home island's span and the pools on it are not three times the
+     * size. 0 is a scape with no standing water on its high ground.
+     */
+    radius: number
+
+    /**
+     * Metres the floor is cut below the surface at the deepest point.
+     *
+     * The switch as well as the depth: at 0 there is no basin to cut and no
+     * pool to draw, the same way `beck.depth` is the beck's switch. Cutting
+     * deeper than the ground has relief to give simply carves a hole with
+     * water in it, which is why the rim tests below run first.
+     */
+    depth: number
+
+    /**
+     * Metres above the waterline the whole rim has to stand.
+     *
+     * **Metres, and they stay metres.** What makes a tarn a tarn is that it is
+     * a *separate* body of water: a pool sited a hand's breadth above the sea
+     * is a lagoon with a bank in front of it, and the first spring tide makes
+     * that argument for itself. It is also what keeps the search off the
+     * foreshore, which is the flattest ground most of these islands have.
+     */
+    lift: number
+
+    /**
+     * Metres of relief across the rim above which there is no pool at all.
+     *
+     * The test that separates ground which holds water from ground which is
+     * simply a hillside, and it is the range rather than the mean on purpose:
+     * a bowl open on one bearing has a perfectly ordinary average rim and
+     * holds nothing. An island whose flattest upland still fails this has no
+     * tarn, and that absence is the right answer.
+     */
+    spread: number
+
+    /**
+     * How mirror-like the surface is, 0..1.
+     *
+     * Read every frame, and the whole character of the thing. A tarn is the one
+     * body of water in the scape with no fetch on it — nothing moves it, so
+     * what it does is reflect. 0 is a flat matte disc; 1 is glass.
+     */
+    mirror: number
+
+    /**
+     * How much earlier than the sound the pool locks, 0..1.
+     *
+     * A shallow pool on the fell is ice weeks before the sea between the
+     * islands is, and this is that difference rather than a second winter: the
+     * one `season.freeze` the lake and the beck read is still the input, and
+     * this only says how much sooner this water gives up. 0 freezes with the
+     * sea; 1 is ice on the first cold week of the year.
+     */
+    frost: number
   }
 
   /**
@@ -2045,188 +2123,7 @@ export const SCAPE_CONFIG = {
   // great landmasses to the north are a drowned sound and a fell.
   archipelago: {
     worldSize:  1_520,
-    landmasses: [
-      // No `terrain` and no `layout`: the home island *is* the default, and the
-      // sections above are where its eleven numbers live. Restating them here
-      // is what this spec used to do, and it meant every one of them existed in
-      // two places that nothing checked against each other.
-      {
-        id:         'home',
-        profile:    'home',
-        origin:     [ 0, 0 ],
-        seedOffset: 0,
-        satellites: 'home',
-      },
-      {
-        id:         'ridge',
-        profile:    'ridge',
-        origin:     [ -178, 128 ],
-        seedOffset: 20_311,
-        satellites: 'none',
-        terrain:    {
-          size:        144,
-          height:      14.8,
-          shoreBand:   0.9,
-          islandInner: 0.5,
-          islandOuter: 0.69,
-        },
-        layout: {
-          yardRadius:    14,
-          trackWidth:    2.7,
-          plotCount:     2,
-          forestBias:    0.92,
-          harbourSpread: -46,
-          pastureRadius: 5,
-        },
-      },
-      {
-        id:         'meadow',
-        profile:    'meadow',
-        origin:     [ 178, 128 ],
-        seedOffset: 40_927,
-        satellites: 'none',
-        terrain:    {
-          size:        144,
-          height:      7.6,
-          shoreBand:   1.45,
-          islandInner: 0.58,
-          islandOuter: 0.73,
-        },
-        layout: {
-          yardRadius:    14,
-          trackWidth:    2.9,
-          plotCount:     3,
-          forestBias:    0.34,
-          harbourSpread: 44,
-          pastureRadius: 5,
-        },
-      },
-
-      // The southern pair, and the reason the world is three times the span it
-      // was. Each is ten times the *area* of the two outer holdings above —
-      // 455 m across against 144 — which is a different kind of place rather
-      // than a bigger version of the same one: a farm on either of these is a
-      // holding on a landmass, with fell and forest it will never touch.
-      //
-      // Their patches sit 600 m apart on x and their coastlines about 300 m,
-      // which is the water the strand crosses. Both clear `halfWorld` at 760
-      // with 52 m to spare, and neither overlaps anything: `assertSeparate`
-      // checks both rules and `archipelago.test.ts` states them as facts.
-      //
-      // `detail` at 0.45 is the whole affordability of this. Left at 1 the two
-      // of them would take `areaScale` from 2.08 to 12.9 — every scatter budget
-      // sixfold, and a placement solver that is O(claims) per attempt — and the
-      // terrain patches would be 483 segments a side apiece. At 0.45 they are
-      // drawn at about 1.4 m to a quad and dressed at half the farm's density,
-      // which is what an uninhabited fell looks like anyway.
-      {
-        id:         'sound',
-        profile:    'sound',
-        origin:     [ -300, -480 ],
-        seedOffset: 61_403,
-        satellites: 'none',
-        detail:     0.45,
-        terrain:    {
-          size:        455,
-          height:      16.4,
-          shoreBand:   1.2,
-          islandInner: 0.5,
-          islandOuter: 0.66,
-
-          // The one island the ice reached, and the one whose name asked for it.
-          // 115 m of inlet from a mouth 164 m out puts the head about 49 m from
-          // the island's middle — a third of the way across a landmass 300 m of
-          // dry ground wide, which is a fjord rather than a nick in the coast
-          // and still leaves the farm the whole of the ground behind it.
-          //
-          // The length is the one number here that was measured rather than
-          // chosen. This island's harbour bank sits 43 m out on the same side,
-          // and the smokehouse standing on it needs half a metre of dry ground
-          // under all four corners of its footing: an inlet reaching past about
-          // 125 m cuts into that bank, the harbour shifts a metre, and the sound
-          // loses its smokehouse. At 115 the whole of the existing composition —
-          // jetty, harbour, smokehouse, mill, pasture, chapel — is exactly where
-          // it was, and `smokehouse.test.ts` is what says so.
-          //
-          // It opens at 90°, toward `+z`, which is the side facing the middle of
-          // the archipelago: the basin is in frame at every pose the tour takes
-          // of the whole world rather than hidden round the back of the island.
-          //
-          // 12.5 m of basin against a `seabedDrop` of 9 is the overdeepening —
-          // the trench is deeper than the sea it opens into, which is what a
-          // glacier does and a bay does not. The sill at a third of that leaves
-          // about 5.5 m of water over the bar. Neither is a *look*: both are read
-          // by `scape:map --stats` and by nothing the camera can see.
-          fjord: {
-            depth:   12.5,
-            sill:    0.34,
-            length:  115,
-            width:   24,
-            bearing: 90,
-            bend:    0.55,
-          },
-        },
-        layout: {
-          yardRadius:    16,
-          trackWidth:    2.8,
-          plotCount:     2,
-          forestBias:    0.84,
-          harbourSpread: -40,
-          pastureRadius: 7,
-        },
-      },
-      {
-        id:         'fell',
-        profile:    'fell',
-        origin:     [ 300, -480 ],
-        seedOffset: 82_147,
-        satellites: 'none',
-        detail:     0.45,
-        terrain:    {
-          size:        455,
-          height:      21.8,
-          shoreBand:   0.95,
-          islandInner: 0.47,
-          islandOuter: 0.68,
-
-          // The second inlet, and the reason the section is per-island rather
-          // than per-archipelago: the same six numbers on a different coast are
-          // a different fjord, and two of them make the pair of great southern
-          // landmasses read as one glaciated coast rather than as one island
-          // with a bay in it.
-          //
-          // It opens at 135°, which is the corner of this island facing the
-          // middle of the archipelago and 45° clear of both the strand's
-          // landfall to the west and the harbour bank to the north-east. The
-          // bend is turned the other way from the sound's on purpose — two
-          // inlets curving the same way read as one shape stamped twice.
-          //
-          // 115 m here for the sound's reason rather than by copying it: this
-          // island's landing search walks out from the yard for the nearest bank
-          // with navigable water off it, and an inlet reaching much further
-          // inland becomes that bank — which moves the jetty into the fjord and
-          // the harbour, the gull ring and a ferry leg with it. At 115 the
-          // trench stops short of the ground the search prefers, and the whole
-          // of this island's composition stays where it was.
-          fjord: {
-            depth:   12.5,
-            sill:    0.34,
-            length:  115,
-            width:   22,
-            bearing: 135,
-            bend:    -0.55,
-          },
-        },
-        layout: {
-          yardRadius:    15,
-          trackWidth:    2.6,
-          plotCount:     2,
-          forestBias:    0.66,
-          harbourSpread: 42,
-          pastureRadius: 8,
-        },
-      },
-    ],
+    landmasses: SCAPE_LANDMASSES,
   },
   boats: {
     speed:         4.2,
@@ -2271,6 +2168,22 @@ export const SCAPE_CONFIG = {
     fill:   0.78,
     flow:   1.1,
     riffle: 0.55,
+  },
+  // 7 m of radius against 1.4 m of depth is a pool you could throw a stone
+  // across and not wade — the proportions of a rock basin rather than of a
+  // reservoir. 1.5 m of lift is a storm surge and a spring tide clear of the
+  // sea. 2.9 m of allowed rim relief sounds generous and is not: the farm has
+  // already taken every genuinely level acre on the home island, so what is
+  // left to a pool is the least tilted of the rough ground — and the four
+  // islands that clear it do so between 1.7 and 2.7, while the ridge, which is
+  // nothing but hillside once the holding has had its share, has no tarn.
+  tarn: {
+    radius: 7,
+    depth:  1.4,
+    lift:   1.5,
+    spread: 2.9,
+    mirror: 0.86,
+    frost:  0.55,
   },
   // 11 metres of half-width is a bar you could drive a cart along, against a
   // crossing of roughly three hundred — narrow enough at that length to read as
