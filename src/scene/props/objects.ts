@@ -163,6 +163,70 @@ export function buildFirewood (rng: SeededRng, palette: NordicPalette): BufferGe
   return mergeParts(parts, { grime: 0.9, grimeFloor: 0.5 })
 }
 
+/**
+ * A rick of cut turf, stood up on the bank to dry.
+ *
+ * Turves are not stacked flat — a flat stack holds the rain it is trying to lose
+ * — so they are leaned against one another in a ring with the wind through the
+ * middle, a second ring stood on the first, and one laid across the top to keep
+ * the weather out of it. That hollow is the whole reason the thing is built this
+ * way, and it is why the rick is a ring of parts rather than a cone: a cone
+ * would read as a heap of earth, and a heap of earth is what a peat bank is not.
+ *
+ * Every turf leans inward by the same amount about its own axis, which is what
+ * makes one `rotate` per part rather than a lookup — the position is on a
+ * bearing and the lean is that bearing turned into a tilt.
+ */
+export function buildPeatStack (rng: SeededRng, palette: NordicPalette): BufferGeometry {
+  const parts: BufferGeometry[] = []
+
+  /** One ring of turves stood on end, leaning into the middle. */
+  function ring (count: number, radius: number, y: number, height: number, lean: number): void {
+    for (let index = 0; index < count; index += 1) {
+      // Offset by a fraction of a step so the second ring's turves stand in the
+      // gaps of the first rather than on top of them.
+      const bearing = (index + (height > 0.4 ? 0 : 0.5)) / count * Math.PI * 2
+
+      parts.push(part(box(0.17, height, 0.33), {
+        at: [
+          Math.cos(bearing) * radius,
+          y,
+          -Math.sin(bearing) * radius,
+        ],
+        rotate: [ 0, bearing, lean + rng.range(-0.05, 0.05) ],
+        color:  rng.pick([ palette.peat, palette.peat, palette.peatDry ]),
+        jitter: 0.16,
+        rng,
+      }))
+    }
+  }
+
+  ring(7, 0.3, 0.27, 0.52, 0.24)
+  ring(5, 0.2, 0.66, 0.36, 0.34)
+
+  // The cap, laid flat across the top of the second ring.
+  parts.push(part(box(0.36, 0.1, 0.3), {
+    at:     [ 0, 0.86, 0 ],
+    rotate: [ 0, rng.range(0, Math.PI), 0 ],
+    color:  palette.peatDry,
+    jitter: 0.15,
+    rng,
+  }))
+
+  // A couple still lying where they were thrown up out of the cut. Without them
+  // the rick reads as something delivered rather than as work in progress.
+  for (const sign of [ -1, 1 ])
+    parts.push(part(box(0.34, 0.09, 0.2), {
+      at:     [ sign * rng.range(0.45, 0.62), 0.05, rng.range(-0.5, 0.5) ],
+      rotate: [ 0, rng.range(0, Math.PI), 0 ],
+      color:  palette.peat,
+      jitter: 0.18,
+      rng,
+    }))
+
+  return mergeParts(parts, { grime: 0.95, grimeFloor: 0.42 })
+}
+
 /** A tar barrel with iron hoops. */
 export function buildBarrel (rng: SeededRng, palette: NordicPalette): BufferGeometry {
   const parts: BufferGeometry[] = []

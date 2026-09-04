@@ -49,6 +49,13 @@ export const NORDIC_PALETTE = {
   hayDark:   '#9d8546',
   sand:      '#a9977a',
   soil:      '#6d5a44',
+
+  // Cut turf, wet and a week dry. Nearly black rather than a dark `soil`,
+  // because peat is not earth with the colour turned down — it is five thousand
+  // years of bog that never rotted, and a rick of it standing on the moor is the
+  // darkest object in the scape after the tarred hulls.
+  peat:      '#3a2e22',
+  peatDry:   '#584535',
   lakeSlate: '#4d5a5e',
   glass:     '#2b3238',
   iron:      '#43474a',

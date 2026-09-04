@@ -91,6 +91,18 @@ const TILT = {
 const PLINTH_REACH = 1.1
 
 /**
+ * How much wider than its own floor a turf cutting is kept clear, as a factor.
+ *
+ * Half again, which on the config's working is a ten-metre clearing round a
+ * seven-metre floor. Not tidiness: peat forms where the ground has been too wet
+ * for trees for five thousand years, so a bank with spruces rooted at the lip of
+ * it is a bank cut in ground that has no peat in it — and a canopy is three or
+ * four metres wide, so anything less than this puts branches over the floor even
+ * when the trunk is outside it.
+ */
+const CUTTING_CLEARING = 1.5
+
+/**
  * A near-white tint. `scatterInstances` multiplies it into the baked vertex
  * colours, so staying close to white varies the shade of a prop rather than
  * repainting it.
@@ -135,6 +147,21 @@ function createDressingSampling (
       }]
       : []
   })
+  // The turf cuttings, one per island that has one. A working is a hundred and
+  // twenty square metres of a landmass that is tens of thousands, so it takes a
+  // disc of its own for the reason the pasture does — darts thrown at the island
+  // land on it about never.
+  const workings = archipelago.landmasses.flatMap(landmass => {
+    const peat = landmass.survey.peat
+
+    return peat
+      ? [{
+        x:      peat.floor.x + landmass.origin.x,
+        z:      peat.floor.z + landmass.origin.z,
+        radius: peat.floor.radius,
+      }]
+      : []
+  })
   // The flocks are surveyed, not sampled: `grazing.ts` walks out from each yard
   // and hands back the discs of hill a farm would turn its stock out onto. What
   // the dressing does with them is what it does with the pasture — one sampler
@@ -144,10 +171,12 @@ function createDressingSampling (
   const sampleYard    = createDiscSampler(rng, yards)
   const sampleHarbour = createDiscSampler(rng, harbours)
   const sampleGrazing = createDiscSampler(rng, grazings)
+  const samplePeat    = createDiscSampler(rng, workings)
   const pastureQuota  = pastures.map(feature => createDiscSampler(rng, [ feature ]))
   const grazingQuota  = grazings.map(feature => createDiscSampler(rng, [ feature ]))
   const yardQuota     = yards.map(feature => createDiscSampler(rng, [ feature ]))
   const harbourQuota  = harbours.map(feature => createDiscSampler(rng, [ feature ]))
+  const peatQuota     = workings.map(feature => createDiscSampler(rng, [ feature ]))
   const homeArea      = config.terrain.size ** 2
 
   // Weighted by each island's own `detail`, which is what keeps a landmass of
@@ -167,11 +196,14 @@ function createDressingSampling (
     sampleYard,
     sampleHarbour,
     sampleGrazing,
+    samplePeat,
     pastureQuota,
     yardQuota,
     harbourQuota,
     grazingQuota,
+    peatQuota,
     grazings,
+    workings,
     areaScale,
   }
 }
@@ -214,11 +246,14 @@ export function createDressing (
     sampleYard,
     sampleHarbour,
     sampleGrazing,
+    samplePeat,
     pastureQuota,
     yardQuota,
     harbourQuota,
     grazingQuota,
+    peatQuota,
     grazings,
+    workings,
     areaScale,
   }              = createDressingSampling(config, archipelago, rng)
   // Where anything standing on the ground meets it, and which way that ground
@@ -660,6 +695,7 @@ export function createDressing (
     conifer, stoneRule, openGround, beachRule, birchRule, juniperRule, plotEdge, inPasture, inYard,
   } = createScatterRules(config, archipelago, field, rng, zones)
 
+
   // The same predicate the flocks were sited with — see `grazing.ts`. The
   // survey answers *where* the ground is; this answers whether one dart thrown
   // at it landed on grass rather than in the beck running through it.
@@ -667,8 +703,29 @@ export function createDressing (
 
   /** Populate the ground, biggest footprints first. */
   function dressGround (): void {
+    // The turf cuttings, claimed before anything is scattered. A peat bank is
+    // bare ground by definition — it is ground somebody carried the turf off —
+    // and the zone tests keep the cover off the floor itself, but a spruce
+    // rooted a metre outside the edge still stands its whole canopy over the
+    // working. So the solver is told about it the way it is told about a
+    // building, and at half again the floor's own radius: what a cutting stands
+    // in is a clearing, because blanket peat and a spruce wood are two things
+    // the same ground cannot be doing at once.
+    for (const working of workings)
+      solver.reserve(working.x, working.z, working.radius * CUTTING_CLEARING)
+
     // Standing water off the harbour. Tied to the harbour rather than to the
     // waterline in general: a stake belongs to the people who drove it.
+    // The drying ground: the stripped floor itself, and the couple of metres of
+    // moor beyond its back edge that the cutting has not reached yet. Ricks are
+    // stood on both — on the floor while the face is being worked, and off it
+    // once there is somewhere dry to put them — so one test covers both by
+    // asking the working's disc rather than its rectangle.
+    const onWorking = (x: number, z: number): boolean =>
+      zones.onPeat(x, z) ||
+        workings.some(working => Math.hypot(x - working.x, z - working.z) < working.radius) &&
+        heightAt(x, z) > water + 0.4
+
     const harbourShallows = (x: number, z: number): boolean => {
       if (!harbourAnchors.some(anchor => Math.hypot(x - anchor.x, z - anchor.z) <= 30))
         return false
@@ -858,6 +915,23 @@ export function createDressing (
       { sample: sampleGrazing, quota: grazingQuota, claimScale: 0.5 },
       TILT.footed,
       grazings.length,
+    )
+
+    // After the flock, and for the flock's own reason: this batch is the newest
+    // thing in the function, so it goes where inserting it disturbs nothing
+    // downstream. Scaled by the workings rather than by island area — the count
+    // is ricks on *a* bank, the way the sheep count is head in *a* flock.
+    scatterStructural(
+      'peatStack',
+      config.dressing.peatStack,
+      0.72,
+      onWorking,
+      0.85,
+      1.15,
+      40,
+      { sample: samplePeat, quota: peatQuota, claimScale: 0.5 },
+      TILT.placed,
+      workings.length,
     )
   }
 

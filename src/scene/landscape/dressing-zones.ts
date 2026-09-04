@@ -39,6 +39,9 @@ export interface DressingZones {
    */
   atTarnMargin(x: number, z: number): boolean
 
+  /** The stripped floor of a turf cutting: ground the farm has carried away. */
+  onPeat(x: number, z: number): boolean
+
   clear(x: number, z: number): boolean
 }
 
@@ -138,12 +141,29 @@ export function createZoneTests (archipelago: ArchipelagoSurvey): DressingZones 
     return over > -MARGIN_DEPTH && over < MARGIN_RISE
   }
 
+  // The cutting is the one zone here that is defined by what has been *removed*
+  // rather than by what stands on it, and it still has to be a zone: nothing
+  // that scatters asks the placement solver anything, so without this the
+  // heather grows on a floor whose heather is stacked in ricks at the end of it.
+  const onPeat = (x: number, z: number): boolean => {
+    const landmass = archipelago.field.landmassAt(x, z)
+    const peat     = landmass?.survey.peat
+
+    if (!peat)
+      return false
+
+    return peat.claimAt(x - landmass.origin.x, z - landmass.origin.z) > 0
+  }
+
   // The tread is spoken-for ground, not merely a stripe of terrain paint.
   const clear = (x: number, z: number): boolean =>
     onYard(x, z) === 0 && !onTrack(x, z) && !onPath(x, z) &&
-    onPlot(x, z) === 0 && onPasture(x, z) === 0 && !onBeacon(x, z) && !onTarn(x, z)
+    onPlot(x, z) === 0 && onPasture(x, z) === 0 && !onBeacon(x, z) && !onTarn(x, z) &&
+    !onPeat(x, z)
 
-  return { onYard, onTrack, onPath, onPlot, onPasture, onBeacon, onTarn, atTarnMargin, clear }
+  return {
+    onYard, onTrack, onPath, onPlot, onPasture, onBeacon, onTarn, atTarnMargin, onPeat, clear,
+  }
 }
 
 /** Pure acceptance rules shared by every archipelago-wide scatter batch. */

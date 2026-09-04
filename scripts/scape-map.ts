@@ -4,6 +4,8 @@ import { surveyArchipelago } from '../src/scene/landscape/archipelago.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from '../src/scene/landscape/archipelago.ts'
 import { scheduledFleetMinimumSeparation } from '../src/scene/landscape/boat-motion.ts'
 import { beckGeometry } from '../src/scene/landscape/beck.ts'
+import { peatFaceStanding } from '../src/scene/landscape/peat.ts'
+import type { PeatBank } from '../src/scene/landscape/peat.ts'
 import { tarnWetted } from '../src/scene/landscape/tarn.ts'
 import type { Tarn } from '../src/scene/landscape/tarn.ts'
 import type { Creek } from '../src/scene/landscape/creek.ts'
@@ -43,7 +45,7 @@ const SHALLOW = 0.45
 
 export const LEGEND =
   '~ deep  - shallow  . shore  : low  = mid  + upper  * high  # peak\n' +
-  ', footpath  ≡ track  · waterway  b boat  s beck  ≈ tarn  ' +
+  ', footpath  ≡ track  · waterway  b boat  s beck  ≈ tarn  T peat  ' +
   'F/B/A/W/S steading  o well  J jetty  H harbour  V smokehouse  ' +
   'W mill  K chapel  L light  C croft  p plot  ^ ridge'
 
@@ -133,7 +135,19 @@ interface CompositionStats {
    * — a retuned falloff, a shifted yard, a carve that lost its containment —
    * draws exactly as it did and shows up nowhere except here.
    */
-  tarn:    { x: number, z: number, level: number, wetted: number, spread: number } | null
+  tarn: { x: number, z: number, level: number, wetted: number, spread: number } | null
+
+  /**
+   * The turf cutting on the moor: where the face is, how flat the ground under
+   * it measured, and how much of the face is actually standing.
+   *
+   * `standing` is the line worth reading, and it is the tarn's `wetted` in a
+   * different substance: the carve is downward-only, so a working sited on
+   * ground that already falls away as fast as the cut does draws a rectangle of
+   * dark paint with no step in it at all — identical from every pose, and
+   * visible nowhere except here.
+   */
+  peat:    { x: number, z: number, level: number, spread: number, standing: number } | null
   pasture: { x: number, z: number, radius: number } | null
   mill:    { x: number, z: number, prominence: number } | null
   chapel:  { x: number, z: number, prominence: number, fromYard: number } | null
@@ -477,6 +491,27 @@ function tarnOf (
 }
 
 /**
+ * The cutting, in world metres, and how much of its face is standing.
+ *
+ * Its own function beside `tarnOf` for the same reason: a projection plus a
+ * measurement, and the measurement is the whole point of the record.
+ */
+function peatOf (
+  peat:   PeatBank | null,
+  field:  HeightField,
+  worldX: (value: number) => number,
+  worldZ: (value: number) => number,
+): CompositionStats['peat'] {
+  return peat && {
+    x:        round(worldX(peat.x)),
+    z:        round(worldZ(peat.z)),
+    level:    round(peat.level, 2),
+    spread:   round(peat.spread, 2),
+    standing: round(peatFaceStanding(peat, field.heightAt), 2),
+  }
+}
+
+/**
  * Everything the grid cannot say.
  *
  * The picture is for a person; this is for the run. A creek that failed to
@@ -559,6 +594,7 @@ function compositionStats (landmass: LandmassSurvey, w: number, h: number): Comp
     },
     beck:    beckOf(config, layout.creek, field),
     tarn:    tarnOf(survey.tarn, field, worldX, worldZ),
+    peat:    peatOf(survey.peat, field, worldX, worldZ),
     pasture: layout.pasture && {
       x:      round(worldX(layout.pasture.x)),
       z:      round(worldZ(layout.pasture.z)),
@@ -783,6 +819,16 @@ export function renderGrid (
 
     if (tarn && field.heightAt(x, z) < tarn.level && tarn.claimAt(localX, localZ) > 0)
       return '≈'
+
+    // Not water, and in here anyway: the cutting is the third thing on the moor
+    // that is a *claim* rather than a height, and a third branch inline in
+    // `overlayAt` is what the split above exists to avoid. At the default world
+    // grid a working is a character, which is the right size for it and enough
+    // to notice when it has gone.
+    const peat = landmass?.survey.peat
+
+    if (peat && peat.claimAt(localX, localZ) > 0.35)
+      return 'T'
 
     return null
   }

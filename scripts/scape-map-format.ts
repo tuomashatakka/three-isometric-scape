@@ -85,6 +85,12 @@ function skerryLine (skerries: MapStats['skerries']): string {
  * course that failed to trace and a channel with nothing standing in it are
  * both *findings*, and two more ternaries inline is what took `formatStats`
  * past the complexity ceiling.
+ *
+ * The cutting is in here rather than with the sited buildings because what it
+ * is a report about is the same thing the pool's line is: ground that was
+ * chosen for being level, and the one measurement that says whether it still
+ * is. It is the wettest ground the island has, which is why there is peat on
+ * it at all.
  */
 function waterLines (stats: MapStats): string[] {
   return [
@@ -100,6 +106,11 @@ function waterLines (stats: MapStats): string[] {
       ? `tarn  (${stats.tarn.x},${stats.tarn.z}) surface ${stats.tarn.level}m  ` +
         `wetted r${stats.tarn.wetted}m  rim ${stats.tarn.spread}m`
       : 'tarn  NONE  <- no upland flat enough to hold one',
+    stats.peat
+      ? `peat  (${stats.peat.x},${stats.peat.z}) moor ${stats.peat.level}m  ` +
+        `face ${stats.peat.standing}m standing  ground ${stats.peat.spread}m` +
+        (stats.peat.standing < 0.3 ? '  <- the cut left no face' : '')
+      : 'peat  NONE  <- no low ground flat enough to cut',
   ]
 }
 
@@ -190,7 +201,8 @@ export function formatStats (stats: MapStats): string {
       `land ${landmass.land}% peak ${landmass.peak.height}m  ` +
       `paths ${landmass.footpaths.routes}  ` +
       `jetty ${landmass.landing ? `(${landmass.landing})` : 'NONE'}  ` +
-      `mill ${landmass.mill ? `(${landmass.mill.x},${landmass.mill.z})` : 'NONE'}`),
+      `mill ${landmass.mill ? `(${landmass.mill.x},${landmass.mill.z})` : 'NONE'}  ` +
+      `peat ${landmass.peat ? `(${landmass.peat.x},${landmass.peat.z}) face ${landmass.peat.standing}m` : 'NONE'}`),
     `waterways ${stats.waterways.legs} legs ${stats.waterways.length}m  ` +
       `connected ${stats.waterways.connected ? 'OK' : 'BROKEN'}  ` +
       `wet ${stats.waterways.wet ? 'OK' : 'DRY'}  ` +

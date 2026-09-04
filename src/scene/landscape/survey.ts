@@ -16,6 +16,8 @@ import type { ScapeLayout } from './layout.ts'
 import { MILL_FOOTING } from './mill.ts'
 import { planFarmNetwork } from './network.ts'
 import type { FarmNetwork, OutlyingPlace } from './network.ts'
+import { solvePeatBank } from './peat.ts'
+import type { PeatBank } from './peat.ts'
 import { SMOKEHOUSE_FOOTING, findSmokehouseSite } from './smokehouse.ts'
 import type { SmokehouseSite } from './smokehouse.ts'
 import { STEADING_BUILDINGS, doorstepOf, steadingPlaces } from './steading.ts'
@@ -55,6 +57,9 @@ export interface ScapeSurvey {
   /** The pool above the beck's spring, or `null` if no hollow up there holds one. */
   tarn: Tarn | null
 
+  /** The turf cutting on the moor, or `null` if the island has no flat low ground. */
+  peat: PeatBank | null
+
   /** The street plan: every place walked to, and every leg planned between them. */
   network: FarmNetwork
   paths:   Footpaths
@@ -82,8 +87,15 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
   // reader downstream has to see the ground that does. So the field is built
   // twice around the one solve — see `createHeightField`'s own note on why that
   // is cheaper than the alternative.
-  const tarn               = solveTarn(config, layout, createHeightField(config, layout).heightAt)
-  const field: HeightField = createHeightField(config, layout, tarn)
+  const tarn = solveTarn(config, layout, createHeightField(config, layout).heightAt)
+
+  // And the cutting against the ground the pool left, for the same reason again
+  // — with the pool itself handed over as ground already spoken for. The middle
+  // field is the one the tarn solve used to throw away, so this is one more
+  // closure and one more pair of smoothed profiles rather than a third pass over
+  // the island.
+  const peat               = solvePeatBank(config, layout, createHeightField(config, layout, tarn).heightAt, tarn)
+  const field: HeightField = createHeightField(config, layout, tarn, peat)
   const places             = steadingPlaces(layout.yard)
   const landing            = findLanding(layout, field, config)
   const harbour            = landing && findHarbourBank(layout, field, config, landing)
@@ -132,6 +144,10 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     // is not a building. A leg that took the short line across the pool would be
     // a footpath along the bottom of it.
     ...tarn ? [{ x: tarn.x, z: tarn.z, radius: tarn.radius }] : [],
+    // The working, for the reason the pool is here: a leg that took the short
+    // line across it would be a footpath along the floor of a cutting and up
+    // over the face at the far end.
+    ...peat ? [{ x: peat.floor.x, z: peat.floor.z, radius: peat.floor.radius }] : [],
   ]
 
   // Against the harbour rather than against the farm, and after everything else
@@ -190,5 +206,5 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
       distanceToTrack(layout, x, z) < layout.track.width * 1.3,
   })
 
-  return { layout, field, places, landing, harbour, beacon, croft, smokehouse, tarn, network, paths }
+  return { layout, field, places, landing, harbour, beacon, croft, smokehouse, tarn, peat, network, paths }
 }

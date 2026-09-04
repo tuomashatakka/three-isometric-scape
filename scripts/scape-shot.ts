@@ -574,6 +574,42 @@ export const TOURS: Record<string, Pose[]> = {
   ],
 
   /**
+   * The turf cutting, which is a hole and photographs like one.
+   *
+   * The lesson every one of the sets above wrote down, applied to a feature that
+   * needs it more than most: a peat bank is eleven metres by seven and its whole
+   * claim is a step nine tenths of a metre high. At `tour/default` that is four
+   * pixels of dark ground and at `near` the camera is over the yard, forty
+   * metres away and facing the other way.
+   *
+   * It is also the one feature in the scape whose reading depends on the *yaw*
+   * rather than only on the zoom. A cutting seen from the downhill side is a
+   * wall of peat; seen from over the face it is a rectangle of dark paint with
+   * nothing standing in it at all — which is exactly the failure `scape:map`'s
+   * `face ... standing` exists to catch, and exactly the one a single camera
+   * angle would hide. So there are two close frames a quarter turn apart, and
+   * the pair is the check.
+   *
+   * `peat` looks along the face from the downhill side, where the step and the
+   * ricks stood out on the bank are both in frame. `peat-across` is the same
+   * working a quarter turn round, which is the angle a flat cut would look
+   * identical at — and it is 290° rather than the 110° that is the same quarter
+   * turn the other way, because from there the wood on the seaward shoulder
+   * stands between the camera and the cutting and the frame is spruces.
+   * `peat-moor` is the claim the siting makes — the working, the pool above it
+   * and the mill on the shoulder in one frame, so a reviewer can see whether the
+   * search took the wet low ground or wandered up the hill.
+   *
+   * Nothing here is in {@link STILL}, and nothing needs to be: a cut face does
+   * not move.
+   */
+  peat: [
+    { name: 'peat', rot: 20, zoom: 24, set: [ 'camera.focusX=29.1', 'camera.focusZ=-21.8' ]},
+    { name: 'peat-across', rot: 290, zoom: 24, set: [ 'camera.focusX=29.1', 'camera.focusZ=-21.8' ]},
+    { name: 'peat-moor', zoom: 90, set: [ 'camera.focusX=31', 'camera.focusZ=-8' ]},
+  ],
+
+  /**
    * The pool on the home island's shoulder, and one of the far ones.
    *
    * Added for the reason `beacon`, `chapel` and `beck` were, and it is the same
@@ -1016,6 +1052,7 @@ async function main (): Promise<void> {
       '                        croft (3, the holding out on the islets)',
       '                        shallows (4, the light on the bottom)',
       '                        beck (4, the water in the channel)',
+      '                        peat (3, the turf cutting on the moor)',
       '                        tide (3, the sea at both ends of its swing)',
       '                        fjord (4, the drowned valley in the sound) | quick (1)',
       '  --rot 45 --zoom 70    camera yaw, and view size (tilt is derived from zoom)',

@@ -7,7 +7,15 @@ import { buildCroft } from './croft.ts'
 import { buildWindmill } from './mill.ts'
 import { buildBladderwrack, buildRockLichen } from './littoral.ts'
 import { buildLamb, buildSheep } from './livestock.ts'
-import { buildBarrel, buildDriftwood, buildFirewood, buildHayBale, buildMailbox, buildRowboat } from './objects.ts'
+import {
+  buildBarrel,
+  buildDriftwood,
+  buildFirewood,
+  buildHayBale,
+  buildMailbox,
+  buildPeatStack,
+  buildRowboat,
+} from './objects.ts'
 import type { NordicPalette } from './palette.ts'
 import { buildBoathouse, buildMooringPost, buildNetRack } from './shore.ts'
 import { buildSmokehouse } from './smokehouse.ts'
@@ -107,6 +115,7 @@ export const PROPS = {
 
   mooringPost: buildMooringPost,
   hayPole:     buildHayPole,
+  peatStack:   buildPeatStack,
 
   sheep: buildSheep,
   lamb:  buildLamb,
@@ -129,7 +138,7 @@ export const SCATTER_PROPS = [
   'grass', 'heather', 'wildflower', 'reeds', 'lilyPads', 'crop',
   'erratic', 'fieldStone', 'cobble', 'cairn',
   'bladderwrack', 'rockLichen',
-  'hayBale', 'firewood', 'barrel', 'driftwood', 'mooringPost', 'hayPole',
+  'hayBale', 'firewood', 'barrel', 'driftwood', 'mooringPost', 'hayPole', 'peatStack',
   'sheep', 'lamb',
 ] as const satisfies readonly PropName[]
 
