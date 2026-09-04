@@ -137,6 +137,29 @@ function sitedLines (stats: MapStats): string[] {
   ]
 }
 
+/**
+ * The storm line, and the findings it carries.
+ *
+ * Two of them. A comb that no rate lets through is a front with no lightning in
+ * it, and an island with every strike on it is a hash that stopped spreading —
+ * both are silent in a still, because a still is one instant of a front and
+ * almost every instant of a front has no strike in it at all.
+ */
+function stormLine (storm: MapStats['storm']): string {
+  if (!storm.peak)
+    return 'storm  NO STRIKES  <- the rate lets none of the comb through'
+
+  const sites = storm.sited
+    .map(site => `${site.id}(${site.x},${site.z}) ${site.strikes}x on ${site.base}m`)
+    .join('  ')
+
+  return `storm ${storm.strikes}/${storm.asked} strikes  ` +
+    `peak @ phase ${storm.peak.phase} over ${storm.peak.id}  ${sites}` +
+    (storm.sited.some(site => site.strikes === storm.strikes)
+      ? '  <- every strike on one island'
+      : '')
+}
+
 /** The stats block, as the run reads it. */
 export function formatStats (stats: MapStats): string {
   const steading = Object.entries(stats.steading)
@@ -188,6 +211,7 @@ export function formatStats (stats: MapStats): string {
     `hearths ${stats.hearths.count}  lowest mouth ${stats.hearths.lowest}m over the ground` +
       (stats.hearths.lowest < 3 ? '  <- a stack is standing in its own roof' : ''),
     windowLine(stats.windows),
+    stormLine(stats.storm),
     grazingLine(stats.grazing),
     `gulls ${stats.colonies.count}/${stats.colonies.asked} colonies  ` +
       (stats.colonies.sited

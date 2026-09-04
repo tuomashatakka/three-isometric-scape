@@ -4,7 +4,39 @@ import type { Browser, ConsoleMessage, Page } from 'playwright-core'
 import { GPU_FLAGS, SOFTWARE_FLAGS, findChromium, serve } from './browser.ts'
 import { parseArgs } from './args.ts'
 import type { Args } from './args.ts'
+import { SCAPE_CONFIG } from '../src/scene/config.ts'
+import { stormPeak } from '../src/scene/storm.ts'
 
+
+/**
+ * The brightest strike the default front carries, and when it fires.
+ *
+ * Resolved from the config rather than written down, because a strike is a fact
+ * about the seed: a phase typed into a pose would go stale the moment anybody
+ * retuned the storm or moved the seed, and it would go stale *silently* — the
+ * pose would photograph an empty sky and the diff would report `same`, which is
+ * indistinguishable from the system being broken.
+ *
+ * The offset is a fiftieth of one flash into the strike rather than its first
+ * instant, which is inside the first stroke and still at nine tenths of full
+ * brightness. It is not zero because the phase reaches the page as a rounded
+ * decimal, and a value that landed a millionth *before* the strike would be a
+ * frame of clear sky at the far end of the front's whole cycle.
+ */
+const STRIKE = stormPeak(SCAPE_CONFIG)
+
+const AT_STRIKE = STRIKE
+  ? [ `weather.time=${(STRIKE.strike.phase + SCAPE_CONFIG.storm.flash * 0.02).toFixed(6)}` ]
+  : []
+
+/** The same front a quarter of a cycle on, which no strike can reach. See `STORM_SLOTS`. */
+const NO_STRIKE = STRIKE
+  ? [ `weather.time=${(STRIKE.strike.phase + 0.25).toFixed(6)}` ]
+  : []
+
+const OVER_STRIKE = STRIKE
+  ? [ `camera.focusX=${Math.round(STRIKE.site.x)}`, `camera.focusZ=${Math.round(STRIKE.site.z)}` ]
+  : []
 
 /** The middle of the sound's inlet, which four of the `fjord` poses sit on. */
 const SOUND_INLET = [ 'camera.focusX=-306', 'camera.focusZ=-374' ]
@@ -42,6 +74,38 @@ export const TOURS: Record<string, Pose[]> = {
     // autumn puts the sun twenty-six degrees under at the same hour.
     { name: 'night', time: 0.02, season: 0.78 },
     { name: 'winter', season: 0.02 },
+  ],
+
+  /**
+   * The lightning, at the one instant of the front that has any in it.
+   *
+   * The tour cannot see this system and no arrangement of cameras would fix it:
+   * every other thing in the scape is somewhere in every frame, and a strike is
+   * somewhere for two thirds of a second in seven minutes. What a pose has to
+   * name here is not a place but a *time* — see `STRIKE` — and every frame in
+   * this set except the last one names the same one.
+   *
+   * `storm` is the whole archipelago at the default frame, which is what the
+   * flash was sized against: a lit cloud two hundred metres across over an
+   * island four hundred metres out. `storm-night` is the same instant in the
+   * dark half of the year, where an additive flash has the most to add and the
+   * grade has the least. `storm-fork` drops onto the striking island itself,
+   * because the channel is thirty-four metres of ribbon that is deliberately
+   * faded out of every wide frame — the two ends of the zoom are two different
+   * pictures of one strike, and a set that only held one of them would be
+   * testing half the module.
+   *
+   * `storm-clear` is the control, and it is the frame that catches the failure
+   * this system is most likely to have: a quarter of a cycle on, where the front
+   * carries no strike at all. It must be identical to the reference. A flash
+   * that showed up *there* would be lightning out of a clear sky, which is
+   * exactly what a schedule read against the wrong phase looks like.
+   */
+  storm: [
+    { name: 'storm', set: AT_STRIKE },
+    { name: 'storm-night', time: 0.02, season: 0.78, set: AT_STRIKE },
+    { name: 'storm-fork', zoom: 70, set: [ ...OVER_STRIKE, ...AT_STRIKE ]},
+    { name: 'storm-clear', set: NO_STRIKE },
   ],
 
   /**
@@ -666,6 +730,14 @@ export const STILL = [
   // not weather, so it would go on rising through a dead calm and be a different
   // plume in every frame of a tour.
   'hearth.speed=0',
+
+  // Nothing for the lightning, deliberately, and it is the reason the storm has
+  // no rate of its own to zero. A strike's whole life is measured in the front's
+  // cycle — see `stormAge` in `scene/storm.ts` — so `weather.speed=0` above
+  // freezes a flash exactly where `weather.time` leaves it. A storm with a clock
+  // of its own could only have been stopped by a knob that, at zero, meant no
+  // strike ever fired: a system that could be photographed only by being turned
+  // off. The `storm` tour is what actually parks the front on a lit one.
 
   // Nothing for the tide, deliberately. It integrates no rate of its own: the
   // water is a function of `daylight.time` and `season.time`, and both of those

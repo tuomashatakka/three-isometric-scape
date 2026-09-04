@@ -247,6 +247,23 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
             range('squall.drift', 'travel with the wind', 0, 2, 0.01),
           ],
         ),
+
+        // Under the weather with the squall, because it is the same front: a
+        // strike fires at a phase of `weather.time`, so the scrubber two rows up
+        // is also the storm's, and `rate` is the knob worth dragging with the
+        // front frozen — it decides whether the instant you are parked on has a
+        // bolt standing on it.
+        toggled(
+          'lightning',
+          range('storm.strength', 'how the cloud lights', 0, 1, 0.01, quality.stormFlashes > 0),
+          0.85,
+          [
+            range('storm.rate', 'strikes in a front', 0, 1, 0.01),
+            range('storm.flash', 'how long one lasts', 0, 0.006, 0.0002),
+            range('storm.reach', 'how far it lights', 0.02, 0.3, 0.005),
+            range('storm.fork', 'the channel itself', 0, 1, 0.01),
+          ],
+        ),
       ],
     },
     {

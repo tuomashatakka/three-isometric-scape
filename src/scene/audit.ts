@@ -20,7 +20,7 @@
  */
 export const SCAPE_FAMILIES = [
   'inject', 'detail', 'dressing', 'water', 'mist', 'clouds', 'aurora', 'nightsky', 'rain',
-  'squall', 'birds', 'beacon', 'hearth', 'windows', 'post', 'shadows',
+  'squall', 'storm', 'birds', 'beacon', 'hearth', 'windows', 'post', 'shadows',
 ] as const
 
 export type ScapeFamily = typeof SCAPE_FAMILIES[number]

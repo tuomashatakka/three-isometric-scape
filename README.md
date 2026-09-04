@@ -96,6 +96,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a beck traced downhill from a spring, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself — with water standing in it, lying flat across the channel, falling with the ground, breaking white where the hill drops, and freezing later than the sea it runs into
 - a tarn on the high ground of every island whose spare upland is flat enough to hold one — sited by a search for the least tilted acre the farm has not already claimed, standing at the lowest point of its own rim, edged with reeds, and locking into ice weeks before the sound below it does
 - showers standing out on the open water, crossing the archipelago from upwind ahead of the front that will reach the farm shortly after — read off the same clock the fall is, one lead ahead of it, and cut off at every coastline by the land it cannot rain on
+- lightning in that same front, out on the far islands only: a patch of cloud lit from inside for two thirds of a second, twice, with a jagged channel standing on the ground under it — scheduled off a comb of the front's own phases, so the storm arrives with the squall and can be photographed by naming a time
 - **three clocks** — a day, a year, and a weather front — each a phase and a speed, each deriving everything else from that phase
 - a solar arc solved from a latitude — a polar night at midwinter, a midnight sun at midsummer — with dusk and night palettes derived from it, plus seasonal growth, leaf turn, lying snow, sea ice, sea smoke, and rain that leaves the ground wet
 - an aurora over the dark half of the year, gated on the night and on how much night the week has
@@ -200,6 +201,7 @@ src/
     ├── tide.ts                     the moon from underneath: how far the sea is off its mean this hour
     ├── rain.ts                     the fall, as one screen-sized column of streaks
     ├── squall.ts                   the shower out on the water, one lead ahead of the front
+    ├── storm.ts                    the lightning in that same front, out on the far islands
     ├── birds.ts                     the gulls, and the rings they wheel on
     ├── hearth.ts                   the smoke over the farmsteads, and the year that banks it
     ├── windows.ts                  lamplight in the farmstead windows, and the household that lights it
@@ -291,6 +293,7 @@ scripts/
 ├── scape-map.ts                    the whole composition as ascii
 ├── scape-map-format.ts             the stats block, as the run reads it
 ├── scape-map-landforms.ts          the bar, the guard and the fjords, walked and measured
+├── scape-map-weather.ts            the storm the front carries, and where its strikes land
 ├── scape-shot.ts                   headless stills, posed and pinned
 ├── scape-diff.ts                   what a change did to the picture, in numbers
 └── setup.ts                        what a run has before it starts thinking
@@ -1247,6 +1250,30 @@ the front was a clock the reader stood *under*. `weather.ts` gives an hour of fa
 **nothing new can move without the wind.** the mottling travels on a share of `wind.travel` and the band is placed by the front's own phase, so `wind.speed=0` and `weather.speed=0` — both already in `STILL` — hold the whole thing. `squall.drift=0` is named there anyway, for the reason `mill.spin` is: a capture must not depend on a second knob's value to be reproducible.
 
 **what it does not do is show at night.** the shower is a darkening of the water, and at the tour's night pose the water is already dark — the diff reads `same`, and that is the honest answer rather than a gap. a squall you could see in the dark would be a squall lit by nothing.
+
+## the lightning in it
+
+the front had four consequences and every one of them was a *surface*: rain falling on the reader, ground going dark and glossy, the year's white where it fell cold, and — one lead upwind — a patch of matted sea crossing the archipelago. what a squall heavy enough to do all four also has in it is electricity, and the scape had none.
+
+[`storm.ts`](src/scene/storm.ts) is lightning out on the far islands.
+
+**it is the front's clock and nothing else.** the squall was already careful not to be a fifth clock; this is careful not to be a sixth. a strike fires at a phase of `weather.time`, its whole two-thirds of a second is measured as a fraction of that same cycle (`storm.flash`), and the schedule it fires off is a fixed comb of twenty-four slots resolved from the seed alone. so the overlay's front scrubber walks through the storm, a strike cannot drift out of step with the rain it belongs to, and — the decision that mattered most — `weather.speed=0`, a line `STILL` has had since the fall was built, freezes a bolt mid-flash.
+
+**a clock of its own could only have been stopped by deleting it.** this is worth stating because it was the first design and it does not work. give the storm a rate in strikes per minute, as the beacon's optic and the mill's sails have, and `STILL` has to set that rate to zero — at which point no capture of this scape ever contains a strike, and the one instrument that could have judged the module is the one instrument guaranteed never to see it. anything whose *existence* is an event rather than a state has to be placed on a clock a pose can name.
+
+**it never strikes the home island.** the sites are the outer islands only — see `stormPoints`, which takes them off the landmass specs rather than off a survey so that a script can ask where the storm stands without building an archipelago to find out. that is the composition rather than a safety rail: this camera looks down at a farm, and a bolt in the farmyard is a white frame, where a bolt on the sound four hundred metres out is weather happening to somebody else in the same picture. it is the squall's idea one step further along the front.
+
+**it is two pictures of one strike.** the flash is a patch of lit cloud about a hundred and eighty metres across, sunk just under the deck so the deck's own mottling paints over the top of it; the fork is thirty-four metres of jagged ribbon standing on the ground it struck. at the default frame of 1400 m the fork is two pixels — the exact failure the squall's vertical curtain was — and at the 10 m frame the flash is a wash over everything. so `stormReveal` fades the glow *in* as the camera pulls out and `stormForkReveal` fades the fork in as it pushes back down, and the one thing the tests hold them to is that they never both leave at once: at every view in the range, one of the two is drawing.
+
+**the fork is a prop builder in everything but name.** `(rng, height) => BufferGeometry`, base at zero, no scene and no context, six of them pre-built at mount and picked per strike by a hash. three columns of vertices rather than two, so the softness comes from an interpolated attribute instead of from a texture. the branch's fall is clamped against its own start, and that clamp is a bug that was there before the test was: a branch leaving low and falling far ends up *under* the island, as a bright wedge coming out of a hillside — visible only at the one zoom the fork is drawn at, which is the zoom no wide frame would have caught.
+
+**the strike is scheduled where the rain is heaviest.** a slot only carries a strike if `showerAmount` at its own phase clears 0.35, so the comb is dense through the squall band, thin through the trailing one and empty in the clear spell. that is one curve doing two jobs again: retune the front's bands and the lightning moves with them, and a strike out of a clear sky is a shape the code cannot make.
+
+**the rate is a share, not a speed.** `storm.rate` is the level each slot's own roll is compared against, which is why it can be dragged live — nothing is replanned when it moves — and why it is one of the two entries in `NOT_A_RATE` in the capture harness's own test. at 0 the front carries no lightning; at 0.66, the authored default, six of the comb's seven possible strikes fire.
+
+**the tour could not see any of it, and this time no camera would have fixed that.** every other system in this scape is somewhere in every frame. a strike is somewhere for two thirds of a second in seven minutes, so what a pose has to name here is a *time*: `scape-shot.ts` asks `stormPeak` for the front's brightest strike and pins `weather.time` a fiftieth of a flash into it. the `storm` set is four frames — the archipelago at the default frame, the same instant at night, the striking island at 70 m for the fork, and a control a quarter of a cycle on where the front carries nothing at all. the control is the one that catches the failure this module is most likely to have, because a flash there would be lightning out of a clear sky.
+
+**two draws per lit strike, and none at all the rest of the time.** the tier count is `stormFlashes` — none on `minimal`, one on mobile, two on desktop, three on ultra — and the whole system is `visible = false` outside a squall. the forks are six shared geometries of about a hundred triangles; the glows are one shared unit quad. `scape:map --stats` carries the storm line, because a comb that went empty, a site that drifted into open water or an island taking every bolt in the front are all invisible in a still and all one number here.
 
 ## framing the sea
 

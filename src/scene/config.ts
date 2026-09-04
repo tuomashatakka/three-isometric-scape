@@ -1844,6 +1844,60 @@ export interface ScapeConfig {
      */
     drift: number
   }
+
+  /**
+   * The lightning in that same front.
+   *
+   * Not a sixth clock either, and for the squall's reason: every knob here is
+   * read against the phase `weather` already owns, so a strike fires at an
+   * instant of the front rather than at an instant of its own. See `storm.ts`.
+   */
+  storm: {
+
+    /**
+     * How brightly a flash lies on the cloud over the far islands, 0..1.
+     *
+     * The switch for the flash, and the only one it has: whether a given pass of
+     * the front carries a strike at all is `rate`'s business, and whether the
+     * frame is far enough back to read the lit cloud is the zoom's.
+     */
+    strength: number
+
+    /**
+     * How electric the front is: the share of its slots that carry a strike, 0..1.
+     *
+     * A threshold rather than a count. The scape's storm is a fixed comb of
+     * possible strikes resolved from the seed, and this is the level each one's
+     * own roll is compared against — so the knob moves the number of strikes a
+     * front carries without replanning any of them, and 0 is a front with no
+     * lightning in it at all.
+     */
+    rate: number
+
+    /**
+     * How long one strike stays lit, as a fraction of the front's cycle.
+     *
+     * In the front's cycle rather than in seconds, because that is the clock the
+     * whole system is measured on — see `stormAge` in `storm.ts`. At the default
+     * front speed the default is about two thirds of a second, and a front driven
+     * faster has faster lightning in it, which is the honest consequence of a
+     * storm that belongs to one front rather than running beside it.
+     */
+    flash: number
+
+    /** How far the lit cloud spreads, as a share of the world. */
+    reach: number
+
+    /**
+     * How strongly the channel itself draws, 0..1.
+     *
+     * Its own knob rather than a share of `strength`, because the two are seen at
+     * opposite ends of the zoom: the lit cloud is a wash at close range and the
+     * thirty-metre fork is two pixels pulled out, so each fades where the other
+     * arrives and each is worth setting on its own.
+     */
+    fork: number
+  }
   look: {
     grade:     GradeName
     intensity: number
@@ -2648,6 +2702,17 @@ export const SCAPE_CONFIG = {
     reach:    1.1,
     span:     0.75,
     drift:    0.5,
+  },
+  // Opens electric, for the reason the weather opens a third of the way into a
+  // front: a system nobody ever sees fire is a system nobody finds out the scape
+  // has. Two thirds of the comb carry a strike, which is five or six flashes in
+  // the minute and a half a squall takes to cross.
+  storm: {
+    strength: 0.85,
+    rate:     0.66,
+    flash:    0.0016,
+    reach:    0.12,
+    fork:     0.9,
   },
   look: {
     grade:      'nordic',

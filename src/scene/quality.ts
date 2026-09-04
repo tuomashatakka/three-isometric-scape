@@ -67,6 +67,18 @@ export interface AtmosphereQuality {
   squallSheets: number
 
   /**
+   * Strikes that can be lit at once out on the far islands. 0 is a coast with
+   * no lightning in its weather.
+   *
+   * A count for the reason `squallSheets` is one, and it buys the same thing:
+   * a storm with one flash in it is a strike, and a storm with three is a front
+   * with electricity spread along it. Each costs two draws — the lit cloud and
+   * the channel under it — and only while it is actually lit, which on the
+   * default front is a couple of seconds in seven minutes.
+   */
+  stormFlashes: number
+
+  /**
    * Gulls in the air across the whole archipelago. 0 is a coast with no birds
    * on it.
    *
@@ -276,6 +288,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     starCount:       0,
     rainDrops:       0,
     squallSheets:    0,
+    stormFlashes:    0,
     birdCount:       0,
     beaconBlades:    0,
     lampSpill:       0,
@@ -313,6 +326,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     starCount:       700,
     rainDrops:       900,
     squallSheets:    1,
+    stormFlashes:    1,
     birdCount:       90,
     beaconBlades:    1,
     lampSpill:       2,
@@ -366,6 +380,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     starCount:       1_900,
     rainDrops:       2_600,
     squallSheets:    2,
+    stormFlashes:    2,
     birdCount:       260,
     beaconBlades:    2,
     lampSpill:       3,
@@ -403,6 +418,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     starCount:       3_200,
     rainDrops:       4_200,
     squallSheets:    3,
+    stormFlashes:    3,
     birdCount:       420,
     beaconBlades:    3,
     lampSpill:       4,
@@ -457,6 +473,7 @@ const UNLOCKED_FLOOR = {
   starCount:      700,
   rainDrops:      700,
   squallSheets:   1,
+  stormFlashes:   1,
   birdCount:      90,
   beaconBlades:   1,
   lampSpill:      2,
@@ -500,6 +517,7 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
     starCount:      Math.max(quality.starCount, UNLOCKED_FLOOR.starCount),
     rainDrops:      Math.max(quality.rainDrops, UNLOCKED_FLOOR.rainDrops),
     squallSheets:   Math.max(quality.squallSheets, UNLOCKED_FLOOR.squallSheets),
+    stormFlashes:   Math.max(quality.stormFlashes, UNLOCKED_FLOOR.stormFlashes),
     birdCount:      Math.max(quality.birdCount, UNLOCKED_FLOOR.birdCount),
     beaconBlades:   Math.max(quality.beaconBlades, UNLOCKED_FLOOR.beaconBlades),
     lampSpill:      Math.max(quality.lampSpill, UNLOCKED_FLOOR.lampSpill),

@@ -70,6 +70,7 @@ fjord sound  len 115m  sea 11.7m  sill 5.5m  basin 16.3m  head +2.8m  OVERDEEPEN
 fjord fell  len 115m  sea 11.7m  sill 6m  basin 16.3m  head +3.8m  OVERDEEPENED
 hearths 15  lowest mouth 4.35m over the ground
 windows 93  lowest pane 0.73m over the ground  facing out 93/93
+storm 6/7 strikes  peak @ phase 0.3161 over fell  ridge(-193,77) 1x on -1.25m  meadow(206,141) 1x on -1.05m  sound(-336,-501) 2x on 1.72m  fell(282,-480) 2x on 7.02m
 grazing 7/10 flocks  thinnest cover 0.72  home/outfield (32,-14) r7  home/outfield (24,23) r7  meadow/infield (158,146) r7  sound/infield (-329,-518) r7  sound/outfield (-266,-443) r7  fell/infield (311,-424) r7  fell/outfield (322,-541) r7
 gulls 6/6 colonies  home/harbour (-53,-63) r24.1  home/rock (71,46) r28  ridge/harbour (-116,147) r28  meadow/harbour (103,132) r28  sound/harbour (-373,-353) r28  fell/harbour (322,-361) r13.2
 ```
@@ -154,6 +155,7 @@ fjord sound  len 115m  sea 11.7m  sill 5.5m  basin 16.3m  head +2.8m  OVERDEEPEN
 fjord fell  len 115m  sea 11.7m  sill 6m  basin 16.3m  head +3.8m  OVERDEEPENED
 hearths 15  lowest mouth 4.35m over the ground
 windows 93  lowest pane 0.73m over the ground  facing out 93/93
+storm 6/7 strikes  peak @ phase 0.3161 over fell  ridge(-193,77) 1x on -1.25m  meadow(206,141) 1x on -1.05m  sound(-336,-501) 2x on 1.72m  fell(282,-480) 2x on 7.02m
 grazing 7/10 flocks  thinnest cover 0.72  home/outfield (32,-14) r7  home/outfield (24,23) r7  meadow/infield (158,146) r7  sound/infield (-329,-518) r7  sound/outfield (-266,-443) r7  fell/infield (311,-424) r7  fell/outfield (322,-541) r7
 gulls 6/6 colonies  home/harbour (-53,-63) r24.1  home/rock (71,46) r28  ridge/harbour (-116,147) r28  meadow/harbour (103,132) r28  sound/harbour (-373,-353) r28  fell/harbour (322,-361) r13.2
 ```
@@ -167,6 +169,8 @@ gulls 6/6 colonies  home/harbour (-53,-63) r24.1  home/rock (71,46) r28  ridge/h
 `fjord <id>` is one line per island with an inlet cut into it, and it is four depths rather than a position because the landform's whole claim is a *relation* between them: the sea outside the mouth, the sill across it, the basin behind it, and how far the valley floor at the head stands over the water. `OVERDEEPENED` means the basin is deeper than the sea it opens into, which is what separates a fjord from a bay. none of it can be read from a still — the depth channel of the bathymetry mask saturates a few metres down and paints all three the same blue — so a run that retunes the falloff, the shore shelving or `seabedDrop` and quietly drowns a sill has this line and nothing else. it is measured off the island's *own* field, not the composite one: the guard answers with the seabed wherever it has no rock, so the composite is floored nine metres down and cannot see a trench.
 
 `gulls 6/6 colonies` is the flock line, and the two numbers are the finding: the second is what the islands *offered* — one landing each, plus an outer rock where a light was built — and the first is how many of those found open water wide enough to fit a whole ring over. `5/6` on a run that did not touch `birds.spread`, the coastline or the landings means a bank closed up. this is here rather than in a screenshot because a flock is four pixels wide at the default pose.
+
+`storm 6/7 strikes` is the lightning line, and it is here because a still cannot see this system at all: a strike is somewhere for two thirds of a second in seven minutes, so almost every frame of the scape is a frame of a coast with no storm in it. the second number is the whole comb the seed planned and the first is how many of them `storm.rate` lets through — `NO STRIKES` is a front with no lightning in it, which is a legitimate setting and a silent regression if nobody asked for it. `peak @ phase` is the instant the `storm` poses are aimed at, asked for the same way the capture harness asks so the two can never describe different frames. the per-site counts are the second finding: every strike on one island is a hash that stopped spreading, and the line says so. the metres are what each fork stands on — a site out over open water reads as the waterline, which is a bolt striking the sea and is fine.
 
 `hearths 10  lowest mouth 5.5m over the ground` is the chimney line, and `lowest` is the whole check: two stacks a holding, and the tightest clearance between any mouth and the ground under it. a building is levelled onto the *highest* ground beneath its footprint while its chimney stands 2.6 m off the middle of that footprint, so on a slope the two are measured against different heights — anything under about three metres means a stack has been placed against a floor it does not stand on, and the map says so in the line. here rather than in a still because a plume is three pixels at the default pose.
 
@@ -225,12 +229,15 @@ bun run scape:shot --poses tide                     # the sea at both ends of it
 bun run scape:shot --poses fjord                    # the drowned valley in the sound, 4 frames
 bun run scape:shot --poses aspect                   # two sides of one hill, 4 frames
 bun run scape:shot --poses tarn                     # the pool on the high ground, 4 frames
+bun run scape:shot --poses storm                    # the lightning on the far islands, 4 frames
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain
 ```
 
 `tour` is `default`, `near`, `far`, `noon`, `night`, `winter`. `night` pins a week as well as an hour, because the sun runs a seasonal arc and the config opens at a midsummer that has no night in it. every capture prints a line before anything opens the image, and most runs need only that line:
+
+`storm` is the one set that names a *time* rather than a place, and it is the only way to photograph the lightning at all. every other system in the scape is somewhere in every frame; a strike is somewhere for two thirds of a second in seven minutes. so the set asks `stormPeak` in [`storm.ts`](src/scene/storm.ts) for the front's brightest strike and pins `weather.time` a fiftieth of a flash into it — the phase is resolved from the seed rather than written down, because a hard-coded one would go stale silently and photograph an empty sky. four frames: `storm` at the default frame, `storm-night` at the same instant in the dark half of the year, `storm-fork` on the striking island at 70 m where the channel is readable, and `storm-clear` a quarter of a cycle on, which is the control and must stay identical to the reference. reach for it whenever the change touches the front, the deck the flash sits under, or the render order between the two.
 
 `coast` is the third set, and it exists for the same reason `beacon` does: four frames on a shoreline — `wash` at one bay, `lee` at the *identical* frame with `wind.bearing` turned right around, `shores` pulled back over the home island's whole coast and its skerries, and `frozen` at midwinter where the ice is meant to take the white water away. reach for it whenever the change touches the water's edge: surf, foam, the ice front, the depth tint or the alpha ramp. every pose in `tour` is aimed at the middle of the home island, so a change that repaints every shore in the archipelago reads as `same` at all six.
 
@@ -454,6 +461,8 @@ anything mounted *after* `atmosphere.module` sees this frame's day; anything bef
 **the wind is the fourth clock and it is mounted before the landscape**, not after the atmosphere — everything that answers it is either a material uniform or a sheet offset, and both are resolved inside the landscape's own update. it publishes a bearing, a gust and one integrated `travel`; a consumer keeps a *response* and never a rate of its own, which is what makes one gust one wave across the whole scape. differencing against `wind.travel` rather than integrating a delta is the pattern to copy: a response moved on the overlay should change where a sheet goes *next*, not teleport it to where it would have been had the new value always applied. `aurora.ts` is the one deliberate abstainer.
 
 the clocks are coupled, and in one direction each: the weather takes the year and decides how hard this week's precipitation falls, and the day takes the year and solves the sun's arc for it — `daylight.sample(time, year)`. so **the day's sky is a function of the week**, and `daylight.latitude` at 68°N means midwinter has no daylight in it and midsummer no night. anything reading the darkness of the sky reads `daylight.dark` (astronomical twilight, geometry) rather than a curve of the year.
+
+the storm is the newest system with a scale audit to state, and it spans three of the four classes at once: the lit cloud's reach is **world-sized** (a share of `archipelago.worldSize`, because a storm cell is a fact about the islands it stands over), the two reveal curves are **frame-sized** (fractions of the zoom range, because whether a flash or a fork is readable is a question about the picture), and the channel's height is **metres** — it runs from `atmosphere.cloudHeight` to the ground it struck, and nothing else would be honest.
 
 shared atmosphere has four scale measures and they are not interchangeable: sheet/deck reach follows `archipelago.worldSize`, cloud and aurora composition follows `camera.maxViewSize`, rain, the night sky and upright mist follow the live `viewSize`, and genuine metre features such as the 79-metre mist tile and the gulls' 26-metre ceiling stay in metres. the birds are the one system that is *both*: they hang at world-surveyed colonies in metres, and their wingspan carries a floor at 1.8% of the live `viewSize` so a bird pulled fully out is a legible mark rather than a pixel and a half of grain. audit all four when the world or camera grows; swapping `terrain.size` for `worldSize` everywhere is how one fixed bug becomes four fresh ones, uwu.
 
