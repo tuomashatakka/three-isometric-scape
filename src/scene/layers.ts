@@ -101,6 +101,19 @@ export const LAYER = {
   /** Falling weather, over the fog and under the deck it falls from. */
   rain: 50,
 
+  /**
+   * A strike out on the far islands: the lit cloud, and the channel under it.
+   *
+   * Over the fall and under the deck, because that is physically where it is —
+   * the flash is the *inside* of the cloud lighting up, so the deck's own
+   * mottling belongs over the top of it rather than behind it. The channel
+   * indexes one above the glow it hangs out of, for the ordinary reason two
+   * additive sheets in one system are numbered: they overlap, and a projected
+   * depth compare between a thirty-metre ribbon and a two-hundred-metre disc
+   * centred on the same point is a coin toss that flips with the camera's yaw.
+   */
+  storm: 55,
+
   /** The cloud deck. Layers index up from here. */
   clouds: 60,
 

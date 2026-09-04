@@ -21,6 +21,7 @@ import { sampleWaterway } from '../src/scene/landscape/waterway.ts'
 import type { ScapeConfig } from '../src/scene/config.ts'
 import { formatStats } from './scape-map-format.ts'
 import { fjordStats, skerryStats, strandStats } from './scape-map-landforms.ts'
+import { stormStats } from './scape-map-weather.ts'
 import { applyOverrides, parseArgs } from './args.ts'
 
 
@@ -265,6 +266,26 @@ export interface MapStats extends CompositionStats {
     count: number
     asked: number
     sited: { id: string, kind: string, x: number, z: number, radius: number }[]
+  }
+
+  /**
+   * The lightning the front carries, and where it lands.
+   *
+   * Here for a reason none of the others have: every other system in this block
+   * is somewhere in every frame, and a strike is somewhere for two thirds of a
+   * second in seven minutes. A still taken at any other instant of the front is
+   * a still of a scape with no storm in it, so this is where a run finds out
+   * that the comb went empty, that a site drifted into open water, or that the
+   * fork stopped standing on ground. `asked` is the whole comb; `strikes` is
+   * what the rate lets through.
+   */
+  storm: {
+    strikes: number
+    asked:   number
+
+    /** The phase a `storm` pose is aimed at, and the island it is aimed over. */
+    peak:  { phase: number, id: string, x: number, z: number, base: number } | null
+    sited: { id: string, x: number, z: number, base: number, strikes: number }[]
   }
 
   /**
@@ -676,6 +697,7 @@ export function surveyStats (
         cover:  round(flock.cover, 2),
       })),
     },
+    storm:    stormStats(config, survey),
     hearths:  hearthStats(survey),
     windows:  windowStats(survey),
     colonies: {

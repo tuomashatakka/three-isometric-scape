@@ -46,6 +46,14 @@ const NOT_A_RATE: Record<string, string> = {
   // withers what is green. What it scales is a tint derived from `season.time`,
   // and that phase is pinned per pose by `--season`.
   'season.turn': 'an amount, 0..1 — the year turning, not a rate',
+
+  // A share of the storm's fixed comb of slots, 0..1, and nothing about speed:
+  // it decides which of the front's possible strikes fire, not how fast they
+  // arrive. Every strike is placed and lit against `weather.time`, which
+  // `weather.speed=0` already freezes — so the thing this knob would have to
+  // stop is already stopped, and zeroing it here would mean no capture of this
+  // scape ever contained a strike at all. See `scene/storm.ts`.
+  'storm.rate': 'a share, 0..1 — how many of the front\'s slots carry a strike',
 }
 
 /**
