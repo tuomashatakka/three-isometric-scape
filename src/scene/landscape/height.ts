@@ -3,6 +3,8 @@ import type { ScapeConfig } from '../config.ts'
 import { coastWarp, sampleHeight } from '../noise.ts'
 import { baseAt, distanceToTrack, plotInfluence, remapRelief, sinkToIsland } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
+import { carvePeat } from './peat.ts'
+import type { PeatBank } from './peat.ts'
 import { carveTarn } from './tarn.ts'
 import type { Tarn } from './tarn.ts'
 
@@ -178,6 +180,9 @@ export function resolveIsles (config: ScapeConfig): IsleSite[] {
 }
 
 /**
+ * @param peat The turf cutting on the moor, once it has been solved. Optional
+ *   for the reason `tarn` is, and sited after it — see `surveyScape`.
+ *
  * @param tarn The pool above the spring, once it has been solved.
  *
  *   Optional because it cannot be solved without a field to measure: the rim
@@ -191,6 +196,7 @@ export function createHeightField (
   config: ScapeConfig,
   layout: ScapeLayout,
   tarn:   Tarn | null = null,
+  peat:   PeatBank | null = null,
 ): HeightField {
   const { waterLevel, shoreBand } = config.terrain
   const { yard, track }           = layout
@@ -271,7 +277,11 @@ export function createHeightField (
     // below. The beck's long profile is sampled from *this* function, so a pool
     // cut afterwards would be a pool the channel leaving it had never seen —
     // and the outflow would sit a metre and a half above its own water.
-    return carveTarn(tarn, x, z, height)
+    // The cutting after the basin, and for the same reason the basin is last:
+    // both are read by the beck's long profile, which is sampled from this
+    // function. A step cut into the ground afterwards would be a step the
+    // channel leaving it had never seen.
+    return carvePeat(peat, x, z, carveTarn(tarn, x, z, height))
   }
 
   // The road grade is sampled from the already-levelled ground and smoothed, so

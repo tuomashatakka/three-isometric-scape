@@ -162,6 +162,9 @@ export interface DressingBudget {
   /** Drying poles standing in the upland pasture. */
   hayPole: number
 
+  /** Ricks of cut turf drying on one peat bank — count per working, not per island. */
+  peatStack: number
+
   /**
    * Ewes on one flock's ground — head per flock, before the tier scales it.
    *
@@ -598,6 +601,73 @@ export interface ScapeConfig {
      * sea; 1 is ice on the first cold week of the year.
      */
     frost: number
+  }
+
+  /**
+   * The turf the farm burns, and the ground it is cut out of.
+   *
+   * Build-time like `tarn` and `creek`, and absent from the tuning overlay for
+   * the same reason: the working is a step cut into the height field and a
+   * rectangle painted into the terrain's vertex colours, and nothing here can
+   * move without the scape being generated again.
+   */
+  peat: {
+
+    /**
+     * Metres of open working face.
+     *
+     * **Metres, and they stay metres.** A peat bank is a real-world thing the
+     * size of a barn wall — a family's winter fuel and not a fraction of the
+     * island it is cut from — so the fell gets the same fourteen metres of face
+     * the home island does.
+     */
+    face: number
+
+    /**
+     * Metres the cutting has been worked back from that face.
+     *
+     * The other side of the rectangle, and the one that says how many years the
+     * bank has been worked: a face is opened and then retreats a couple of
+     * metres a summer, so the stripped floor behind it is the record of how long
+     * this farm has been burning turf.
+     */
+    reach: number
+
+    /**
+     * Metres the floor stands below the moor at the face.
+     *
+     * The switch as well as the depth, the way `tarn.depth` is: at 0 there is no
+     * step to cut and no working to paint. It is also the one number the reader
+     * actually sees at a distance — the dark rectangle is the paint, but what
+     * makes it read as a *cutting* rather than as a stain is the shadow standing
+     * along its uphill edge, and that shadow is exactly this deep. The floor is
+     * cut one of these below whatever the moor was doing, so the depth is a
+     * guarantee rather than a hope: see `carvePeat`.
+     */
+    depth: number
+
+    /**
+     * Metres above the waterline the whole footprint has to stand.
+     *
+     * **Metres, and they stay metres.** Peat forms in ground that never drains,
+     * which is exactly the ground a spring tide reaches — so without this the
+     * search takes the flattest, lowest acre on the island every time, and that
+     * acre is the foreshore. See `tarn.lift`, which is the same guard against
+     * the same mistake from the other direction.
+     */
+    lift: number
+
+    /**
+     * Metres of relief **along the face** above which there is no cutting.
+     *
+     * The test that separates moor from hillside, and it is deliberately about
+     * the face rather than about the whole working: the floor follows the ground
+     * down, so a cutting is perfectly happy on a slope, but the top of a cut face
+     * is one line and a face that climbs three metres from one end to the other
+     * was never cut by anybody. An island whose flattest low ground still fails
+     * this has no peat bank, and that absence is the right answer.
+     */
+    spread: number
   }
 
   /**
@@ -1959,6 +2029,18 @@ export interface ScapeConfig {
     streambed: number
 
     /**
+     * Cut peat — the floor of the working, and the face standing over it.
+     *
+     * Its own entry rather than a darker `trodden`, and for the reason `wrack`
+     * and `moss` have one: peat is a different substance from soil, nearly black
+     * and faintly red where it has been turned, and no amount of darkening a
+     * footpath produces it. It is also, deliberately, the darkest thing on the
+     * island — which is what lets a rectangle of it read as a cutting from the
+     * pulled-out zoom rather than as a shadow.
+     */
+    peat: number
+
+    /**
      * Bare earth underfoot. Greyer and darker than `track`, because a cart road
      * is gravel laid down and a footpath is only the turf taken off.
      */
@@ -2280,6 +2362,26 @@ export const SCAPE_CONFIG = {
     mirror: 0.86,
     frost:  0.55,
   },
+  // 11 m of face against 7 m of reach is one family's bank: a wall of turf you
+  // could walk in three seconds and a floor behind it that is maybe a dozen
+  // summers of cutting. 0.9 m of depth is two spits — the depth a man reaches
+  // standing on the floor and throwing up — and it is what the shadow along the
+  // face is made of at the pulled-out zoom.
+  //
+  // 1.3 m of lift is the storm surge clear of the sea, a little under the pool's
+  // because a cutting is *meant* to be on wet ground and only has to keep out of
+  // the salt. 1.8 m of allowed relief along an 11 m face is the flattest low
+  // ground these islands have once the farm has taken its share: the home island
+  // and the two southern fells clear it, and the ridge and the meadow — whose
+  // level acres are all inside a wall already — have no peat, the way the ridge
+  // has no tarn.
+  peat: {
+    face:   11,
+    reach:  7,
+    depth:  0.9,
+    lift:   1.3,
+    spread: 1.8,
+  },
   // 11 metres of half-width is a bar you could drive a cart along, against a
   // crossing of roughly three hundred — narrow enough at that length to read as
   // a thread rather than as a causeway. 1.1 m of crest is one storm surge above
@@ -2504,7 +2606,15 @@ export const SCAPE_CONFIG = {
     driftwood:  44,
 
     mooringPost: 22,
-    hayPole:     7,
+
+    // Both of these are counts *per named feature* rather than per island, the
+    // way the flock's is — the pasture and the peat bank are things the survey
+    // found, so what stands on them is scaled by how many were found. Nine
+    // ricks to a working is one summer's cutting stood up to dry with room to
+    // walk between them; a 14x9 floor holds that comfortably and the spacing
+    // solver declines the ones it cannot.
+    hayPole:   7,
+    peatStack: 9,
 
     // Head *to a flock*, unlike every other budget here, which is a count for
     // the whole archipelago scaled by its island area: the flock is a feature
@@ -2742,6 +2852,7 @@ export const SCAPE_CONFIG = {
     moss:         0x3d5a30,
     pasture:      0x76803f,
     streambed:    0x585f57,
+    peat:         0x342a20,
     trodden:      0x6c6049,
     track:        0x7d6a4f,
     tilled:       0x6d5a44,

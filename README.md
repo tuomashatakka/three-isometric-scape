@@ -95,6 +95,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - lamplight in ninety-five windows: sixty-five farmstead panes lit at dusk, banked to a stove glow once the household turns in, and back up before dawn — the chapels' twenty-eight burning fainter, because nobody sleeps in one, and the croft's two out on the rock taking the same occupancy roll as the rest — while the lighthouse burns straight through, because a lighthouse is a machine and a farm is not
 - a beck traced downhill from a spring, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself — with water standing in it, lying flat across the channel, falling with the ground, breaking white where the hill drops, and freezing later than the sea it runs into
 - a tarn on the high ground of every island whose spare upland is flat enough to hold one — sited by a search for the least tilted acre the farm has not already claimed, standing at the lowest point of its own rim, edged with reeds, and locking into ice weeks before the sound below it does
+- a peat bank cut into the wet moor of every island that has any: an eleven-metre face standing across the fall, a stripped floor worked back seven metres behind it, ricks of cut turf drying on the bank, and a clearing round the whole of it — because blanket peat and a spruce wood are two things the same ground cannot be doing at once
 - showers standing out on the open water, crossing the archipelago from upwind ahead of the front that will reach the farm shortly after — read off the same clock the fall is, one lead ahead of it, and cut off at every coastline by the land it cannot rain on
 - lightning in that same front, out on the far islands only: a patch of cloud lit from inside for two thirds of a second, twice, with a jagged channel standing on the ground under it — scheduled off a comb of the front's own phases, so the storm arrives with the squall and can be photographed by naming a time
 - **three clocks** — a day, a year, and a weather front — each a phase and a speed, each deriving everything else from that phase
@@ -141,7 +142,7 @@ url overrides for a device you cannot attach a debugger to: `?debug` adds live v
 
 the intended first edit is [`src/scene/config.ts`](src/scene/config.ts). `SCAPE_CONFIG` owns the seed, terrain extent and waterline, the islets, the beck, the footpaths, the dressing budgets, camera framing and zoom limits, all three clocks, the whole light and atmosphere rig, the optical chain, and the complete palette.
 
-a knob that is **visual and read per frame** also belongs in [`ui/scape-controls.ts`](src/ui/scape-controls.ts) as a dotted path, which makes it persist, reset and become url-addressable for free. a knob that needs a **rebuild** to be seen — `layout.*`, `creek.*`, `footpath.*`, `cartRuts.*`, `dressing.*`, `strand.*`, `skerries.*`, `littoral.*`, `terrain.fjord.*`, and `beck.depth`/`beck.fill` — stays out of the overlay, because a slider that lies about what it does is worse than no slider.
+a knob that is **visual and read per frame** also belongs in [`ui/scape-controls.ts`](src/ui/scape-controls.ts) as a dotted path, which makes it persist, reset and become url-addressable for free. a knob that needs a **rebuild** to be seen — `layout.*`, `creek.*`, `footpath.*`, `cartRuts.*`, `dressing.*`, `strand.*`, `skerries.*`, `littoral.*`, `peat.*`, `terrain.fjord.*`, and `beck.depth`/`beck.fill` — stays out of the overlay, because a slider that lies about what it does is worse than no slider.
 
 `camera.focusX` and `camera.focusZ` are where the camera *opens*, read once when the controls are built and live state from then on. they default to the middle of the world, which is open sea — set them to put the opening view on the farm, and set them from a url to capture anything on the ground at all.
 
@@ -230,6 +231,7 @@ src/
     │   ├── beck.ts                 the water standing in that channel, and the white it breaks
     │   ├── tarn.ts                 the flattest upland the farm has not taken, and the basin cut into it
     │   ├── tarn-water.ts           the still sheet lying in that basin, and the winter it gets first
+    │   ├── peat.ts                 the turf cutting on the moor: where it is dug, and the step it leaves
     │   ├── skerry.ts               the bare rocks standing in the water between the islands
     │   ├── fjord.ts                the drowned valley cut through one island's coast
     │   ├── beacon.ts               the outer rock a light would stand on
@@ -278,7 +280,7 @@ src/
         ├── shore.ts                boathouse and slipway, net rack, mooring stakes
         ├── smokehouse.ts           the smokehouse — log walls, turf roof, ridge cowl
         ├── croft.ts                the croft — boarded walls, turf roof, stone flue, oars at the gable
-        ├── objects.ts              rowboat, bales, firewood, barrel, mailbox, driftwood
+        ├── objects.ts              rowboat, bales, firewood, peat rick, barrel, mailbox, driftwood
         ├── stone.ts                erratics, field stones, cobbles, cairns
         ├── littoral.ts             bladderwrack and rock lichen — the tidal band
         └── livestock.ts            the ewe with her head down, and the lamb with hers up
@@ -687,6 +689,34 @@ the beck was the scape's one *found* landform: a steepest-descent walk that obey
 **the two live knobs are the two a frame can honour.** `tarn.mirror` is the whole character of the thing and moves the material's roughness the other way; `tarn.frost` is how far ahead of the sea it locks. both are in the overlay. `radius`, `depth`, `lift` and `spread` are folded into the composite height field at build time and are deliberately not, for the reason `creek` and `strand` are not: a slider that needs a rebuild lies about what a slider does.
 
 `tarn.depth` at zero is a basin with nothing to cut and no pool to draw. it is the switch, and the only one.
+
+## the peat bank on the moor
+
+every roof out on the rocks is turf and every hearth in the archipelago is lit, and until this run neither came from anywhere. a peat bank is where they come from: a face cut into the wet moor, worked backwards a few metres a summer, with the stripped floor lying open behind it and the turves stood up on the bank to dry.
+
+[`peat.ts`](src/scene/landscape/peat.ts) is the search and the carve. the rick is `buildPeatStack` in [`props/objects.ts`](src/scene/props/objects.ts), scattered into one instanced draw like every other scattered prop.
+
+**it is sited the way the tarn is, with the bribe turned over.** there is no rule of nature that says where a man starts digging, only which ground is worth digging — flat, low and badly drained, because peat *is* the drainage failing for five thousand years. so the search is the pool's search with its sign changed: the tarn pays a little flatness for altitude (`HEIGHT_WORTH`), and the cutting pays it for the lack of any (`LOW_WORTH`). `peat.lift` is the same guard the pool has, against the same mistake — the flattest, lowest acre on one of these islands is the foreshore, and a cutting there is a hole the sea fills twice a day.
+
+**it is the one sited feature with a bearing.** a pool is a disc and does not care which way it faces; a working face has to stand *across* the fall, or the first wet week takes the bank down onto the floor. so the orientation is read off the ground's own gradient — `fallAt` over the working's own reach, wide on purpose, because what matters is the slope over seven metres and not the slope over the half metre a surface normal is differenced across — and the cutting is worked downhill from it. ground with no downhill at all is declined rather than guessed at: a working on a table has a bearing the scape does not know.
+
+**flat means the face, not the footprint.** the first cut of this search measured relief over the whole rectangle and came back empty on every island, which was the search being wrong rather than the world: a peat bank *wants* the ground to fall away from its face — that is the shape of the thing, a wall at the top and a floor running out from under it. only the face has to be level, because a face is cut along one line. so `groundUnder` returns two numbers, `alongRelief` against `peat.spread` and `fall` against a drainage gradient, and they are gated separately.
+
+**the floor follows the moor down, one spit below it.** the first carve laid a level floor at `level - depth`, which is what a quarry looks like: on ground falling faster than the spade goes it bit only at the face and left the rest of the rectangle untouched. `carvePeat` now cuts `min(ground, level) - depth` — a constant depth below whatever was there, capped at the face's own height so a hummock inside the working is taken off rather than followed up. what makes it read as a cutting is therefore the **edges** rather than the floor, and they are guaranteed: the claim rises from nothing to one over half a metre at the face, so the step there is at least the full depth however the ground was lying.
+
+**the ramps are a metre, and that is a finding.** at 1.6 m the back and the flanks ate most of an eleven-metre face from both sides and the working photographed as a soft stain rather than as a rectangle somebody cut. the terrain paint has the same problem from the other side and answers it the way the cart track's soiling does — `min(1, claim * 2.2)`, full colour across the floor with the fade compressed into the last of the ramp, because painting through the ramps at face value spreads the peat a metre and a half past the cut in every direction.
+
+**a cutting stands in a clearing.** `dressing-zones.ts` gained `onPeat`, which `clear` consults, so grass, heather, trees and boulders stay off the floor — but a spruce rooted a metre outside the edge still stands its whole canopy over it, and the first frames of this were a dark patch behind four trees. so the solver is told about the working the way it is told about a building, at `CUTTING_CLEARING` — half again the floor's own radius. that is not tidiness: ground that grows a spruce wood is ground that drains, and `ridgeInfluence` is in the siting score for the same reason.
+
+**the ricks stand on the bank rather than on the floor**, which is where turves are actually set out: the floor is the wet part you are still cutting. `dressing.peatStack` is a count **per working** rather than per island — the exception the flock and the drying poles already are — and the batch is stamped after the flock, on the end, where inserting it disturbs no other scatter's draw from the shared rng.
+
+**three of five islands have one, and the two without are the answer rather than a gap.** the ridge and the meadow have no low ground level enough that the farm has not already walled it. loosening `peat.spread` until they did would be cutting a peat bank into a hillside — the same refusal the tarn's `spread` makes, and `2.4` was tried and taken back out because the site it bought had 2.38 m of relief under an eleven-metre face.
+
+**`scape:map` grew a line, and the landmass rows grew a field.** `peat (29.3,-18.3) moor 3.34m face 0.82m standing ground 1.7m` — `standing` is the claim as a number, the way the pool's `wetted` is: a cutting whose face went flat is a rectangle of dark paint on an untouched hillside, identical from every pose and invisible in every still the tour takes. the carve guarantees at least `depth` there, so a reading below it is a bug rather than a siting outcome. the ascii grid gained a `T`.
+
+**and the tour cannot see it.** eleven metres by seven, with its whole claim in a step nine tenths of a metre high: at `tour/default` that is four pixels of dark ground and at `near` the camera is over the yard facing the other way. so there is a `peat` pose set — and it is two close frames a quarter turn apart rather than one, because this is the one feature in the scape whose reading depends on the *yaw*: from the downhill side it is a wall of peat, and from over the face it is a rectangle of paint with nothing standing in it. `peat-across` is 290° rather than the 110° that is the same quarter turn the other way, because from there the wood on the seaward shoulder stands between the camera and the cutting.
+
+**nothing here moves**, so nothing goes into `STILL` — a cut face does not blow about. `peat.depth` at zero is a working with no step to cut and no ground to paint. it is the switch, and the only one.
 
 ## the upland pasture
 

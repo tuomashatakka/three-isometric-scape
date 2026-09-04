@@ -12,6 +12,7 @@ import type { GroundNormal, HeightField } from './height.ts'
 import { distanceToTrack, pastureInfluence, plotInfluence } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
 import type { Vec2 } from './path.ts'
+import type { PeatBank } from './peat.ts'
 import type { Strand } from './strand.ts'
 
 
@@ -66,6 +67,7 @@ export function createTerrainPainter (
   layout: ScapeLayout,
   paths:  Footpaths,
   field:  HeightField,
+  peat:   PeatBank | null = null,
 ): TerrainPainter {
   const { palette }    = config
   const { waterLevel } = config.terrain
@@ -90,6 +92,16 @@ export function createTerrainPainter (
   const trodden   = new Color(palette.trodden)
   const moss      = new Color(palette.moss)
   const sunned    = new Color(palette.dryGrass)
+  const cutPeat   = new Color(palette.peat)
+
+  // Resolved to a function once rather than asked per vertex whether there is a
+  // cutting at all. Two of the painter's branches for a question whose answer is
+  // fixed at build is what took `paint` past the complexity ceiling — which the
+  // lint config is right about: that method is the whole ground-colour rule and
+  // every conditional inlined into it makes the rest harder to read past.
+  const cutAt = peat
+    ? (x: number, z: number): number => peat.claimAt(x, z)
+    : (): number => 0
 
   // The compass, resolved once. Which way is shaded is the bearing the sun
   // transits on, and a build reads it the same way every other build-time knob
@@ -225,6 +237,24 @@ export function createTerrainPainter (
       if (wet > 0)
         target.lerp(streambed, Math.min(1, wet * 1.15) * 0.74)
 
+      // The turf cutting, over everything: the floor is ground with the whole
+      // plant community taken off it and carted away, so nothing the bands, the
+      // aspect or the year did to it survives. Not quite the full lerp, because
+      // a rectangle at exactly one colour reads as a hole cut in the terrain
+      // rather than as ground — the last tenth is what lets the macro noise
+      // below still show through it.
+      // Unguarded: off the working the claim is zero and the lerp is already the
+      // no-op the branch would have been.
+      //
+      // Squared off rather than taken straight, and for the reason the cart
+      // track's soiling is taken on the crown: the claim's own ramps are what
+      // give the carve an edge the terrain grid can hold, and painting through
+      // them at face value spreads the colour a metre and a half past the cut in
+      // every direction — which reads as a stain on the moor rather than as
+      // ground somebody has carried away. Full colour across the floor, and the
+      // fade compressed into the last of the ramp.
+      target.lerp(cutPeat, Math.min(1, cutAt(x, z) * 2.2) * 0.94)
+
       const macro = hash2(x * 0.031, z * 0.031) * 0.14 + hash2(x * 0.19, z * 0.19) * 0.06
       target.multiplyScalar(0.92 + macro)
 
@@ -281,13 +311,14 @@ function terrainGeometry (
   field:    HeightField,
   paths:    Footpaths,
   segments: number,
+  peat:     PeatBank | null,
 ): BufferGeometry {
   const geometry = new PlaneGeometry(config.terrain.size, config.terrain.size, segments, segments)
   geometry.rotateX(-Math.PI / 2)
 
   const positions = geometry.getAttribute('position')
   const colors    = new Float32Array(positions.count * 3)
-  const painter   = createTerrainPainter(config, layout, paths, field)
+  const painter   = createTerrainPainter(config, layout, paths, field, peat)
   const color     = new Color()
 
   for (let index = 0; index < positions.count; index += 1) {
@@ -317,8 +348,9 @@ function cartRutPatch (
   field:    HeightField,
   paths:    Footpaths,
   segments: number,
+  peat:     PeatBank | null,
 ): BufferGeometry | null {
-  const painter = createTerrainPainter(config, layout, paths, field)
+  const painter = createTerrainPainter(config, layout, paths, field, peat)
   const surface = drawnSurfaceOf(field, config.terrain.size, segments)
 
   return cartRutGeometry({
@@ -366,17 +398,6 @@ function terrainMesh (geometry: BufferGeometry, material: Material): Mesh {
   terrain.updateMatrix()
   terrain.matrixAutoUpdate = false
   return terrain
-}
-
-export function createTerrain (
-  config:   ScapeConfig,
-  layout:   ScapeLayout,
-  field:    HeightField,
-  paths:    Footpaths,
-  material: Material,
-  segments: number,
-): Mesh {
-  return terrainMesh(terrainGeometry(config, layout, field, paths, segments), material)
 }
 
 /**
@@ -624,6 +645,7 @@ export function createArchipelagoTerrain (
       ground,
       landmass.survey.paths,
       segments,
+      landmass.survey.peat,
     )
 
     geometry.translate(landmass.origin.x, 0, landmass.origin.z)
@@ -638,6 +660,7 @@ export function createArchipelagoTerrain (
       landmass.survey.field,
       landmass.survey.paths,
       segments,
+      landmass.survey.peat,
     )
 
     if (ruts) {

@@ -48,6 +48,7 @@ footpaths 19 routes, 245.8m total, longest 22.3m
 creek OK  head (19,23) 6.49m -> mouth (36,56) -14.3m  len 38m
 beck  15.9m wetted, 8m of fall
 tarn  (33,3.7) surface 2.59m  wetted r5.9m  rim 2.34m
+peat  (29.3,-18.3) moor 3.34m  face 0.82m standing  ground 1.7m
 pasture (24.5,3.9) r6   plots 4   ridges 5   isles 15/15 surfacing
 mill (35.9,-8.1) prominence 6.85m
 chapel (26.8,15.1) prominence 1.56m  46.6m from the yard
@@ -57,11 +58,11 @@ croft (-66.2,-37) isle 10  freeboard 3.95m  53.9m from the harbour
 steading  farmhouse(-8,3) barn(-16,-14) aitta(-27,6) woodshed(-28,-7) sauna(-17,16)
 landing (-26,-17)  harbour (-13,-28)
 landmasses 5
-home/home @ (0,0)  land 18.3% peak 8.63m  paths 19  jetty (-26,-17)  mill (35.9,-8.1)
-ridge/ridge @ (-178,128)  land 14.3% peak 6.5m  paths 12  jetty (-151,138)  mill NONE
-meadow/meadow @ (178,128)  land 27% peak 5.68m  paths 16  jetty (151,126)  mill (168.2,157.5)
-sound/sound @ (-300,-480)  land 15.5% peak 12.62m  paths 16  jetty (-362,-396)  mill (-282.7,-482.5)
-fell/fell @ (300,-480)  land 13.9% peak 14.94m  paths 15  jetty (322,-393)  mill (339.3,-515.2)
+home/home @ (0,0)  land 18.3% peak 8.63m  paths 19  jetty (-26,-17)  mill (35.9,-8.1)  peat (29.3,-18.3) face 0.82m
+ridge/ridge @ (-178,128)  land 14.3% peak 6.5m  paths 12  jetty (-151,138)  mill NONE  peat NONE
+meadow/meadow @ (178,128)  land 27% peak 5.68m  paths 16  jetty (151,126)  mill (168.2,157.5)  peat NONE
+sound/sound @ (-300,-480)  land 15.5% peak 12.62m  paths 16  jetty (-362,-396)  mill (-282.7,-482.5)  peat (-337.5,-457.5) face 2.23m
+fell/fell @ (300,-480)  land 13.9% peak 14.94m  paths 15  jetty (322,-393)  mill (339.3,-515.2)  peat (306.3,-442.1) face 2.19m
 waterways 5 legs 2515.5m  connected OK  wet OK  clearance 0.55m
 boats 5  separation 115.79m  conflicts 0
 strand sound<->fell  len 450m  crest 1.1m  lowest 0.4m  CONNECTED
@@ -133,6 +134,7 @@ footpaths 19 routes, 245.8m total, longest 22.3m
 creek OK  head (19,23) 6.49m -> mouth (36,56) -14.3m  len 38m
 beck  15.9m wetted, 8m of fall
 tarn  (33,3.7) surface 2.59m  wetted r5.9m  rim 2.34m
+peat  (29.3,-18.3) moor 3.34m  face 0.82m standing  ground 1.7m
 pasture (24.5,3.9) r6   plots 4   ridges 5   isles 15/15 surfacing
 mill (35.9,-8.1) prominence 6.85m
 chapel (26.8,15.1) prominence 1.56m  46.6m from the yard
@@ -142,11 +144,11 @@ croft (-66.2,-37) isle 10  freeboard 3.95m  53.9m from the harbour
 steading  farmhouse(-8,3) barn(-16,-14) aitta(-27,6) woodshed(-28,-7) sauna(-17,16)
 landing (-26,-17)  harbour (-13,-28)
 landmasses 5
-home/home @ (0,0)  land 18.3% peak 8.63m  paths 19  jetty (-26,-17)  mill (35.9,-8.1)
-ridge/ridge @ (-178,128)  land 14.3% peak 6.5m  paths 12  jetty (-151,138)  mill NONE
-meadow/meadow @ (178,128)  land 27% peak 5.68m  paths 16  jetty (151,126)  mill (168.2,157.5)
-sound/sound @ (-300,-480)  land 15.5% peak 12.62m  paths 16  jetty (-362,-396)  mill (-282.7,-482.5)
-fell/fell @ (300,-480)  land 13.9% peak 14.94m  paths 15  jetty (322,-393)  mill (339.3,-515.2)
+home/home @ (0,0)  land 18.3% peak 8.63m  paths 19  jetty (-26,-17)  mill (35.9,-8.1)  peat (29.3,-18.3) face 0.82m
+ridge/ridge @ (-178,128)  land 14.3% peak 6.5m  paths 12  jetty (-151,138)  mill NONE  peat NONE
+meadow/meadow @ (178,128)  land 27% peak 5.68m  paths 16  jetty (151,126)  mill (168.2,157.5)  peat NONE
+sound/sound @ (-300,-480)  land 15.5% peak 12.62m  paths 16  jetty (-362,-396)  mill (-282.7,-482.5)  peat (-337.5,-457.5) face 2.23m
+fell/fell @ (300,-480)  land 13.9% peak 14.94m  paths 15  jetty (322,-393)  mill (339.3,-515.2)  peat (306.3,-442.1) face 2.19m
 waterways 5 legs 2515.5m  connected OK  wet OK  clearance 0.55m
 boats 5  separation 115.79m  conflicts 0
 strand sound<->fell  len 450m  crest 1.1m  lowest 0.4m  CONNECTED
@@ -163,6 +165,8 @@ gulls 6/6 colonies  home/harbour (-53,-63) r24.1  home/rock (71,46) r28  ridge/h
 `chapel NONE` is the same kind of answer with an extra clause: a chapel needs a rise *and* a rise inside `chapel.reach` metres of its own yard, so an island whose only knolls are out on a headland gets no church rather than one nobody walks to. the line carries the distance from the yard beside the prominence for that reason — a chapel that moved on a run which touched neither `chapel.prominence` nor `chapel.reach` is a finding, and so is one whose `from the yard` crept toward the reach.
 
 `tarn NONE` is that answer for standing water. a pool is *sited* rather than traced — the search takes the flattest upland the holding has not already claimed, and the surface it draws is the lowest point of that rim, because that is the first place the water would run out over. so an island whose spare ground is all hillside gets no pool, and the ridge is exactly that island. the two numbers beside the position are the finding: `wetted` is how far the water actually reaches once the basin is cut, measured against the same field the bank occludes the sheet with, and `rim` is the relief the search settled for. `wetted r0m` on an island that still reports a tarn means a basin that stopped holding water — invisible in every still, because the sheet is drawn to the full radius either way and simply disappears behind its own bank.
+
+`peat NONE` is that answer for the turf cutting, and it is the pool's search with its bribe reversed: flat, *low* and off everything the farm has taken. two of the five holdings have no low ground level enough along an eleven-metre face, and loosening `peat.spread` until they did would be cutting a peat bank into a hillside. the finding is `face ... standing` — the drop actually left at the face, measured on the carved ground. the carve takes a constant depth below whatever the moor was doing, so it guarantees at least `peat.depth` there: a reading *below* the configured depth is a bug rather than a siting outcome, and a reading far above it says the working is on ground steeper than it looks. a cutting whose face went flat is a rectangle of dark paint on an untouched hillside — identical from every pose, and invisible in every still the tour takes.
 
 `beacon NONE` is the same kind of answer: the light goes on the *outermost* islet in the ring that is broad enough for masonry and has eight dry bearings at its footing, so an archipelago whose skerries are all too small gets no lighthouse. a beacon that moved isle on a run that did not touch `beacon.minRock`, `beacon.freeboard` or `terrain.isles` is a finding.
 
@@ -229,6 +233,7 @@ bun run scape:shot --poses tide                     # the sea at both ends of it
 bun run scape:shot --poses fjord                    # the drowned valley in the sound, 4 frames
 bun run scape:shot --poses aspect                   # two sides of one hill, 4 frames
 bun run scape:shot --poses tarn                     # the pool on the high ground, 4 frames
+bun run scape:shot --poses peat                     # the turf cutting on the moor, 3 frames
 bun run scape:shot --poses storm                    # the lightning on the far islands, 4 frames
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
@@ -428,6 +433,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `beck.ts` | the sheet of water standing in every island's channel, its fall, its white water and the week it locks |
 | `tarn.ts` | the search for upland flat enough to hold standing water, the basin carved into it, and the reach it holds |
 | `tarn-water.ts` | every island's pool in one still draw, its depth tint, and the winter it gets weeks before the sea |
+| `peat.ts` | the search for low ground level enough to cut turf out of, the bearing the face stands on, and the step the carve leaves |
 | `samplers.ts` | where the dressing throws its darts — island, disc, tread, skerry |
 | `dressing-zones.ts` | world-space keep-outs and pure scatter acceptance rules |
 | `dressing-helpers.ts` | hand-placed runs and helpers shared by each holding |
@@ -437,6 +443,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `water-caustics.test.ts` | the net is a daylight effect: nothing under the horizon, nothing in the polar night, a ramp rather than a step, and rain dims it without putting it out |
 | `beck.test.ts` | the sheet never runs uphill, lies flat across the channel, opens out with it, stops at the tideline, and locks after the sea does |
 | `tarn.test.ts` | no rim point stands below the water, the carve only goes down and only inside its radius, water actually stands in every basin, the pool is off the farm, and it locks ahead of the sea |
+| `peat.test.ts` | the face is level along its length, the working is worked downhill from it, the floor is exactly one cut below the moor it replaced, a bulge inside it is taken off rather than followed, and nothing outside the rectangle moves |
 | `index.ts` | the scene module, and what raycasts |
 | `tide.test.ts` (in `src/scene/`) | two highs a lunar day, springs on new *and* full, a mean of zero over a cycle, a flat sea at range zero — and the shipped range fits under the router's clearance and inside the wrack band |
 
