@@ -128,7 +128,7 @@ the stats block is the check that catches what a still cannot — a beck that st
 ```text
 seed 7319  world 1520m  home 196m  water -1.25m  grid 96x48  15.83x31.67 m/cell
 
-land 18.3%  above snowline 72.6%  peak 8.63m @ (9, 18)
+land 18.5%  above snowline 72.2%  peak 8.63m @ (9, 18)
 yard (-17,-0.7) r19    track 27pts 48.8m    landRadius 44
 footpaths 19 routes, 245.8m total, longest 22.3m
 creek OK  head (19,23) 6.49m -> mouth (36,56) -14.3m  len 38m
@@ -141,10 +141,11 @@ chapel (26.8,15.1) prominence 1.56m  46.6m from the yard
 smokehouse (-8.5,-10.3) 18m up the bank
 beacon (60.9,39.3) isle 5 freeboard 6.69m  reach 74.7m
 croft (-66.2,-37) isle 10  freeboard 3.95m  53.9m from the harbour
+causeway (52.4,32.5) isle 5  crossing 13m  crest 0.22m  covered 31% springs / 0% neaps
 steading  farmhouse(-8,3) barn(-16,-14) aitta(-27,6) woodshed(-28,-7) sauna(-17,16)
 landing (-26,-17)  harbour (-13,-28)
 landmasses 5
-home/home @ (0,0)  land 18.3% peak 8.63m  paths 19  jetty (-26,-17)  mill (35.9,-8.1)  peat (29.3,-18.3) face 0.82m
+home/home @ (0,0)  land 18.5% peak 8.63m  paths 19  jetty (-26,-17)  mill (35.9,-8.1)  peat (29.3,-18.3) face 0.82m
 ridge/ridge @ (-178,128)  land 14.3% peak 6.5m  paths 12  jetty (-151,138)  mill NONE  peat NONE
 meadow/meadow @ (178,128)  land 27% peak 5.68m  paths 16  jetty (151,126)  mill (168.2,157.5)  peat NONE
 sound/sound @ (-300,-480)  land 15.5% peak 12.62m  paths 16  jetty (-362,-396)  mill (-282.7,-482.5)  peat (-337.5,-457.5) face 2.23m
@@ -155,11 +156,11 @@ strand sound<->fell  len 450m  crest 1.1m  lowest 0.4m  CONNECTED
 skerries 49 in 16 guards  widest 22m  lowest 0.8m over the water  nearest island 79.9m
 fjord sound  len 115m  sea 11.7m  sill 5.5m  basin 16.3m  head +2.8m  OVERDEEPENED
 fjord fell  len 115m  sea 11.7m  sill 6m  basin 16.3m  head +3.8m  OVERDEEPENED
-hearths 15  lowest mouth 4.35m over the ground
-windows 93  lowest pane 0.73m over the ground  facing out 93/93
+hearths 16  lowest mouth 4.35m over the ground
+windows 95  lowest pane 0.73m over the ground  facing out 95/95
 storm 6/7 strikes  peak @ phase 0.3161 over fell  ridge(-193,77) 1x on -1.25m  meadow(206,141) 1x on -1.05m  sound(-336,-501) 2x on 1.72m  fell(282,-480) 2x on 7.02m
 grazing 7/10 flocks  thinnest cover 0.72  home/outfield (32,-14) r7  home/outfield (24,23) r7  meadow/infield (158,146) r7  sound/infield (-329,-518) r7  sound/outfield (-266,-443) r7  fell/infield (311,-424) r7  fell/outfield (322,-541) r7
-gulls 6/6 colonies  home/harbour (-53,-63) r24.1  home/rock (71,46) r28  ridge/harbour (-116,147) r28  meadow/harbour (103,132) r28  sound/harbour (-373,-353) r28  fell/harbour (322,-361) r13.2
+gulls 6/6 colonies  home/harbour (-53,-63) r24.1  home/rock (93,60) r28  ridge/harbour (-116,147) r28  meadow/harbour (103,132) r28  sound/harbour (-373,-353) r28  fell/harbour (322,-361) r13.2
 ```
 
 `chapel NONE` is the same kind of answer with an extra clause: a chapel needs a rise *and* a rise inside `chapel.reach` metres of its own yard, so an island whose only knolls are out on a headland gets no church rather than one nobody walks to. the line carries the distance from the yard beside the prominence for that reason — a chapel that moved on a run which touched neither `chapel.prominence` nor `chapel.reach` is a finding, and so is one whose `from the yard` crept toward the reach.
@@ -169,6 +170,8 @@ gulls 6/6 colonies  home/harbour (-53,-63) r24.1  home/rock (71,46) r28  ridge/h
 `peat NONE` is that answer for the turf cutting, and it is the pool's search with its bribe reversed: flat, *low* and off everything the farm has taken. two of the five holdings have no low ground level enough along an eleven-metre face, and loosening `peat.spread` until they did would be cutting a peat bank into a hillside. the finding is `face ... standing` — the drop actually left at the face, measured on the carved ground. the carve takes a constant depth below whatever the moor was doing, so it guarantees at least `peat.depth` there: a reading *below* the configured depth is a bug rather than a siting outcome, and a reading far above it says the working is on ground steeper than it looks. a cutting whose face went flat is a rectangle of dark paint on an untouched hillside — identical from every pose, and invisible in every still the tour takes.
 
 `beacon NONE` is the same kind of answer: the light goes on the *outermost* islet in the ring that is broad enough for masonry and has eight dry bearings at its footing, so an archipelago whose skerries are all too small gets no lighthouse. a beacon that moved isle on a run that did not touch `beacon.minRock`, `beacon.freeboard` or `terrain.isles` is a finding.
+
+`causeway NONE` is that answer for the crossing out to the nearest rock, and it is the only search in the block that is run *after* the boats: the bar has to keep `causeway.clear` metres off the landing and the harbour, so those are settled against the island as it is and the crossing is told to miss them. the finding is the pair at the end of the line. `covered N% springs / M% neaps` is the share of a semidiurnal cycle the sea stands over the lowest point of the bar at each end of the month, and it is what says which of three things the scape has: `0% / 0%` is a mole, anything at neaps is a ford, and springs-only is a causeway. the crossing is a strip two metres wide seen from two hundred, so no still can tell those apart — they are separated by a couple of centimetres of `causeway.crest` against `tide.range`, and this line is the only place the difference is legible.
 
 `fjord <id>` is one line per island with an inlet cut into it, and it is four depths rather than a position because the landform's whole claim is a *relation* between them: the sea outside the mouth, the sill across it, the basin behind it, and how far the valley floor at the head stands over the water. `OVERDEEPENED` means the basin is deeper than the sea it opens into, which is what separates a fjord from a bay. none of it can be read from a still — the depth channel of the bathymetry mask saturates a few metres down and paints all three the same blue — so a run that retunes the falloff, the shore shelving or `seabedDrop` and quietly drowns a sill has this line and nothing else. it is measured off the island's *own* field, not the composite one: the guard answers with the seabed wherever it has no rock, so the composite is floored nine metres down and cannot see a trench.
 
@@ -235,6 +238,7 @@ bun run scape:shot --poses aspect                   # two sides of one hill, 4 f
 bun run scape:shot --poses tarn                     # the pool on the high ground, 4 frames
 bun run scape:shot --poses peat                     # the turf cutting on the moor, 3 frames
 bun run scape:shot --poses storm                    # the lightning on the far islands, 4 frames
+bun run scape:shot --poses causeway                 # the bar out to the nearest rock, 3 frames, covered and dry
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain

@@ -682,7 +682,7 @@ export function createDressing (
     for (let attempt = 0; attempt < attempts; attempt += 1) {
       const { x, z } = sample()
 
-      if (!accept(x, z) || !spacingClear(x, z))
+      if (!accept(x, z) || zones.onCauseway(x, z) || !spacingClear(x, z))
         continue
 
       solver.reserve(x, z, radius)
@@ -1032,7 +1032,15 @@ export function createDressing (
       for (let attempt = 0; attempt < attempts; attempt += 1) {
         const { x, z } = sample()
 
-        if (!accept(x, z))
+        // The bar, stated once here rather than folded into each of the two
+        // dozen rules that exist: it is the one piece of ground in the scape
+        // that nothing at all stands on, and a rule written once is a rule the
+        // next scatter cannot forget. See `onCauseway`.
+        //
+        // *After* the caller's rule and never before it. Some of those rules
+        // roll the shared rng themselves, so short-circuiting one is a draw the
+        // stream does not make — which moves every prop stamped after it.
+        if (!accept(x, z) || zones.onCauseway(x, z))
           continue
 
         const yaw = rng.range(0, TAU)

@@ -42,6 +42,23 @@ export interface DressingZones {
   /** The stripped floor of a turf cutting: ground the farm has carried away. */
   onPeat(x: number, z: number): boolean
 
+  /**
+   * The shingle bar out to the nearest rock, and the couple of metres of skirt
+   * either side of it.
+   *
+   * Nothing roots in it. That is a fact about the place rather than a taste
+   * call — the springs close over the crest twice a month, and a heather bush
+   * that spent a night a year in salt water would not be there the next.
+   *
+   * It is also what keeps the causeway from moving anything else in the scape.
+   * Every scatter draws from one shared rng and only an *accepted* dart draws a
+   * yaw, a scale and a tint, so a bar that took darts nothing had taken before
+   * would shift every prop stamped after it — the same failure the roster's
+   * `rng.fork(name)` rule exists to prevent, arriving through the ground instead
+   * of through the roster.
+   */
+  onCauseway(x: number, z: number): boolean
+
   clear(x: number, z: number): boolean
 }
 
@@ -155,14 +172,34 @@ export function createZoneTests (archipelago: ArchipelagoSurvey): DressingZones 
     return peat.claimAt(x - landmass.origin.x, z - landmass.origin.z) > 0
   }
 
+  const onCauseway = (x: number, z: number): boolean => {
+    const landmass = archipelago.field.landmassAt(x, z)
+    const causeway = landmass?.survey.causeway
+
+    if (!causeway)
+      return false
+
+    return causeway.claimAt(x - landmass.origin.x, z - landmass.origin.z) > 0
+  }
+
   // The tread is spoken-for ground, not merely a stripe of terrain paint.
   const clear = (x: number, z: number): boolean =>
     onYard(x, z) === 0 && !onTrack(x, z) && !onPath(x, z) &&
     onPlot(x, z) === 0 && onPasture(x, z) === 0 && !onBeacon(x, z) && !onTarn(x, z) &&
-    !onPeat(x, z)
+    !onPeat(x, z) && !onCauseway(x, z)
 
   return {
-    onYard, onTrack, onPath, onPlot, onPasture, onBeacon, onTarn, atTarnMargin, onPeat, clear,
+    onYard,
+    onTrack,
+    onPath,
+    onPlot,
+    onPasture,
+    onBeacon,
+    onTarn,
+    atTarnMargin,
+    onPeat,
+    onCauseway,
+    clear,
   }
 }
 

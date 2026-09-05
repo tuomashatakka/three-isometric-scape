@@ -102,8 +102,21 @@ export function springAmount (phase: number): number {
  * same size, which is the switch for the month rather than a second flag.
  */
 export function tideAmplitude (year: number, tide: ScapeConfig['tide']): number {
+  return tideAmplitudeAt(springAmount(moonPhase(year)), tide)
+}
+
+/**
+ * The same half-range, from a spring amount rather than from a date.
+ *
+ * The two ends of the month are worth being able to ask for without inventing a
+ * year that lands on them: `tideAmplitudeAt(1, tide)` is the spring amplitude
+ * and `tideAmplitudeAt(0, tide)` the neap one, which is how the causeway's
+ * covering is reported and how the test states its claim. Splitting it out is
+ * what keeps that from being a second copy of the swing arithmetic.
+ */
+export function tideAmplitudeAt (spring: number, tide: ScapeConfig['tide']): number {
   const swing = 1 - Math.max(0, Math.min(1, tide.spring)) *
-    (1 - springAmount(moonPhase(year)))
+    (1 - Math.max(0, Math.min(1, spring)))
 
   return Math.max(0, tide.range) * 0.5 * swing
 }

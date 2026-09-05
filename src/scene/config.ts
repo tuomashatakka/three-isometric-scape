@@ -710,6 +710,84 @@ export interface ScapeConfig {
   }
 
   /**
+   * The shingle bar out to the nearest rock, and the tide that takes it back.
+   *
+   * The other bar, and the opposite construction. `strand` joins two landmasses
+   * and has to be built in world space because the ground between two patches
+   * belongs to neither of them. This one joins an island to one of its own
+   * islets, which is ground *inside* a patch — so it is surveyed in that
+   * island's own frame, sited against the banks the boats use, and folded into
+   * that island's height field. See `landscape/causeway.ts`.
+   *
+   * Build-time, and out of the tuning overlay for the reason `strand` and
+   * `skerries` are: the crest is in the ground the terrain patch is built from
+   * and the bathymetry mask is baked off, so nothing here can move without the
+   * scape being generated again.
+   *
+   * **Every length here is metres and stays metres.** A crossing is as wide as
+   * the water is and a bar is as high as the sea allows; a world that grew again
+   * puts its rocks further out, it does not build a wider mole.
+   */
+  causeway: {
+
+    /**
+     * Longest crossing the bar will bridge, in metres.
+     *
+     * The switch, and the only one: 0 is an archipelago whose rocks are all
+     * reached by boat, which is what this scape was before the section existed.
+     * There is no flag beside it, because a bar that will bridge no water is
+     * already no bar.
+     *
+     * It is also the whole of the siting policy. A rock further off than this
+     * gets no causeway rather than a mole out into open water, and on four of
+     * the five holdings — which have no islets at all — the answer is no
+     * causeway however this is set.
+     */
+    gap: number
+
+    /** Smallest islet radius worth walking out to, in metres. */
+    minIsle: number
+
+    /**
+     * Metres the landfall must keep from the landing and the harbour.
+     *
+     * The one hard rule in the search rather than a term in its score. A bar
+     * laid across the water the jetty stands in is a bar the ferry cannot get
+     * past, and the fleet finds that out by failing to route rather than by
+     * looking wrong.
+     */
+    clear: number
+
+    /**
+     * Metres the middle of the bar stands above mean water.
+     *
+     * The number the whole idea rests on, and it is sized against
+     * {@link ScapeConfig.tide.range} rather than against anything here: at less
+     * than half the spring amplitude the crossing is under water for a good part
+     * of every day, and at more than the amplitude the tide never reaches it and
+     * the causeway is simply a mole. Between the two it is what a causeway to an
+     * offshore rock actually is — dry ground that the springs close over.
+     *
+     * Nothing implements that. The sea rides the tide and the ground does not,
+     * so the covering is arithmetic the scape already did.
+     */
+    crest: number
+
+    /**
+     * Metres the two anchors stand above that middle.
+     *
+     * A bar is highest where it is held and lowest where the swell washes over
+     * it, so the crossing sags in the middle — which is also what makes the sea
+     * take it as a widening gap rather than as a strip that vanishes all at
+     * once. 0 is a level causeway, and reads as one.
+     */
+    camber: number
+
+    /** Half-width of the bar at its skirt, in metres. */
+    halfWidth: number
+  }
+
+  /**
    * The bare rocks standing out in the open sea.
    *
    * Build-time like `strand`, `creek` and `layout`, and out of the tuning
@@ -2390,6 +2468,34 @@ export const SCAPE_CONFIG = {
     between: [ 'sound', 'fell' ],
     width:   19,
     crest:   1.1,
+  },
+  // A third of the strand's half-width and a fifth of its crest, because this
+  // one is the other kind of bar: a footway out to a rock rather than the ground
+  // that makes two islands one. 3.4 m of skirt leaves a crown not quite three
+  // metres wide, which is a path with room to pass on and still three quads
+  // across at desktop detail.
+  //
+  // 0.22 m of crest is the whole design and it is measured against `tide.range`
+  // rather than chosen here. Half the spring range is 0.4 m, so the springs
+  // close over the middle of the crossing for a little under a third of every
+  // cycle; half the *neap* range is 0.18 m, so at the quarters of the month the
+  // sea never reaches it at all. A causeway that is covered twice a day is a
+  // ford, and one that is never covered is a mole — this is neither, and moving
+  // this number past either end of that band is how it becomes one of them.
+  //
+  // 26 m of gap with 4 m of minimum radius picks the near western pair off the
+  // home island's own shore and refuses everything else in the ring, which is
+  // the intent: one crossing, to the rock that is plainly close enough to walk
+  // to. 24 m of clearance is comfortably outside the boathouse, the slipway and
+  // the stakes, so the bar can never be found on the water the ferry comes in
+  // on.
+  causeway: {
+    gap:       26,
+    minIsle:   4,
+    clear:     24,
+    crest:     0.22,
+    camber:    0.55,
+    halfWidth: 3.4,
   },
   // Sixteen chains of up to five, which lands somewhere around sixty rocks in a
   // 1520 m sea — a guard every couple of hundred metres rather than a reef belt,
