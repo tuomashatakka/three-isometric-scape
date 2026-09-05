@@ -88,6 +88,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a limewashed chapel on a knoll above the farm — a bell tower with an open belfry and a spire, a stepped chancel, and a walled churchyard with twelve leaning markers in it
 - juniper bushes out on the dry upland heath — a low, spreading evergreen that reads apart from the conifers and answers to the same one wind
 - a lighthouse on the outermost rock of the ring, throwing beams that sweep the water from dusk until dawn
+- a shingle bar out to the nearest rock, thirteen metres of it, standing a hand's breadth over mean water — dry ground you walk to the light on, and ground the spring tides close over for a third of the cycle while the neaps never reach it at all
 - a croft out on the islets — a boarded, turf-roofed hut with a stone flue and a pair of oars against its blind gable, on the nearest free rock to the harbour it is worked from, glazed on two walls and smoking
 - sheep on the rough grazing outside every farm: two flocks to a farm, sited by a search out from the yard, feeding on the open ground between the crop plots and the moor — and outside the hay meadow's wall, which is what the wall is for
 - gull colonies wheeling over every harbour mouth and over the outer rock, banking into the turn, down at night and mostly down in a squall
@@ -142,7 +143,7 @@ url overrides for a device you cannot attach a debugger to: `?debug` adds live v
 
 the intended first edit is [`src/scene/config.ts`](src/scene/config.ts). `SCAPE_CONFIG` owns the seed, terrain extent and waterline, the islets, the beck, the footpaths, the dressing budgets, camera framing and zoom limits, all three clocks, the whole light and atmosphere rig, the optical chain, and the complete palette.
 
-a knob that is **visual and read per frame** also belongs in [`ui/scape-controls.ts`](src/ui/scape-controls.ts) as a dotted path, which makes it persist, reset and become url-addressable for free. a knob that needs a **rebuild** to be seen — `layout.*`, `creek.*`, `footpath.*`, `cartRuts.*`, `dressing.*`, `strand.*`, `skerries.*`, `littoral.*`, `peat.*`, `terrain.fjord.*`, and `beck.depth`/`beck.fill` — stays out of the overlay, because a slider that lies about what it does is worse than no slider.
+a knob that is **visual and read per frame** also belongs in [`ui/scape-controls.ts`](src/ui/scape-controls.ts) as a dotted path, which makes it persist, reset and become url-addressable for free. a knob that needs a **rebuild** to be seen — `layout.*`, `creek.*`, `footpath.*`, `cartRuts.*`, `dressing.*`, `strand.*`, `causeway.*`, `skerries.*`, `littoral.*`, `peat.*`, `terrain.fjord.*`, and `beck.depth`/`beck.fill` — stays out of the overlay, because a slider that lies about what it does is worse than no slider.
 
 `camera.focusX` and `camera.focusZ` are where the camera *opens*, read once when the controls are built and live state from then on. they default to the middle of the world, which is open sea — set them to put the opening view on the farm, and set them from a url to capture anything on the ground at all.
 
@@ -232,6 +233,7 @@ src/
     │   ├── tarn.ts                 the flattest upland the farm has not taken, and the basin cut into it
     │   ├── tarn-water.ts           the still sheet lying in that basin, and the winter it gets first
     │   ├── peat.ts                 the turf cutting on the moor: where it is dug, and the step it leaves
+    │   ├── causeway.ts             the bar out to the nearest rock, and the tide that takes it back
     │   ├── skerry.ts               the bare rocks standing in the water between the islands
     │   ├── fjord.ts                the drowned valley cut through one island's coast
     │   ├── beacon.ts               the outer rock a light would stand on
@@ -295,6 +297,7 @@ scripts/
 ├── scape-map.ts                    the whole composition as ascii
 ├── scape-map-format.ts             the stats block, as the run reads it
 ├── scape-map-landforms.ts          the bar, the guard and the fjords, walked and measured
+├── scape-map-sites.ts              the sited features of one island, projected and measured
 ├── scape-map-weather.ts            the storm the front carries, and where its strikes land
 ├── scape-shot.ts                   headless stills, posed and pinned
 ├── scape-diff.ts                   what a change did to the picture, in numbers
@@ -587,6 +590,30 @@ forty-nine rocks stood in the open sea with nothing on them. the guard had solve
 **two props, two instanced draws, and no texture memory.** [`props/littoral.ts`](src/scene/props/littoral.ts) is its own file for the reason `shore.ts` and `upland.ts` are: nothing else in the scape grows where these do, and nothing in `vegetation.ts` would last a tide. the wrack is five straps bent past a half turn so the clump finishes *below* its own holdfast — a frond bent by less than that still spends most of its length going up, and the first cut read as grass standing in the sea. `littoral.test.ts` states the resulting silhouette, broader than it is tall, as the fact that separates the two. the lichen is four discs two centimetres proud, which is a stain rather than a thing standing on the rock, and one patch in four is drawn rust so the crust is not one flat colour repeated forty-nine times.
 
 **every tier gets it.** the counts go through `quality.scatterScale`, so `minimal` takes 16% of them and `ultra` 150%, and the geometry is small enough that the cheapest device still gets weed on its rocks rather than a coarse substitute.
+
+## the causeway the tide takes
+
+fifteen islets stood off the home island and every one of them was reached by boat. the nearest of them — the broad north-eastern outlier the light already stands on — is **thirteen metres of water** from the mainland's own warped coast, which is a distance people walk rather than row. `config.causeway` is the shingle bar across it, in [`landscape/causeway.ts`](src/scene/landscape/causeway.ts).
+
+**it is the third bar in the scape and the first one built inside a patch.** [`strand.ts`](src/scene/landscape/strand.ts) joins two *landmasses* and [`skerry.ts`](src/scene/landscape/skerry.ts) stands rocks between them, and both have to be world-space terms folded into the composite field after the dispatch, because the ground between two patches belongs to neither of them. an islet is not between patches — it is raised inside one, in the frame that island's yard, coast, beck and landing all agree about. so the crossing can be **surveyed** rather than merely drawn, and that buys three things a world-space bar could not have had:
+
+- it is sited *against the boats*. the landing and the harbour are found first, on the island as it is, and the search is told to keep `causeway.clear` metres away from both. a bar laid across the water the jetty stands in is a bar the ferry cannot get past, and the fleet finds that out by failing to route rather than by looking wrong.
+- it is folded into that island's **own** height field, so the island's terrain patch draws it at the island's own resolution. no geometry, no material and no draw call of its own — the crossing is a handful of quads of a patch that already existed.
+- everything downstream inherits it for nothing, exactly as the inlet and the tombolo do. the bathymetry mask bakes off the field so the water knows the bar is there, the altitude bands paint it as shore because that is the height it is, the ferry lanes test depth so they round it, and `scape:map` samples it so the crossing draws in ascii without the script being told.
+
+**the crest is measured against the tide, not chosen.** `causeway.crest` is 0.22 m over mean water at the lowest point of the bar. half the spring range is 0.4 m, so the springs close over the middle of the crossing for a little under a third of every cycle; half the *neap* range is 0.18 m, so at the quarters of the month the sea never reaches it at all. that band is the whole design — a crossing the sea covers twice a day is a ford, and one it never covers is a mole — and the two numbers that define it live in different sections, which is why `causeway.test.ts` states the band as a fact rather than the readme stating it as a claim.
+
+**nothing implements the covering.** the water surface rides the tide and the ground does not, so a crest authored in the same metres as `tide.range` is covered and uncovered by arithmetic the scape was already doing. what the run had to add was a way to *say* how much: `causewayCover` is a closed form — the sea stands above a freeboard for `acos(freeboard / amplitude) / π` of a semidiurnal cycle — so the stats line and the test read the same function instead of two marches over the same cosine. `tideAmplitudeAt` was split out of `tideAmplitude` for the same reason: the two ends of the month are worth asking for without inventing a date that lands on them.
+
+**the bar sags in the middle**, by `causeway.camber`. a shingle bar is highest where it is anchored and lowest where the swell washes over it, and the sag is also what makes the sea take the crossing as a widening gap rather than as a strip that vanishes all at once.
+
+**the raise is upward-only**, which is the mirror of the rule the fjord's carve is written to. a heap of shingle may raise the seabed it lies on and must never lower the island it runs into — which is also what lets both ends simply disappear under the rising shore instead of needing a join.
+
+**nothing roots in it**, and `onCauseway` in [`dressing-zones.ts`](src/scene/landscape/dressing-zones.ts) is what says so. that is a fact about the place first — the springs close over the crest twice a month and a heather bush would not last the year — and a discipline second: every scatter draws from one shared rng and only an *accepted* dart draws a yaw, a scale and a tint, so ground that took darts nothing had taken before would move every prop stamped after it. the test is stated once, in `scatterCover` and `tryPlace`, rather than folded into each of the two dozen acceptance rules; and it goes **after** the caller's own rule, never before, because some of those rules roll the shared rng themselves and short-circuiting one is a draw the stream does not make.
+
+**it is on the light's rock, and that was found rather than authored.** the search scores the shortest crossing against the broadest islet, and the broadest islet near enough to walk to is the same one `beacon.ts` wanted for the reason it wanted it — it is the biggest thing out there. so the scape gets a seamark you can reach on foot on the ebb, which is what a tidal light actually is. `causeway.minIsle` and `causeway.gap` are the two knobs that would send it somewhere else.
+
+`gap` at 0 is the switch and the only one: a bar that will bridge no water is already no bar, so there is no boolean beside it. four of the five holdings have no islets at all and get no causeway however it is set — `null` is the common answer here, the way it is for the smokehouse and the croft.
 
 ## the drowned valley in the sound
 

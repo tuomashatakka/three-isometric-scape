@@ -4,10 +4,6 @@ import { surveyArchipelago } from '../src/scene/landscape/archipelago.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from '../src/scene/landscape/archipelago.ts'
 import { scheduledFleetMinimumSeparation } from '../src/scene/landscape/boat-motion.ts'
 import { beckGeometry } from '../src/scene/landscape/beck.ts'
-import { peatFaceStanding } from '../src/scene/landscape/peat.ts'
-import type { PeatBank } from '../src/scene/landscape/peat.ts'
-import { tarnWetted } from '../src/scene/landscape/tarn.ts'
-import type { Tarn } from '../src/scene/landscape/tarn.ts'
 import type { Creek } from '../src/scene/landscape/creek.ts'
 import type { HeightField } from '../src/scene/landscape/height.ts'
 import { planColonies } from '../src/scene/landscape/colony.ts'
@@ -16,13 +12,12 @@ import { surveyHearths } from '../src/scene/landscape/hearths.ts'
 import { surveyWindows } from '../src/scene/landscape/windows.ts'
 import { distanceToTrack } from '../src/scene/landscape/layout.ts'
 import { createPathQuery, pathLength } from '../src/scene/landscape/path.ts'
-import type { CroftSite } from '../src/scene/landscape/croft.ts'
-import type { SmokehouseSite } from '../src/scene/landscape/smokehouse.ts'
 import { STEADING_BUILDINGS } from '../src/scene/landscape/steading.ts'
 import { sampleWaterway } from '../src/scene/landscape/waterway.ts'
 import type { ScapeConfig } from '../src/scene/config.ts'
 import { formatStats } from './scape-map-format.ts'
 import { fjordStats, skerryStats, strandStats } from './scape-map-landforms.ts'
+import { causewayOf, croftOf, peatOf, smokehouseOf, tarnOf } from './scape-map-sites.ts'
 import { stormStats } from './scape-map-weather.ts'
 import { applyOverrides, parseArgs } from './args.ts'
 
@@ -102,7 +97,7 @@ export function glyphFor (
   return LAND_RAMP[band]
 }
 
-interface CompositionStats {
+export interface CompositionStats {
   seed:       number
   size:       number
   land:       number
@@ -161,14 +156,33 @@ interface CompositionStats {
    * and a screenshot at the default pose never shows.
    */
   smokehouse: { x: number, z: number, fromBank: number } | null
-  beacon:     { x: number, z: number, freeboard: number, reach: number, isle: number } | null
-  croft:      { x: number, z: number, freeboard: number, isle: number, fromHarbour: number } | null
-  plots:      number
-  ridges:     number
-  isles:      { total: number, surfacing: number }
-  steading:   Record<string, [ number, number ]>
-  landing:    [ number, number ] | null
-  harbour:    [ number, number ] | null
+
+  /**
+   * The bar out to the nearest rock, and the share of the tide that covers it.
+   *
+   * `springs` and `neaps` are the reason this is a stats line at all. The
+   * crossing is a strip of ground two metres wide seen from two hundred, so a
+   * still cannot say whether it is dry ground, a ford or a mole — and those are
+   * three different scapes separated by a couple of centimetres of crest.
+   */
+  causeway: {
+    x:        number
+    z:        number
+    isle:     number
+    crossing: number
+    crest:    number
+    springs:  number
+    neaps:    number
+  } | null
+
+  beacon:   { x: number, z: number, freeboard: number, reach: number, isle: number } | null
+  croft:    { x: number, z: number, freeboard: number, isle: number, fromHarbour: number } | null
+  plots:    number
+  ridges:   number
+  isles:    { total: number, surfacing: number }
+  steading: Record<string, [ number, number ]>
+  landing:  [ number, number ] | null
+  harbour:  [ number, number ] | null
 }
 
 export interface LandmassMapStats extends CompositionStats {
@@ -428,90 +442,6 @@ function beckOf (
 }
 
 /**
- * The harbour's hut, as the stats line reports it.
- *
- * A function rather than a fourth null-guarded block inside `compositionStats`,
- * which the lint config's complexity ceiling refuses — and rightly: a
- * survey-to-stats mapping that keeps growing branches is a mapping that wants
- * splitting, not a limit that wants raising.
- */
-function smokehouseOf (
-  site:   SmokehouseSite | null,
-  worldX: (x: number) => number,
-  worldZ: (z: number) => number,
-): CompositionStats['smokehouse'] {
-  return site && {
-    x:        round(worldX(site.x)),
-    z:        round(worldZ(site.z)),
-    fromBank: round(site.fromBank, 1),
-  }
-}
-
-/**
- * The hut on the outer rock, as the stats line reports it.
- *
- * Its own function beside `smokehouseOf` and for exactly the same reason: the
- * record is a projection plus two measurements, and a fifth null-guarded block
- * inside `compositionStats` is one the lint config's complexity ceiling refuses.
- */
-function croftOf (
-  site:   CroftSite | null,
-  worldX: (x: number) => number,
-  worldZ: (z: number) => number,
-): CompositionStats['croft'] {
-  return site && {
-    x:           round(worldX(site.x)),
-    z:           round(worldZ(site.z)),
-    freeboard:   round(site.freeboard, 2),
-    isle:        site.isle,
-    fromHarbour: round(site.fromHarbour),
-  }
-}
-
-/**
- * The pool, in world metres, and how much water is actually in it.
- *
- * Its own function beside `beaconOf` and `smokehouseOf` for the reason those
- * have one: the record is a projection plus a measurement, and inlining a third
- * of those took `compositionStats` past its complexity ceiling.
- */
-function tarnOf (
-  tarn:   Tarn | null,
-  field:  HeightField,
-  worldX: (value: number) => number,
-  worldZ: (value: number) => number,
-): CompositionStats['tarn'] {
-  return tarn && {
-    x:      round(worldX(tarn.x)),
-    z:      round(worldZ(tarn.z)),
-    level:  round(tarn.level, 2),
-    wetted: round(tarnWetted(tarn, field.heightAt), 1),
-    spread: round(tarn.spread, 2),
-  }
-}
-
-/**
- * The cutting, in world metres, and how much of its face is standing.
- *
- * Its own function beside `tarnOf` for the same reason: a projection plus a
- * measurement, and the measurement is the whole point of the record.
- */
-function peatOf (
-  peat:   PeatBank | null,
-  field:  HeightField,
-  worldX: (value: number) => number,
-  worldZ: (value: number) => number,
-): CompositionStats['peat'] {
-  return peat && {
-    x:        round(worldX(peat.x)),
-    z:        round(worldZ(peat.z)),
-    level:    round(peat.level, 2),
-    spread:   round(peat.spread, 2),
-    standing: round(peatFaceStanding(peat, field.heightAt), 2),
-  }
-}
-
-/**
  * Everything the grid cannot say.
  *
  * The picture is for a person; this is for the run. A creek that failed to
@@ -612,6 +542,7 @@ function compositionStats (landmass: LandmassSurvey, w: number, h: number): Comp
       fromYard:   round(layout.chapel.fromYard),
     },
     smokehouse: smokehouseOf(survey.smokehouse, worldX, worldZ),
+    causeway:   causewayOf(survey.causeway, config, worldX, worldZ),
     croft:      croftOf(survey.croft, worldX, worldZ),
     beacon:     survey.beacon && {
       x:         round(worldX(survey.beacon.x)),

@@ -1,6 +1,8 @@
 import { smoothstep } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 import { coastWarp, sampleHeight } from '../noise.ts'
+import { raiseCauseway } from './causeway.ts'
+import type { Causeway } from './causeway.ts'
 import { baseAt, distanceToTrack, plotInfluence, remapRelief, sinkToIsland } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
 import { carvePeat } from './peat.ts'
@@ -191,12 +193,20 @@ export function resolveIsles (config: ScapeConfig): IsleSite[] {
  *   two closures and two smoothed profiles over forty points, which is cheaper
  *   than the alternative — a second approximation of the ground, inside the
  *   solver, that would drift out of agreement with this one.
+ *
+ * @param causeway The bar out to the nearest rock, once it has been sited.
+ *
+ *   Optional for the reason the other two are, and solved last of the three:
+ *   the crossing is measured against the *offshore* ground, and it has to miss
+ *   the banks the boats use — so it cannot be found until the landing and the
+ *   harbour have been. See `surveyScape`.
  */
 export function createHeightField (
-  config: ScapeConfig,
-  layout: ScapeLayout,
-  tarn:   Tarn | null = null,
-  peat:   PeatBank | null = null,
+  config:   ScapeConfig,
+  layout:   ScapeLayout,
+  tarn:     Tarn | null = null,
+  peat:     PeatBank | null = null,
+  causeway: Causeway | null = null,
 ): HeightField {
   const { waterLevel, shoreBand } = config.terrain
   const { yard, track }           = layout
@@ -259,6 +269,13 @@ export function createHeightField (
     height = fromWater >= 0
       ? waterLevel + fromWater * (0.44 + 0.56 * smoothstep(shoreBand, shoreBand * 2.2, fromWater))
       : waterLevel + fromWater * 1.3
+
+    // The bar out to the nearest rock, after the shelving rather than before it.
+    // Its crest is authored in metres over mean water, and the shelving is the
+    // last thing in this function that moves ground *relative to* the waterline
+    // — laid before it, a bar asked to stand a hand's breadth clear would be
+    // compressed to half of that and the tide would never leave it.
+    height = raiseCauseway(causeway, x, z, height)
 
     for (const plot of layout.plots) {
       const claim = plotInfluence(plot, x, z)

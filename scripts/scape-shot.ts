@@ -44,6 +44,9 @@ const SOUND_INLET = [ 'camera.focusX=-306', 'camera.focusZ=-374' ]
 /** The crown of the fell, which is the steepest and least built-on ground there is. */
 const FELL_CROWN = [ 'camera.focusX=300', 'camera.focusZ=-480' ]
 
+/** The middle of the causeway, which the three `causeway` poses all sit on. */
+const OVER_CROSSING = [ 'camera.focusX=52.4', 'camera.focusZ=32.5' ]
+
 /** One camera and clock the scape gets photographed from. */
 export interface Pose {
   name:    string
@@ -683,6 +686,55 @@ export const TOURS: Record<string, Pose[]> = {
     },
   ],
 
+  /**
+   * The crossing out to the nearest rock, at both ends of the swing.
+   *
+   * The eighteenth set, and the second whose subject is a *difference* — the
+   * whole claim of a causeway is that the sea takes it and gives it back, and
+   * one frame of a bar cannot say which of the three things it is. So the pair
+   * is built the way `tide` builds its own: the hour and the week are held and
+   * only the sea is moved, because two frames taken at two hours of the day
+   * differ by the light as well and the light is the larger signal.
+   *
+   * `tide.spring=0` on both is the month rather than a cheat. It is the
+   * documented switch for the monthly swing — a coast whose every tide is the
+   * same size — so both frames are taken at the full spring range, which is the
+   * only state in which the crossing is covered at all. `tide.lag` then puts
+   * that range's high water and its low water at the same captured instant, the
+   * same half-cycle turn `flood` and `ebb` use.
+   *
+   * `causeway-reach` is the third frame and the one that says *why* there is a
+   * bar here: at 90 m the mainland shore, the thirteen metres of water and the
+   * light on the rock at the far end are all in one picture, which is the
+   * composition the search actually found.
+   *
+   * All three are turned to 315 rather than left at the default 45. The bar runs
+   * at 32° and the default heading looks very nearly along it, which foreshortens
+   * a thirteen-metre crossing into a smudge between two rocks; a quarter turn off
+   * that puts it across the frame, which is the one angle a strip this narrow can
+   * be read from at all.
+   */
+  causeway: [
+    {
+      name: 'causeway',
+      rot:  315,
+      zoom: 24,
+      set:  [ ...OVER_CROSSING, 'tide.spring=0', 'tide.lag=0' ],
+    },
+    {
+      name: 'causeway-covered',
+      rot:  315,
+      zoom: 24,
+      set:  [ ...OVER_CROSSING, 'tide.spring=0', 'tide.lag=6.21' ],
+    },
+    {
+      name: 'causeway-reach',
+      rot:  315,
+      zoom: 90,
+      set:  [ ...OVER_CROSSING, 'tide.spring=0', 'tide.lag=0' ],
+    },
+  ],
+
   // The cheap pass: is there a scape at all, and does it survive being drawn.
   quick: [{ name: 'default' }],
 }
@@ -1054,6 +1106,7 @@ async function main (): Promise<void> {
       '                        beck (4, the water in the channel)',
       '                        peat (3, the turf cutting on the moor)',
       '                        tide (3, the sea at both ends of its swing)',
+      '                        causeway (3, the bar out to the nearest rock)',
       '                        fjord (4, the drowned valley in the sound) | quick (1)',
       '  --rot 45 --zoom 70    camera yaw, and view size (tilt is derived from zoom)',
       '  --time 0.42           the day, 0..1',
