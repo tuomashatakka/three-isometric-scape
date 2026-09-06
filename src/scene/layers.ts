@@ -29,6 +29,20 @@ export const LAYER = {
   /** The sea. The floor of the transparent stack, and everything is over it. */
   water: 0,
 
+  /**
+   * The bow standing out of the shower.
+   *
+   * Over the sea it stands out of, and under everything else in the scape,
+   * because everything else in the scape is nearer the eye than it is: the bow
+   * is hung the better part of a frame out along the antisolar bearing, beyond
+   * the far islands, and the smoke, the fog, the shower on the water, the gulls
+   * and the fall are all between the reader and it. It is the one layer whose
+   * place in the ladder is settled by *distance* rather than by what it is made
+   * of — see `rainbow.ts`, which is also the reason it is not simply painted
+   * over the top of the sky the way the aurora is.
+   */
+  rainbow: 5,
+
   /** Steam coming off the water, under the fog that sits on the land. */
   seaSmoke: 10,
 

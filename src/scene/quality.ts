@@ -233,6 +233,26 @@ export interface AtmosphereQuality {
   beckRipples: number
 
   /**
+   * Bows drawn about the antisolar point. 0 is a coast that never gets one.
+   *
+   * A count rather than a switch, because a rainbow is genuinely two arcs: 1 is
+   * the primary bow alone and 2 adds the fainter secondary outside it, with its
+   * spectrum the other way round. Both are one draw of one quad either way, and
+   * the second arc is a second band test and a second hue ramp on the fragments
+   * the quad already covers.
+   *
+   * **The phone gets both**, and that is a correction rather than an oversight.
+   * The gate was 1 on mobile until the first captures were taken at the default
+   * capture tier and came back with no bow in them at all: the two arcs are 42°
+   * and 51° from the antisolar point, so between those two solar elevations the
+   * secondary is the *only* arc over the sea — and this coast's midsummer sun
+   * spends the middle of every day in exactly that band. A handful of ALU ops
+   * is the wrong thing to buy a phone with a season of blank sky. What 0 buys
+   * on `minimal` is real: no quad, no program, no arc.
+   */
+  rainbowArcs: number
+
+  /**
    * Sides on the ring of water up on the fell — see `landscape/tarn-water.ts`.
    *
    * A polygon count rather than a switch, because the pool is one draw of a
@@ -307,6 +327,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     detailTaps:      1,
     reliefSteps:     0,
     beckRipples:     0,
+    rainbowArcs:     0,
     tarnSectors:     20,
     waterSegments:   24,
     waterSpan:       2.2,
@@ -354,6 +375,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     detailTaps:    1,
     reliefSteps:   0,
     beckRipples:   1,
+    rainbowArcs:   2,
     tarnSectors:   28,
     waterSegments: 48,
     waterSpan:     3,
@@ -399,6 +421,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     detailTaps:      6,
     reliefSteps:     6,
     beckRipples:     2,
+    rainbowArcs:     2,
     tarnSectors:     44,
     waterSegments:   96,
     waterSpan:       8,
@@ -437,6 +460,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     detailTaps:      6,
     reliefSteps:     12,
     beckRipples:     3,
+    rainbowArcs:     2,
     tarnSectors:     56,
     waterSegments:   128,
     waterSpan:       8,
@@ -482,6 +506,7 @@ const UNLOCKED_FLOOR = {
   detailTaps:     6,
   reliefSteps:    4,
   beckRipples:    1,
+  rainbowArcs:    1,
 } as const
 
 /**
@@ -526,6 +551,7 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
     detailTaps:     Math.max(quality.detailTaps, UNLOCKED_FLOOR.detailTaps),
     reliefSteps:    Math.max(quality.reliefSteps, UNLOCKED_FLOOR.reliefSteps),
     beckRipples:    Math.max(quality.beckRipples, UNLOCKED_FLOOR.beckRipples),
+    rainbowArcs:    Math.max(quality.rainbowArcs, UNLOCKED_FLOOR.rainbowArcs),
   }
 }
 

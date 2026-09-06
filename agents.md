@@ -73,6 +73,7 @@ ice shield  (-11.1,482.9) reach 56.1m  covers 38.3% of the island  apex 21.93m  
 hearths 15  lowest mouth 4.35m over the ground
 windows 93  lowest pane 0.73m over the ground  facing out 93/93
 storm 6/7 strikes  peak @ phase 0.3161 over fell  ridge(-193,77) 1x on -1.25m  meadow(206,141) 1x on -1.05m  sound(-336,-501) 2x on 1.72m  fell(282,-480) 2x on 7.02m
+bow   sun 42.1° up  apex -0.1°  bearing 143.5°  cover 0.29  now 0.631  best 0.765 @ phase 0.201
 grazing 7/10 flocks  thinnest cover 0.72  home/outfield (32,-14) r7  home/outfield (24,23) r7  meadow/infield (158,146) r7  sound/infield (-329,-518) r7  sound/outfield (-266,-443) r7  fell/infield (311,-424) r7  fell/outfield (322,-541) r7
 gulls 6/6 colonies  home/harbour (-53,-63) r24.1  home/rock (71,46) r28  ridge/harbour (-116,147) r28  meadow/harbour (103,132) r28  sound/harbour (-373,-353) r28  fell/harbour (322,-361) r13.2
 ```
@@ -161,9 +162,12 @@ ice shield  (-11.1,482.9) reach 56.1m  covers 38.3% of the island  apex 21.93m  
 hearths 19  lowest mouth 4.17m over the ground
 windows 108  lowest pane 0.73m over the ground  facing out 108/108
 storm 6/7 strikes  peak @ phase 0.3161 over fell  ridge(-193,77) 1x on -1.25m  meadow(206,141) 1x on -1.05m  sound(-336,-501) 2x on 1.72m  fell(282,-480) 2x on 7.02m
+bow   sun 42.1° up  apex -0.1°  bearing 143.5°  cover 0.29  now 0.631  best 0.765 @ phase 0.201
 grazing 7/10 flocks  thinnest cover 0.72  home/outfield (32,-14) r7  home/outfield (24,23) r7  meadow/infield (158,146) r7  sound/infield (-329,-518) r7  sound/outfield (-266,-443) r7  fell/infield (311,-424) r7  fell/outfield (322,-541) r7
 gulls 6/6 colonies  home/harbour (-53,-63) r24.1  home/rock (93,60) r28  ridge/harbour (-116,147) r28  meadow/harbour (103,132) r28  sound/harbour (-373,-353) r28  fell/harbour (322,-361) r13.2
 ```
+
+`bow sun 42.1° up` is the rainbow line, and it is here for the reason the storm line is: the arc is only out on the *edges* of a shower, so the phase the config is parked on decides whether a still has one in it at all. `now` is the bow at that phase and `best` is the brightest the whole front ever gets — a `best` of 0 is the finding, because it means no instant of any front on this coast has a bow in it, and the causes are all silent ones: the sun over 51° all day, `weather.rain` at zero, or a week cold enough that everything falling is snow. `apex` is the geometry — 42° less the sun's own elevation, which is how far the top of the inner arc stands over the sea — and it goes *negative* in the middle of a summer day, which is not a fault: it is the hours this coast keeps its outer bow and loses its inner one, and it is why the module gates on 51° rather than 42°. `bearing` is where to look, opposite the sun.
 
 `chapel NONE` is the same kind of answer with an extra clause: a chapel needs a rise *and* a rise inside `chapel.reach` metres of its own yard, so an island whose only knolls are out on a headland gets no church rather than one nobody walks to. the line carries the distance from the yard beside the prominence for that reason — a chapel that moved on a run which touched neither `chapel.prominence` nor `chapel.reach` is a finding, and so is one whose `from the yard` crept toward the reach.
 
@@ -244,6 +248,7 @@ bun run scape:shot --poses peat                     # the turf cutting on the mo
 bun run scape:shot --poses storm                    # the lightning on the far islands, 4 frames
 bun run scape:shot --poses causeway                 # the bar out to the nearest rock, 3 frames, covered and dry
 bun run scape:shot --poses ice                      # the cap on the northern island, 3 frames
+bun run scape:shot --poses bow                      # the rainbow, 4 frames, three heights of sun
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain
@@ -254,6 +259,8 @@ bun run scape:shot --skip post                      # drop the optical chain
 `ice` is the newest set, and it exists for the reason `beacon` and `peat` do: the cap is 520 m north of the world origin every tour pose is aimed at, so `default` and `far` render a dome a hundred metres across as a white thumbprint. three frames — `ice` is the whole island at a 200 m view, and it is also the claim, because the config opens at midsummer and this is therefore the week every other white thing in the archipelago has gone; `ice-front` drops onto the seaward side at 90 m, the only frame that shows the ice *ending* in water rather than on a hillside; `ice-winter` is the control, where the lying snow reaches the same white down to the shore and the dome still has to read as a shape. reach for it whenever the change touches `terrain.icecap.*`, the terrain paint, or anything that scatters on ground.
 
 `storm` is the one set that names a *time* rather than a place, and it is the only way to photograph the lightning at all. every other system in the scape is somewhere in every frame; a strike is somewhere for two thirds of a second in seven minutes. so the set asks `stormPeak` in [`storm.ts`](src/scene/storm.ts) for the front's brightest strike and pins `weather.time` a fiftieth of a flash into it — the phase is resolved from the seed rather than written down, because a hard-coded one would go stale silently and photograph an empty sky. four frames: `storm` at the default frame, `storm-night` at the same instant in the dark half of the year, `storm-fork` on the striking island at 70 m where the channel is readable, and `storm-clear` a quarter of a cycle on, which is the control and must stay identical to the reference. reach for it whenever the change touches the front, the deck the flash sits under, or the render order between the two.
+
+`bow` is the second set that names a *time* rather than a place, and it needs two of them. a rainbow stands on the *edges* of a shower — `bowLight` peaks where the front covers half the sky — and the six frames of `tour` are parked on a phase that is not one, so the set asks `bowPeak` in [`rainbow.ts`](src/scene/rainbow.ts) for the front's brightest instant rather than writing a decimal down. the second time is the hour: the arc is 42° from the point opposite the sun, so the whole of it is under the sea whenever the sun is higher than that, and this coast's midsummer sun stands at 42.1° at the hour the config opens on — a tenth of a degree over the line. four frames: `bow-morning` at 28° of sun with both arcs clear of the water, `bow-low` in the late evening at 10° where the arc is tallest, `bow-noon` for the one frame in the day that has only the secondary in it, and `bow-clear` parked in the heart of the same band, which is the control and must stay identical to the reference. reach for it whenever the change touches the front, the sun's arc, the sea's own level, or the render order down at the waterline.
 
 `coast` is the third set, and it exists for the same reason `beacon` does: four frames on a shoreline — `wash` at one bay, `lee` at the *identical* frame with `wind.bearing` turned right around, `shores` pulled back over the home island's whole coast and its skerries, and `frozen` at midwinter where the ice is meant to take the white water away. reach for it whenever the change touches the water's edge: surf, foam, the ice front, the depth tint or the alpha ramp. every pose in `tour` is aimed at the middle of the home island, so a change that repaints every shore in the archipelago reads as `same` at all six.
 

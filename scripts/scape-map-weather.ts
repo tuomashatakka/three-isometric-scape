@@ -1,4 +1,8 @@
+import { sunHeight } from '../src/scene/daylight.ts'
+import { bowLight, bowPeak, bowPlace } from '../src/scene/rainbow.ts'
 import { stormLive, stormPeak, stormSchedule, stormSites } from '../src/scene/storm.ts'
+import { snowAmount } from '../src/scene/season.ts'
+import { showerAmount } from '../src/scene/weather.ts'
 import type { ScapeConfig } from '../src/scene/config.ts'
 import type { ArchipelagoSurvey } from '../src/scene/landscape/archipelago.ts'
 import type { MapStats } from './scape-map.ts'
@@ -53,5 +57,54 @@ export function stormStats (config: ScapeConfig, survey: ArchipelagoSurvey): Map
       base:    round(site.base, 2),
       strikes: firing.filter(strike => strike.site === index).length,
     })),
+  }
+}
+
+/** Degrees of arc from a sine of elevation, which is how the sky is solved. */
+function elevation (height: number): number {
+  return Math.asin(Math.min(1, Math.max(-1, height))) * 180 / Math.PI
+}
+
+/**
+ * The bow, as the map reads it.
+ *
+ * Here for the reason the storm is: the arc is only out for two stretches of
+ * each band of a front, so a still taken at any other phase is a still of a
+ * scape with no bow in it, and every way this system goes quiet is a number
+ * rather than a picture. `best` is the brightest instant of the whole front —
+ * `bowPeak` finds the phase, which is also the phase the capture harness aims
+ * its `bow` poses at — and `now` is what the phase the config is parked on
+ * actually gets. A `best` of zero is a coast whose bow
+ * never comes out at all: the sun too high all day, the fall switched off, or
+ * a year cold enough that everything that falls is snow.
+ *
+ * `apex` is the geometry: how far the top of the primary arc stands over the
+ * sea, in degrees, which is 42 less the sun's own elevation. Negative is an
+ * inner bow that has gone under the horizon and left only the outer one, which
+ * is a real sight rather than a fault — and the reason the module gates on 51°.
+ */
+export function rainbowStats (config: ScapeConfig): MapStats['rainbow'] {
+  const { latitude, axialTilt, time } = config.daylight
+  const year                          = config.season.time
+  const sun                           = sunHeight(time, year, latitude, axialTilt)
+  // The live share of the fall that is frozen this week, the way `weather.ts`
+  // takes it — `season.snow` alone is the *authored* depth of winter, and
+  // reading that as the sleet would put snow in the middle of midsummer and
+  // take the bow away all year.
+  const sleet = Math.min(1, Math.max(0, snowAmount(year) * config.season.snow))
+
+  const light = (phase: number): number =>
+    bowLight(phase, config.weather.rain, sleet, sun, config.rainbow.strength)
+
+  const peak = bowPeak()
+
+  return {
+    sun:   round(elevation(sun)),
+    apex:  round(42 - elevation(sun)),
+    swing: round(bowPlace(time, year, latitude, axialTilt).swing * 180 / Math.PI),
+    cover: round(showerAmount(config.weather.time), 2),
+    now:   round(light(config.weather.time), 3),
+    best:  round(light(peak), 3),
+    at:    round(peak, 3),
   }
 }

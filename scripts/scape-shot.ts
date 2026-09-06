@@ -5,6 +5,7 @@ import { GPU_FLAGS, SOFTWARE_FLAGS, findChromium, serve } from './browser.ts'
 import { parseArgs } from './args.ts'
 import type { Args } from './args.ts'
 import { SCAPE_CONFIG } from '../src/scene/config.ts'
+import { bowPeak } from '../src/scene/rainbow.ts'
 import { stormPeak } from '../src/scene/storm.ts'
 
 
@@ -37,6 +38,20 @@ const NO_STRIKE = STRIKE
 const OVER_STRIKE = STRIKE
   ? [ `camera.focusX=${Math.round(STRIKE.site.x)}`, `camera.focusZ=${Math.round(STRIKE.site.z)}` ]
   : []
+
+/**
+ * The instant of the front the bow is brightest at, and the instant it cannot
+ * reach.
+ *
+ * Asked of `bowPeak` rather than written down here, for the reason `AT_STRIKE`
+ * asks `stormPeak`: the phase is a property of the shape of the front, and a
+ * decimal copied into this file goes stale the moment `weather.ts` reshapes a
+ * band. `NO_BOW` is the *heart* of that same band — full cover, no gap in the
+ * cloud, and therefore nothing to disperse — which makes it the control frame
+ * of the set.
+ */
+const AT_BOW = [ `weather.time=${bowPeak().toFixed(6)}` ]
+const NO_BOW = [ 'weather.time=0.3' ]
 
 /** The middle of the sound's inlet, which four of the `fjord` poses sit on. */
 const SOUND_INLET = [ 'camera.focusX=-306', 'camera.focusZ=-374' ]
@@ -109,6 +124,38 @@ export const TOURS: Record<string, Pose[]> = {
     { name: 'storm-night', time: 0.02, season: 0.78, set: AT_STRIKE },
     { name: 'storm-fork', zoom: 70, set: [ ...OVER_STRIKE, ...AT_STRIKE ]},
     { name: 'storm-clear', set: NO_STRIKE },
+  ],
+
+  /**
+   * The bow, at three heights of sun and once with nothing to make one from.
+   *
+   * The tour cannot see this system, for a reason it shares with the storm and
+   * a second reason of its own. The first is the front: a bow stands on the
+   * *edges* of a shower, and the six frames of `tour` are all parked on one
+   * phase of the weather that is not one of them. The second is the sun. A
+   * rainbow's arc is 42° from the point opposite the sun, so the whole of it is
+   * under the sea whenever the sun is higher than that — and this coast's
+   * midsummer sun stands at 42.1° at the hour the scape opens on, a tenth of a
+   * degree over the line. The opening frame therefore has the *outer* bow in it
+   * and not the inner one, which is correct and is also exactly the sort of
+   * thing a set of six wide frames would report as nothing at all.
+   *
+   * So these four move the hour rather than the camera. `bow-morning` is the
+   * mid-morning sun at 28°, which stands both arcs well clear of the water;
+   * `bow-low` is late evening at 10°, where the arc is at its tallest and the
+   * gap between the two bows is widest; `bow-noon` is the one frame in the day
+   * that has only the secondary in it, and it is there to prove that the
+   * horizon takes the inner arc rather than the module switching off; and
+   * `bow-clear` is the control, parked in the heart of the same band, where
+   * full cover leaves no sunlight to disperse. It must be identical to the
+   * reference — a bow in `bow-clear` would be an arc drawn out of a curve that
+   * had stopped reading the front.
+   */
+  bow: [
+    { name: 'bow-morning', time: 0.3, set: AT_BOW },
+    { name: 'bow-low', time: 0.85, set: AT_BOW },
+    { name: 'bow-noon', time: 0.5, set: AT_BOW },
+    { name: 'bow-clear', time: 0.3, set: NO_BOW },
   ],
 
   /**
@@ -1145,7 +1192,8 @@ async function main (): Promise<void> {
       '                        peat (3, the turf cutting on the moor)',
       '                        tide (3, the sea at both ends of its swing)',
       '                        causeway (3, the bar out to the nearest rock)',
-      '                        fjord (4, the drowned valley in the sound) | quick (1)',
+      '                        fjord (4, the drowned valley in the sound)',
+      '                        bow (4, the rainbow at three heights of sun) | quick (1)',
       '  --rot 45 --zoom 70    camera yaw, and view size (tilt is derived from zoom)',
       '  --time 0.42           the day, 0..1',
       '  --season 0.5          the year, 0..1',

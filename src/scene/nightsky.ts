@@ -16,6 +16,7 @@ import { bodyHeight, bodySwing, declination } from './daylight.ts'
 import type { DaylightState } from './daylight.ts'
 import type { AtmosphereQuality } from './quality.ts'
 import { deckFocus, deckReveal, deckViewSize } from './sky-deck.ts'
+import type { SkyPlace } from './sky-deck.ts'
 import { LAYER } from './layers.ts'
 
 
@@ -61,12 +62,6 @@ export function moonIllumination (phase: number): number {
   const wrapped = phase - Math.floor(phase)
 
   return (1 - Math.cos(wrapped * TAU)) / 2
-}
-
-/** Where a body stands: the sine of its elevation, and its bearing off transit. */
-export interface SkyPlace {
-  height: number
-  swing:  number
 }
 
 /**

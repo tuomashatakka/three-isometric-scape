@@ -248,6 +248,24 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           ],
         ),
 
+        // Under the weather with the squall, because it is the same front and
+        // the same scrubber: the bow comes out on the *edges* of a band, so
+        // `weather.time` two rows up is what walks it in and out, and there is
+        // nothing here that decides when it is up. `reach` is the one worth
+        // dragging with the front parked on a bow — it is how big the arc is in
+        // the picture, and it is the only knob in the scape that says so.
+        toggled(
+          'rainbow',
+          range('rainbow.strength', 'how brightly it stands', 0, 1, 0.01, quality.rainbowArcs > 0),
+          0.85,
+          [
+            range('rainbow.secondary', 'the outer bow', 0, 1, 0.01, quality.rainbowArcs > 1),
+            range('rainbow.width', 'band width, degrees', 0.5, 6, 0.1),
+            range('rainbow.saturation', 'spectrum', 0, 1, 0.01),
+            range('rainbow.reach', 'how far out it hangs', 0.1, 1.2, 0.01),
+          ],
+        ),
+
         // Under the weather with the squall, because it is the same front: a
         // strike fires at a phase of `weather.time`, so the scrubber two rows up
         // is also the storm's, and `rate` is the knob worth dragging with the
