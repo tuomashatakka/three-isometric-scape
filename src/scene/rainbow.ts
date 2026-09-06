@@ -261,13 +261,19 @@ export function bowHorizon (height: number): number {
 /**
  * How much of the quad the bow's feet take to dissolve, in the same units.
  *
- * An angle for the reason the horizon is one — about three degrees of sky —
- * rather than a distance in metres, which would be the whole arc at the near
- * zoom and invisible at the far one. Fading rather than cutting is not only
- * softness: the ends of a real bow go out gradually, because the shower it is
- * standing in does.
+ * An angle for the reason the horizon is one — rather than a distance in
+ * metres, which would be the whole arc at the near zoom and invisible at the
+ * far one.
+ *
+ * Eight degrees of it, which is a *long* way, and the length is the point. The
+ * first version faded over three and the arc came out with a ruled line across
+ * the bottom of it — two coloured ribbons stopping dead at the same height,
+ * which is the single thing that made the bow read as a decal stuck on the sea
+ * rather than as light standing in a shower. A bow does not end at the horizon,
+ * it thins out into the rain it is standing in, and the fade is squared on top
+ * of this so the taper starts early and gently.
  */
-const FOOT = 0.05
+const FOOT = 0.13
 
 const BOW_VERTEX = /* glsl */`
   varying vec2 vPlace;
@@ -279,7 +285,7 @@ const BOW_VERTEX = /* glsl */`
 `
 
 /**
- * Two bands of dispersed sunlight, and the sea cutting the bottom off both.
+ * Two bands of dispersed sunlight, thinning out into the shower they stand in.
  *
  * The quad is flat and faces the camera, so the angle off the bow's centre is
  * the arctangent of the distance across it — `uEdge` is the tangent of the
@@ -294,6 +300,25 @@ const BOW_VERTEX = /* glsl */`
  * ramp and red the long one; the primary runs violet inside to red outside and
  * the secondary runs the other way, which is what a second internal reflection
  * does and the easiest way to tell a real bow from a decorative one.
+ *
+ * What the first version got wrong was everything *around* the hue ramp, and
+ * the result was a flat neon ribbon. Three things fix it, and all three are
+ * things a real bow does:
+ *
+ * - **the band is not a bell.** every wavelength has one angle of minimum
+ *   deviation; light piles up against it and spreads to one side of it only.
+ *   so the profile is a hard lip on the red edge — outward for the primary,
+ *   inward for the secondary — and a long soft tail past the violet, which is
+ *   also why the sky just inside a primary bow is brighter than the sky beside
+ *   it. a symmetrical bell has neither, and reads as a painted stripe.
+ * - **the violet end is dim.** an even ramp is six equal stripes, which is a
+ *   flag. `lumen` takes two thirds of the brightness out of the short end, and
+ *   what is left is the red-orange-through-green a photograph actually shows.
+ * - **no shower is even.** two slow waves along the arc vary the brightness
+ *   down its length, because a bow of one unvarying weight from foot to foot is
+ *   a decal however well it is coloured. they are functions of the angle round
+ *   the bow and of nothing else — no clock, no noise texture, no seed — so the
+ *   same frame captures the same bow.
  */
 const BOW_FRAGMENT = /* glsl */`
   varying vec2 vPlace;
@@ -306,7 +331,6 @@ const BOW_FRAGMENT = /* glsl */`
   uniform float uHorizon;
   uniform float uFoot;
 
-  const float PI        = 3.14159265;
   const float PRIMARY   = ${(PRIMARY * DEGREES).toFixed(6)};
   const float SECONDARY = ${(SECONDARY * DEGREES).toFixed(6)};
   const float SPREAD    = ${SECONDARY_SPREAD.toFixed(2)};
@@ -317,21 +341,26 @@ const BOW_FRAGMENT = /* glsl */`
   }
 
   /**
-   * One band: a bell across its width, coloured along it.
+   * One band, measured from its own red edge.
    *
-   * The turn is which end of the spectrum sits on the inside of the arc — 0.78
-   * for the primary, whose violet is innermost, and 0.0 for the secondary,
-   * whose red is.
+   * The edge is the angle the red piles up at, and the run is which way the rest of
+   * the spectrum runs off it: -1 for the primary, whose red is outermost, and
+   * +1 for the secondary, whose red is on the inside. So across is 0 at the
+   * red, 1 at the violet, and keeps going into the spread beyond it.
    */
-  vec3 band (float angle, float centre, float halfWidth, float turn) {
-    float across = (angle - centre + halfWidth) / (2.0 * halfWidth);
+  vec3 band (float angle, float edge, float width, float run) {
+    float across = (angle - edge) * run;
+    float shade  = clamp(across / width, 0.0, 1.0);
 
-    if (across < 0.0 || across > 1.0)
-      return vec3(0.0);
+    // The lip and the tail: light stops dead on the far side of the deviation
+    // minimum and spreads a long way on the near side.
+    float lip  = smoothstep(-width * 0.34, width * 0.05, across);
+    float tail = 1.0 - smoothstep(width * 0.62, width * 1.75, across);
 
-    vec3 tint = spectrum(mix(turn, 0.78 - turn, across));
+    // The short end of the spectrum is much the fainter half of a real bow.
+    float lumen = 1.0 - 0.66 * shade;
 
-    return mix(vec3(1.0), tint, uSaturation) * sin(across * PI);
+    return mix(vec3(1.0), spectrum(shade * 0.78), uSaturation) * lip * tail * lumen;
   }
 
   void main () {
@@ -341,16 +370,36 @@ const BOW_FRAGMENT = /* glsl */`
       discard;
 
     float angle = atan(radius * uEdge);
-    vec3  light = band(angle, PRIMARY, uWidth * 0.5, 0.78) +
-      band(angle, SECONDARY, uWidth * SPREAD * 0.5, 0.0) * uSecondary;
+    float outer = uWidth * SPREAD;
+
+    // Each band is measured from its own red edge: the primary's is the outside
+    // of the arc and the secondary's is the inside, which is the whole of what
+    // a second internal reflection does to the picture.
+    vec3 light = band(angle, PRIMARY + uWidth * 0.5, uWidth, -1.0) +
+      band(angle, SECONDARY - outer * 0.5, outer, 1.0) * uSecondary;
+
+    // Two slow waves down the length of the arc, because no shower is even and
+    // a bow of one unvarying weight from foot to foot is a decal. The epsilon
+    // keeps atan off the origin, where both arguments would be zero.
+    //
+    // Not called \`patch\`, which is what it wants to be called: that is a
+    // reserved word once three's own prelude is in front of this, and it is
+    // reserved in a way the raw text does not show — the shader compiles on its
+    // own and fails to compile in the scape, so what it costs is a whole
+    // capture run and a boot that hangs on the spinner with no page error.
+    float along  = atan(vPlace.y, vPlace.x + 1e-5);
+    float uneven = 0.58 + 0.42 *
+      (0.5 + 0.5 * sin(along * 2.7 + 1.1)) *
+      (0.55 + 0.45 * sin(along * 5.3 - 0.4));
 
     // The sea takes the feet, at the angle the sun's own height puts the horizon
     // at — see bowHorizon. An orthographic camera has no horizon of its own, so
     // there is no line across the picture to cut against; what there is, is the
-    // one angle that says where the sea would be if there were.
+    // one angle that says where the sea would be if there were. Squared, so the
+    // taper starts early and the ends thin out instead of stopping.
     float foot = smoothstep(uHorizon, uHorizon + uFoot, vPlace.y);
 
-    gl_FragColor = vec4(light * uOpacity * foot, 1.0);
+    gl_FragColor = vec4(light * uOpacity * uneven * foot * foot, 1.0);
   }
 `
 

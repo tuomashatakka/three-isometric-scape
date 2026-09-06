@@ -2,6 +2,19 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the bow, made of light instead of paint
+
+the bow landed in [#44](https://github.com/tuomashatakka/three-isometric-scape/pull/44) with the right geometry and the wrong shading: a flat, saturated ribbon cut in the shape of an arc, chopped off dead level at the bottom. the geometry has not moved. everything that decides what it looks like has.
+
+- **the band is not a bell any more.** every wavelength has one angle of minimum deviation and light piles up against it and spreads to *one side of it only*, so each band is now measured from its own red edge — outside the arc for the primary, inside for the secondary — with a hard lip there and a long soft tail past the violet. that tail is what makes the sky just inside a primary bow brighter than the sky beside it, which a symmetric bell cannot say
+- **the violet end is dim.** an even ramp is six equal stripes, which is a flag; two thirds of the brightness now comes off the short end, leaving the red-orange-through-green a photograph shows
+- **no shower is even.** two slow waves along the arc vary its weight down its length — functions of the angle round the bow and nothing else, so no clock, no noise texture, no seed, and the same frame still captures the same bow. without them an arc is a decal however well it is coloured
+- **the feet fade over eight degrees instead of three.** the ruled line where both arcs stopped dead at the same height was the single thing that made the bow read as something stuck onto the sea. a bow does not end at the horizon, it thins into the rain it is standing in — and the fade is squared, so the taper starts early
+- **the numbers came down.** `strength` 0.85 → 0.65, `width` 3.6° → 2.8°, `saturation` 0.82 → 0.7. the band carries its width in its tail now rather than in its core
+- **`patch` is a reserved word, and only when three's prelude is in front of it.** the wave along the arc wanted that name. the fragment source compiled `OK` on its own in both webgl and webgl2; in the scape it failed to compile, and what that looks like is a capture run of `BOOTING` with zero draws and a boot that hangs on the spinner with no page error at all. the reason is only reachable through a `compileShader` hook — the module carries the note now
+- **cost: unchanged.** same one draw, same four vertices, no texture. the fragment work is a lip, a tail and a lumen weight where it was a `sin`, plus two `sin` calls for the variation along the arc
+- **the numbers.** `--poses tour` against `main`: `default` **0.57% / 34.8% CHANGED**, `near` **0.00% same**, `far` **0.90% / 51.7% CHANGED**, `noon` **0.70% / 59.3% CHANGED**, `night` **0.00% same**, `winter` **0.00% same**, `structural: no structural change` — the same three poses the bow landed in, moving again and nothing else with them
+
 ## the bow it leaves behind it
 
 the front had five consequences and all five were the shower while it was *here*: rain on the reader, dark wet ground, the year's white where it fell cold, a matted patch of sea one lead upwind, and lightning in the worst of it. what a squall also does on any afternoon it passes is leave a **rainbow** standing over the water behind it. there is one now — two arcs about the point exactly opposite the sun, standing up out of the sea, brightest in the minutes a shower is arriving or leaving, and gone by the middle of a summer day.
