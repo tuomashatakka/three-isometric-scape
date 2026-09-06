@@ -38,11 +38,11 @@ inventory   134 files · 19582 lines · 86 code, 48 test · none over 666
 themes      the rules the tools now enforce
             the machinery that was never about this island
             ...
-api digest  matches threejs-scene@0.5.0 · 59/390 exports used
+api digest  matches threejs-scene@0.6.2 · 77/415 exports used
 open prs    none open — clear to branch
 scape:map   seed 7319  world 1520m  home 196m  water -1.25m  grid 96x48  15.83x31.67 m/cell
 
-land 18.3%  above snowline 72.6%  peak 8.63m @ (9, 18)
+land 18.5%  above snowline 72.2%  peak 8.63m @ (9, 18)
 yard (-17,-0.7) r19    track 27pts 48.8m    landRadius 44
 footpaths 19 routes, 245.8m total, longest 22.3m
 creek OK  head (19,23) 6.49m -> mouth (36,56) -14.3m  len 38m
@@ -55,27 +55,30 @@ chapel (26.8,15.1) prominence 1.56m  46.6m from the yard
 smokehouse (-8.5,-10.3) 18m up the bank
 beacon (60.9,39.3) isle 5 freeboard 6.69m  reach 74.7m
 croft (-66.2,-37) isle 10  freeboard 3.95m  53.9m from the harbour
+causeway (52.4,32.5) isle 5  crossing 13m  crest 0.22m  covered 31% springs / 0% neaps
 steading  farmhouse(-8,3) barn(-16,-14) aitta(-27,6) woodshed(-28,-7) sauna(-17,16)
 landing (-26,-17)  harbour (-13,-28)
-landmasses 5
-home/home @ (0,0)  land 18.3% peak 8.63m  paths 19  jetty (-26,-17)  mill (35.9,-8.1)  peat (29.3,-18.3) face 0.82m
+landmasses 6
+home/home @ (0,0)  land 18.5% peak 8.63m  paths 19  jetty (-26,-17)  mill (35.9,-8.1)  peat (29.3,-18.3) face 0.82m
 ridge/ridge @ (-178,128)  land 14.3% peak 6.5m  paths 12  jetty (-151,138)  mill NONE  peat NONE
 meadow/meadow @ (178,128)  land 27% peak 5.68m  paths 16  jetty (151,126)  mill (168.2,157.5)  peat NONE
 sound/sound @ (-300,-480)  land 15.5% peak 12.62m  paths 16  jetty (-362,-396)  mill (-282.7,-482.5)  peat (-337.5,-457.5) face 2.23m
 fell/fell @ (300,-480)  land 13.9% peak 14.94m  paths 15  jetty (322,-393)  mill (339.3,-515.2)  peat (306.3,-442.1) face 2.19m
+shield/shield @ (0,520)  land 16.5% peak 22.85m  paths 13  jetty (-50,557)  mill (17,555.9)  peat NONE
 waterways 5 legs 2515.5m  connected OK  wet OK  clearance 0.55m
 boats 5  separation 115.79m  conflicts 0
 strand sound<->fell  len 450m  crest 1.1m  lowest 0.4m  CONNECTED
-skerries 49 in 16 guards  widest 22m  lowest 0.8m over the water  nearest island 79.9m
+skerries 59 in 16 guards  widest 23.7m  lowest 0.8m over the water  nearest island 76.4m
+seals 246 on 23/59 rocks in 13 guards  ashore 246 low / 189 high  ledges 0.21..1.4m over mean  springs ±0.4m
 fjord sound  len 115m  sea 11.7m  sill 5.5m  basin 16.3m  head +2.8m  OVERDEEPENED
 fjord fell  len 115m  sea 11.7m  sill 6m  basin 16.3m  head +3.8m  OVERDEEPENED
 ice shield  (-11.1,482.9) reach 56.1m  covers 38.3% of the island  apex 21.93m  thickest 19.88m  front in 2.12m of water
-hearths 15  lowest mouth 4.35m over the ground
-windows 93  lowest pane 0.73m over the ground  facing out 93/93
-storm 6/7 strikes  peak @ phase 0.3161 over fell  ridge(-193,77) 1x on -1.25m  meadow(206,141) 1x on -1.05m  sound(-336,-501) 2x on 1.72m  fell(282,-480) 2x on 7.02m
-bow   sun 42.1° up  apex -0.1°  bearing 143.5°  cover 0.29  now 0.631  best 0.765 @ phase 0.201
-grazing 7/10 flocks  thinnest cover 0.72  home/outfield (32,-14) r7  home/outfield (24,23) r7  meadow/infield (158,146) r7  sound/infield (-329,-518) r7  sound/outfield (-266,-443) r7  fell/infield (311,-424) r7  fell/outfield (322,-541) r7
-gulls 6/6 colonies  home/harbour (-53,-63) r24.1  home/rock (71,46) r28  ridge/harbour (-116,147) r28  meadow/harbour (103,132) r28  sound/harbour (-373,-353) r28  fell/harbour (322,-361) r13.2
+hearths 19  lowest mouth 4.17m over the ground
+windows 108  lowest pane 0.73m over the ground  facing out 108/108
+storm 6/7 strikes  peak @ phase 0.3161 over fell  ridge(-193,77) 1x on -1.25m  meadow(206,141) 0x on -1.05m  sound(-336,-501) 2x on 1.72m  fell(282,-480) 3x on 7.02m  shield(-42,526) 0x on 4.01m
+bow   sun 42.1° up  apex -0.1°  bearing 143.5°  cover 0.29  now 0.482  best 0.585 @ phase 0.201
+grazing 7/12 flocks  thinnest cover 0.72  home/outfield (32,-14) r7  home/outfield (24,23) r7  meadow/infield (158,146) r7  sound/infield (-329,-518) r7  sound/outfield (-266,-443) r7  fell/infield (311,-424) r7  fell/outfield (322,-541) r7
+gulls 7/7 colonies  home/harbour (-53,-63) r24.1  home/rock (93,60) r28  ridge/harbour (-116,147) r28  meadow/harbour (103,132) r28  sound/harbour (-373,-353) r28  fell/harbour (322,-361) r13.2  shield/harbour (-98,577) r24.1
 ```
 
 everything it prints is derived from this working tree, and none of it is committed — a generated file that churns on every commit is just a second thing for every
@@ -146,25 +149,27 @@ croft (-66.2,-37) isle 10  freeboard 3.95m  53.9m from the harbour
 causeway (52.4,32.5) isle 5  crossing 13m  crest 0.22m  covered 31% springs / 0% neaps
 steading  farmhouse(-8,3) barn(-16,-14) aitta(-27,6) woodshed(-28,-7) sauna(-17,16)
 landing (-26,-17)  harbour (-13,-28)
-landmasses 5
+landmasses 6
 home/home @ (0,0)  land 18.5% peak 8.63m  paths 19  jetty (-26,-17)  mill (35.9,-8.1)  peat (29.3,-18.3) face 0.82m
 ridge/ridge @ (-178,128)  land 14.3% peak 6.5m  paths 12  jetty (-151,138)  mill NONE  peat NONE
 meadow/meadow @ (178,128)  land 27% peak 5.68m  paths 16  jetty (151,126)  mill (168.2,157.5)  peat NONE
 sound/sound @ (-300,-480)  land 15.5% peak 12.62m  paths 16  jetty (-362,-396)  mill (-282.7,-482.5)  peat (-337.5,-457.5) face 2.23m
 fell/fell @ (300,-480)  land 13.9% peak 14.94m  paths 15  jetty (322,-393)  mill (339.3,-515.2)  peat (306.3,-442.1) face 2.19m
+shield/shield @ (0,520)  land 16.5% peak 22.85m  paths 13  jetty (-50,557)  mill (17,555.9)  peat NONE
 waterways 5 legs 2515.5m  connected OK  wet OK  clearance 0.55m
 boats 5  separation 115.79m  conflicts 0
 strand sound<->fell  len 450m  crest 1.1m  lowest 0.4m  CONNECTED
-skerries 49 in 16 guards  widest 22m  lowest 0.8m over the water  nearest island 79.9m
+skerries 59 in 16 guards  widest 23.7m  lowest 0.8m over the water  nearest island 76.4m
+seals 246 on 23/59 rocks in 13 guards  ashore 246 low / 189 high  ledges 0.21..1.4m over mean  springs ±0.4m
 fjord sound  len 115m  sea 11.7m  sill 5.5m  basin 16.3m  head +2.8m  OVERDEEPENED
 fjord fell  len 115m  sea 11.7m  sill 6m  basin 16.3m  head +3.8m  OVERDEEPENED
 ice shield  (-11.1,482.9) reach 56.1m  covers 38.3% of the island  apex 21.93m  thickest 19.88m  front in 2.12m of water
 hearths 19  lowest mouth 4.17m over the ground
 windows 108  lowest pane 0.73m over the ground  facing out 108/108
-storm 6/7 strikes  peak @ phase 0.3161 over fell  ridge(-193,77) 1x on -1.25m  meadow(206,141) 1x on -1.05m  sound(-336,-501) 2x on 1.72m  fell(282,-480) 2x on 7.02m
-bow   sun 42.1° up  apex -0.1°  bearing 143.5°  cover 0.29  now 0.631  best 0.765 @ phase 0.201
-grazing 7/10 flocks  thinnest cover 0.72  home/outfield (32,-14) r7  home/outfield (24,23) r7  meadow/infield (158,146) r7  sound/infield (-329,-518) r7  sound/outfield (-266,-443) r7  fell/infield (311,-424) r7  fell/outfield (322,-541) r7
-gulls 6/6 colonies  home/harbour (-53,-63) r24.1  home/rock (93,60) r28  ridge/harbour (-116,147) r28  meadow/harbour (103,132) r28  sound/harbour (-373,-353) r28  fell/harbour (322,-361) r13.2
+storm 6/7 strikes  peak @ phase 0.3161 over fell  ridge(-193,77) 1x on -1.25m  meadow(206,141) 0x on -1.05m  sound(-336,-501) 2x on 1.72m  fell(282,-480) 3x on 7.02m  shield(-42,526) 0x on 4.01m
+bow   sun 42.1° up  apex -0.1°  bearing 143.5°  cover 0.29  now 0.482  best 0.585 @ phase 0.201
+grazing 7/12 flocks  thinnest cover 0.72  home/outfield (32,-14) r7  home/outfield (24,23) r7  meadow/infield (158,146) r7  sound/infield (-329,-518) r7  sound/outfield (-266,-443) r7  fell/infield (311,-424) r7  fell/outfield (322,-541) r7
+gulls 7/7 colonies  home/harbour (-53,-63) r24.1  home/rock (93,60) r28  ridge/harbour (-116,147) r28  meadow/harbour (103,132) r28  sound/harbour (-373,-353) r28  fell/harbour (322,-361) r13.2  shield/harbour (-98,577) r24.1
 ```
 
 `bow sun 42.1° up` is the rainbow line, and it is here for the reason the storm line is: the arc is only out on the *edges* of a shower, so the phase the config is parked on decides whether a still has one in it at all. `now` is the bow at that phase and `best` is the brightest the whole front ever gets — a `best` of 0 is the finding, because it means no instant of any front on this coast has a bow in it, and the causes are all silent ones: the sun over 51° all day, `weather.rain` at zero, or a week cold enough that everything falling is snow. `apex` is the geometry — 42° less the sun's own elevation, which is how far the top of the inner arc stands over the sea — and it goes *negative* in the middle of a summer day, which is not a fault: it is the hours this coast keeps its outer bow and loses its inner one, and it is why the module gates on 51° rather than 42°. `bearing` is where to look, opposite the sun.
@@ -183,7 +188,9 @@ gulls 6/6 colonies  home/harbour (-53,-63) r24.1  home/rock (93,60) r28  ridge/h
 
 `ice <id>` is one line per island that keeps an ice cap, and it exists for the fjord line's reason turned over: an inlet's claim is three depths a picture cannot separate, and a cap's is a *thickness* a picture cannot see at all. white ground on top of an island is white ground whether it is twenty metres of ice or a hill with snow on it. `covers` is the share of the island's dry ground under the dome, `apex` how high the ice surface stands over the water, `thickest` the most ice over rock anywhere — measured by surveying the island a second time with `crown: 0`, because by the time anything can be sampled the ice *is* the ground — and `front` how deep the water is where the ice ends, which is `ends ashore` on a cap that never reaches the sea. a run that retunes the falloff, the shelving or `seabedDrop` and quietly leaves the cap floating has this line and nothing else.
 
-`gulls 6/6 colonies` is the flock line, and the two numbers are the finding: the second is what the islands *offered* — one landing each, plus an outer rock where a light was built — and the first is how many of those found open water wide enough to fit a whole ring over. `5/6` on a run that did not touch `birds.spread`, the coastline or the landings means a bank closed up. this is here rather than in a screenshot because a flock is four pixels wide at the default pose.
+`gulls 7/7 colonies` is the flock line, and the two numbers are the finding: the second is what the islands *offered* — one landing each, plus an outer rock where a light was built — and the first is how many of those found open water wide enough to fit a whole ring over. `6/7` on a run that did not touch `birds.spread`, the coastline or the landings means a bank closed up. this is here rather than in a screenshot because a flock is four pixels wide at the default pose.
+
+`seals 246 on 23/59 rocks` is the haul-out line, and it carries two findings rather than one because a colony can fail in two unrelated ways. `23/59` is the **search**: how many of the guard's rocks are between `haulout.sill` and `haulout.reach` and wide enough for `haulout.stone`. `NONE` there is a sill and a reach that no longer straddle the freeboard the chains deal, and no picture would say so. `ashore 246 low / 189 high` is the **siting**: the same colony at the two ends of a spring tide, and `<- the tide never reaches the colony` when the pair is equal — animals dealt so far up their rocks that the sea has stopped mattering to them, which draws exactly like a working haul-out at any single hour. the line reports the desktop budget whatever tier is running, because a number that changed with the box would be useless for comparing two runs.
 
 `storm 6/7 strikes` is the lightning line, and it is here because a still cannot see this system at all: a strike is somewhere for two thirds of a second in seven minutes, so almost every frame of the scape is a frame of a coast with no storm in it. the second number is the whole comb the seed planned and the first is how many of them `storm.rate` lets through — `NO STRIKES` is a front with no lightning in it, which is a legitimate setting and a silent regression if nobody asked for it. `peak @ phase` is the instant the `storm` poses are aimed at, asked for the same way the capture harness asks so the two can never describe different frames. the per-site counts are the second finding: every strike on one island is a hash that stopped spreading, and the line says so. the metres are what each fork stands on — a site out over open water reads as the waterline, which is a bolt striking the sea and is fine.
 
@@ -249,6 +256,7 @@ bun run scape:shot --poses storm                    # the lightning on the far i
 bun run scape:shot --poses causeway                 # the bar out to the nearest rock, 3 frames, covered and dry
 bun run scape:shot --poses ice                      # the cap on the northern island, 3 frames
 bun run scape:shot --poses bow                      # the rainbow, 4 frames, three heights of sun
+bun run scape:shot --poses haulout                  # the seals on the guard, 4 frames, low water and high
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain

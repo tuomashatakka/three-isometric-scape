@@ -92,6 +92,22 @@ export interface AtmosphereQuality {
   birdCount: number
 
   /**
+   * Seals a haul-out rock may carry. 0 is a guard with no colony on it.
+   *
+   * A count per *rock* rather than for the archipelago, and that is the one way
+   * it differs from `birdCount`: the guard is sixteen chains of five and the
+   * search picks a handful of rocks out of them, so a number dealt across the
+   * whole world would put two animals on each and photograph as nothing. What
+   * the count buys is a colony rather than a pair — and it is capped again per
+   * rock by how much stone there actually is, so a wide rock takes the budget
+   * and a narrow one takes what it can fit.
+   *
+   * The cost is instances in one shared draw, not draws: an eleven-part animal
+   * of about 300 triangles, stamped once per seal.
+   */
+  sealCount: number
+
+  /**
    * Puffs in one chimney's plume. 0 is a tier whose hearths do not smoke.
    *
    * A count and not a density, and — like `birdCount` and unlike `starCount` —
@@ -310,6 +326,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     squallSheets:    0,
     stormFlashes:    0,
     birdCount:       0,
+    sealCount:       0,
     beaconBlades:    0,
     lampSpill:       0,
     cursorLight:     false,
@@ -349,6 +366,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     squallSheets:    1,
     stormFlashes:    1,
     birdCount:       90,
+    sealCount:       5,
     beaconBlades:    1,
     lampSpill:       2,
     cursorLight:     false,
@@ -404,6 +422,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     squallSheets:    2,
     stormFlashes:    2,
     birdCount:       260,
+    sealCount:       11,
     beaconBlades:    2,
     lampSpill:       3,
     cursorLight:     true,
@@ -443,6 +462,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     squallSheets:    3,
     stormFlashes:    3,
     birdCount:       420,
+    sealCount:       16,
     beaconBlades:    3,
     lampSpill:       4,
     cursorLight:     true,
@@ -499,6 +519,7 @@ const UNLOCKED_FLOOR = {
   squallSheets:   1,
   stormFlashes:   1,
   birdCount:      90,
+  sealCount:      5,
   beaconBlades:   1,
   lampSpill:      2,
   cursorLight:    true,
@@ -544,6 +565,7 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
     squallSheets:   Math.max(quality.squallSheets, UNLOCKED_FLOOR.squallSheets),
     stormFlashes:   Math.max(quality.stormFlashes, UNLOCKED_FLOOR.stormFlashes),
     birdCount:      Math.max(quality.birdCount, UNLOCKED_FLOOR.birdCount),
+    sealCount:      Math.max(quality.sealCount, UNLOCKED_FLOOR.sealCount),
     beaconBlades:   Math.max(quality.beaconBlades, UNLOCKED_FLOOR.beaconBlades),
     lampSpill:      Math.max(quality.lampSpill, UNLOCKED_FLOOR.lampSpill),
     cursorLight:    true,

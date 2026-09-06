@@ -46,6 +46,7 @@ import {
   buildStump,
   buildWildflower,
 } from './vegetation.ts'
+import { buildSeal } from './wildlife.ts'
 
 
 /** Every prop builder is a pure geometry factory — no scene, no GL context. */
@@ -119,6 +120,7 @@ export const PROPS = {
 
   sheep: buildSheep,
   lamb:  buildLamb,
+  seal:  buildSeal,
 } as const satisfies Record<string, PropBuilder>
 
 /** Name of a prop in {@link PROPS}. */
@@ -139,7 +141,7 @@ export const SCATTER_PROPS = [
   'erratic', 'fieldStone', 'cobble', 'cairn',
   'bladderwrack', 'rockLichen',
   'hayBale', 'firewood', 'barrel', 'driftwood', 'mooringPost', 'hayPole', 'peatStack',
-  'sheep', 'lamb',
+  'sheep', 'lamb', 'seal',
 ] as const satisfies readonly PropName[]
 
 /** Build one prop's geometry. The caller owns and disposes the result. */

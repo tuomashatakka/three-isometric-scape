@@ -79,6 +79,29 @@ function skerryLine (skerries: MapStats['skerries']): string {
 }
 
 /**
+ * The colony's line, and the two findings hiding in it.
+ *
+ * Its own function for `skerryLine`'s reason, and it carries two conditions
+ * rather than one because a haul-out can fail in two unrelated ways. `usable`
+ * at zero is the *search* having rejected every rock in the guard — a sill and
+ * a reach that no longer straddle the freeboard the chains deal. `low === high`
+ * is the *siting*: rocks were found, animals were put on them, and every one of
+ * them ended up above the reach of a spring tide, which leaves a colony that is
+ * decoration rather than a system.
+ */
+function hauloutLine (haulout: MapStats['haulout']): string {
+  if (!haulout.rocks)
+    return `seals NONE  <- none of ${haulout.offered} rocks is between the sill and the reach`
+
+  return `seals ${haulout.seals} on ${haulout.rocks}/${haulout.offered} rocks ` +
+    `in ${haulout.guards} guards  ` +
+    `ashore ${haulout.low} low / ${haulout.high} high  ` +
+    `ledges ${haulout.lowest}..${haulout.highest}m over mean  ` +
+    `springs ±${haulout.springs}m` +
+    (haulout.low === haulout.high ? '  <- the tide never reaches the colony' : '')
+}
+
+/**
  * The channel and the water in it, as two lines.
  *
  * Their own function for the reason `windowLine` and `skerryLine` have one: a
@@ -238,6 +261,7 @@ export function formatStats (stats: MapStats): string {
         `${stats.strand.connected ? 'CONNECTED' : 'DROWNED'}`
       : 'strand NONE  <- no pair of islands is named, or the crest is zero',
     skerryLine(stats.skerries),
+    hauloutLine(stats.haulout),
     ...stats.fjords.map(fjord =>
       `fjord ${fjord.id}  len ${fjord.length}m  sea ${fjord.sea}m  ` +
       `sill ${fjord.sill}m  basin ${fjord.basin}m  head +${fjord.head}m  ` +

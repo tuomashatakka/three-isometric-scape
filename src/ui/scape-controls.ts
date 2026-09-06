@@ -431,6 +431,28 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
     },
     {
       group: 'ground & water',
+      title: 'the seals',
+
+      // Filed under the water for the reason the gulls are, and the same split
+      // applies: how many animals a rock carries is the tier's — see
+      // `quality.sealCount` — and which rocks carry any is the survey's, so what
+      // is left here is how much of the colony is out and how the sea takes it
+      // back. `haulout.sill`, `reach` and `stone` are deliberately absent: they
+      // decide which rocks were chosen, which takes a rebuild to see.
+      controls: [
+        toggled(
+          'seals',
+          range('haulout.ashore', 'hauled out', 0, 1, 0.01, quality.sealCount > 0),
+          0.78,
+          [
+            range('haulout.emerge', 'slips off within (m)', 0, 0.6, 0.01),
+            range('haulout.shuffle', 'basking rolls a minute', 0, 20, 0.5),
+          ],
+        ),
+      ],
+    },
+    {
+      group: 'ground & water',
       title: 'hearth smoke',
 
       // Filed with the ground because that is where the fires are, the way the

@@ -31,10 +31,14 @@ import { createDressing } from './dressing.ts'
 import { surveyHearths } from './hearths.ts'
 import { surveyWindows } from './windows.ts'
 import type { Dressing } from './dressing.ts'
+import { planHaulouts } from './haulout.ts'
+import type { Haulout } from './haulout.ts'
 import { yawAlong } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
 import { createMillSails } from './mill-sails.ts'
 import type { MillHub, MillSails } from './mill-sails.ts'
+import { createSealColony } from './seals.ts'
+import type { SealColony } from './seals.ts'
 import { createTarnWater } from './tarn-water.ts'
 import type { TarnWater } from './tarn-water.ts'
 import { createArchipelagoTerrain } from './terrain.ts'
@@ -59,6 +63,17 @@ export interface Landscape {
    * birds do about it belongs to `scene/birds.ts`.
    */
   colonies: readonly Colony[]
+
+  /**
+   * Every rock in the guard with seals on it, and where each animal lies.
+   *
+   * Published for the reason the flocks are: which rock a seal would use is an
+   * answer about the ground and the sea, and it is the one thing `scape:map` can
+   * measure about a colony without a browser. What is drawn from it is
+   * `landscape/seals.ts`, and how many of them are out of the water at any hour
+   * is the tide's.
+   */
+  haulouts: readonly Haulout[]
 
   /** Live fleet accessor; null until the landscape module has built. */
   boatFleet(): BoatFleet | null
@@ -143,6 +158,7 @@ export function createLandscape (
   let dressing: Dressing | null        = null
   let fleet: BoatFleet | null          = null
   let sails: MillSails | null          = null
+  let seals: SealColony | null         = null
   let water: Water | null              = null
   let beck: Beck | null                = null
   let tarns: TarnWater | null          = null
@@ -215,6 +231,16 @@ export function createLandscape (
    */
   const colonies = planColonies(archipelago, config())
 
+  /**
+   * Every seal on the guard, sited once against mean water.
+   *
+   * Surveyed here beside the flocks, and for the same reason — where an animal
+   * can lie is a fact about the rock rather than about geometry. The tier is
+   * asked here rather than inside the search because how many animals a rock
+   * carries is a budget and which rocks carry any is not.
+   */
+  const haulouts = planHaulouts(archipelago, config(), quality.sealCount)
+
   const module = defineModule<ScapeConfig>({
     name: 'nordic-landscape',
 
@@ -284,10 +310,14 @@ export function createLandscape (
           },
         })
         sails = createMillSails({ config, hubs: millHubs, material: materials.ground })
+        seals = createSealColony({ config, haulouts, material: materials.ground, tide })
         root.add(dressing.object, fleet.mesh)
 
         if (sails)
           root.add(sails.mesh)
+
+        if (seals)
+          root.add(seals.mesh)
       }
 
       ctx.scene.add(root)
@@ -316,6 +346,7 @@ export function createLandscape (
 
       fleet?.update(frame.delta)
       sails?.update(frame.delta, wind.strength)
+      seals?.update(frame.delta)
       materials?.update(wind, now, front)
       beck?.update(frame.delta, now)
       tarns?.update(now)
@@ -326,6 +357,7 @@ export function createLandscape (
       dressing?.dispose()
       fleet?.dispose()
       sails?.dispose()
+      seals?.dispose()
       water?.dispose()
       beck?.dispose()
       tarns?.dispose()
@@ -347,6 +379,7 @@ export function createLandscape (
       dressing  = null
       fleet     = null
       sails     = null
+      seals     = null
       water     = null
       beck      = null
       tarns     = null
@@ -362,6 +395,7 @@ export function createLandscape (
     archipelago,
     boatFleet: () => fleet,
     colonies,
+    haulouts,
     lanternHubs,
     hearths,
     windows,
@@ -372,5 +406,5 @@ export function createLandscape (
 
 // perf: one merged terrain draw, one water draw, one beck draw, one tarn draw,
 // one merged settlement draw,
-// one moving fleet draw, one turning sail draw, and one InstancedMesh per
-// scattered prop type.
+// one moving fleet draw, one turning sail draw, one hauled colony draw, and one
+// InstancedMesh per scattered prop type.

@@ -59,6 +59,25 @@ const SOUND_INLET = [ 'camera.focusX=-306', 'camera.focusZ=-374' ]
 /** The crown of the fell, which is the steepest and least built-on ground there is. */
 const FELL_CROWN = [ 'camera.focusX=300', 'camera.focusZ=-480' ]
 
+/**
+ * The broadest haul-out in the guard, which the three `haulout` poses sit on.
+ *
+ * Chosen by measurement rather than by eye: it is the rock the search deals the
+ * most animals, and four of the eight are on ledges the spring tide covers — so
+ * it is the one rock in the archipelago where the whole of the claim is inside
+ * one frame.
+ */
+const HAUL_ROCK = [ 'camera.focusX=300', 'camera.focusZ=375' ]
+
+/**
+ * The seaward edge of that rock, where the animals the tide reaches are lying.
+ *
+ * A second anchor rather than a closer zoom on the first: the colony is dealt
+ * round the whole crown, so a close frame on the middle of the rock is a close
+ * frame on the emptiest part of it.
+ */
+const HAUL_EDGE = [ 'camera.focusX=305', 'camera.focusZ=366' ]
+
 /** The middle of the causeway, which the three `causeway` poses all sit on. */
 const OVER_CROSSING = [ 'camera.focusX=52.4', 'camera.focusZ=32.5' ]
 
@@ -300,6 +319,66 @@ export const TOURS: Record<string, Pose[]> = {
       zoom:   230,
       season: 0.02,
       set:    [ 'camera.focusX=305', 'camera.focusZ=-99' ],
+    },
+  ],
+
+  /**
+   * The colony on the guard, at both ends of one spring tide.
+   *
+   * Added for the reason `guard` was, and then for a second reason no other pose
+   * set in this file has. The first is the familiar one: a seal is two metres
+   * long and the nearest haul-out is three hundred metres off the origin every
+   * frame in `tour` is aimed at, so at the whole-world poses the colony is a
+   * scatter of sub-pixel specks and the frame column reports `same`.
+   *
+   * The second is that the thing worth photographing is not the animals. It is
+   * *how many* of them there are, and that is a difference between two states of
+   * the sea rather than anything in one picture. So `haul-low` and `haul-high`
+   * are the identical frame — same rock, same week, same camera — at low water
+   * and at high water of the same spring tide, and the diff between them is the
+   * claim. Same instrument and same argument as `coast/lee` and `reef-lee`.
+   *
+   * The two hours are not guesses. `tide.lag`, the lunar day and the moon's own
+   * phase decide when high water is, so the pair was solved rather than chosen:
+   * week 0.687 is where `springAmount` reaches 1 with the sun still well up, and
+   * 0.35 and 0.6 of that day are the low and the high inside it — ±0.4 m, which
+   * is the whole of the default spring range.
+   *
+   * `haul-edge` and `haul-edge-high` are the same pair again on the rock's
+   * seaward side, at a zoom where an animal is an animal rather than a mark.
+   * That is the frame that catches a seal lying through its own stone or hanging
+   * off the crown — it caught exactly that while this run was being written —
+   * and it is where the water actually taking one is legible rather than
+   * statistical.
+   */
+  haulout: [
+    {
+      name:   'haul-low',
+      zoom:   19,
+      time:   0.35,
+      season: 0.687,
+      set:    HAUL_ROCK,
+    },
+    {
+      name:   'haul-high',
+      zoom:   19,
+      time:   0.6,
+      season: 0.687,
+      set:    HAUL_ROCK,
+    },
+    {
+      name:   'haul-edge',
+      zoom:   11,
+      time:   0.35,
+      season: 0.687,
+      set:    HAUL_EDGE,
+    },
+    {
+      name:   'haul-edge-high',
+      zoom:   11,
+      time:   0.6,
+      season: 0.687,
+      set:    HAUL_EDGE,
     },
   ],
 
@@ -904,6 +983,14 @@ export const STILL = [
   // plume in every frame of a tour.
   'hearth.speed=0',
 
+  // The colony's own rate. A hauled seal shifts its weight on the rock whatever
+  // the weather is doing, so nothing else in this list stops it — and a rockful
+  // of animals lying at a different angle in every frame is a guard that cannot
+  // be diffed. Nothing here for the *tide* that decides how many of them are
+  // ashore: that is a function of the two clocks already stopped at the top of
+  // this list, and it is the same reason the sea itself has no entry.
+  'haulout.shuffle=0',
+
   // Nothing for the lightning, deliberately, and it is the reason the storm has
   // no rate of its own to zero. A strike's whole life is measured in the front's
   // cycle — see `stormAge` in `scene/storm.ts` — so `weather.speed=0` above
@@ -1193,6 +1280,7 @@ async function main (): Promise<void> {
       '                        tide (3, the sea at both ends of its swing)',
       '                        causeway (3, the bar out to the nearest rock)',
       '                        fjord (4, the drowned valley in the sound)',
+      '                        haulout (4, the seals on the guard, low and high water)',
       '                        bow (4, the rainbow at three heights of sun) | quick (1)',
       '  --rot 45 --zoom 70    camera yaw, and view size (tilt is derived from zoom)',
       '  --time 0.42           the day, 0..1',
