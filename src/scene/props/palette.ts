@@ -71,6 +71,14 @@ export const NORDIC_PALETTE = {
   /** Face, ears and legs — the dark points a landrace ewe carries. */
   hide: '#33302c',
 
+  // The seals on the guard. Deliberately darker and cooler than `granite`,
+  // because the one thing a hauled animal must not read as is the rock it is
+  // lying on — a pelt borrowed from the stone family would have put another
+  // boulder on every skerry. `peltPale` is the flank mottling and the flippers,
+  // and it stays under `granite` too.
+  pelt:     '#413f3c',
+  peltPale: '#6a6459',
+
   /** A burning wick behind glass — the lamp in the lantern room, and its beams. */
   lampWarm: '#ffdca8',
   flagBlue: '#2f5d8f',

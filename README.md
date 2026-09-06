@@ -194,6 +194,7 @@ src/
     ├── clouds.ts                   sky deck, faded in as the view pulls back
     ├── config.ts                   the public tuning surface
     ├── config-landmasses.ts        the six islands, as a table rather than as schema
+    ├── config-guard.ts             the guard's own slice of the schema: rocks, weed, seals
     ├── config-access.ts            who owns the config, before and after the mount
     ├── state-path.ts               writePath with structural sharing
     ├── create-isometric-scape.ts   app/module composition root
@@ -240,6 +241,8 @@ src/
     │   ├── fjord.ts                the drowned valley cut through one island's coast
     │   ├── icecap.ts               the ice standing on the northern island, and what it buries
     │   ├── beacon.ts               the outer rock a light would stand on
+    │   ├── haulout.ts              which rocks seals use, and where on each one every animal lies
+    │   ├── seals.ts                the colony, in one instanced draw the tide takes back
     │   ├── colony.ts              the open water a flock can wheel over without crossing land
     │   ├── grazing.ts             the rough ground a farm turns its stock out onto
     │   ├── hearths.ts             every chimney and flue, at the mouth and in world space
@@ -288,7 +291,8 @@ src/
         ├── objects.ts              rowboat, bales, firewood, peat rick, barrel, mailbox, driftwood
         ├── stone.ts                erratics, field stones, cobbles, cairns
         ├── littoral.ts             bladderwrack and rock lichen — the tidal band
-        └── livestock.ts            the ewe with her head down, and the lamb with hers up
+        ├── livestock.ts            the ewe with her head down, and the lamb with hers up
+        └── wildlife.ts             the grey seal hauled out, head up and hind flippers raised
 
 scripts/
 ├── args.ts                         the shared command line, and dotted-path overrides
@@ -593,6 +597,24 @@ forty-nine rocks stood in the open sea with nothing on them. the guard had solve
 **two props, two instanced draws, and no texture memory.** [`props/littoral.ts`](src/scene/props/littoral.ts) is its own file for the reason `shore.ts` and `upland.ts` are: nothing else in the scape grows where these do, and nothing in `vegetation.ts` would last a tide. the wrack is five straps bent past a half turn so the clump finishes *below* its own holdfast — a frond bent by less than that still spends most of its length going up, and the first cut read as grass standing in the sea. `littoral.test.ts` states the resulting silhouette, broader than it is tall, as the fact that separates the two. the lichen is four discs two centimetres proud, which is a stain rather than a thing standing on the rock, and one patch in four is drawn rust so the crust is not one flat colour repeated forty-nine times.
 
 **every tier gets it.** the counts go through `quality.scatterScale`, so `minimal` takes 16% of them and `ultra` 150%, and the geometry is small enough that the cheapest device still gets weed on its rocks rather than a coarse substitute.
+
+## the seals on the guard
+
+the guard had rocks, a weed band round the bottom of them and a lichen crust on top, and nothing on it had ever been alive. `config.haulout` is what uses it: a colony of grey seals hauled out on the rocks, in [`landscape/haulout.ts`](src/scene/landscape/haulout.ts) and [`landscape/seals.ts`](src/scene/landscape/seals.ts).
+
+**which rock is the whole of the search, and it is three rules rather than a flag.** a seal is particular in a way that is easy to state: a rock that never dries is a shoal and there is nothing to lie on (`sill`); a rock standing too proud is a cliff an animal coming out of deep water on its belly cannot climb (`reach`); a rock too small is a perch and a two-metre animal does not fit (`stone`). twenty-three of the fifty-nine rocks pass all three. there is no fourth switch anywhere saying "this one has seals on it" — the search either finds ground or it does not, and a `reach` under the `sill` empties the guard the way `weedDepth = 0` scours it.
+
+**where on the rock is the interesting half, and it is what makes this a system rather than a scatter.** a seal hauls out at the water's *edge*, not on the summit — it came out of the sea and it means to go back — so the animals are dealt across the outer band of the dry crown, and the deal is squared toward the bottom of it so most of the colony is on the ledges nearest the water. by the skerry profile those ledges are barely over mean water. so the tide works the colony for free: `scape:map --stats` reports **246 animals ashore at low water of springs and 189 at high**, and not one line anywhere integrates a clock to make that happen. it is a subtraction — the ledge the survey left, minus the level the published tide says the sea is at.
+
+**the outer edge of the band is a length, not a fraction, and that was a finding.** the first cut placed the animals at a fixed fraction of the crown, which on the widest rocks put them with their heads out over the drop — `prop:map` cannot see that, because it is a fact about the placement rather than about the mesh, and `--poses haulout` caught it on the first close frame. what decides how near the edge an animal can lie is how long a seal is, so `NOSE` is 1.3 m of stone between its middle and the waterline seam, read against the rock's own **warped** radius at that bearing. a skerry's outline is two cosine lobes deep; measuring against the mean radius is an animal standing in the sea on one side of the rock and buried in it a quarter turn away, and reading the warp is also what makes the ledge exactly the height the terrain draws rather than nearly it.
+
+**the bearings are golden-angle, and that is the determinism rule rather than taste.** dealing them as `head / count` makes the tier's budget part of every animal's position, so a phone with four seals would put them somewhere a workstation with twelve does not. any prefix of a golden-angle sequence is spread evenly round the circle, so the cheap tier's animals are the first few of the expensive tier's, in the same places.
+
+**the tide has one authority and the colony reads it.** `seals.ts` takes the published `TideState` — the same record the lake moves its own plane from and the fleet floats on — rather than resolving the hour a second time. a colony reading a different instant of the same tide from the water it is lying in is a seal standing in a hole in the sea, and it would show at exactly the two ends of the swing. an animal whose ledge the water has taken slips: it scales out and sinks a quarter of a metre over `emerge`, which is a ramp rather than a step because a rockful of them popping together on the flood is what a diff catches.
+
+**one draw for the whole archipelago, and a switch that is a number.** the colony is a single `InstancedMesh` of the `seal` prop against the shared ground material — 246 instances of 220 triangles on the desktop tier, no texture, no material of its own. `quality.sealCount` is animals *per rock* rather than per world, because a number dealt across a fifteen-hundred-metre sea would put two on each and photograph as nothing; it is capped again by how much stone there is, so a wide rock takes the budget and a narrow one takes what it can fit. `minimal` gets 0 and the system is **absent** rather than cheap. `haulout.ashore` is the switch — the share of the colony out of the water at all, 0 being a guard whose seals are all fishing — and `haulout.shuffle` is the basking roll, which is in `STILL` because a rockful of animals lying at a different angle in every frame is a guard that cannot be diffed.
+
+**the tour cannot see any of it, and no camera arrangement would fix that.** a seal is two metres long on a rock three hundred metres off the origin every frame in `tour` is aimed at. worse, the thing worth photographing is not the animal but *how many* of them there are, which is a difference between two states of the sea and cannot be in one picture. so `--poses haulout` is four frames rather than three: the whole rock at low and at high water of one spring tide, and the same pair again on its seaward edge at a zoom where an animal is an animal. the two hours were solved rather than chosen — week 0.687 is where `springAmount` reaches 1 with the sun still well up, and 0.35 and 0.6 of that day are the low and the high inside it.
 
 ## the causeway the tide takes
 

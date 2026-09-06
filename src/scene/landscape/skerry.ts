@@ -116,8 +116,16 @@ const TRIES = 24
 /** The coarse index's cells across the world. See {@link createGuard}. */
 const BUCKETS = 24
 
-/** The bearing-warped radius of one rock, in metres. */
-function warpedRadius (skerry: Skerry, angle: number): number {
+/**
+ * The bearing-warped radius of one rock, in metres.
+ *
+ * Exported for the reason {@link SKERRY_WATERLINE} is: anything aiming at a
+ * *place* on a rock rather than at the rock has to know that the outline is not
+ * a circle. The haul-out search sites its animals as a fraction of this rather
+ * than of `radius`, which is what keeps a seal on the stone where a lobe has
+ * pulled the edge in by a fifth.
+ */
+export function warpedRadius (skerry: Skerry, angle: number): number {
   const [ first, second ] = skerry.lobes
 
   return skerry.radius * (

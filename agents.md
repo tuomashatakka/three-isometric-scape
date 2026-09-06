@@ -67,6 +67,7 @@ waterways 5 legs 2515.5m  connected OK  wet OK  clearance 0.55m
 boats 5  separation 115.79m  conflicts 0
 strand sound<->fell  len 450m  crest 1.1m  lowest 0.4m  CONNECTED
 skerries 49 in 16 guards  widest 22m  lowest 0.8m over the water  nearest island 79.9m
+seals 246 on 23/59 rocks in 13 guards  ashore 246 low / 189 high  ledges 0.21..1.4m over mean  springs ±0.4m
 fjord sound  len 115m  sea 11.7m  sill 5.5m  basin 16.3m  head +2.8m  OVERDEEPENED
 fjord fell  len 115m  sea 11.7m  sill 6m  basin 16.3m  head +3.8m  OVERDEEPENED
 ice shield  (-11.1,482.9) reach 56.1m  covers 38.3% of the island  apex 21.93m  thickest 19.88m  front in 2.12m of water
@@ -156,6 +157,7 @@ waterways 5 legs 2515.5m  connected OK  wet OK  clearance 0.55m
 boats 5  separation 115.79m  conflicts 0
 strand sound<->fell  len 450m  crest 1.1m  lowest 0.4m  CONNECTED
 skerries 49 in 16 guards  widest 22m  lowest 0.8m over the water  nearest island 79.9m
+seals 246 on 23/59 rocks in 13 guards  ashore 246 low / 189 high  ledges 0.21..1.4m over mean  springs ±0.4m
 fjord sound  len 115m  sea 11.7m  sill 5.5m  basin 16.3m  head +2.8m  OVERDEEPENED
 fjord fell  len 115m  sea 11.7m  sill 6m  basin 16.3m  head +3.8m  OVERDEEPENED
 ice shield  (-11.1,482.9) reach 56.1m  covers 38.3% of the island  apex 21.93m  thickest 19.88m  front in 2.12m of water
@@ -184,6 +186,8 @@ gulls 6/6 colonies  home/harbour (-53,-63) r24.1  home/rock (93,60) r28  ridge/h
 `ice <id>` is one line per island that keeps an ice cap, and it exists for the fjord line's reason turned over: an inlet's claim is three depths a picture cannot separate, and a cap's is a *thickness* a picture cannot see at all. white ground on top of an island is white ground whether it is twenty metres of ice or a hill with snow on it. `covers` is the share of the island's dry ground under the dome, `apex` how high the ice surface stands over the water, `thickest` the most ice over rock anywhere — measured by surveying the island a second time with `crown: 0`, because by the time anything can be sampled the ice *is* the ground — and `front` how deep the water is where the ice ends, which is `ends ashore` on a cap that never reaches the sea. a run that retunes the falloff, the shelving or `seabedDrop` and quietly leaves the cap floating has this line and nothing else.
 
 `gulls 6/6 colonies` is the flock line, and the two numbers are the finding: the second is what the islands *offered* — one landing each, plus an outer rock where a light was built — and the first is how many of those found open water wide enough to fit a whole ring over. `5/6` on a run that did not touch `birds.spread`, the coastline or the landings means a bank closed up. this is here rather than in a screenshot because a flock is four pixels wide at the default pose.
+
+`seals 246 on 23/59 rocks` is the haul-out line, and it carries two findings rather than one because a colony can fail in two unrelated ways. `23/59` is the **search**: how many of the guard's rocks are between `haulout.sill` and `haulout.reach` and wide enough for `haulout.stone`. `NONE` there is a sill and a reach that no longer straddle the freeboard the chains deal, and no picture would say so. `ashore 246 low / 189 high` is the **siting**: the same colony at the two ends of a spring tide, and `<- the tide never reaches the colony` when the pair is equal — animals dealt so far up their rocks that the sea has stopped mattering to them, which draws exactly like a working haul-out at any single hour. the line reports the desktop budget whatever tier is running, because a number that changed with the box would be useless for comparing two runs.
 
 `storm 6/7 strikes` is the lightning line, and it is here because a still cannot see this system at all: a strike is somewhere for two thirds of a second in seven minutes, so almost every frame of the scape is a frame of a coast with no storm in it. the second number is the whole comb the seed planned and the first is how many of them `storm.rate` lets through — `NO STRIKES` is a front with no lightning in it, which is a legitimate setting and a silent regression if nobody asked for it. `peak @ phase` is the instant the `storm` poses are aimed at, asked for the same way the capture harness asks so the two can never describe different frames. the per-site counts are the second finding: every strike on one island is a hash that stopped spreading, and the line says so. the metres are what each fork stands on — a site out over open water reads as the waterline, which is a bolt striking the sea and is fine.
 
@@ -249,6 +253,7 @@ bun run scape:shot --poses storm                    # the lightning on the far i
 bun run scape:shot --poses causeway                 # the bar out to the nearest rock, 3 frames, covered and dry
 bun run scape:shot --poses ice                      # the cap on the northern island, 3 frames
 bun run scape:shot --poses bow                      # the rainbow, 4 frames, three heights of sun
+bun run scape:shot --poses haulout                  # the seals on the guard, 4 frames, low water and high
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain

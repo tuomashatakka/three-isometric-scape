@@ -2,7 +2,9 @@ import type { ScapeConfig } from '../src/scene/config.ts'
 import type { ArchipelagoSurvey } from '../src/scene/landscape/archipelago.ts'
 import { surveyFjord } from '../src/scene/landscape/fjord.ts'
 import { createHeightField } from '../src/scene/landscape/height.ts'
+import { countAshore, hauledSeals, planHaulouts } from '../src/scene/landscape/haulout.ts'
 import { iceCapOf, measureIce } from '../src/scene/landscape/icecap.ts'
+import { tideAmplitudeAt } from '../src/scene/tide.ts'
 import type { MapStats } from './scape-map.ts'
 
 
@@ -114,6 +116,47 @@ export function skerryStats (survey: ArchipelagoSurvey, config: ScapeConfig): Ma
     widest:  round(Math.max(...skerries.map(rock => rock.radius)), 1),
     lowest:  round(Math.min(...freeboard), 2),
     nearest: round(nearest),
+  }
+}
+
+/**
+ * How many animals a rock is dealt when the map asks, whatever tier is running.
+ *
+ * `scape:map` has no renderer and therefore no device to read a tier off, and
+ * the number it prints has to be the same on every box or the instrument is
+ * useless for comparing two runs. So it reports the desktop budget — the tier
+ * `quality.ts` calls the reference one — and the line says which rocks were
+ * chosen rather than how many animals a phone would put on them.
+ */
+const MAP_TIER_HEADS = 11
+
+/**
+ * The colony on the guard, and what the tide does to it.
+ *
+ * Two counts of one colony rather than one, and that pair is the whole reason
+ * this line exists. A haul-out is a claim about a *relation* — the animals lie
+ * where the sea reaches them — and no still can state a relation, because a
+ * still is one state of the tide. `low` and `high` are the same rocks at the two
+ * ends of a spring tide, and `low === high` is the finding: a colony sited so
+ * high up its rocks that the sea has stopped mattering to it.
+ */
+export function hauloutStats (survey: ArchipelagoSurvey, config: ScapeConfig): MapStats['haulout'] {
+  const rocks          = planHaulouts(survey, config, MAP_TIER_HEADS)
+  const seals          = hauledSeals(rocks)
+  const offered        = survey.skerries.skerries.length
+  const springs        = tideAmplitudeAt(1, config.tide)
+  const { waterLevel } = config.terrain
+
+  return {
+    rocks:   rocks.length,
+    offered,
+    seals:   seals.length,
+    guards:  new Set(rocks.map(rock => rock.skerry.guard)).size,
+    low:     countAshore(seals, waterLevel, -springs),
+    high:    countAshore(seals, waterLevel, springs),
+    lowest:  seals.length ? round(Math.min(...seals.map(seal => seal.ledge - waterLevel)), 2) : 0,
+    highest: seals.length ? round(Math.max(...seals.map(seal => seal.ledge - waterLevel)), 2) : 0,
+    springs: round(springs, 2),
   }
 }
 

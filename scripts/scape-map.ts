@@ -16,7 +16,7 @@ import { STEADING_BUILDINGS } from '../src/scene/landscape/steading.ts'
 import { sampleWaterway } from '../src/scene/landscape/waterway.ts'
 import type { ScapeConfig } from '../src/scene/config.ts'
 import { formatStats } from './scape-map-format.ts'
-import { fjordStats, icecapStats, skerryStats, strandStats } from './scape-map-landforms.ts'
+import { fjordStats, hauloutStats, icecapStats, skerryStats, strandStats } from './scape-map-landforms.ts'
 import type { FjordStats, IcecapStats } from './scape-map-landforms.ts'
 import { causewayOf, croftOf, peatOf, smokehouseOf, tarnOf } from './scape-map-sites.ts'
 import { rainbowStats, stormStats } from './scape-map-weather.ts'
@@ -270,6 +270,29 @@ export interface MapStats extends CompositionStats {
     count: number
     asked: number
     sited: { id: string, kind: string, x: number, z: number, radius: number }[]
+  }
+
+  /**
+   * The seals on the guard, at both ends of a spring tide.
+   *
+   * Here rather than in a screenshot for the reason the flocks are, twice over.
+   * A seal is two metres long on a rock seventy metres from the nearest island,
+   * so at every pose in `tour` it is under a pixel — and the thing that would be
+   * worth seeing is not the animal at all but *how many* of them the water has
+   * taken, which is a difference between two states of the tide and cannot be in
+   * one frame. `rocks` against `offered` is the search: how much of the guard
+   * the three rules let through. `low` against `high` is the tide.
+   */
+  haulout: {
+    rocks:   number
+    offered: number
+    seals:   number
+    guards:  number
+    low:     number
+    high:    number
+    lowest:  number
+    highest: number
+    springs: number
   }
 
   /**
@@ -644,6 +667,7 @@ export function surveyStats (
     },
     strand,
     skerries: skerryStats(survey, config),
+    haulout:  hauloutStats(survey, config),
     fjords:   fjordStats(survey),
     icecaps:  icecapStats(survey),
     grazing:  {

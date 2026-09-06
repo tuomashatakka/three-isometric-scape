@@ -43,13 +43,14 @@ export default [
     // apart. So the ceiling is raised for this one file rather than the document
     // being broken up.
     //
-    // Raised again, from 800, by the section the far squall added. That is the
-    // second run to land against this number and it is worth naming what happens
-    // when it runs out rather than moving it a third time: the seam that keeps a
-    // knob with its reason is a *per-section* one — `config/sky.ts`,
-    // `config/world.ts`, each carrying its own slice of the interface and the
-    // defaults that go with it, composed here. That is a run of its own, and it
-    // is the one this ceiling is deferring.
+    // Raised once, from 800, by the section the far squall added. The run after
+    // that named what would happen when it ran out — a *per-section* seam, each
+    // slice carrying its own part of the interface and the defaults that go with
+    // it — and the run that added the seals is where it ran out. So the number
+    // has not moved a second time. `config-guard.ts` is the first slice, and the
+    // seam it draws is the one the rest of the document follows when it needs
+    // to: a subject at a time, schema and numbers together, spread back into
+    // `SCAPE_CONFIG` here.
     //
     // `error` rather than `warn` because `lint` runs `--max-warnings 0`, so a
     // warning here would fail the gate exactly like an error while reading as
