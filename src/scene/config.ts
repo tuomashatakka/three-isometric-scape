@@ -2993,16 +2993,20 @@ export const SCAPE_CONFIG = {
     reach:    0.12,
     fork:     0.9,
   },
-  // Wider and warmer than the sky itself ever is. The band is a degree and a
-  // half broader than the real 2.2°, because at the frame this scape opens on
-  // the true width is four pixels of spectrum and reads as a coloured wire; and
-  // the saturation stops short of 1 because a fully saturated ramp laid over a
-  // nordic grade is the one thing in the scape that would look like a decal.
+  // Every one of these came down after the first frames were looked at, and the
+  // first set is worth recording because it is the obvious set: a wide band, a
+  // high saturation and a strong light, on the reasoning that a two-degree arc
+  // is four pixels at the frame this scape opens on. What that produced was a
+  // flat neon ribbon — the spectrum at full strength is six saturated primaries,
+  // and six saturated primaries laid additively over a nordic grade is a decal
+  // whatever shape it is cut in. The band now carries its width in its *tail*
+  // instead of its core, so it is half a degree over the real 2.2° rather than
+  // a degree and a half, and the light it is drawn at is what a bow is: faint.
   rainbow: {
-    strength:   0.85,
+    strength:   0.65,
     secondary:  0.42,
-    width:      3.6,
-    saturation: 0.82,
+    width:      2.8,
+    saturation: 0.7,
     reach:      0.3,
   },
   look: {
