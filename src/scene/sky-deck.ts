@@ -4,6 +4,21 @@ import type { LiveConfig, ScapeConfig } from './config.ts'
 
 
 /**
+ * Where a body stands: the sine of its elevation, and its bearing off transit.
+ *
+ * Here rather than in the module that first needed it, because two things in
+ * this scape are now placed by one: the moon in `nightsky.ts`, and the point
+ * exactly opposite the sun that `rainbow.ts` draws its arc about. Both are
+ * solved by the same pair of functions in `daylight.ts` and both are hung on
+ * the same frame-sized sky, so the record they are hung by belongs beside the
+ * rest of the deck's shared vocabulary.
+ */
+export interface SkyPlace {
+  height: number
+  swing:  number
+}
+
+/**
  * Where a sky deck starts and finishes coming into view, as fractions of the
  * zoom range.
  *

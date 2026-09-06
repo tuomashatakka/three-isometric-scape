@@ -2159,6 +2159,71 @@ export interface ScapeConfig {
      */
     fork: number
   }
+
+  /**
+   * The bow the shower leaves behind it.
+   *
+   * Not a fourth clock and deliberately not one, for the reason `squall` is not
+   * a fifth: a rainbow is a thing the front and the sun do *together*, and both
+   * of those already have a phase. Every knob here shapes the arc; nothing here
+   * decides when it is out. See `rainbow.ts`.
+   */
+  rainbow: {
+
+    /**
+     * How brightly the bow stands at the best moment of a shower, 0..1.
+     *
+     * The switch, and the only one: whether this pass of the front has a bow in
+     * it at all is the weather's business, and how much of the arc clears the
+     * horizon is the sun's height. 0 is a coast that never gets one.
+     */
+    strength: number
+
+    /**
+     * The outer bow's share of the inner one's brightness, 0..1.
+     *
+     * Its own knob rather than a fixed fraction, because the second arc is the
+     * half of the phenomenon that is genuinely optional — it is the one a tier
+     * gives up (`rainbowArcs`), and the one a reader is most likely to want
+     * either gone or overstated. Nature's answer is about 0.43.
+     */
+    secondary: number
+
+    /**
+     * Width of the primary band, in **degrees of arc**.
+     *
+     * Degrees, and they stay degrees: this is an angle in the sky and not a
+     * distance in the world, so it is the one extent in this section that does
+     * not move when the archipelago or the frame does. The real bow is about
+     * 2.2° across; anything wider is a stylistic choice about how much spectrum
+     * the picture gets. The secondary is drawn {@link SECONDARY_SPREAD} times
+     * wider, the way the real one is.
+     */
+    width: number
+
+    /**
+     * How saturated the spectrum is, 0..1.
+     *
+     * 1 is the schoolbook bow. 0 is a fogbow — the same arc in the same place
+     * with the colour washed out of it, which is what a bow in droplets too
+     * small to disperse actually looks like, and which is why this is a
+     * saturation rather than a palette entry.
+     */
+    saturation: number
+
+    /**
+     * How far out the bow hangs, in **frames**.
+     *
+     * Frame-sized, like everything else in the sky: a bow is at optical infinity
+     * and does not get bigger as the eye pulls back, so the arc is hung a share
+     * of the live view away and its radius follows from the opening angle. That
+     * makes this the one knob that decides how large the bow is *in the
+     * picture* — and the reason it is not sized against the world is that a bow
+     * scaled by the archipelago would be a smudge at one zoom and four frames
+     * wide at another.
+     */
+    reach: number
+  }
   look: {
     grade:     GradeName
     intensity: number
@@ -3080,6 +3145,18 @@ export const SCAPE_CONFIG = {
     flash:    0.0016,
     reach:    0.12,
     fork:     0.9,
+  },
+  // Wider and warmer than the sky itself ever is. The band is a degree and a
+  // half broader than the real 2.2°, because at the frame this scape opens on
+  // the true width is four pixels of spectrum and reads as a coloured wire; and
+  // the saturation stops short of 1 because a fully saturated ramp laid over a
+  // nordic grade is the one thing in the scape that would look like a decal.
+  rainbow: {
+    strength:   0.85,
+    secondary:  0.42,
+    width:      3.6,
+    saturation: 0.82,
+    reach:      0.3,
   },
   look: {
     grade:      'nordic',

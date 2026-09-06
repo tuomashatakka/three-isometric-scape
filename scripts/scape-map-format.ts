@@ -177,6 +177,22 @@ function stormLine (storm: MapStats['storm']): string {
       : '')
 }
 
+/**
+ * The bow line, and the two findings it carries.
+ *
+ * A front no instant of which has a bow in it, and a phase the config is parked
+ * on that has none — the second is not a fault, because most of a front has no
+ * bow, but it is what a run needs to know before it reads a still and concludes
+ * the system is broken.
+ */
+function rainbowLine (bow: MapStats['rainbow']): string {
+  return `bow   sun ${bow.sun}° up  apex ${bow.apex}°  bearing ${bow.swing}°  ` +
+    `cover ${bow.cover}  now ${bow.now}  best ${bow.best} @ phase ${bow.at}` +
+    (bow.best <= 0
+      ? '  <- no instant of any front on this coast has a bow in it'
+      : bow.now <= 0 ? '  <- the parked phase has no bow, only the front does' : '')
+}
+
 /** The stats block, as the run reads it. */
 export function formatStats (stats: MapStats): string {
   const steading = Object.entries(stats.steading)
@@ -235,6 +251,7 @@ export function formatStats (stats: MapStats): string {
       (stats.hearths.lowest < 3 ? '  <- a stack is standing in its own roof' : ''),
     windowLine(stats.windows),
     stormLine(stats.storm),
+    rainbowLine(stats.rainbow),
     grazingLine(stats.grazing),
     `gulls ${stats.colonies.count}/${stats.colonies.asked} colonies  ` +
       (stats.colonies.sited

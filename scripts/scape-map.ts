@@ -19,7 +19,7 @@ import { formatStats } from './scape-map-format.ts'
 import { fjordStats, icecapStats, skerryStats, strandStats } from './scape-map-landforms.ts'
 import type { FjordStats, IcecapStats } from './scape-map-landforms.ts'
 import { causewayOf, croftOf, peatOf, smokehouseOf, tarnOf } from './scape-map-sites.ts'
-import { stormStats } from './scape-map-weather.ts'
+import { rainbowStats, stormStats } from './scape-map-weather.ts'
 import { applyOverrides, parseArgs } from './args.ts'
 
 
@@ -290,6 +290,28 @@ export interface MapStats extends CompositionStats {
     /** The phase a `storm` pose is aimed at, and the island it is aimed over. */
     peak:  { phase: number, id: string, x: number, z: number, base: number } | null
     sited: { id: string, x: number, z: number, base: number, strikes: number }[]
+  }
+
+  /**
+   * The bow the shower leaves behind it.
+   *
+   * Here for the same reason the storm is, and it catches the same class of
+   * silence: the arc is only out on the edges of a band, so the phase the
+   * config is parked on decides whether a still has one in it at all. `now` is
+   * this phase's bow and `best` is the brightest the whole front ever gets —
+   * and a `best` of zero is the finding, because it means no instant of any
+   * front on this coast has a bow in it. `apex` is how far the top of the inner
+   * arc stands over the sea, which goes negative in the middle of a summer day
+   * and leaves the outer bow standing on its own.
+   */
+  rainbow: {
+    sun:   number
+    apex:  number
+    swing: number
+    cover: number
+    now:   number
+    best:  number
+    at:    number
   }
 
   /**
@@ -642,6 +664,7 @@ export function surveyStats (
       })),
     },
     storm:    stormStats(config, survey),
+    rainbow:  rainbowStats(config),
     hearths:  hearthStats(survey),
     windows:  windowStats(survey),
     colonies: {

@@ -24,6 +24,7 @@ import type { SeasonState } from './season.ts'
 import { createAtmospherePost } from './post.ts'
 import type { AtmosphereQuality } from './quality.ts'
 import { createRainLayer } from './rain.ts'
+import { createRainbow } from './rainbow.ts'
 import { createRuntime } from './runtime.ts'
 import { createSquallCurtains } from './squall.ts'
 import { createStormFlashes } from './storm.ts'
@@ -268,19 +269,21 @@ interface GroundLayerOptions {
 /**
  * Everything that stands over the islands rather than over the world.
  *
- * Seven layers that differ only in what they answer to, and they are grouped for
+ * Eight layers that differ only in what they answer to, and they are grouped for
  * the same reason the skies are: each needs the landscape *and* the atmosphere
  * to exist first, so none of them can be built where the two are being built.
  * The fall takes the weather for how hard it comes down and the year for what it
  * comes down as; the far squall takes the same front read one lead ahead of
- * itself, so the rain on the horizon is the rain that has not arrived; the storm
+ * itself, so the rain on the horizon is the rain that has not arrived; the bow
+ * takes that front a third time, for the two moments in each of its bands when
+ * there are drops in the air and sky enough left to light them; the storm
  * takes that same front again, for the instant a strike fires, and the survey
  * for which of the outer islands it lands on; the gulls
  * take the day for whether they are up; the coastal light takes the day for
  * whether the lamp is lit; the hearth smoke takes the year for how hard the
  * fires are banked; and the window lamps take the day for dusk and the *clock*
- * for whether anybody is up to have lit one. Five of the seven are also *sited*
- * by the survey — the two that answer only to the frame are not — and every one
+ * for whether anybody is up to have lit one. Five of the eight are also *sited*
+ * by the survey — the three that answer only to the frame are not — and every one
  * of them returns null on a
  * tier — or an archipelago — with nothing to give, so the cheapest device gets a
  * graceful absence rather than a poor version.
@@ -305,6 +308,12 @@ function hangOverTheGround (
       daylight,
       season:  landscape.season,
       wind,
+    })),
+    unless(skip, 'rainbow', () => createRainbow({
+      camera,
+      config,
+      quality,
+      weather: landscape.weather,
     })),
     unless(skip, 'storm', () => createStormFlashes({
       camera,
