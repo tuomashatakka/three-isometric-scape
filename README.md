@@ -615,7 +615,7 @@ fifteen islets stood off the home island and every one of them was reached by bo
 
 **it is on the light's rock, and that was found rather than authored.** the search scores the shortest crossing against the broadest islet, and the broadest islet near enough to walk to is the same one `beacon.ts` wanted for the reason it wanted it — it is the biggest thing out there. so the scape gets a seamark you can reach on foot on the ebb, which is what a tidal light actually is. `causeway.minIsle` and `causeway.gap` are the two knobs that would send it somewhere else.
 
-`gap` at 0 is the switch and the only one: a bar that will bridge no water is already no bar, so there is no boolean beside it. four of the five holdings have no islets at all and get no causeway however it is set — `null` is the common answer here, the way it is for the smokehouse and the croft.
+`gap` at 0 is the switch and the only one: a bar that will bridge no water is already no bar, so there is no boolean beside it. five of the six holdings have no islets at all and get no causeway however it is set — `null` is the common answer here, the way it is for the smokehouse and the croft.
 
 ## the drowned valley in the sound
 
@@ -781,7 +781,7 @@ every roof out on the rocks is turf and every hearth in the archipelago is lit, 
 
 **the ricks stand on the bank rather than on the floor**, which is where turves are actually set out: the floor is the wet part you are still cutting. `dressing.peatStack` is a count **per working** rather than per island — the exception the flock and the drying poles already are — and the batch is stamped after the flock, on the end, where inserting it disturbs no other scatter's draw from the shared rng.
 
-**three of five islands have one, and the two without are the answer rather than a gap.** the ridge and the meadow have no low ground level enough that the farm has not already walled it. loosening `peat.spread` until they did would be cutting a peat bank into a hillside — the same refusal the tarn's `spread` makes, and `2.4` was tried and taken back out because the site it bought had 2.38 m of relief under an eleven-metre face.
+**three of six islands have one, and the three without are the answer rather than a gap.** the ridge, the meadow and the shield have no low ground level enough that the farm has not already walled it — on the shield because the ice has the high ground and the holding has the rest. loosening `peat.spread` until they did would be cutting a peat bank into a hillside — the same refusal the tarn's `spread` makes, and `2.4` was tried and taken back out because the site it bought had 2.38 m of relief under an eleven-metre face.
 
 **`scape:map` grew a line, and the landmass rows grew a field.** `peat (29.3,-18.3) moor 3.34m face 0.82m standing ground 1.7m` — `standing` is the claim as a number, the way the pool's `wetted` is: a cutting whose face went flat is a rectangle of dark paint on an untouched hillside, identical from every pose and invisible in every still the tour takes. the carve guarantees at least `depth` there, so a reading below it is a bug rather than a siting outcome. the ascii grid gained a `T`.
 
@@ -859,7 +859,7 @@ on a rise between the farm and the sea there is a chapel: a limewashed boarded n
 
 **the markers all face the same way.** each is raised on the *chapel's* yaw rather than on its own bearing from the middle — a ring of stones turned to face outward reads as a stone circle, and a churchyard reads as a churchyard precisely because the rows agree. they are laid on two arcs in the band between the building's footing and the wall, and the arcs start `APPROACH` radians clear of the gateway, so the walk from the gate to the door is not over the plots. one builder rather than two props, with the seed picking a slab or a cross: a yard of nothing but slabs is a rockery, and one of nothing but crosses is a decal repeated twelve times.
 
-**`null` is an answer, the way it is for the mill.** at the default seed four of the five islands build one and the ridge does not — nothing inside `chapel.reach` of its farm stands proud enough or lies level enough. `scape:map --stats` reports the site, its prominence and its distance from the yard, or says which of those it could not find.
+**`null` is an answer, the way it is for the mill.** at the default seed five of the six islands build one and the ridge does not — nothing inside `chapel.reach` of its farm stands proud enough or lies level enough. `scape:map --stats` reports the site, its prominence and its distance from the yard, or says which of those it could not find.
 
 ## the smokehouse above the harbour
 
@@ -930,7 +930,7 @@ that difference is not cosmetic. [`fixtures.ts`](src/scene/landscape/fixtures.ts
 
 **it is glazed on two different walls on purpose.** the camera is a fixed dimetric heading the reader can spin, so a hut with glass in one wall shows a blank end from half of them — and this is the only glass in the archipelago that is not part of a farm or a chapel. whether a lamp is burning behind either pane is the same occupancy roll every other window takes, and at the default seed both of the croft's come up dark: a hut whose people are ashore, not a weight to retune. one pane beside the door, one in the seaward gable, and `props/timber.test.ts` states for this building what it states for the other four: at the middle of every published pane, the outermost surface of the geometry is its glass. the oars are stood against the *chimney* gable rather than the glazed one for that reason and no other.
 
-**`null` is an answer, the way it is for the mill, the chapel and the smokehouse.** only the home island has a ring of islets at all — `terrain.isles` is empty on the other four — so four of the five landmasses have no croft and that is the ordinary outcome rather than the exceptional one. raising `croft.minIsle` past the largest free rock is the supported way to take it back out of the scape; there is no separate switch, for the same reason nothing else here has one. `scape:map --stats` reports the rock, its freeboard and the row home, or says which of those it could not find, and stamps it `C`.
+**`null` is an answer, the way it is for the mill, the chapel and the smokehouse.** only the home island has a ring of islets at all — `terrain.isles` is empty on the other four — so five of the six landmasses have no croft and that is the ordinary outcome rather than the exceptional one. raising `croft.minIsle` past the largest free rock is the supported way to take it back out of the scape; there is no separate switch, for the same reason nothing else here has one. `scape:map --stats` reports the rock, its freeboard and the row home, or says which of those it could not find, and stamps it `C`.
 
 ## the boat harbour
 
