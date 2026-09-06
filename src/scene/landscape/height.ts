@@ -3,6 +3,7 @@ import type { ScapeConfig } from '../config.ts'
 import { coastWarp, sampleHeight } from '../noise.ts'
 import { raiseCauseway } from './causeway.ts'
 import type { Causeway } from './causeway.ts'
+import { raiseIce } from './icecap.ts'
 import { baseAt, distanceToTrack, plotInfluence, remapRelief, sinkToIsland } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
 import { carvePeat } from './peat.ts'
@@ -276,6 +277,19 @@ export function createHeightField (
     // — laid before it, a bar asked to stand a hand's breadth clear would be
     // compressed to half of that and the tide would never leave it.
     height = raiseCauseway(causeway, x, z, height)
+
+    // And the ice, after the shelving for a version of the same reason and at
+    // the same stage `sunkAt` lays it on — the two have to be one surface, or
+    // the farm is sited on a ground the terrain does not draw. The shelving
+    // grades the first metres above the waterline into a beach, which is right
+    // for shingle and wrong for a wall of ice: laid on first, the cap's last few
+    // metres would be a ramp running down into the sea instead of a front.
+    //
+    // The two never meet — a bar is a metre over the water at the coast and a
+    // cap is twenty metres of ice inland — and both only ever raise ground, so
+    // the order between them decides nothing. It reads bar-then-ice because
+    // that is low-to-high.
+    height = raiseIce(config, x, z, height)
 
     for (const plot of layout.plots) {
       const claim = plotInfluence(plot, x, z)

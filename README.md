@@ -96,6 +96,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - lamplight in ninety-five windows: sixty-five farmstead panes lit at dusk, banked to a stove glow once the household turns in, and back up before dawn — the chapels' twenty-eight burning fainter, because nobody sleeps in one, and the croft's two out on the rock taking the same occupancy roll as the rest — while the lighthouse burns straight through, because a lighthouse is a machine and a farm is not
 - a beck traced downhill from a spring, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself — with water standing in it, lying flat across the channel, falling with the ground, breaking white where the hill drops, and freezing later than the sea it runs into
 - a tarn on the high ground of every island whose spare upland is flat enough to hold one — sited by a search for the least tilted acre the farm has not already claimed, standing at the lowest point of its own rim, edged with reeds, and locking into ice weeks before the sound below it does
+- **an ice cap on a sixth island in the north**: a permanent dome twenty-two metres of ice thick, standing over the summit it buried, with rock peaks left standing through it as nunataks, fractures opening in arcs where the ice is steep, and a front ending in the sea rather than on a hillside — the one white thing in the archipelago that midsummer does not take back
 - a peat bank cut into the wet moor of every island that has any: an eleven-metre face standing across the fall, a stripped floor worked back seven metres behind it, ricks of cut turf drying on the bank, and a clearing round the whole of it — because blanket peat and a spruce wood are two things the same ground cannot be doing at once
 - showers standing out on the open water, crossing the archipelago from upwind ahead of the front that will reach the farm shortly after — read off the same clock the fall is, one lead ahead of it, and cut off at every coastline by the land it cannot rain on
 - lightning in that same front, out on the far islands only: a patch of cloud lit from inside for two thirds of a second, twice, with a jagged channel standing on the ground under it — scheduled off a comb of the front's own phases, so the storm arrives with the squall and can be photographed by naming a time
@@ -192,7 +193,7 @@ src/
     ├── beacon.ts                   the coastal light: the lamp, and the beams it sweeps
     ├── clouds.ts                   sky deck, faded in as the view pulls back
     ├── config.ts                   the public tuning surface
-    ├── config-landmasses.ts        the five holdings, as a table rather than as schema
+    ├── config-landmasses.ts        the six islands, as a table rather than as schema
     ├── config-access.ts            who owns the config, before and after the mount
     ├── state-path.ts               writePath with structural sharing
     ├── create-isometric-scape.ts   app/module composition root
@@ -236,6 +237,7 @@ src/
     │   ├── causeway.ts             the bar out to the nearest rock, and the tide that takes it back
     │   ├── skerry.ts               the bare rocks standing in the water between the islands
     │   ├── fjord.ts                the drowned valley cut through one island's coast
+    │   ├── icecap.ts               the ice standing on the northern island, and what it buries
     │   ├── beacon.ts               the outer rock a light would stand on
     │   ├── colony.ts              the open water a flock can wheel over without crossing land
     │   ├── grazing.ts             the rough ground a farm turns its stock out onto
@@ -613,7 +615,7 @@ fifteen islets stood off the home island and every one of them was reached by bo
 
 **it is on the light's rock, and that was found rather than authored.** the search scores the shortest crossing against the broadest islet, and the broadest islet near enough to walk to is the same one `beacon.ts` wanted for the reason it wanted it — it is the biggest thing out there. so the scape gets a seamark you can reach on foot on the ebb, which is what a tidal light actually is. `causeway.minIsle` and `causeway.gap` are the two knobs that would send it somewhere else.
 
-`gap` at 0 is the switch and the only one: a bar that will bridge no water is already no bar, so there is no boolean beside it. four of the five holdings have no islets at all and get no causeway however it is set — `null` is the common answer here, the way it is for the smokehouse and the croft.
+`gap` at 0 is the switch and the only one: a bar that will bridge no water is already no bar, so there is no boolean beside it. five of the six holdings have no islets at all and get no causeway however it is set — `null` is the common answer here, the way it is for the smokehouse and the croft.
 
 ## the drowned valley in the sound
 
@@ -717,6 +719,48 @@ the beck was the scape's one *found* landform: a steepest-descent walk that obey
 
 `tarn.depth` at zero is a basin with nothing to cut and no pool to draw. it is the switch, and the only one.
 
+## the ice on the northern island
+
+the world's northern half had been open water since the span tripled. every landmass sat on or below the middle line, so half the plane was sea the camera crossed on its way to nothing. **`shield`** is what is out there now: a 340 m island at (0, 520), and on it the one white thing in the archipelago that midsummer does not take back.
+
+### an ice cap is a parabola, not a blanket
+
+the tempting model is a coat of paint — take every vertex above a line and lift it a metre. it is wrong in the way that matters. ice does not lie on a hillside, it *flows*, and a body of ice that flows has one surface profile whatever the rock under it is doing: `h(d) = H·sqrt(1 - d/R)`, near flat over the middle and steepening to a wall at the margin. every ice sheet that has been surveyed has that shape, from the greenland dome down to a cirque glacier.
+
+so [`landscape/icecap.ts`](src/scene/landscape/icecap.ts) authors a *surface* and tells the ground to take the higher of the two. three things fall out of that for free, and not one of them had to be written:
+
+- **nunataks.** a peak that stands above the dome stays rock. nothing has to find them and nothing has to spare them — they are where the parabola is lower than the mountain.
+- **a margin that follows the ground.** the ice ends where the falling dome meets the rising rock, so it reaches furthest down the valleys and stops short on the ridges, which is what an ice margin does on a map.
+- **a front that stands in the sea.** where the dome runs out over water rather than into a hillside there is nothing to meet it, so it is cut off at the grounding line instead: `icecap.grounding` is how deep the bed may be before the ice would float, and the cut is the front. the shield's stands in 2.1 m of water, and the surf breaks on it because the bathymetry mask bakes off the same field.
+
+### it is in the ground the farm is sited on, not only in the ground the terrain draws
+
+the fjord's lesson, in the other direction. an inlet had to be cut in `baseAt` because a trench the terrain alone knew about would have had a farmyard levelled into the middle of it; a dome the terrain alone knew about would have a farmyard levelled into the *side* of it, and twenty metres of ice standing over the barn.
+
+so `raiseIce` is applied at the same stage in both places that decide where the ground is: `sunkAt` in [`layout.ts`](src/scene/landscape/layout.ts), which every placement search reads, and `graded` in [`height.ts`](src/scene/landscape/height.ts), which the terrain is built from. after the shelving in both, and that is the front rather than a detail — the shelving grades the first metres above the waterline into a beach, which is right for shingle and wrong for a wall of ice.
+
+five searches then refuse it, each measured against the ground it is reading: the yard by the dome's disc, because it reads the *raw* ground and cannot measure ice; the pasture, the pool and the cutting by the claim, because they read the graded ground and can; the mill and the chapel by a disc, because both hunt for prominence and the highest thing on a glaciated island is the ice. the beck is refused a spring on it and a course across it, which puts its head at the snout — where a stream coming off an ice cap actually rises. `icecap.test.ts` states the whole of that as one fact: **nothing the holding uses is under the ice, down to the last footpath point.**
+
+### what the ice costs
+
+nothing. no mesh, no material, no draw call, no texture: the cap is a term in a height field and a colour in the terrain painter, so it costs a phone exactly what it costs a workstation and there is no tier gate on it. the island it stands on is the cost — a sixth terrain patch, dressed at `detail: 0.42`.
+
+### the fractures, and the two numbers that were wrong
+
+crevasses open where the ice is *stretched*, which on a dome is where it accelerates: down the flanks, and around whatever the bed puts in its way. so the field is a noise fold gated on the surface's own fall, sampled in the dome's frame rather than the island's — radially compressed and tangentially stretched, which turns a spatter into arcs concentric with the dome, because ice being pulled apart cracks *across* the pull.
+
+the first pair of strain thresholds was 0.06 to 0.34, and the whole dome saturated them: the flanks of a parabola this size run at half a metre in one, well past the top of that ramp. every fracture fired at full strength everywhere and the ice photographed as blue continents. the band belongs where the *ice* is steep rather than where any ground would be, so it is 0.55 to 1.2 now, and `icecap.crevasse` came down from 0.55 to 0.4.
+
+### the shield is not on the ferry circuit
+
+the fleet sails one loop in a fixed order at a fixed spacing, and `boats.separation` is a hard invariant: two hulls closer than seven metres take the whole survey down. a sixth port is a sixth boat *and* a reshuffled schedule for the other five, and that reshuffle is chaotic — at three of the seeds tried it put two boats within a metre of each other in open water, none of them anywhere near the new island.
+
+`LandmassSpec.port` is the answer, and it is a fact about the route rather than about the island: the shield keeps its jetty, its harbour and its own boat drawn up on the shore, and what it does not have is a leg of the circuit. the world's five existing routes, five boats and 2515.5 m of waterway are **byte-identical** to what they were before the island existed, which is also why the diff of this run is honest about what it moved.
+
+### what it did move
+
+`near` — the ten-metre pose in the farmyard — came back 21% changed, and no prop on the home island was touched. the archipelago's ground cover is dealt from **one shared rng and one world-wide dart sampler**, so a sixth island re-deals every tuft, stone and sapling in the world. `dressing.ts`'s own note has said so since the sheep arrived. it is the honest cost of growing the world under the current dressing, and the fix — a scatter stream per landmass — is a run of its own.
+
 ## the peat bank on the moor
 
 every roof out on the rocks is turf and every hearth in the archipelago is lit, and until this run neither came from anywhere. a peat bank is where they come from: a face cut into the wet moor, worked backwards a few metres a summer, with the stripped floor lying open behind it and the turves stood up on the bank to dry.
@@ -737,7 +781,7 @@ every roof out on the rocks is turf and every hearth in the archipelago is lit, 
 
 **the ricks stand on the bank rather than on the floor**, which is where turves are actually set out: the floor is the wet part you are still cutting. `dressing.peatStack` is a count **per working** rather than per island — the exception the flock and the drying poles already are — and the batch is stamped after the flock, on the end, where inserting it disturbs no other scatter's draw from the shared rng.
 
-**three of five islands have one, and the two without are the answer rather than a gap.** the ridge and the meadow have no low ground level enough that the farm has not already walled it. loosening `peat.spread` until they did would be cutting a peat bank into a hillside — the same refusal the tarn's `spread` makes, and `2.4` was tried and taken back out because the site it bought had 2.38 m of relief under an eleven-metre face.
+**three of six islands have one, and the three without are the answer rather than a gap.** the ridge, the meadow and the shield have no low ground level enough that the farm has not already walled it — on the shield because the ice has the high ground and the holding has the rest. loosening `peat.spread` until they did would be cutting a peat bank into a hillside — the same refusal the tarn's `spread` makes, and `2.4` was tried and taken back out because the site it bought had 2.38 m of relief under an eleven-metre face.
 
 **`scape:map` grew a line, and the landmass rows grew a field.** `peat (29.3,-18.3) moor 3.34m face 0.82m standing ground 1.7m` — `standing` is the claim as a number, the way the pool's `wetted` is: a cutting whose face went flat is a rectangle of dark paint on an untouched hillside, identical from every pose and invisible in every still the tour takes. the carve guarantees at least `depth` there, so a reading below it is a bug rather than a siting outcome. the ascii grid gained a `T`.
 
@@ -815,7 +859,7 @@ on a rise between the farm and the sea there is a chapel: a limewashed boarded n
 
 **the markers all face the same way.** each is raised on the *chapel's* yaw rather than on its own bearing from the middle — a ring of stones turned to face outward reads as a stone circle, and a churchyard reads as a churchyard precisely because the rows agree. they are laid on two arcs in the band between the building's footing and the wall, and the arcs start `APPROACH` radians clear of the gateway, so the walk from the gate to the door is not over the plots. one builder rather than two props, with the seed picking a slab or a cross: a yard of nothing but slabs is a rockery, and one of nothing but crosses is a decal repeated twelve times.
 
-**`null` is an answer, the way it is for the mill.** at the default seed four of the five islands build one and the ridge does not — nothing inside `chapel.reach` of its farm stands proud enough or lies level enough. `scape:map --stats` reports the site, its prominence and its distance from the yard, or says which of those it could not find.
+**`null` is an answer, the way it is for the mill.** at the default seed five of the six islands build one and the ridge does not — nothing inside `chapel.reach` of its farm stands proud enough or lies level enough. `scape:map --stats` reports the site, its prominence and its distance from the yard, or says which of those it could not find.
 
 ## the smokehouse above the harbour
 
@@ -886,7 +930,7 @@ that difference is not cosmetic. [`fixtures.ts`](src/scene/landscape/fixtures.ts
 
 **it is glazed on two different walls on purpose.** the camera is a fixed dimetric heading the reader can spin, so a hut with glass in one wall shows a blank end from half of them — and this is the only glass in the archipelago that is not part of a farm or a chapel. whether a lamp is burning behind either pane is the same occupancy roll every other window takes, and at the default seed both of the croft's come up dark: a hut whose people are ashore, not a weight to retune. one pane beside the door, one in the seaward gable, and `props/timber.test.ts` states for this building what it states for the other four: at the middle of every published pane, the outermost surface of the geometry is its glass. the oars are stood against the *chimney* gable rather than the glazed one for that reason and no other.
 
-**`null` is an answer, the way it is for the mill, the chapel and the smokehouse.** only the home island has a ring of islets at all — `terrain.isles` is empty on the other four — so four of the five landmasses have no croft and that is the ordinary outcome rather than the exceptional one. raising `croft.minIsle` past the largest free rock is the supported way to take it back out of the scape; there is no separate switch, for the same reason nothing else here has one. `scape:map --stats` reports the rock, its freeboard and the row home, or says which of those it could not find, and stamps it `C`.
+**`null` is an answer, the way it is for the mill, the chapel and the smokehouse.** only the home island has a ring of islets at all — `terrain.isles` is empty on the other four — so five of the six landmasses have no croft and that is the ordinary outcome rather than the exceptional one. raising `croft.minIsle` past the largest free rock is the supported way to take it back out of the scape; there is no separate switch, for the same reason nothing else here has one. `scape:map --stats` reports the rock, its freeboard and the row home, or says which of those it could not find, and stamps it `C`.
 
 ## the boat harbour
 

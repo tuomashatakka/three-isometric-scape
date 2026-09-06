@@ -16,7 +16,8 @@ import { STEADING_BUILDINGS } from '../src/scene/landscape/steading.ts'
 import { sampleWaterway } from '../src/scene/landscape/waterway.ts'
 import type { ScapeConfig } from '../src/scene/config.ts'
 import { formatStats } from './scape-map-format.ts'
-import { fjordStats, skerryStats, strandStats } from './scape-map-landforms.ts'
+import { fjordStats, icecapStats, skerryStats, strandStats } from './scape-map-landforms.ts'
+import type { FjordStats, IcecapStats } from './scape-map-landforms.ts'
 import { causewayOf, croftOf, peatOf, smokehouseOf, tarnOf } from './scape-map-sites.ts'
 import { stormStats } from './scape-map-weather.ts'
 import { applyOverrides, parseArgs } from './args.ts'
@@ -249,39 +250,14 @@ export interface MapStats extends CompositionStats {
   }
 
   /**
-   * The drowned valleys, one entry per island that has one.
+   * The drowned valleys and the ice caps, one entry per island that has one.
    *
-   * Here for the reason the bar is: a fjord's whole claim is a *relation between
-   * three depths* — the open sea outside the mouth, the sill across it, and the
-   * basin behind — and no still can measure three depths through a depth tint.
-   * A run that retunes the falloff, the shelving or the seabed drop can leave
-   * the picture looking identical while the sill has drowned to the seabed and
-   * the landform has quietly become a bay, so the numbers are the check.
-   *
-   * Every one of them is metres of water, sampled off the *composite* field
-   * rather than off the inlet's own profile. Asking the inlet what it thinks it
-   * is would answer a question nobody has: the floor it asks for is not the
-   * floor the island falloff and the shore shelving leave it with.
+   * Both live in `scape-map-landforms.ts` beside the walks that measure them —
+   * see {@link FjordStats} and {@link IcecapStats} for what each number is and
+   * why a picture cannot check it.
    */
-  fjords: {
-    id:     string
-    length: number
-
-    /** Metres of water in the open sea off the mouth. */
-    sea: number
-
-    /** Metres of water over the shallowest of the way in. */
-    sill: number
-
-    /** Metres of water over the deepest of the basin. */
-    basin: number
-
-    /** Metres the valley floor at the head stands over the waterline. */
-    head: number
-
-    /** Whether the basin is deeper than the sea it opens into. The claim. */
-    overdeepened: boolean
-  }[]
+  fjords:  FjordStats[]
+  icecaps: IcecapStats[]
 
   /**
    * The gull colonies, and the birds dealt across them.
@@ -647,6 +623,7 @@ export function surveyStats (
     strand,
     skerries: skerryStats(survey, config),
     fjords:   fjordStats(survey),
+    icecaps:  icecapStats(survey),
     grazing:  {
       count: flocks.length,
       asked: survey.landmasses.length * config.grazing.flocks,

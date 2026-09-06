@@ -6,6 +6,7 @@ import type { ChapelSite } from './chapel.ts'
 import { createCreek } from './creek.ts'
 import type { Creek } from './creek.ts'
 import { carveFjord } from './fjord.ts'
+import { iceCapOf, iceClaim, raiseIce } from './icecap.ts'
 import { MILL_FOOTING, findMillSite } from './mill.ts'
 import type { MillSite } from './mill.ts'
 import { distanceToPath, smoothPath } from './path.ts'
@@ -269,9 +270,23 @@ export function remapRelief (config: ScapeConfig, x: number, z: number, height: 
 }
 
 
-/** The ground as the falloff leaves it, before any of the authored levelling. */
+/**
+ * The ground as the falloff leaves it, before any of the authored levelling.
+ *
+ * The ice is laid on here rather than in `baseAt`, and the stage matters: a
+ * dome folded in before the falloff would be sunk with the rim it stands
+ * nowhere near, and one folded in before `remapRelief` would have its own
+ * profile smoothed toward the neighbourhood mean — which is exactly the shape
+ * an ice cap does not have. The height field lays it on at the same stage, so
+ * the ground the mill is sited on is the ground the mill is drawn on.
+ */
 function sunkAt (config: ScapeConfig, x: number, z: number): number {
-  return remapRelief(config, x, z, sinkToIsland(config, x, z, baseAt(config, x, z)))
+  return raiseIce(
+    config,
+    x,
+    z,
+    remapRelief(config, x, z, sinkToIsland(config, x, z, baseAt(config, x, z))),
+  )
 }
 
 /**
@@ -306,6 +321,19 @@ function landRadiusOf (config: ScapeConfig): number {
   return size * 0.5 * (islandInner - (islandOuter - islandInner) * COAST_REACH)
 }
 
+/**
+ * Whether a footprint stands inside the ice cap's reach.
+ *
+ * The disc, not the margin. Used by the searches that cannot measure the ice
+ * because they read the ground before it is laid on — see `findYard` — and by
+ * the two that hunt for prominence and would otherwise climb the dome.
+ */
+function underIce (config: ScapeConfig, x: number, z: number, radius: number): boolean {
+  const cap = iceCapOf(config)
+
+  return !!cap && Math.hypot(x - cap.x, z - cap.z) < cap.reach + radius
+}
+
 function findYard (config: ScapeConfig): Yard {
   const extent = config.terrain.size * 0.5
   const reach  = config.layout.yardRadius * 0.55
@@ -322,6 +350,15 @@ function findYard (config: ScapeConfig): Yard {
       const dryness = height - config.terrain.waterLevel
 
       if (dryness < 1.4)
+        continue
+
+      // Never under the ice, and never at the foot of it. This search reads the
+      // *raw* ground, which has no dome in it — so unlike the pasture's refusal
+      // this one cannot ask how much ice covers the point, and asks instead
+      // whether the point is inside the cap's reach at all. Deliberately the
+      // blunter of the two: a farmyard is levelled, walked to and built on, and
+      // the ground a retreating margin leaves is moraine.
+      if (underIce(config, x, z, config.layout.yardRadius))
         continue
 
       const score = -roughness(config, x, z, reach) * 2.4 -
@@ -535,6 +572,13 @@ function findPasture (
       if (dryness < 3)
         continue
 
+      // And not a glacier, which this search would otherwise walk straight onto:
+      // it pays for altitude and the ice is the highest ground on the island, so
+      // the one place a walled meadow can never be is the first place the score
+      // sends it. The claim is asked of the same ground the level came from.
+      if (iceClaim(config, x, z, level) > 0)
+        continue
+
       const rough = roughness(config, x, z, radius * 0.55)
 
       if (rough > config.terrain.height * 0.5)
@@ -557,6 +601,24 @@ function findPasture (
     }
 
   return best
+}
+
+/**
+ * The ice as one disc to miss, for the two searches that hunt for prominence.
+ *
+ * The mill and the chapel both want the highest thing they can stand on, and on
+ * a glaciated island that is the dome — so both are handed it the way they are
+ * handed the pasture. A disc at the dome's full reach rather than at the ice's
+ * true margin, deliberately: the margin is where a parabola meets an fBm and
+ * these two take a footing, a sail sweep and a churchyard with them. There is
+ * no windmill on the moraine either.
+ *
+ * Empty on the four islands with no ice, which is the whole cost of this on them.
+ */
+function iceDisc (config: ScapeConfig): { x: number, z: number, radius: number }[] {
+  const cap = iceCapOf(config)
+
+  return cap ? [{ x: cap.x, z: cap.z, radius: cap.reach }] : []
 }
 
 /**
@@ -594,6 +656,15 @@ export function createScapeLayout (config: ScapeConfig): ScapeLayout {
       // the meadow by nothing at all and took four metres out from under its
       // eastern wall. What it must miss is the wall plus the water.
       ...pasture ? [{ x: pasture.x, z: pasture.z, radius: pasture.radius + config.creek.width * 2 }] : [],
+      // And the ice, which is where a descent would otherwise start: the dome
+      // is the highest ground on the island and the trace walks downhill from
+      // the highest spring it can find, so on a glaciated island every course
+      // begins twenty metres up on the cap and cuts a channel through it.
+      //
+      // Handing the whole reach over rather than the margin puts the spring
+      // below the snout, which is where a beck coming off an ice cap actually
+      // rises — the water leaves at the front and the channel starts there.
+      ...iceDisc(config),
     ],
   )
 
@@ -621,6 +692,7 @@ export function createScapeLayout (config: ScapeConfig): ScapeLayout {
     [
       ...plots.map(plot => ({ x: plot.x, z: plot.z, radius: Math.max(plot.halfW, plot.halfD) })),
       ...pasture ? [{ x: pasture.x, z: pasture.z, radius: pasture.radius }] : [],
+      ...iceDisc(config),
     ],
   )
 
@@ -648,6 +720,7 @@ export function createScapeLayout (config: ScapeConfig): ScapeLayout {
       ...plots.map(plot => ({ x: plot.x, z: plot.z, radius: Math.max(plot.halfW, plot.halfD) })),
       ...pasture ? [{ x: pasture.x, z: pasture.z, radius: pasture.radius }] : [],
       ...mill ? [{ x: mill.x, z: mill.z, radius: config.mill.sailSpan * 0.5 }] : [],
+      ...iceDisc(config),
     ],
   )
 

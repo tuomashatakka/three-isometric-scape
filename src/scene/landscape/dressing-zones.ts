@@ -3,6 +3,7 @@ import type { ScapeConfig } from '../config.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
 import type { HeightField } from './height.ts'
 import { BEACON_FOOTING } from './beacon.ts'
+import { iceClaim } from './icecap.ts'
 import { distanceToTrack, pastureInfluence, plotInfluence, ridgeInfluence } from './layout.ts'
 
 
@@ -41,6 +42,9 @@ export interface DressingZones {
 
   /** The stripped floor of a turf cutting: ground the farm has carried away. */
   onPeat(x: number, z: number): boolean
+
+  /** Under the ice: ground that is not ground, and the only zone with no soil. */
+  onIce(x: number, z: number): boolean
 
   /**
    * The shingle bar out to the nearest rock, and the couple of metres of skirt
@@ -172,6 +176,25 @@ export function createZoneTests (archipelago: ArchipelagoSurvey): DressingZones 
     return peat.claimAt(x - landmass.origin.x, z - landmass.origin.z) > 0
   }
 
+  // The ice, and it is the strictest zone here: the cutting and the pool at
+  // least have ground under them. Nothing grows on a glacier, nothing is stacked
+  // on one and nothing walks over one, so this refuses the lot — without it the
+  // scatter reads the ice surface as high, dry, gently sloping ground and plants
+  // it with juniper.
+  const onIce = (x: number, z: number): boolean => {
+    const landmass = archipelago.field.landmassAt(x, z)
+
+    if (!landmass)
+      return false
+
+    return iceClaim(
+      landmass.config,
+      x - landmass.origin.x,
+      z - landmass.origin.z,
+      archipelago.field.heightAt(x, z),
+    ) > 0
+  }
+
   const onCauseway = (x: number, z: number): boolean => {
     const landmass = archipelago.field.landmassAt(x, z)
     const causeway = landmass?.survey.causeway
@@ -186,7 +209,7 @@ export function createZoneTests (archipelago: ArchipelagoSurvey): DressingZones 
   const clear = (x: number, z: number): boolean =>
     onYard(x, z) === 0 && !onTrack(x, z) && !onPath(x, z) &&
     onPlot(x, z) === 0 && onPasture(x, z) === 0 && !onBeacon(x, z) && !onTarn(x, z) &&
-    !onPeat(x, z) && !onCauseway(x, z)
+    !onPeat(x, z) && !onIce(x, z) && !onCauseway(x, z)
 
   return {
     onYard,
@@ -198,6 +221,7 @@ export function createZoneTests (archipelago: ArchipelagoSurvey): DressingZones 
     onTarn,
     atTarnMargin,
     onPeat,
+    onIce,
     onCauseway,
     clear,
   }
@@ -211,9 +235,9 @@ export function createScatterRules (
   rng:         SeededRng,
   zones:       DressingZones,
 ) {
-  const { onYard, onTrack, onPath, onPlot, onPasture, onBeacon, onTarn, clear } = zones
-  const heightAt                                                                = field.heightAt
-  const water                                                                   = config.terrain.waterLevel
+  const { onYard, onTrack, onPath, onPlot, onPasture, onBeacon, onTarn, onIce, clear } = zones
+  const heightAt                                                                       = field.heightAt
+  const water                                                                          = config.terrain.waterLevel
 
   return {
     conifer: (biasScale: number, minLift: number, maxSlope: number) =>
@@ -237,9 +261,15 @@ export function createScatterRules (
       },
 
     // Stones stay out of the pasture: the ones that were in it are the wall.
+    // The one rule that lists its zones by hand rather than taking `clear`, and
+    // deliberately: a boulder is *allowed* on the ground a spruce is not — the
+    // stripped floor of a peat cutting has stones in it, and the erratics were
+    // dropped where they were dropped. What it may not stand on is ice, which is
+    // not ground at all: an erratic on a glacier is a boulder floating twenty
+    // metres over the mountain it fell off.
     stoneRule: (minLift: number) => (x: number, z: number): boolean =>
       onYard(x, z) === 0 && !onTrack(x, z) && !onPath(x, z) && onPasture(x, z) === 0 &&
-      !onBeacon(x, z) && !onTarn(x, z) && heightAt(x, z) > water + minLift,
+      !onBeacon(x, z) && !onTarn(x, z) && !onIce(x, z) && heightAt(x, z) > water + minLift,
 
     openGround: (minLift: number, maxSlope: number) => (x: number, z: number): boolean =>
       clear(x, z) && heightAt(x, z) > water + minLift && field.slopeAt(x, z) < maxSlope,

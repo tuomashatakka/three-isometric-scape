@@ -27,7 +27,7 @@ export interface Isle {
 }
 
 /** Per-type instance budgets, before the quality tier scales them. */
-export type LandmassProfile = 'home' | 'ridge' | 'meadow' | 'sound' | 'fell'
+export type LandmassProfile = 'home' | 'ridge' | 'meadow' | 'sound' | 'fell' | 'shield'
 
 /**
  * One inhabited island, surveyed in its own local coordinate frame.
@@ -44,6 +44,23 @@ export interface LandmassSpec {
 
   /** Whether this landmass inherits the home island's surrounding skerries. */
   satellites: 'home' | 'none'
+
+  /**
+   * Whether the ferry circuit calls here. Omitted is `'ferry'`.
+   *
+   * A fact about the *route* rather than about the island: every holding has a
+   * jetty, because every holding is on a coast and reaches its own water, and
+   * `'none'` does not take that away — it takes away the leg of the circuit
+   * that would come to it. The boats keep a fixed order and a fixed spacing
+   * around one loop (see `landscape/waterway.ts`), so a port is not a place a
+   * ferry may call: it is a place the whole fleet's schedule is built around.
+   *
+   * The shield is the first island to say `'none'`, and it says it for the
+   * reason it is out there at all — it is a long day north of the nearest
+   * holding, past the last of the skerries, and what is on it is ice. The boat
+   * drawn up on its shore is its own.
+   */
+  port?: 'ferry' | 'none'
 
   /**
    * Only what this island's ground does *differently*.
@@ -81,7 +98,8 @@ export interface LandmassSpec {
 /** The part of `terrain` an island is allowed its own answer to. */
 export type LandmassTerrain = Pick<
   ScapeConfig['terrain'],
-  'size' | 'height' | 'shoreBand' | 'islandInner' | 'islandOuter' | 'ruggedness' | 'reliefSmoothing' | 'fjord'
+  'size' | 'height' | 'shoreBand' | 'islandInner' | 'islandOuter' | 'ruggedness' | 'reliefSmoothing' |
+  'fjord' | 'icecap'
 >
 
 /** The part of `layout` an island is allowed its own answer to. */
@@ -310,6 +328,101 @@ export interface ScapeConfig {
        * are cut. A glacier follows the rock it found.
        */
       bend: number
+    }
+
+    /**
+     * The ice standing on this island.
+     *
+     * The fjord's opposite number, and the second section of `terrain` that is a
+     * whole landform: an inlet is what the ice *cut*, and this is what is left
+     * of the ice. Per-island for the fjord's reason — a cap belongs to the
+     * summit it sits on, and the islands without one say so by inheriting
+     * `crown: 0`.
+     *
+     * Build-time, all of it, and out of the tuning overlay for the reason
+     * `creek` and `fjord` are: the dome is folded into the raw ground, so the
+     * farm is sited *around* it, the terrain mesh is built over it and the
+     * bathymetry mask is baked off it. Nothing here can move without the scape
+     * being generated again.
+     *
+     * See `landscape/icecap.ts` for the profile, and for why the shape is a
+     * parabola rather than a contour.
+     */
+    icecap: {
+
+      /**
+       * The dome's centre, as fractions of the terrain half-extent.
+       *
+       * The convention `terrain.isles` uses, and for its reason: an island that
+       * is authored at one size and drawn at another keeps its composition
+       * where it was put. Which summit the ice is on is a fact about the
+       * island's shape rather than about how many metres across it happens to
+       * be this week.
+       */
+      x: number
+      z: number
+
+      /**
+       * How far the surface reaches before it comes back down to the waterline,
+       * as a fraction of the half-extent.
+       *
+       * **Island-sized, and it has to be.** A cap is bounded by the island
+       * under it, so the same fraction gives a 455 m island a 70 m dome and a
+       * 144 m one a 22 m dome, which is the right relationship between an ice
+       * cap and the ground it stands on. In metres it would be the same dome on
+       * both, and would drown the smaller island in it.
+       *
+       * It is a reach rather than a margin: where the ice actually *ends* is
+       * wherever the falling parabola meets the rising rock, which is inside
+       * this on a hillside and outside it over a bay.
+       */
+      reach: number
+
+      /**
+       * Metres the apex stands above the waterline.
+       *
+       * **Metres, and they stay metres**, and the switch as well as the height —
+       * at 0 there is no ice on the island and no boolean beside it. It is the
+       * surface that is authored rather than the thickness, because a cap's
+       * profile is a property of the ice and not of the rock: raise this and
+       * the dome swallows another ring of nunataks, exactly as a thickening ice
+       * sheet does.
+       */
+      crown: number
+
+      /**
+       * Metres of water the front may stand in before the ice floats.
+       *
+       * Where the dome runs out over a coast rather than into a hillside there
+       * is nothing holding it up, and ice with water under it goes to sea. So
+       * the cap is cut off where the bed falls below this, and the cut *is* the
+       * front: a wall of ice standing in the shallows with the surf breaking on
+       * it, because the shore mask bakes off the same field.
+       *
+       * 0 stops the ice exactly at the waterline. A metre or two is a tidewater
+       * front. Much more is an ice shelf, which is a different thing and is not
+       * modelled — the dome would simply pave the bay.
+       */
+      grounding: number
+
+      /**
+       * How dark the crevasse fields go, 0..1.
+       *
+       * 0 is a smooth white dome, which is what an ice cap looks like from far
+       * enough away and never looks like from this camera. Where the fractures
+       * are is not authored: they open where the ice is steep, which on a dome
+       * is its flanks — see `crevasseAt`.
+       */
+      crevasse: number
+
+      /**
+       * Metres between one crevasse and the next.
+       *
+       * **Metres, and they stay metres.** A crevasse field has a real-world
+       * spacing — tens of metres on a dome this size — and it keeps that
+       * spacing on a bigger island rather than being stretched to fit one.
+       */
+      crevasseScale: number
     }
 
     /**
@@ -2140,6 +2253,29 @@ export interface ScapeConfig {
     ice: number
 
     /**
+     * Glacier ice, on the surface of a cap.
+     *
+     * Its own colour rather than `snow` reused, and the difference is the whole
+     * reason the cap is visible in July. Lying snow is fresh and white; the
+     * surface of an ice cap is old firn, denser and faintly blue, and it sits
+     * beside a summer hillside rather than on top of a white one. Give it
+     * `snow` and midsummer paints the ice the same colour as ground that has no
+     * snow on it at all.
+     */
+    glacier: number
+
+    /**
+     * The blue inside a crevasse.
+     *
+     * Deep, and deliberately far from every other blue in the palette: this is
+     * not water and not shadow but ice thick enough to have taken the red out
+     * of what came back up. It is only ever a fraction of a vertex — the
+     * fractures are lines a metre or two across — so a colour that reads as
+     * blue at full strength reads as a hairline at the strength it is used at.
+     */
+    crevasse: number
+
+    /**
      * A falling drop.
      *
      * Not the water's colour and not the fog's. A streak of rain seen against
@@ -2343,6 +2479,21 @@ export const SCAPE_CONFIG = {
       width:   16,
       bearing: 90,
       bend:    0.55,
+    },
+
+    // And the home island has no ice, said the same way: `crown: 0`, inherited
+    // by every island that does not ask for a cap of its own. The rest is the
+    // dome this island would carry if one were switched on — a crown at 12 m
+    // over an 8.6 m summit and a reach of a third of the half-extent — so the
+    // section reads as a shape rather than as a row of zeroes.
+    icecap: {
+      x:             0,
+      z:             0,
+      reach:         0.33,
+      crown:         0,
+      grounding:     1.6,
+      crevasse:      0.55,
+      crevasseScale: 26,
     },
 
     ruggedness:      0.45,
@@ -2966,6 +3117,8 @@ export const SCAPE_CONFIG = {
     snow:         0xe6ecf0,
     autumn:       0xb4762f,
     ice:          0xa8bcc0,
+    glacier:      0xd8e6ee,
+    crevasse:     0x3f6f96,
     rain:         0xc6d2d8,
     star:         0xdce8ff,
     moon:         0xe4e9e0,

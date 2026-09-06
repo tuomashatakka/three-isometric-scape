@@ -27,6 +27,16 @@ export interface LandmassSurvey {
    * readings of an optional field is how one of them ends up at the default.
    */
   detail: number
+
+  /**
+   * Whether the ferry circuit calls here — see {@link LandmassSpec.port}.
+   *
+   * Resolved off the spec once, for the reason `detail` is: the port projection
+   * reads it and so does the report, and two readings of an optional field is
+   * how one of them ends up at the default.
+   */
+  ferry: boolean
+
   config: ScapeConfig
   survey: ScapeSurvey
 }
@@ -179,17 +189,22 @@ function projectPorts (
   field:      HeightField,
   landmasses: readonly LandmassSurvey[],
 ): WorldPort[] {
-  return landmasses.map(landmass => {
+  return landmasses.flatMap(landmass => {
     const landing = landmass.survey.landing
 
     if (!landing)
       throw new Error(`${landmass.id} has no jetty landing`)
 
-    return createWorldPort(landmass.id, {
+    // An island off the circuit still has its jetty; what it does not have is a
+    // leg of the route and a boat of its own. See `LandmassSpec.port`.
+    if (!landmass.ferry)
+      return []
+
+    return [ createWorldPort(landmass.id, {
       x:     landing.x + landmass.origin.x,
       z:     landing.z + landmass.origin.z,
       angle: landing.angle,
-    }, field, config)
+    }, field, config) ]
   })
 }
 
@@ -241,6 +256,7 @@ export function surveyArchipelago (config: ScapeConfig): ArchipelagoSurvey {
       profile: spec.profile,
       origin:  { x: spec.origin[0], z: spec.origin[1] },
       detail:  landmassDetail(spec),
+      ferry:   spec.port !== 'none',
       config:  local,
       survey:  surveyScape(local),
     }

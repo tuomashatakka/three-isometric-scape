@@ -86,10 +86,28 @@ describe('the inhabited archipelago', () => {
     }
   })
 
+  /**
+   * Every island the ferry calls at, and only those.
+   *
+   * The circuit is no longer the same list as the islands — see
+   * `LandmassSpec.port`. An island off it still has a jetty, a harbour and its
+   * own boat drawn up on the shore; what it does not have is a leg of the loop,
+   * and the distinction is the whole reason the field exists. Both halves are
+   * stated: the served islands are projected exactly as they always were, and
+   * the unserved one is missing from the route rather than missing a landing.
+   */
   test('projects every local landing to the matching world-space port', () => {
-    expect(world.ports).toHaveLength(world.landmasses.length)
+    const served = world.landmasses.filter(landmass => landmass.ferry)
 
-    for (const landmass of world.landmasses) {
+    expect(world.ports).toHaveLength(served.length)
+    expect(served.length).toBeLessThan(world.landmasses.length)
+
+    for (const landmass of world.landmasses.filter(candidate => !candidate.ferry)) {
+      expect(landmass.survey.landing).not.toBeNull()
+      expect(world.ports.some(port => port.id === landmass.id)).toBe(false)
+    }
+
+    for (const landmass of served) {
       const landing = landmass.survey.landing!
       const port    = world.ports.find(candidate => candidate.id === landmass.id)
 

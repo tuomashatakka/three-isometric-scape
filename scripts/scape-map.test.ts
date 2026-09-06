@@ -102,7 +102,9 @@ describe('the map', () => {
   test('shows all jetties, the waterways and the dispatched boats', () => {
     const mapped = renderGrid(config, archipelago, WINDOW, DETAIL_W, DETAIL_H, ALL_LAYERS)
 
-    expect(mapped.match(/J/gu)).toHaveLength(archipelago.ports.length)
+    // Jetties, not ports: every island has a bank the boats are drawn up on,
+    // and one of them is off the ferry circuit — see `LandmassSpec.port`.
+    expect(mapped.match(/J/gu)).toHaveLength(archipelago.landmasses.length)
     expect(mapped).toContain('·')
     expect(mapped.match(/b/gu)).toHaveLength(archipelago.waterways.boatOffsets.length)
   })
@@ -175,11 +177,16 @@ describe('the stats', () => {
   })
 
   test('reports a connected wet network and a separated boat at every port', () => {
-    expect(stats.waterways.legs).toBe(stats.landmasses.length)
+    // One leg and one boat per island *on the circuit*, which since the shield
+    // is no longer every island in the world — see `LandmassSpec.port`.
+    const served = config.archipelago.landmasses.filter(spec => spec.port !== 'none')
+
+    expect(served.length).toBeLessThan(stats.landmasses.length)
+    expect(stats.waterways.legs).toBe(served.length)
     expect(stats.waterways.connected).toBe(true)
     expect(stats.waterways.wet).toBe(true)
     expect(stats.waterways.clearance).toBeGreaterThanOrEqual(config.boats.clearance)
-    expect(stats.boats.count).toBe(stats.landmasses.length)
+    expect(stats.boats.count).toBe(served.length)
     expect(stats.boats.separation).toBeGreaterThanOrEqual(config.boats.separation)
     expect(stats.boats.conflicts).toBe(0)
   })

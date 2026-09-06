@@ -198,4 +198,77 @@ export const SCAPE_LANDMASSES: readonly LandmassSpec[] = [
       pastureRadius: 8,
     },
   },
+
+  // The sixth, and the first island in this archipelago that was not put here
+  // for a farm. The world's northern half has been open water since the span
+  // tripled — every landmass sits on or below the middle line, so half the
+  // plane is sea the camera crosses on its way to nothing. This is what is out
+  // there: a high island holding the one thing the other five only get for a
+  // fortnight of the winter.
+  //
+  // 340 m across against the southern pair's 455, and `detail` at 0.42 rather
+  // than 0.45, because more than half of it is under ice and ice is not
+  // dressed: the scatter budget is spent on the ground that has plants on it,
+  // and this island has less of that than any other.
+  //
+  // (0, 520) clears `halfWorld` at 760 by 70 m with the patch's own half-extent
+  // counted, and stands 422 m clear of the home island's patch on `z` — both
+  // rules are `assertSeparate`'s and `archipelago.test.ts` states them.
+  {
+    id:         'shield',
+    profile:    'shield',
+    origin:     [ 0, 520 ],
+    seedOffset: 72_959,
+    satellites: 'none',
+
+    // Off the ferry circuit, and the one island in the archipelago that is —
+    // see `LandmassSpec.port`. Not a budget decision: the fleet sails one loop
+    // in a fixed order at a fixed spacing, so a sixth port is a sixth boat and
+    // a reshaped schedule for the other five, and the boats on this route have
+    // held their stations for nine runs. What is out here is ice; the holding
+    // under it keeps its jetty and its own boat, and the circuit stays where
+    // the rest of the world can see it.
+    port:    'none',
+    detail:  0.42,
+    terrain: {
+      size:        340,
+      height:      24.5,
+      shoreBand:   0.8,
+      islandInner: 0.5,
+      islandOuter: 0.64,
+
+      // The ice, and the reason the island is here.
+      //
+      // Sited off-centre on purpose, and the offset is the whole composition:
+      // the yard search works a disc of `landRadius * 0.52` about the middle,
+      // so a dome centred on the island would leave the farm nowhere to stand
+      // but under it. Held out at a third of the half-extent, the ice takes the
+      // northern side and the holding keeps the southern shore — which is also
+      // the shore that faces the rest of the archipelago, so the farm is on the
+      // side the ferries come from and the ice is on the side they do not.
+      //
+      // A crown of 20 m stands the surface above every summit in the world:
+      // this island's own rock peaks near 13 m, the fell's at 14.9. That is the
+      // point of it. The reach carries the margin out past the coast on the
+      // seaward side, where there is no hillside to meet it — so that edge is a
+      // front standing in the water rather than a line drawn on a hill.
+      icecap: {
+        x:             -0.065,
+        z:             -0.218,
+        reach:         0.33,
+        crown:         22,
+        grounding:     1.6,
+        crevasse:      0.4,
+        crevasseScale: 16,
+      },
+    },
+    layout: {
+      yardRadius:    14,
+      trackWidth:    2.6,
+      plotCount:     2,
+      forestBias:    0.7,
+      harbourSpread: -44,
+      pastureRadius: 6,
+    },
+  },
 ]
