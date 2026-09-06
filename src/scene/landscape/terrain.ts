@@ -9,6 +9,7 @@ import { cartRutGeometry, trafficAt } from './cart-ruts.ts'
 import type { Footpaths } from './footpath.ts'
 import { surfaceQueries } from './height.ts'
 import type { GroundNormal, HeightField } from './height.ts'
+import { crevasseAt, iceCapOf, iceClaim } from './icecap.ts'
 import { distanceToTrack, pastureInfluence, plotInfluence } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
 import type { Vec2 } from './path.ts'
@@ -102,6 +103,33 @@ export function createTerrainPainter (
   const cutAt = peat
     ? (x: number, z: number): number => peat.claimAt(x, z)
     : (): number => 0
+
+  const glacier  = new Color(palette.glacier)
+  const crevasse = new Color(palette.crevasse)
+
+  /**
+   * The ice, over everything the island did to itself.
+   *
+   * Resolved to a function once for the reason `cutAt` is: whether this island
+   * carries a cap at all is settled at build, and `paint` is the whole
+   * ground-colour rule sitting at the complexity ceiling the lint config sets.
+   *
+   * The fractures are gated on the *drawn* fall rather than on the rock's, and
+   * that is the whole reason the ice goes through the height field: by the time
+   * the painter runs, `slope` is the fall of the ice surface, so the crevasse
+   * fields land on the flanks of the dome rather than on the mountain inside it.
+   */
+  const iced = iceCapOf(config)
+    ? (target: Color, height: number, slope: number, x: number, z: number): void => {
+      const cover = iceClaim(config, x, z, height)
+
+      if (cover <= 0)
+        return
+
+      target.lerp(glacier, cover)
+      target.lerp(crevasse, crevasseAt(config, x, z, slope) * config.terrain.icecap.crevasse * cover)
+    }
+    : (): void => {}
 
   // The compass, resolved once. Which way is shaded is the bearing the sun
   // transits on, and a build reads it the same way every other build-time knob
@@ -254,6 +282,11 @@ export function createTerrainPainter (
       // ground somebody has carried away. Full colour across the floor, and the
       // fade compressed into the last of the ramp.
       target.lerp(cutPeat, Math.min(1, cutAt(x, z) * 2.2) * 0.94)
+
+      // The ice last of all, because it is not a colour the ground took — it is
+      // a different surface standing on top of it. Nothing underneath survives:
+      // there is no aspect on a glacier, no moss, no scree and no cart track.
+      iced(target, height, slope, x, z)
 
       const macro = hash2(x * 0.031, z * 0.031) * 0.14 + hash2(x * 0.19, z * 0.19) * 0.06
       target.multiplyScalar(0.92 + macro)

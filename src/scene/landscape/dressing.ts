@@ -286,8 +286,8 @@ export function createDressing (
 
   // ---- feature tests -------------------------------------------------------
 
-  const zones                                                       = createZoneTests(archipelago)
-  const { onTrack, onPath, onPlot, onPasture, atTarnMargin, clear } = zones
+  const zones                                                              = createZoneTests(archipelago)
+  const { onTrack, onPath, onPlot, onPasture, atTarnMargin, onIce, clear } = zones
 
   // ---- hero props ----------------------------------------------------------
 
@@ -794,9 +794,15 @@ export function createDressing (
 
     // ---- ground cover --------------------------------------------------------
 
+    // Grass takes almost everything — the road and the tread are the only ground
+    // it is kept off, and a tuft in a tilled plot is a weed rather than a
+    // mistake. Ice is the exception, and it is not a taste: this rule reads
+    // *height above the water*, and the surface of a cap is the highest, driest,
+    // gentlest ground in the archipelago by that measure. Without the refusal
+    // the dome comes up in grass.
     scatterCover('grass', config.dressing.grass, (x, z) => {
       const height = heightAt(x, z)
-      return height > water + 0.2 && !onTrack(x, z) && !onPath(x, z) &&
+      return height > water + 0.2 && !onTrack(x, z) && !onPath(x, z) && !onIce(x, z) &&
         (onPlot(x, z) === 0 || rng.next() > 0.75)
     }, 0.6, 1.5, 0, 16, true, sampleSpot, TILT.rooted)
 
@@ -814,9 +820,14 @@ export function createDressing (
     // The shore and the scree: wherever the turf never took, the stone under it
     // is what shows. Not foliage, whatever the default says — a cobble that
     // takes the wind sway is a cobble that rocks in the breeze.
+    // The ice is refused by name, and the slope half of the rule is why: it is
+    // what puts stones on the scree, and on a glaciated island it puts them all
+    // over the flanks of the dome as well. A cap sheds its stones at the
+    // margin; it does not carry a scree slope on its back.
     scatterCover('cobble', config.dressing.cobble, (x, z) => {
       const height = heightAt(x, z)
-      return height < water + 0.7 || field.slopeAt(x, z) > 0.5
+
+      return !onIce(x, z) && (height < water + 0.7 || field.slopeAt(x, z) > 0.5)
     }, 0.7, 1.4, 0, 16, false, sampleSpot, TILT.loose)
 
     // The paving. Sampled along the legs themselves rather than thrown at the

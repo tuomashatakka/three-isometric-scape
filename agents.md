@@ -69,6 +69,7 @@ strand sound<->fell  len 450m  crest 1.1m  lowest 0.4m  CONNECTED
 skerries 49 in 16 guards  widest 22m  lowest 0.8m over the water  nearest island 79.9m
 fjord sound  len 115m  sea 11.7m  sill 5.5m  basin 16.3m  head +2.8m  OVERDEEPENED
 fjord fell  len 115m  sea 11.7m  sill 6m  basin 16.3m  head +3.8m  OVERDEEPENED
+ice shield  (-11.1,482.9) reach 56.1m  covers 38.3% of the island  apex 21.93m  thickest 19.88m  front in 2.12m of water
 hearths 15  lowest mouth 4.35m over the ground
 windows 93  lowest pane 0.73m over the ground  facing out 93/93
 storm 6/7 strikes  peak @ phase 0.3161 over fell  ridge(-193,77) 1x on -1.25m  meadow(206,141) 1x on -1.05m  sound(-336,-501) 2x on 1.72m  fell(282,-480) 2x on 7.02m
@@ -155,6 +156,7 @@ strand sound<->fell  len 450m  crest 1.1m  lowest 0.4m  CONNECTED
 skerries 49 in 16 guards  widest 22m  lowest 0.8m over the water  nearest island 79.9m
 fjord sound  len 115m  sea 11.7m  sill 5.5m  basin 16.3m  head +2.8m  OVERDEEPENED
 fjord fell  len 115m  sea 11.7m  sill 6m  basin 16.3m  head +3.8m  OVERDEEPENED
+ice shield  (-11.1,482.9) reach 56.1m  covers 38.3% of the island  apex 21.93m  thickest 19.88m  front in 2.12m of water
 hearths 15  lowest mouth 4.35m over the ground
 windows 93  lowest pane 0.73m over the ground  facing out 93/93
 storm 6/7 strikes  peak @ phase 0.3161 over fell  ridge(-193,77) 1x on -1.25m  meadow(206,141) 1x on -1.05m  sound(-336,-501) 2x on 1.72m  fell(282,-480) 2x on 7.02m
@@ -171,6 +173,8 @@ gulls 6/6 colonies  home/harbour (-53,-63) r24.1  home/rock (71,46) r28  ridge/h
 `beacon NONE` is the same kind of answer: the light goes on the *outermost* islet in the ring that is broad enough for masonry and has eight dry bearings at its footing, so an archipelago whose skerries are all too small gets no lighthouse. a beacon that moved isle on a run that did not touch `beacon.minRock`, `beacon.freeboard` or `terrain.isles` is a finding.
 
 `fjord <id>` is one line per island with an inlet cut into it, and it is four depths rather than a position because the landform's whole claim is a *relation* between them: the sea outside the mouth, the sill across it, the basin behind it, and how far the valley floor at the head stands over the water. `OVERDEEPENED` means the basin is deeper than the sea it opens into, which is what separates a fjord from a bay. none of it can be read from a still — the depth channel of the bathymetry mask saturates a few metres down and paints all three the same blue — so a run that retunes the falloff, the shore shelving or `seabedDrop` and quietly drowns a sill has this line and nothing else. it is measured off the island's *own* field, not the composite one: the guard answers with the seabed wherever it has no rock, so the composite is floored nine metres down and cannot see a trench.
+
+`ice <id>` is one line per island that keeps an ice cap, and it exists for the fjord line's reason turned over: an inlet's claim is three depths a picture cannot separate, and a cap's is a *thickness* a picture cannot see at all. white ground on top of an island is white ground whether it is twenty metres of ice or a hill with snow on it. `covers` is the share of the island's dry ground under the dome, `apex` how high the ice surface stands over the water, `thickest` the most ice over rock anywhere — measured by surveying the island a second time with `crown: 0`, because by the time anything can be sampled the ice *is* the ground — and `front` how deep the water is where the ice ends, which is `ends ashore` on a cap that never reaches the sea. a run that retunes the falloff, the shelving or `seabedDrop` and quietly leaves the cap floating has this line and nothing else.
 
 `gulls 6/6 colonies` is the flock line, and the two numbers are the finding: the second is what the islands *offered* — one landing each, plus an outer rock where a light was built — and the first is how many of those found open water wide enough to fit a whole ring over. `5/6` on a run that did not touch `birds.spread`, the coastline or the landings means a bank closed up. this is here rather than in a screenshot because a flock is four pixels wide at the default pose.
 
@@ -235,12 +239,15 @@ bun run scape:shot --poses aspect                   # two sides of one hill, 4 f
 bun run scape:shot --poses tarn                     # the pool on the high ground, 4 frames
 bun run scape:shot --poses peat                     # the turf cutting on the moor, 3 frames
 bun run scape:shot --poses storm                    # the lightning on the far islands, 4 frames
+bun run scape:shot --poses ice                      # the cap on the northern island, 3 frames
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain
 ```
 
 `tour` is `default`, `near`, `far`, `noon`, `night`, `winter`. `night` pins a week as well as an hour, because the sun runs a seasonal arc and the config opens at a midsummer that has no night in it. every capture prints a line before anything opens the image, and most runs need only that line:
+
+`ice` is the newest set, and it exists for the reason `beacon` and `peat` do: the cap is 520 m north of the world origin every tour pose is aimed at, so `default` and `far` render a dome a hundred metres across as a white thumbprint. three frames — `ice` is the whole island at a 200 m view, and it is also the claim, because the config opens at midsummer and this is therefore the week every other white thing in the archipelago has gone; `ice-front` drops onto the seaward side at 90 m, the only frame that shows the ice *ending* in water rather than on a hillside; `ice-winter` is the control, where the lying snow reaches the same white down to the shore and the dome still has to read as a shape. reach for it whenever the change touches `terrain.icecap.*`, the terrain paint, or anything that scatters on ground.
 
 `storm` is the one set that names a *time* rather than a place, and it is the only way to photograph the lightning at all. every other system in the scape is somewhere in every frame; a strike is somewhere for two thirds of a second in seven minutes. so the set asks `stormPeak` in [`storm.ts`](src/scene/storm.ts) for the front's brightest strike and pins `weather.time` a fiftieth of a flash into it — the phase is resolved from the seed rather than written down, because a hard-coded one would go stale silently and photograph an empty sky. four frames: `storm` at the default frame, `storm-night` at the same instant in the dark half of the year, `storm-fork` on the striking island at 70 m where the channel is readable, and `storm-clear` a quarter of a cycle on, which is the control and must stay identical to the reference. reach for it whenever the change touches the front, the deck the flash sits under, or the render order between the two.
 

@@ -683,6 +683,44 @@ export const TOURS: Record<string, Pose[]> = {
     },
   ],
 
+  /**
+   * The ice on the northern island, which no pose in `tour` can measure.
+   *
+   * The cap is 520 m north of the world origin every frame in the tour is aimed
+   * at, so `default` and `far` render a dome a hundred metres across as a white
+   * thumbprint — enough to say the ice is there and nothing at all about what it
+   * is doing. These four are the instrument for the landform itself.
+   *
+   * `ice` is the whole island at a zoom where the dome, its margin and the
+   * holding below it are three things rather than one. It is *also* the claim
+   * the run makes, without needing a pose of its own to make it: the config
+   * opens at midsummer, so this is the archipelago at the week every other white
+   * thing in it has gone — and the cap has not.
+   *
+   * `ice-front` drops onto the seaward side, which is the only frame that shows
+   * the ice *ending*: a wall standing in the water with the surf breaking
+   * against it, and the one place a grounding line that had quietly failed
+   * would show as a shelf lying flat on the sea.
+   *
+   * `ice-winter` is the control. At midwinter the lying snow reaches the same
+   * white down to the shore, and the cap has to still read as a *shape* rather
+   * than merging into a white island — which is what the fractures, the margin
+   * and the nunataks are carrying at that hour.
+   *
+   * Nothing here is in {@link STILL}: ice does not move, and the only thing in
+   * these frames that does is the sea at the front.
+   */
+  ice: [
+    { name: 'ice', zoom: 200, set: [ 'camera.focusX=-6', 'camera.focusZ=505' ]},
+    { name: 'ice-front', rot: 200, zoom: 90, set: [ 'camera.focusX=-11', 'camera.focusZ=470' ]},
+    {
+      name:   'ice-winter',
+      zoom:   200,
+      season: 0.02,
+      set:    [ 'camera.focusX=-6', 'camera.focusZ=505' ],
+    },
+  ],
+
   // The cheap pass: is there a scape at all, and does it survive being drawn.
   quick: [{ name: 'default' }],
 }

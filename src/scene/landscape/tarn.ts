@@ -1,5 +1,6 @@
 import { smoothstep } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
+import { iceClaim } from './icecap.ts'
 import { CHAPEL_FOOTING } from './chapel.ts'
 import { distanceToTrack, pastureInfluence, plotInfluence } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
@@ -119,8 +120,27 @@ const BOWL_POWER = 1.7
  */
 const MARGIN = 0.72
 
-/** Ground already spoken for, which no basin may be cut into. */
-function taken (layout: ScapeLayout, x: number, z: number, radius: number): boolean {
+/**
+ * Ground already spoken for, which no basin may be cut into.
+ *
+ * @param level The ground at the point, which only the ice needs — a pool is
+ *   refused on a glacier and the claim is measured against the surface the
+ *   search is reading, not against a second opinion about it.
+ */
+function taken (
+  config: ScapeConfig,
+  layout: ScapeLayout,
+  x:      number,
+  z:      number,
+  radius: number,
+  level:  number,
+): boolean {
+  // Never on the ice, which this search would otherwise take happily: the
+  // flattest ground on a glaciated island is the crown of the dome, and a rim
+  // test run over it finds a basin every time. A pool on a glacier is a pool
+  // with no bed under it.
+  if (iceClaim(config, x, z, level) > 0)
+    return true
   if (Math.hypot(x - layout.yard.x, z - layout.yard.z) < layout.yard.radius + radius)
     return true
   if (distanceToTrack(layout, x, z) < layout.track.width * 1.5 + radius)
@@ -176,7 +196,10 @@ export function solveTarn (
       // just its centre — a basin whose far rim is out past the coast is a bay.
       if (Math.hypot(x, z) > layout.landRadius - radius)
         continue
-      if (ground(x, z) < floor || taken(layout, x, z, radius))
+
+      const level = ground(x, z)
+
+      if (level < floor || taken(config, layout, x, z, radius, level))
         continue
 
       let lowest  = Infinity

@@ -1,6 +1,7 @@
 import { smoothstep } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 import { coastWarp, sampleHeight } from '../noise.ts'
+import { raiseIce } from './icecap.ts'
 import { baseAt, distanceToTrack, plotInfluence, remapRelief, sinkToIsland } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
 import { carvePeat } from './peat.ts'
@@ -259,6 +260,19 @@ export function createHeightField (
     height = fromWater >= 0
       ? waterLevel + fromWater * (0.44 + 0.56 * smoothstep(shoreBand, shoreBand * 2.2, fromWater))
       : waterLevel + fromWater * 1.3
+
+    // The ice, at the same stage `sunkAt` lays it on and for the same reason:
+    // the two have to be one surface, or the farm is sited on a ground the
+    // terrain does not draw.
+    //
+    // After the shelving rather than before it, and that is the front. The
+    // shelving compresses the first metres above the waterline into a beach,
+    // which is exactly right for shingle and exactly wrong for a wall of ice —
+    // laid on first, the cap's last few metres would be graded into a ramp
+    // running down into the sea. Laid on after, the dome keeps its own profile
+    // all the way to the grounding line, and the beach it is standing on has
+    // already been shelved underneath it.
+    height = raiseIce(config, x, z, height)
 
     for (const plot of layout.plots) {
       const claim = plotInfluence(plot, x, z)

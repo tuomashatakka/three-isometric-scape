@@ -1,6 +1,7 @@
 import { smoothstep } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 import { CHAPEL_FOOTING } from './chapel.ts'
+import { iceClaim } from './icecap.ts'
 import { distanceToTrack, pastureInfluence, plotInfluence, ridgeInfluence } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
 import { MILL_FOOTING } from './mill.ts'
@@ -395,6 +396,13 @@ export function solvePeatBank (
       if (Math.hypot(midX, midZ) > layout.landRadius - guard)
         continue
       if (taken(layout, tarn, midX, midZ, guard))
+        continue
+
+      // Nor into the ice. The search pays flatness for *low* ground so it rarely
+      // climbs to a dome on its own, but the margin of one is flat, open and a
+      // couple of metres above the shore — which is the profile it is hunting
+      // for. There is no turf under a glacier.
+      if (iceClaim(config, midX, midZ, ground(midX, midZ)) > 0)
         continue
 
       const under = groundUnder(ground, x, z, bearing, face, reach)

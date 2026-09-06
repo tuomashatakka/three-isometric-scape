@@ -1,6 +1,8 @@
 import type { ScapeConfig } from '../src/scene/config.ts'
 import type { ArchipelagoSurvey } from '../src/scene/landscape/archipelago.ts'
 import { surveyFjord } from '../src/scene/landscape/fjord.ts'
+import { createHeightField } from '../src/scene/landscape/height.ts'
+import { iceCapOf, measureIce } from '../src/scene/landscape/icecap.ts'
 import type { MapStats } from './scape-map.ts'
 
 
@@ -18,6 +20,68 @@ import type { MapStats } from './scape-map.ts'
  * that had to disagree with its neighbours.
  */
 
+
+/**
+ * One drowned valley, measured.
+ *
+ * A fjord's whole claim is a *relation between three depths* — the open sea
+ * outside the mouth, the sill across it, and the basin behind — and no still can
+ * measure three depths through a depth tint. A run that retunes the falloff, the
+ * shelving or the seabed drop can leave the picture looking identical while the
+ * sill has drowned to the seabed and the landform has quietly become a bay, so
+ * the numbers are the check.
+ */
+export interface FjordStats {
+  id:     string
+  length: number
+
+  /** Metres of water in the open sea off the mouth. */
+  sea: number
+
+  /** Metres of water over the shallowest of the way in. */
+  sill: number
+
+  /** Metres of water over the deepest of the basin. */
+  basin: number
+
+  /** Metres the valley floor at the head stands over the waterline. */
+  head: number
+
+  /** Whether the basin is deeper than the sea it opens into. The claim. */
+  overdeepened: boolean
+}
+
+/**
+ * One ice cap, measured against the rock under it.
+ *
+ * The fjords' reason turned over: an inlet's claim is three depths a picture
+ * cannot separate, and a cap's is a *thickness* a picture cannot see at all.
+ * White ground at the top of an island is white ground whether it is a dome of
+ * ice or a hill with snow on it, and the difference between those two is the
+ * whole landform.
+ */
+export interface IcecapStats {
+  id: string
+
+  /** Where the dome stands, in world coordinates. */
+  x: number
+  z: number
+
+  /** Metres from that centre to where the surface reaches the waterline. */
+  reach: number
+
+  /** Percentage of the island's dry ground under ice. */
+  share: number
+
+  /** Metres the ice surface stands above the waterline at its highest. */
+  apex: number
+
+  /** Metres of ice over rock, at the thickest. */
+  thickest: number
+
+  /** Metres of water the front stands in at its deepest. 0 is a cap that ends ashore. */
+  front: number
+}
 
 /** Round for the report, not for the maths. */
 const round = (value: number, places = 1): number => Number(value.toFixed(places))
@@ -71,7 +135,7 @@ export function skerryStats (survey: ArchipelagoSurvey, config: ScapeConfig): Ma
  * island's local field — see `withStrand` in `landscape/terrain.ts` — so that is
  * also the ground the scape actually draws.
  */
-export function fjordStats (survey: ArchipelagoSurvey): MapStats['fjords'] {
+export function fjordStats (survey: ArchipelagoSurvey): FjordStats[] {
   const steps  = 160
   const across = 6
 
@@ -183,4 +247,54 @@ export function strandStats (survey: ArchipelagoSurvey, config: ScapeConfig): Ma
     lowest:    round(lowest - config.terrain.waterLevel),
     connected: lowest > config.terrain.waterLevel,
   }
+}
+
+/**
+ * Every ice cap, measured against the rock it is standing on.
+ *
+ * Four numbers, and every one of them is a claim the pictures cannot check. A
+ * still shows white ground; it does not show whether that white is a dome
+ * eighteen metres thick or a coat of paint over a hill, whether the cap has
+ * quietly swallowed the whole island, or whether the front is standing in the
+ * sea or has floated off into it. Those are exactly the failures a retune of
+ * the falloff, the shelving or the seabed drop produces.
+ *
+ * The second field is what makes it measurable at all: the island is surveyed a
+ * second time with `crown` set to zero, which is the same ground with the ice
+ * taken back off. Thickness is the difference between the two, and there is no
+ * other way to ask — by the time anything can be sampled, the ice *is* the
+ * ground.
+ */
+export function icecapStats (survey: ArchipelagoSurvey): IcecapStats[] {
+  return survey.landmasses.flatMap(landmass => {
+    const cap = iceCapOf(landmass.config)
+
+    if (!cap)
+      return []
+
+    const bare = {
+      ...landmass.config,
+      terrain: {
+        ...landmass.config.terrain,
+        icecap: { ...landmass.config.terrain.icecap, crown: 0 },
+      },
+    }
+
+    const bed    = createHeightField(bare, landmass.survey.layout, landmass.survey.tarn, landmass.survey.peat)
+    const report = measureIce(landmass.config, landmass.survey.field.heightAt, bed.heightAt)
+
+    if (!report)
+      return []
+
+    return [{
+      id:       landmass.id,
+      x:        round(cap.x + landmass.origin.x),
+      z:        round(cap.z + landmass.origin.z),
+      reach:    round(cap.reach),
+      share:    round(report.share * 100),
+      apex:     round(report.apex, 2),
+      thickest: round(report.thickest, 2),
+      front:    round(report.front, 2),
+    }]
+  })
 }

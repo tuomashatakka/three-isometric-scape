@@ -220,6 +220,11 @@ export function formatStats (stats: MapStats): string {
       `fjord ${fjord.id}  len ${fjord.length}m  sea ${fjord.sea}m  ` +
       `sill ${fjord.sill}m  basin ${fjord.basin}m  head +${fjord.head}m  ` +
       `${fjord.overdeepened ? 'OVERDEEPENED' : 'SHALLOWER THAN THE SEA IT OPENS INTO'}`),
+    ...stats.icecaps.map(cap =>
+      `ice ${cap.id}  (${cap.x},${cap.z}) reach ${cap.reach}m  ` +
+      `covers ${cap.share}% of the island  apex ${cap.apex}m  ` +
+      `thickest ${cap.thickest}m  ` +
+      `${cap.front > 0 ? `front in ${cap.front}m of water` : 'ends ashore'}`),
     `hearths ${stats.hearths.count}  lowest mouth ${stats.hearths.lowest}m over the ground` +
       (stats.hearths.lowest < 3 ? '  <- a stack is standing in its own roof' : ''),
     windowLine(stats.windows),
