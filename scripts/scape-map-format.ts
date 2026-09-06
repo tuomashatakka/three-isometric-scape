@@ -145,6 +145,12 @@ function sitedLines (stats: MapStats): string[] {
       ? `croft (${stats.croft.x},${stats.croft.z}) isle ${stats.croft.isle}  ` +
         `freeboard ${stats.croft.freeboard}m  ${stats.croft.fromHarbour}m from the harbour`
       : 'croft NONE  <- no free islet was broad, dry and level enough',
+    stats.causeway
+      ? `causeway (${stats.causeway.x},${stats.causeway.z}) isle ${stats.causeway.isle}  ` +
+        `crossing ${stats.causeway.crossing}m  crest ${stats.causeway.crest}m  ` +
+        `covered ${Math.round(stats.causeway.springs * 100)}% springs / ` +
+        `${Math.round(stats.causeway.neaps * 100)}% neaps`
+      : 'causeway NONE  <- no rock close enough to the shore to walk to',
   ]
 }
 

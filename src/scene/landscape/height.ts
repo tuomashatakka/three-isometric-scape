@@ -1,6 +1,8 @@
 import { smoothstep } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 import { coastWarp, sampleHeight } from '../noise.ts'
+import { raiseCauseway } from './causeway.ts'
+import type { Causeway } from './causeway.ts'
 import { raiseIce } from './icecap.ts'
 import { baseAt, distanceToTrack, plotInfluence, remapRelief, sinkToIsland } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
@@ -192,12 +194,20 @@ export function resolveIsles (config: ScapeConfig): IsleSite[] {
  *   two closures and two smoothed profiles over forty points, which is cheaper
  *   than the alternative — a second approximation of the ground, inside the
  *   solver, that would drift out of agreement with this one.
+ *
+ * @param causeway The bar out to the nearest rock, once it has been sited.
+ *
+ *   Optional for the reason the other two are, and solved last of the three:
+ *   the crossing is measured against the *offshore* ground, and it has to miss
+ *   the banks the boats use — so it cannot be found until the landing and the
+ *   harbour have been. See `surveyScape`.
  */
 export function createHeightField (
-  config: ScapeConfig,
-  layout: ScapeLayout,
-  tarn:   Tarn | null = null,
-  peat:   PeatBank | null = null,
+  config:   ScapeConfig,
+  layout:   ScapeLayout,
+  tarn:     Tarn | null = null,
+  peat:     PeatBank | null = null,
+  causeway: Causeway | null = null,
 ): HeightField {
   const { waterLevel, shoreBand } = config.terrain
   const { yard, track }           = layout
@@ -261,17 +271,24 @@ export function createHeightField (
       ? waterLevel + fromWater * (0.44 + 0.56 * smoothstep(shoreBand, shoreBand * 2.2, fromWater))
       : waterLevel + fromWater * 1.3
 
-    // The ice, at the same stage `sunkAt` lays it on and for the same reason:
-    // the two have to be one surface, or the farm is sited on a ground the
-    // terrain does not draw.
+    // The bar out to the nearest rock, after the shelving rather than before it.
+    // Its crest is authored in metres over mean water, and the shelving is the
+    // last thing in this function that moves ground *relative to* the waterline
+    // — laid before it, a bar asked to stand a hand's breadth clear would be
+    // compressed to half of that and the tide would never leave it.
+    height = raiseCauseway(causeway, x, z, height)
+
+    // And the ice, after the shelving for a version of the same reason and at
+    // the same stage `sunkAt` lays it on — the two have to be one surface, or
+    // the farm is sited on a ground the terrain does not draw. The shelving
+    // grades the first metres above the waterline into a beach, which is right
+    // for shingle and wrong for a wall of ice: laid on first, the cap's last few
+    // metres would be a ramp running down into the sea instead of a front.
     //
-    // After the shelving rather than before it, and that is the front. The
-    // shelving compresses the first metres above the waterline into a beach,
-    // which is exactly right for shingle and exactly wrong for a wall of ice —
-    // laid on first, the cap's last few metres would be graded into a ramp
-    // running down into the sea. Laid on after, the dome keeps its own profile
-    // all the way to the grounding line, and the beach it is standing on has
-    // already been shelved underneath it.
+    // The two never meet — a bar is a metre over the water at the coast and a
+    // cap is twenty metres of ice inland — and both only ever raise ground, so
+    // the order between them decides nothing. It reads bar-then-ice because
+    // that is low-to-high.
     height = raiseIce(config, x, z, height)
 
     for (const plot of layout.plots) {

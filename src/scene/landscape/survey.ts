@@ -2,6 +2,8 @@ import { createSeededRng } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 import { findBeaconSite } from './beacon.ts'
 import type { BeaconSite } from './beacon.ts'
+import { solveCauseway } from './causeway.ts'
+import type { Causeway } from './causeway.ts'
 import { CHAPEL_FOOTING } from './chapel.ts'
 import { findCroftSite } from './croft.ts'
 import type { CroftSite } from './croft.ts'
@@ -60,9 +62,62 @@ export interface ScapeSurvey {
   /** The turf cutting on the moor, or `null` if the island has no flat low ground. */
   peat: PeatBank | null
 
+  /** The bar out to the nearest rock, or `null` when nothing is close enough. */
+  causeway: Causeway | null
+
   /** The street plan: every place walked to, and every leg planned between them. */
   network: FarmNetwork
   paths:   Footpaths
+}
+
+/**
+ * The crossing, and the ground that has it in it. One record, because they are
+ * one decision — see {@link joinTheRock}.
+ */
+type JoinedGround = { causeway: Causeway | null, field: HeightField }
+
+/**
+ * Site the crossing, and hand back the ground that has it in it.
+ *
+ * The one thing in the survey sited *after* the boats rather than before them,
+ * and the order is the rule rather than a convenience: a bar found on a ground
+ * that already had a bar in it could be laid across the water the jetty stands
+ * in, and the jetty would then have been found on ground the bar has since
+ * raised. So the banks are settled against the island as it is, the causeway is
+ * told to miss them, and the field everything downstream reads is rebuilt with
+ * it — once, and only on an island that got one.
+ *
+ * A function of its own rather than six lines in `surveyScape`, because which
+ * field the rest of the survey is measured against depends entirely on whether
+ * there is a crossing to measure.
+ */
+function joinTheRock (
+  config: ScapeConfig,
+  layout: ScapeLayout,
+  tarn:   Tarn | null,
+  peat:   PeatBank | null,
+  ashore: HeightField,
+  berths: readonly (Spot | null)[],
+): JoinedGround {
+  const causeway = solveCauseway(
+    {
+      ground:     ashore.heightAt,
+      waterLevel: config.terrain.waterLevel,
+      gap:        config.causeway.gap,
+      minIsle:    config.causeway.minIsle,
+      clear:      config.causeway.clear,
+      crest:      config.causeway.crest,
+      camber:     config.causeway.camber,
+      halfWidth:  config.causeway.halfWidth,
+    },
+    resolveIsles(config),
+    berths,
+  )
+
+  return {
+    causeway,
+    field: causeway ? createHeightField(config, layout, tarn, peat, causeway) : ashore,
+  }
 }
 
 /**
@@ -94,11 +149,13 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
   // field is the one the tarn solve used to throw away, so this is one more
   // closure and one more pair of smoothed profiles rather than a third pass over
   // the island.
-  const peat               = solvePeatBank(config, layout, createHeightField(config, layout, tarn).heightAt, tarn)
-  const field: HeightField = createHeightField(config, layout, tarn, peat)
-  const places             = steadingPlaces(layout.yard)
-  const landing            = findLanding(layout, field, config)
-  const harbour            = landing && findHarbourBank(layout, field, config, landing)
+  const peat    = solvePeatBank(config, layout, createHeightField(config, layout, tarn).heightAt, tarn)
+  const ashore  = createHeightField(config, layout, tarn, peat)
+  const places  = steadingPlaces(layout.yard)
+  const landing = findLanding(layout, ashore, config)
+  const harbour = landing && findHarbourBank(layout, ashore, config, landing)
+
+  const { causeway, field } = joinTheRock(config, layout, tarn, peat, ashore, [ landing, harbour ])
 
   // Offshore, and answering to nothing else in the survey: the light is sited on
   // the ring of rocks rather than on the island, so it neither moves anything
@@ -206,5 +263,19 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
       distanceToTrack(layout, x, z) < layout.track.width * 1.3,
   })
 
-  return { layout, field, places, landing, harbour, beacon, croft, smokehouse, tarn, peat, network, paths }
+  return {
+    layout,
+    field,
+    places,
+    landing,
+    harbour,
+    beacon,
+    croft,
+    smokehouse,
+    tarn,
+    peat,
+    causeway,
+    network,
+    paths,
+  }
 }
