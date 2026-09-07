@@ -16,8 +16,8 @@ import { STEADING_BUILDINGS } from '../src/scene/landscape/steading.ts'
 import { sampleWaterway } from '../src/scene/landscape/waterway.ts'
 import type { ScapeConfig } from '../src/scene/config.ts'
 import { formatStats } from './scape-map-format.ts'
-import { fjordStats, hauloutStats, icecapStats, skerryStats, strandStats, treelineStats } from './scape-map-landforms.ts'
-import type { FjordStats, IcecapStats, TreelineStats } from './scape-map-landforms.ts'
+import { duneStats, fjordStats, hauloutStats, icecapStats, skerryStats, strandStats, treelineStats } from './scape-map-landforms.ts'
+import type { DuneStats, FjordStats, IcecapStats, TreelineStats } from './scape-map-landforms.ts'
 import { causewayOf, croftOf, peatOf, smokehouseOf, tarnOf } from './scape-map-sites.ts'
 import { rainbowStats, stormStats } from './scape-map-weather.ts'
 import { applyOverrides, parseArgs } from './args.ts'
@@ -258,6 +258,15 @@ export interface MapStats extends CompositionStats {
    */
   fjords:  FjordStats[]
   icecaps: IcecapStats[]
+
+  /**
+   * The blown sand, one entry per island that has a belt on it.
+   *
+   * Alongside the caps rather than under the composition for the reason they
+   * are: a dune belt is measured against the coastline, and the coastline is
+   * only knowable by walking it.
+   */
+  dunes: DuneStats[]
 
   /**
    * The wood's edge — the shares of land inside it, at it and above it.
@@ -679,6 +688,7 @@ export function surveyStats (
     haulout:  hauloutStats(survey, config),
     fjords:   fjordStats(survey),
     icecaps:  icecapStats(survey),
+    dunes:    duneStats(survey),
     treeline: treelineStats(survey, config),
     grazing:  {
       count: flocks.length,

@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { Box3 } from 'three'
 import { createSeededRng } from 'threejs-scene'
 import { resolvePalette } from './palette.ts'
-import { buildBirch, buildGrassTuft, buildJuniper, buildPine, buildSpruce } from './vegetation.ts'
+import { buildBirch, buildGrassTuft, buildJuniper, buildMarram, buildPine, buildSpruce } from './vegetation.ts'
 
 
 const palette = resolvePalette()
@@ -147,6 +147,22 @@ describe('vegetation modifiers', () => {
     first.dispose()
     second.dispose()
     other.dispose()
+  })
+
+  test('a marram tussock stands taller and tighter than the grass it is modelled on', () => {
+    // The claim the prop makes, as a fact about the two geometries rather than
+    // as a sentence in a comment: marram keeps its head above the sand that is
+    // burying it, and it does that in a tussock rather than in a sward.
+    const tussock = boundsOf(buildMarram(createSeededRng(4_242), palette))
+    const tuft    = boundsOf(buildGrassTuft(createSeededRng(4_242), palette))
+
+    const tussockSize = tussock.getSize(tussock.max.clone())
+    const tuftSize    = tuft.getSize(tuft.max.clone())
+
+    expect(tussock.min.y).toBeGreaterThan(-0.1)
+    expect(tussockSize.y).toBeGreaterThan(tuftSize.y * 1.4)
+    expect(Math.max(tussockSize.x, tussockSize.z))
+      .toBeLessThan(Math.max(tuftSize.x, tuftSize.z))
   })
 
   test('a grass tuft stands on the ground and stays inside a plausible tuft size', () => {

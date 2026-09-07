@@ -6,6 +6,8 @@ import type { ScapeConfig } from '../config.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
 import { dampBand, shadeAmount, shadeDirection } from './aspect.ts'
 import { cartRutGeometry, trafficAt } from './cart-ruts.ts'
+import { duneClaim } from './dunes.ts'
+import type { DuneBelt } from './dunes.ts'
 import type { Footpaths } from './footpath.ts'
 import { surfaceQueries } from './height.ts'
 import type { GroundNormal, HeightField } from './height.ts'
@@ -69,6 +71,7 @@ export function createTerrainPainter (
   paths:  Footpaths,
   field:  HeightField,
   peat:   PeatBank | null = null,
+  dunes:  DuneBelt | null = null,
 ): TerrainPainter {
   const { palette }    = config
   const { waterLevel } = config.terrain
@@ -94,6 +97,7 @@ export function createTerrainPainter (
   const moss      = new Color(palette.moss)
   const sunned    = new Color(palette.dryGrass)
   const cutPeat   = new Color(palette.peat)
+  const blownSand = new Color(palette.dune)
 
   // Resolved to a function once rather than asked per vertex whether there is a
   // cutting at all. Two of the painter's branches for a question whose answer is
@@ -256,6 +260,26 @@ export function createTerrainPainter (
         target.lerp(trodden, worn * config.footpath.wear * (0.3 + 0.7 * green))
       }
 
+      // The sand, over the ground rules and under everything people made. A
+      // belt is a deposit rather than a soil, so nothing the bands, the aspect
+      // or the scree did to the rock underneath survives where it lies deep —
+      // but the road, the yard and the plots are still laid on top of it, which
+      // is the right way round: a track crossing a dune is a track.
+      //
+      // Curved the way the peat's claim is, and for the same reason: the belt's
+      // own profile is what gives the paint an edge the terrain grid can hold,
+      // and painting through it at face value spreads a pale wash over the whole
+      // landward apron, which reads as a bleached hillside rather than as sand.
+      // Full colour along the ridge, and the fade compressed into the last of
+      // the thickness. Unguarded — off the belt the claim is zero and the lerp
+      // is already the no-op the branch would have been.
+      //
+      // Under the beck below it, which is the same order the height field lays
+      // the two in: the channel cuts through the belt on its way to the sea, so
+      // it keeps its own gravel across the sand rather than being paved over
+      // with it.
+      target.lerp(blownSand, Math.min(1, duneClaim(dunes, x, z) * 2.6) * 0.92)
+
       // Last, and over the track: the beck cuts *under* the road rather than
       // stopping at it, so the channel keeps its gravel across the crossing and
       // the bridge reads as spanning something. The wash is strongest on the
@@ -345,13 +369,14 @@ function terrainGeometry (
   paths:    Footpaths,
   segments: number,
   peat:     PeatBank | null,
+  dunes:    DuneBelt | null,
 ): BufferGeometry {
   const geometry = new PlaneGeometry(config.terrain.size, config.terrain.size, segments, segments)
   geometry.rotateX(-Math.PI / 2)
 
   const positions = geometry.getAttribute('position')
   const colors    = new Float32Array(positions.count * 3)
-  const painter   = createTerrainPainter(config, layout, paths, field, peat)
+  const painter   = createTerrainPainter(config, layout, paths, field, peat, dunes)
   const color     = new Color()
 
   for (let index = 0; index < positions.count; index += 1) {
@@ -382,8 +407,9 @@ function cartRutPatch (
   paths:    Footpaths,
   segments: number,
   peat:     PeatBank | null,
+  dunes:    DuneBelt | null,
 ): BufferGeometry | null {
-  const painter = createTerrainPainter(config, layout, paths, field, peat)
+  const painter = createTerrainPainter(config, layout, paths, field, peat, dunes)
   const surface = drawnSurfaceOf(field, config.terrain.size, segments)
 
   return cartRutGeometry({
@@ -679,6 +705,7 @@ export function createArchipelagoTerrain (
       landmass.survey.paths,
       segments,
       landmass.survey.peat,
+      landmass.survey.dunes,
     )
 
     geometry.translate(landmass.origin.x, 0, landmass.origin.z)
@@ -694,6 +721,7 @@ export function createArchipelagoTerrain (
       landmass.survey.paths,
       segments,
       landmass.survey.peat,
+      landmass.survey.dunes,
     )
 
     if (ruts) {

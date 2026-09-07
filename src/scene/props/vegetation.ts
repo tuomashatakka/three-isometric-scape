@@ -229,6 +229,47 @@ export function buildGrassTuft (rng: SeededRng, palette: NordicPalette): BufferG
   return mergeParts(parts, { grime: 0.6, grimeFloor: 0.34 })
 }
 
+/**
+ * A tussock of marram — the one plant that holds a dune together.
+ *
+ * The grass tuft's opposite number, and built as one deliberately: same four
+ * blades, same bend-and-twist, and every parameter pushed the other way. Marram
+ * grows *tall* out of loose sand because it has to keep its head above the sand
+ * that keeps burying it, and it grows in tight tussocks rather than in a sward
+ * because it spreads by rhizome and not by seed. So the blades are twice the
+ * height, half the spread, and much straighter — a dune tussock stands up into
+ * the wind that made the dune, where meadow grass lies over in it.
+ *
+ * Five blades rather than four, which is the one place it costs more than the
+ * grass it is modelled on: the taller a blade is the more of the tussock's
+ * silhouette it is, and four at this height read as a fan seen edge-on from the
+ * wrong bearing.
+ */
+export function buildMarram (rng: SeededRng, palette: NordicPalette): BufferGeometry {
+  const parts: BufferGeometry[] = []
+
+  for (let stem = 0; stem < 5; stem += 1) {
+    const height = 0.62 + rng.range(0, 0.36)
+    const curve  = deg(rng.range(10, 34)) * (rng.next() > 0.5 ? 1 : -1)
+    const twist  = deg(rng.range(-26, 26))
+
+    const leaf = applyTwist(applyBend(applyTaper(blade(0.042, height), 0.06, 'y'), curve, 'y'), twist, 'y')
+
+    parts.push(part(leaf, {
+      at:     [ rng.range(-0.05, 0.05), height * 0.5, rng.range(-0.05, 0.05) ],
+      rotate: [ deg(rng.range(-6, 6)), rng.range(0, TAU), deg(rng.range(-6, 6)) ],
+      color:  rng.next() > 0.55 ? palette.marram : palette.marramDry,
+      jitter: 0.16,
+      rng,
+    }))
+  }
+
+  // Barely grimed, where the grass is grimed hard. A tussock standing in bare
+  // sand has nothing to be dirtied by and everything to be lit by — the ground
+  // it grows out of is the brightest surface on the island.
+  return mergeParts(parts, { grime: 0.3, grimeFloor: 0.62 })
+}
+
 /** A heather clump — low, purple, and slightly woody. */
 export function buildHeather (rng: SeededRng, palette: NordicPalette): BufferGeometry {
   const parts: BufferGeometry[] = []

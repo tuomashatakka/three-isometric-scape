@@ -3,6 +3,7 @@ import type { ScapeConfig } from '../config.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
 import type { HeightField } from './height.ts'
 import { BEACON_FOOTING } from './beacon.ts'
+import { duneClaim } from './dunes.ts'
 import { iceClaim } from './icecap.ts'
 import { distanceToTrack, pastureInfluence, plotInfluence, ridgeInfluence } from './layout.ts'
 import { planTreeline, stuntedTo } from './treeline.ts'
@@ -50,6 +51,16 @@ export interface DressingZones {
    * boot — the only ground in the scape that is neither dry nor the sea.
    */
   atTarnMargin(x: number, z: number): boolean
+
+  /**
+   * How deep the blown sand is, as a fraction of the belt's own ridge.
+   *
+   * A depth rather than a predicate, because sand is not a boundary you are
+   * inside or outside: it thins to nothing over twenty-odd metres and both
+   * readers want to know how much of it there is. The marram thickens with it
+   * and the ordinary sward gives out under it.
+   */
+  onDune(x: number, z: number): number
 
   /** The stripped floor of a turf cutting: ground the farm has carried away. */
   onPeat(x: number, z: number): boolean
@@ -206,6 +217,20 @@ export function createZoneTests (archipelago: ArchipelagoSurvey): DressingZones 
     ) > 0
   }
 
+  // The sand. Loose sand is ground a plant either specialises in or fails on,
+  // so a boundary would be the wrong answer twice over — the marram wants the
+  // deep middle of the belt and the sward wants everything the belt has not
+  // smothered.
+  const onDune = (x: number, z: number): number => {
+    const landmass = archipelago.field.landmassAt(x, z)
+    const dunes    = landmass?.survey.dunes
+
+    if (!dunes)
+      return 0
+
+    return duneClaim(dunes, x - landmass.origin.x, z - landmass.origin.z)
+  }
+
   const onCauseway = (x: number, z: number): boolean => {
     const landmass = archipelago.field.landmassAt(x, z)
     const causeway = landmass?.survey.causeway
@@ -234,6 +259,7 @@ export function createZoneTests (archipelago: ArchipelagoSurvey): DressingZones 
     onPeat,
     onIce,
     onCauseway,
+    onDune,
     clear,
   }
 }

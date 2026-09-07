@@ -41,6 +41,13 @@ export const NORDIC_PALETTE = {
   // borrowed `moss` would read as grass growing in the sea.
   wrack:     '#4a4526',
   wrackDeep: '#332f1a',
+  // Marram on the dune belt. Its own green rather than a reuse of `grass`,
+  // because the one thing that grows in loose sand is not the sward that grows
+  // in soil: marram is glaucous, nearly grey-blue against the pale ground it
+  // holds together, and a tussock borrowed from the meadow would have read as a
+  // lawn somebody had left on a beach.
+  marram:    '#7d8d6a',
+  marramDry: '#a9a878',
   heather:   '#6b5f72',
   grass:     '#5d6b3c',
   grassDry:  '#8f8a51',
