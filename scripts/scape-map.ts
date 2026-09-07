@@ -16,8 +16,8 @@ import { STEADING_BUILDINGS } from '../src/scene/landscape/steading.ts'
 import { sampleWaterway } from '../src/scene/landscape/waterway.ts'
 import type { ScapeConfig } from '../src/scene/config.ts'
 import { formatStats } from './scape-map-format.ts'
-import { fjordStats, hauloutStats, icecapStats, skerryStats, strandStats } from './scape-map-landforms.ts'
-import type { FjordStats, IcecapStats } from './scape-map-landforms.ts'
+import { fjordStats, hauloutStats, icecapStats, skerryStats, strandStats, treelineStats } from './scape-map-landforms.ts'
+import type { FjordStats, IcecapStats, TreelineStats } from './scape-map-landforms.ts'
 import { causewayOf, croftOf, peatOf, smokehouseOf, tarnOf } from './scape-map-sites.ts'
 import { rainbowStats, stormStats } from './scape-map-weather.ts'
 import { applyOverrides, parseArgs } from './args.ts'
@@ -258,6 +258,15 @@ export interface MapStats extends CompositionStats {
    */
   fjords:  FjordStats[]
   icecaps: IcecapStats[]
+
+  /**
+   * The wood's edge — the shares of land inside it, at it and above it.
+   *
+   * The one block in this readout that measures something the scape *removes*
+   * as well as something it adds, and it is here because both failures are
+   * invisible in a still. See {@link TreelineStats}.
+   */
+  treeline: TreelineStats
 
   /**
    * The gull colonies, and the birds dealt across them.
@@ -670,6 +679,7 @@ export function surveyStats (
     haulout:  hauloutStats(survey, config),
     fjords:   fjordStats(survey),
     icecaps:  icecapStats(survey),
+    treeline: treelineStats(survey, config),
     grazing:  {
       count: flocks.length,
       asked: survey.landmasses.length * config.grazing.flocks,

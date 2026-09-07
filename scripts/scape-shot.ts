@@ -899,6 +899,41 @@ export const TOURS: Record<string, Pose[]> = {
     },
   ],
 
+  /**
+   * The wood's edge, from the one distance it has a shape at.
+   *
+   * Added for the reason `coast` was, and the arithmetic is the same. A treeline
+   * is a *hillside*-scaled subject: shore to summit on the home island is about
+   * seventy metres, and every pose in `tour` is either the whole archipelago at
+   * better than half a metre to the pixel — where the entire wood is a texture —
+   * or `near` at ten metres, which is standing in the yard between two buildings
+   * with the crop in frame and no skyline in it at all. The change that put the
+   * wood's edge on the map moved `tour/near` by a quarter of the frame and
+   * `tour/default` by three tenths of one per cent, and neither number is about
+   * the treeline.
+   *
+   * `wood` is the home island's hill from the shore up over the summit at (9,
+   * 18), at a view that holds both ends of the line. `wood-lee` is the *same*
+   * frame with the wind turned right around, and it is the whole exposure claim
+   * as a picture: the line has to climb on the side that was the weather side
+   * and drop on the side that was the lee, so a treeline that had quietly become
+   * a contour reads as `same` here and nowhere else. `wood-shield` is the
+   * northern island, whose 22.85 m peak stands two and a half times the
+   * sheltered line — the one landmass where the bare ground is most of it.
+   *
+   * Nothing here is in {@link STILL}: a wood grows on a clock no frame of this
+   * scape advances.
+   */
+  wood: [
+    { name: 'wood', zoom: 120, set: [ 'camera.focusX=9', 'camera.focusZ=18' ]},
+    {
+      name: 'wood-lee',
+      zoom: 120,
+      set:  [ 'camera.focusX=9', 'camera.focusZ=18', 'wind.bearing=74' ],
+    },
+    { name: 'wood-shield', zoom: 240, set: [ 'camera.focusX=0', 'camera.focusZ=520' ]},
+  ],
+
   // The cheap pass: is there a scape at all, and does it survive being drawn.
   quick: [{ name: 'default' }],
 }
@@ -1281,7 +1316,8 @@ async function main (): Promise<void> {
       '                        causeway (3, the bar out to the nearest rock)',
       '                        fjord (4, the drowned valley in the sound)',
       '                        haulout (4, the seals on the guard, low and high water)',
-      '                        bow (4, the rainbow at three heights of sun) | quick (1)',
+      '                        bow (4, the rainbow at three heights of sun)',
+      '                        wood (3, the treeline on two hillsides) | quick (1)',
       '  --rot 45 --zoom 70    camera yaw, and view size (tilt is derived from zoom)',
       '  --time 0.42           the day, 0..1',
       '  --season 0.5          the year, 0..1',

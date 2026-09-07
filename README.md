@@ -87,6 +87,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a walled upland hay meadow with a barn, a gate and drying poles
 - a limewashed chapel on a knoll above the farm — a bell tower with an open belfry and a spire, a stepped chancel, and a walled churchyard with twelve leaning markers in it
 - juniper bushes out on the dry upland heath — a low, spreading evergreen that reads apart from the conifers and answers to the same one wind
+- **a treeline drawn by the wind rather than by height**: two lines rather than one, mixed by how much open water lies upwind of a point — the wood gives out at about two metres over ground with the sea full on it and climbs to eight and a half in the lee of its own hill — with a margin of stunted spruce at the edge, salt keeping the trees back off every weather shore, birch thickest at the line and shaded out behind it, and juniper heath inheriting the bare tops the spruce gave up
 - a lighthouse on the outermost rock of the ring, throwing beams that sweep the water from dusk until dawn
 - a shingle bar out to the nearest rock, thirteen metres of it, standing a hand's breadth over mean water — dry ground you walk to the light on, and ground the spring tides close over for a third of the cycle while the neaps never reach it at all
 - a croft out on the islets — a boarded, turf-roofed hut with a stone flue and a pair of oars against its blind gable, on the nearest free rock to the harbour it is worked from, glazed on two walls and smoking
@@ -195,6 +196,7 @@ src/
     ├── config.ts                   the public tuning surface
     ├── config-landmasses.ts        the six islands, as a table rather than as schema
     ├── config-guard.ts             the guard's own slice of the schema: rocks, weed, seals
+    ├── config-treeline.ts          the wood's own slice: the two lines, and the fetch between
     ├── config-access.ts            who owns the config, before and after the mount
     ├── state-path.ts               writePath with structural sharing
     ├── create-isometric-scape.ts   app/module composition root
@@ -258,10 +260,12 @@ src/
     │   ├── boat-motion.ts          one shared departure clock, one leg each
     │   ├── terrain.ts              geometry, banded colour, path wear and cart soil painted in, ruts merged on
     │   ├── aspect.ts               which way a slope is turned, and the moss and snow that follow from it
+    │   ├── treeline.ts             where the wood stops: fetch, two lines, and the margin between them
     │   ├── shore-mask.ts           the baked bathymetry, and which way each coast faces
     │   ├── water.ts                swell, surf, foam, glitter, winter ice
     │   ├── water-caustics.ts      the sun's net on the bottom of the shallows
     │   ├── samplers.ts             where the dressing throws its darts, islands and rocks alike
+    │   ├── dressing-sampling.ts    what the darts are thrown at, and each feature's quota
     │   ├── dressing-zones.ts       what the composition already claims the ground for
     │   ├── dressing-helpers.ts     the placement questions that are pure geometry
     │   ├── dressing-enclosures.ts  the pasture wall, the churchyard wall, the plot fences
@@ -303,7 +307,7 @@ scripts/
 ├── prop-map.ts                     one prop as ascii, from six angles
 ├── scape-map.ts                    the whole composition as ascii
 ├── scape-map-format.ts             the stats block, as the run reads it
-├── scape-map-landforms.ts          the bar, the guard and the fjords, walked and measured
+├── scape-map-landforms.ts          the bar, the guard, the fjords and the treeline, walked
 ├── scape-map-sites.ts              the sited features of one island, projected and measured
 ├── scape-map-weather.ts            the storm the front carries, and where its strikes land
 ├── scape-shot.ts                   headless stills, posed and pinned
@@ -514,7 +518,35 @@ the uplands had heather over the whole moor and the conifers on the ridges, and 
 
 **where it grows is one pure rule.** [`juniperRule`](src/scene/landscape/dressing-zones.ts) takes ground that is clear of the composition, higher than the shore scrub (`> water + 1.6 m`), and up to a steeper slope than a spruce will take (`0.95` against the conifer's `0.6`–`0.7`) — which is what keeps it out on the moor rather than in among the forest. a height-weighted roll thins it toward the open upland the heather already claims, so the two read as one plant community rather than two scatters that happen to overlap.
 
+it is also the one rule in the scape that reads the treeline **backwards** — see the section below. juniper is not a tree failing to be tall; it is the plant that inherits the ground the trees gave up, so a closed canopy over it takes a third of its odds and the bare tops are where it wins.
+
 **it costs one `InstancedMesh` and answers to the same wind.** placed as a structural scatter through the existing solver — 140 before the tier scales it, spaced at 0.55 m — so it pays the spacing check the trees and boulders do and nothing more. it is in the `FOLIAGE` set, so one gust crosses the grass, the heather and the juniper together, and `wind.speed=0` stills all three for a capture.
+
+## the treeline the wind drew
+
+the scape had trees from the first island and no **treeline** until the run this section arrived with. `layout.forestBias` scaled the conifer roll by how near a point stood to a ridge, so the wood came out as an even sprinkle from the beach to the summit, thinning a little in the hollows. that is the one thing a northern island does not look like. a wood at this latitude has an *edge*, and 38% of this archipelago's land stands in the first metre over the water while the tail runs to twenty-two — so a wood with no edge is a wood covering every part of a range where three completely different things should be growing.
+
+**the edge is not a contour.** [`treeline.ts`](src/scene/landscape/treeline.ts) is two lines rather than one, and what mixes them is **fetch**: how far the wind has run over open water before it arrives. the walk goes *upwind* from a point — the direction opposite `wind.bearing`, seventy metres of it in fourteen weighted steps — and counts how much of what it crosses is sea. ground with land upwind all the way out carries spruce to `treeline.sheltered` (8.5 m); ground with nothing but water upwind gives out at `treeline.exposed` (1.8 m). on this seed the farmyard sits at an exposure of 0.10 and the croft on its free islet at 0.93, which is the gap the whole system is drawn by.
+
+**seventy metres is the scale shelter is decided at here, and it was chosen against the ground.** at twenty the whole coast reads as sheltered because the beach itself is dry; at three hundred every island reads as exposed on every bearing because they all sit in open sea. the walk is weighted toward the near end for the obvious reason — the sea immediately upwind of a point matters more to it than the sea sixty-nine metres out.
+
+**it is one number doing two jobs.** `vigourAt` comes back 0..1 and is both a probability and a size: the conifer roll is multiplied by it, so the wood *thins* toward its edge rather than ending at one, and the tree that is planted is scaled by `stuntedTo` down to half height at the very margin. that pairing is deliberate. a margin of full-height trees standing further apart reads as a felled wood; a margin of small trees at full density reads as a plantation. krummholz is both at once, and this is the one scale the scape can show it at.
+
+**the salt is the other end of the same fact.** an exposed coast is scoured twice a day and salted the rest of the year, so its trees start well back from the water even where the ground behind them is good. `treeline.saltBand` takes up to 80% of a tree's vigour at the waterline and none of it by two and a half metres up — scaled by the *same* exposure the upper line is, so a sheltered shore grows birch to the high-water mark and a weather shore is scrub.
+
+**three plants read it, and one of them reads it backwards.** spruce, pine and the dead spruce take it straight. birch takes `v(1 - 0.35v)`, which rises with vigour and then bends back down — it is the wood's pioneer, thickest *at* the line and shaded out of the closed stands behind it. juniper takes `1 - 0.35v`, because it is what inherits the ground the trees lost. without that last one the whole run would have been a subtraction: the summits lose their spruce and get nothing, which is a clear-fell rather than a treeline.
+
+**there is no rng in `treeline.ts`, and that is what lets the instrument check it.** the module is pure the way the prop builders are — a height field and a config in, three numbers per point out — so [`scape:map --stats`](scripts/scape-map-landforms.ts) runs `planTreeline` against the same composite field the dressing does and prints the same lines. the alternative is a rule in the dressing and a second copy of it in the readout, which is how a stats block ends up describing a wood that is not there. the roll that decides whether one dart lands a spruce stays in the dressing, which owns the shared stream.
+
+**the roll is always drawn.** every treeline-gated rule rolls `rng.next()` *before* it consults the vigour, and never after. the dressing draws from one shared stream and only an accepted dart draws a yaw, a scale and a tint — so a rule that short-circuits past its own draw moves every prop stamped after it, and a treeline would arrive as a reshuffle of the entire archipelago. it is the same trap `onCauseway` documents, arriving through a different door.
+
+**it is surveyed off the composite field, not per landmass.** the fetch runs over the sea *between* the islands, so a shore in the lee of the next island along is sheltered by ground that is not in its own patch — a patch-local walk would have called every coast in the archipelago exposed.
+
+**every length in it is metres and stays metres.** a spruce gives out at the height a spruce gives out at, and the fetch that decides where is a distance over water. neither is a fraction of the world or of the frame, so a world that grows again leaves all of `config-treeline.ts` alone. that is the audit the scale rule asks for, written at the knob rather than discovered later.
+
+**the tree budgets went up by about a third with it, and that is a restoration rather than a thickening.** a budget is a number of darts, and the treeline halved the ground they may land on — mean vigour over this archipelago's land is 0.59. leaving them alone would have kept the wood's new shape and thrown away half the wood. draw calls are unchanged: it is the same one `InstancedMesh` per prop type, and the tier's `scatterScale` still divides everything by three on mobile.
+
+**and no pose in `tour` could see any of it.** a treeline is a hillside-scaled subject — shore to summit on the home island is about seventy metres — and the tour is either the whole archipelago at better than half a metre to the pixel or `near` at ten metres, standing in the farmyard with no skyline in frame. so [`scape:shot --poses wood`](scripts/scape-shot.ts) is three frames that are: the home hill from shore to summit, the *same* frame with the wind turned right around, and the northern island whose peak stands two and a half times the sheltered line. the second is the whole claim as a picture — whatever the line does, it has to do it on the other side of the hill there.
 
 ## the camera, between sessions
 

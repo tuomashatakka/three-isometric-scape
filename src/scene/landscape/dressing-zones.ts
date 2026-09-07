@@ -5,10 +5,21 @@ import type { HeightField } from './height.ts'
 import { BEACON_FOOTING } from './beacon.ts'
 import { iceClaim } from './icecap.ts'
 import { distanceToTrack, pastureInfluence, plotInfluence, ridgeInfluence } from './layout.ts'
+import { planTreeline, stuntedTo } from './treeline.ts'
 
 
 /** The bare middle of a worn path, excluding its thinning verge. */
 const TREAD = 0.55
+
+/**
+ * How much of a plant's odds a closed canopy over it takes.
+ *
+ * One number, used twice and in opposite directions: birch is shaded out of the
+ * stands it seeded, and juniper never gets under them at all. Both are the same
+ * fact about a wood — the ground inside it belongs to the spruce — so they read
+ * the same knob rather than two that would drift apart.
+ */
+const SHADED_OUT = 0.35
 
 /**
  * How deep and how high a pool's reed band reaches, in metres of water.
@@ -227,7 +238,17 @@ export function createZoneTests (archipelago: ArchipelagoSurvey): DressingZones 
   }
 }
 
-/** Pure acceptance rules shared by every archipelago-wide scatter batch. */
+/**
+ * Pure acceptance rules shared by every archipelago-wide scatter batch.
+ *
+ * The treeline is surveyed *here* rather than handed in, and off the composite
+ * field rather than per landmass: the fetch that decides where a wood gives out
+ * runs over the sea between the islands, so a shore in the lee of the next
+ * island along is sheltered by ground that is not in its own patch. Everything
+ * that reads it is in this file or is returned from it, which is the reason it
+ * is owned here — `scape:map` runs `planTreeline` itself, against the same
+ * field, and gets the same lines. See `treeline.ts`.
+ */
 export function createScatterRules (
   config:      ScapeConfig,
   archipelago: ArchipelagoSurvey,
@@ -238,8 +259,38 @@ export function createScatterRules (
   const { onYard, onTrack, onPath, onPlot, onPasture, onBeacon, onTarn, onIce, clear } = zones
   const heightAt                                                                       = field.heightAt
   const water                                                                          = config.terrain.waterLevel
+  const treeline                                                                       = planTreeline(archipelago.field, config, water)
 
   return {
+    treeline,
+
+    /**
+     * What the ground under a spot does to the size of the tree on it, 0..1.
+     *
+     * The dressing's half of the treeline rule: krummholz, at the one scale this
+     * scape can show it. A margin of full-height trees standing further apart
+     * reads as a felled wood, so the same number that thins the scatter also
+     * shortens what is left in it.
+     */
+    canopy: (x: number, z: number): number =>
+      stuntedTo(treeline.vigourAt(x, z), config.treeline.stunt),
+
+    /**
+     * Ground the wood reaches, on top of whatever else a rule asks of it.
+     *
+     * For the two props that are not trees but are only there *because* trees
+     * are — a seedling, and the stump of the one that was felled. Neither
+     * belongs on a bare top, and both take the generic open-ground rule rather
+     * than the conifer's, so the treeline is composed onto them rather than
+     * folded into a rule that stones and bales also read.
+     *
+     * The roll comes first and is therefore always drawn. `rng` is shared, and
+     * a short-circuit past a draw moves every prop stamped after this one.
+     */
+    inTheWood: (accept: (x: number, z: number) => boolean) =>
+      (x: number, z: number): boolean =>
+        rng.next() < treeline.vigourAt(x, z) && accept(x, z),
+
     conifer: (biasScale: number, minLift: number, maxSlope: number) =>
       (x: number, z: number): boolean => {
         const landmass = archipelago.field.landmassAt(x, z)
@@ -253,11 +304,18 @@ export function createScatterRules (
         const localZ = z - landmass.origin.z
         const bias   = landmass.config.layout.forestBias * biasScale
 
-        return rng.next() < 0.46 + bias * ridgeInfluence(
+        // The roll is rolled either way, vigour or no vigour. `rng` is the
+        // dressing's shared stream and a short-circuit here is a draw the
+        // stream does not make — which moves every prop stamped after it, and
+        // turns a treeline into a reshuffle of the whole archipelago. The same
+        // trap `dressing.ts` documents at the causeway test.
+        const roll   = rng.next()
+
+        return roll < (0.46 + bias * ridgeInfluence(
           landmass.survey.layout,
           localX,
           localZ,
-        )
+        )) * treeline.vigourAt(x, z)
       },
 
     // Stones stay out of the pasture: the ones that were in it are the wall.
@@ -285,7 +343,16 @@ export function createScatterRules (
       if (!clear(x, z) || height < water + 1.6 || field.slopeAt(x, z) > 0.95)
         return false
 
-      return rng.next() < 0.55 + 0.35 * Math.min(1, (height - water - 1.6) / 4)
+      const roll = rng.next()
+
+      // The one rule the treeline reads *backwards*. Juniper is not a tree
+      // failing to be tall — it is the plant that inherits the ground the trees
+      // gave up, so the wood suppresses it and the bare tops and the salted
+      // coast are where it wins. Without this the run's whole finding would have
+      // been a subtraction: the summits lost their spruce and got nothing, which
+      // is a clear-fell rather than a treeline.
+      return roll < (0.55 + 0.35 * Math.min(1, (height - water - 1.6) / 4)) *
+        (1 - SHADED_OUT * treeline.vigourAt(x, z))
     },
 
     beachRule: (maxSlope: number) => (x: number, z: number): boolean => {
@@ -299,7 +366,18 @@ export function createScatterRules (
 
     birchRule (x: number, z: number): boolean {
       const height = heightAt(x, z)
-      return clear(x, z) && height > water + 0.6 && height < water + 4.6
+
+      if (!clear(x, z) || height < water + 0.6 || height > water + 4.6)
+        return false
+
+      // Birch is the wood's pioneer: it takes the margin the spruce cannot hold
+      // and gets shaded out of the closed stands behind it. So its odds rise
+      // with vigour and then bend back down, which is a scatter that is thickest
+      // *at* the treeline rather than under it.
+      const roll   = rng.next()
+      const vigour = treeline.vigourAt(x, z)
+
+      return roll < vigour * (1 - SHADED_OUT * vigour)
     },
 
     plotEdge: (x: number, z: number): boolean =>
