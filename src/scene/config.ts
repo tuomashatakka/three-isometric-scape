@@ -3079,7 +3079,7 @@ export const SCAPE_CONFIG = {
     foam:         0xd9e2da,
     silt:         0x565b4a,
     shore:        0xa9977a,
-    dune:         0xcabf9e,
+    dune:         0xd8d0b2,
     meadow:       0x5d6b3c,
     dryGrass:     0x8f8a51,
     heath:        0x6b6a52,

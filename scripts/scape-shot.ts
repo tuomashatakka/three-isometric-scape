@@ -934,6 +934,48 @@ export const TOURS: Record<string, Pose[]> = {
     { name: 'wood-shield', zoom: 240, set: [ 'camera.focusX=0', 'camera.focusZ=520' ]},
   ],
 
+  /**
+   * The dune belt, from the side of the island it is on.
+   *
+   * Added for the reason `wood` was, and the arithmetic is nearly the same. A
+   * belt is a *coast*-scaled subject: 105 m of the home island's shore, twenty
+   * metres deep, on one bearing. Every pose in `tour` is aimed at the middle of
+   * the archipelago, where a coastal band twenty metres wide is a few pixels, or
+   * at `near`, which is ten metres of open farmyard forty metres inland of it.
+   * The run that put the sand on the map moved `tour/default` by fourteen
+   * hundredths of one per cent, and that number is not about the belt.
+   *
+   * `dune` is the home island's weather shore at (12, 42), at a view that holds
+   * the ridge, the blowouts through it and the bare lee coast beyond. `dune-lee`
+   * is the *same* frame with the wind turned right around, and it is the whole
+   * claim as a picture: the belt is on the shore the weather arrives at, so
+   * turning the weather has to take the sand to the far side of the island and
+   * leave this one bare. `dune-near` is the ridge itself at 40 m, which is the
+   * only frame where a marram tussock is more than a pixel and the one that
+   * shows the sand as a surface rather than as a stripe. `dune-winter` is the
+   * control the belt needs most: lying snow whitens the whole island, and a pale
+   * band that cannot be told from snow is a pale band that is not reading as
+   * sand.
+   *
+   * Nothing here is in {@link STILL}: sand moves on a clock no frame of this
+   * scape advances, and the marram takes the wind sway every other plant does.
+   */
+  dune: [
+    { name: 'dune', zoom: 110, set: [ 'camera.focusX=12', 'camera.focusZ=42' ]},
+    {
+      name: 'dune-lee',
+      zoom: 110,
+      set:  [ 'camera.focusX=12', 'camera.focusZ=42', 'wind.bearing=74' ],
+    },
+    { name: 'dune-near', zoom: 40, set: [ 'camera.focusX=12', 'camera.focusZ=42' ]},
+    {
+      name:   'dune-winter',
+      zoom:   110,
+      season: 0.02,
+      set:    [ 'camera.focusX=12', 'camera.focusZ=42' ],
+    },
+  ],
+
   // The cheap pass: is there a scape at all, and does it survive being drawn.
   quick: [{ name: 'default' }],
 }
@@ -1317,7 +1359,8 @@ async function main (): Promise<void> {
       '                        fjord (4, the drowned valley in the sound)',
       '                        haulout (4, the seals on the guard, low and high water)',
       '                        bow (4, the rainbow at three heights of sun)',
-      '                        wood (3, the treeline on two hillsides) | quick (1)',
+      '                        wood (3, the treeline on two hillsides)',
+      '                        dune (4, the blown sand on the weather shore) | quick (1)',
       '  --rot 45 --zoom 70    camera yaw, and view size (tilt is derived from zoom)',
       '  --time 0.42           the day, 0..1',
       '  --season 0.5          the year, 0..1',
