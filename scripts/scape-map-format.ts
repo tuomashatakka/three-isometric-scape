@@ -24,6 +24,27 @@ import type { MapStats } from './scape-map.ts'
  * grown until there is nowhere left to put an animal, and is invisible in a
  * still because the thing it is about is the thing that is not there.
  */
+/**
+ * The wood's edge, in one line.
+ *
+ * The three shares first, because they are the finding: a wooded share that fell
+ * off a cliff is a mistuned salt band, and a bare share of nothing is a treeline
+ * that stopped reaching the ground. The lines themselves come after — a `low`
+ * that climbed to meet `high` means the fetch walk stopped telling one coast
+ * from another, which reads as a contour and not as a wood.
+ */
+function treelineLine (treeline: MapStats['treeline']): string {
+  const islands = treeline.islands
+    .map(island => `${island.id} ${island.wooded}%/${island.line}m/e${island.exposure}`)
+    .join('  ')
+
+  return `treeline wooded ${treeline.wooded}%  margin ${treeline.margin}%  ` +
+    `bare ${treeline.bare}%  line ${treeline.line.low}..${treeline.line.high}m ` +
+    `mean ${treeline.line.mean}m` +
+    (treeline.wooded === 0 ? '  <- the archipelago has no wood left on it' : '') +
+    (islands ? `\n            ${islands}` : '')
+}
+
 function grazingLine (grazing: MapStats['grazing']): string {
   const head = `grazing ${grazing.count}/${grazing.asked} flocks  `
 
@@ -276,6 +297,7 @@ export function formatStats (stats: MapStats): string {
     windowLine(stats.windows),
     stormLine(stats.storm),
     rainbowLine(stats.rainbow),
+    treelineLine(stats.treeline),
     grazingLine(stats.grazing),
     `gulls ${stats.colonies.count}/${stats.colonies.asked} colonies  ` +
       (stats.colonies.sited

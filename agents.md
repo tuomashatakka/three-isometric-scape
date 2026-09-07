@@ -77,6 +77,8 @@ hearths 19  lowest mouth 4.17m over the ground
 windows 108  lowest pane 0.73m over the ground  facing out 108/108
 storm 6/7 strikes  peak @ phase 0.3161 over fell  ridge(-193,77) 1x on -1.25m  meadow(206,141) 0x on -1.05m  sound(-336,-501) 2x on 1.72m  fell(282,-480) 3x on 7.02m  shield(-42,526) 0x on 4.01m
 bow   sun 42.1° up  apex -0.1°  bearing 143.5°  cover 0.29  now 0.482  best 0.585 @ phase 0.201
+treeline wooded 42.2%  margin 38.2%  bare 19.6%  line 1.8..8.5m mean 5.68m
+            home 48.3%/5.21m/e0.49  ridge 33.3%/4.44m/e0.61  meadow 62.5%/5.69m/e0.42  sound 61.8%/6.32m/e0.33  fell 45.7%/6.22m/e0.34  shield 21.2%/6.23m/e0.34
 grazing 7/12 flocks  thinnest cover 0.72  home/outfield (32,-14) r7  home/outfield (24,23) r7  meadow/infield (158,146) r7  sound/infield (-329,-518) r7  sound/outfield (-266,-443) r7  fell/infield (311,-424) r7  fell/outfield (322,-541) r7
 gulls 7/7 colonies  home/harbour (-53,-63) r24.1  home/rock (93,60) r28  ridge/harbour (-116,147) r28  meadow/harbour (103,132) r28  sound/harbour (-373,-353) r28  fell/harbour (322,-361) r13.2  shield/harbour (-98,577) r24.1
 ```
@@ -168,6 +170,8 @@ hearths 19  lowest mouth 4.17m over the ground
 windows 108  lowest pane 0.73m over the ground  facing out 108/108
 storm 6/7 strikes  peak @ phase 0.3161 over fell  ridge(-193,77) 1x on -1.25m  meadow(206,141) 0x on -1.05m  sound(-336,-501) 2x on 1.72m  fell(282,-480) 3x on 7.02m  shield(-42,526) 0x on 4.01m
 bow   sun 42.1° up  apex -0.1°  bearing 143.5°  cover 0.29  now 0.482  best 0.585 @ phase 0.201
+treeline wooded 42.2%  margin 38.2%  bare 19.6%  line 1.8..8.5m mean 5.68m
+            home 48.3%/5.21m/e0.49  ridge 33.3%/4.44m/e0.61  meadow 62.5%/5.69m/e0.42  sound 61.8%/6.32m/e0.33  fell 45.7%/6.22m/e0.34  shield 21.2%/6.23m/e0.34
 grazing 7/12 flocks  thinnest cover 0.72  home/outfield (32,-14) r7  home/outfield (24,23) r7  meadow/infield (158,146) r7  sound/infield (-329,-518) r7  sound/outfield (-266,-443) r7  fell/infield (311,-424) r7  fell/outfield (322,-541) r7
 gulls 7/7 colonies  home/harbour (-53,-63) r24.1  home/rock (93,60) r28  ridge/harbour (-116,147) r28  meadow/harbour (103,132) r28  sound/harbour (-373,-353) r28  fell/harbour (322,-361) r13.2  shield/harbour (-98,577) r24.1
 ```
@@ -257,6 +261,7 @@ bun run scape:shot --poses causeway                 # the bar out to the nearest
 bun run scape:shot --poses ice                      # the cap on the northern island, 3 frames
 bun run scape:shot --poses bow                      # the rainbow, 4 frames, three heights of sun
 bun run scape:shot --poses haulout                  # the seals on the guard, 4 frames, low water and high
+bun run scape:shot --poses wood                     # the treeline on two hillsides, 3 frames
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain
@@ -264,7 +269,7 @@ bun run scape:shot --skip post                      # drop the optical chain
 
 `tour` is `default`, `near`, `far`, `noon`, `night`, `winter`. `night` pins a week as well as an hour, because the sun runs a seasonal arc and the config opens at a midsummer that has no night in it. every capture prints a line before anything opens the image, and most runs need only that line:
 
-`ice` is the newest set, and it exists for the reason `beacon` and `peat` do: the cap is 520 m north of the world origin every tour pose is aimed at, so `default` and `far` render a dome a hundred metres across as a white thumbprint. three frames — `ice` is the whole island at a 200 m view, and it is also the claim, because the config opens at midsummer and this is therefore the week every other white thing in the archipelago has gone; `ice-front` drops onto the seaward side at 90 m, the only frame that shows the ice *ending* in water rather than on a hillside; `ice-winter` is the control, where the lying snow reaches the same white down to the shore and the dome still has to read as a shape. reach for it whenever the change touches `terrain.icecap.*`, the terrain paint, or anything that scatters on ground.
+`ice` is the set for the cap, and it exists for the reason `beacon` and `peat` do: the cap is 520 m north of the world origin every tour pose is aimed at, so `default` and `far` render a dome a hundred metres across as a white thumbprint. three frames — `ice` is the whole island at a 200 m view, and it is also the claim, because the config opens at midsummer and this is therefore the week every other white thing in the archipelago has gone; `ice-front` drops onto the seaward side at 90 m, the only frame that shows the ice *ending* in water rather than on a hillside; `ice-winter` is the control, where the lying snow reaches the same white down to the shore and the dome still has to read as a shape. reach for it whenever the change touches `terrain.icecap.*`, the terrain paint, or anything that scatters on ground.
 
 `storm` is the one set that names a *time* rather than a place, and it is the only way to photograph the lightning at all. every other system in the scape is somewhere in every frame; a strike is somewhere for two thirds of a second in seven minutes. so the set asks `stormPeak` in [`storm.ts`](src/scene/storm.ts) for the front's brightest strike and pins `weather.time` a fiftieth of a flash into it — the phase is resolved from the seed rather than written down, because a hard-coded one would go stale silently and photograph an empty sky. four frames: `storm` at the default frame, `storm-night` at the same instant in the dark half of the year, `storm-fork` on the striking island at 70 m where the channel is readable, and `storm-clear` a quarter of a cycle on, which is the control and must stay identical to the reference. reach for it whenever the change touches the front, the deck the flash sits under, or the render order between the two.
 
@@ -283,6 +288,8 @@ bun run scape:shot --skip post                      # drop the optical chain
 `tide` is the tenth set, and the first whose subject is a *difference* rather than a place. a tide is only ever visible as two frames of one shore, and two frames taken at two hours of the day differ by the light as well — which is the larger signal and would drown the smaller one. so the hour is held and `tide.lag` is turned instead: `ebb` and `flood` are the identical frame of the harbour bank west of the landing, half a cycle of lag apart, and the only thing that can have moved between them is the water. `tide-slack` is the *guard* — the same frame at `tide.range=0`, which has to come back `same` as the tideless scape, or the range is not the switch the section says it is. reach for it whenever the change touches `tide.*`, the waterline, or anything floating on it.
 
 `aspect` is aimed at the one subject the tour has never had in frame at a size worth measuring: an open hillside. four frames — `aspect` and `aspect-turned` are the fell from opposite headings, which is the claim in two pictures, since the face that is dark and green from one is pale from the other; `aspect-thaw` is the week the snow line's swing lives in, a *thaw* at `season: 0.16` rather than midwinter, because at full cover a line that has run off the top of the island cannot be seen to swing; `aspect-home` is the home island's own upland, where the effect has to survive being seen next to a farm. the fell is the subject because it is the steepest ground in the archipelago and the least built on. reach for it whenever the change touches `terrain.aspect*`, `season.snowSwing`, `palette.moss`, or anything else that repaints ground rather than adding a thing to it — and reach for `--tolerance 0.04` with it, because a wide, low-amplitude repaint is precisely what the default per-pixel tolerance of 0.1 is not built to see.
+
+`wood` is the newest set, and it is aimed at the one subject in the scape whose scale is a *hillside*: the wood's edge. shore to summit on the home island is about seventy metres, and the tour is either the whole archipelago at better than half a metre to the pixel — where the entire wood is a texture — or `near` at ten metres, standing in the farmyard with no skyline in frame. three frames: `wood` is the home hill from the shore up over the summit at a 120 m view; `wood-lee` is the *identical* frame with `wind.bearing` turned right around, and it is the whole claim as a picture, because the treeline is mixed by upwind fetch and therefore has to climb on the side that was the weather side; `wood-shield` is the northern island at 240 m, whose 22.85 m peak stands two and a half times the sheltered line, so the bare ground there is most of it. there is no control frame and there cannot be one — every pose differs from a pre-treeline reference, because gating the conifer roll moves the shared rng stream and therefore every prop stamped after it. reach for it whenever the change touches `treeline.*`, `layout.forestBias`, the tree budgets, or anything else that decides which ground a plant stands on.
 
 `beacon` is the second set: the light itself, at night, from four headings 90° apart, aimed by `camera.focusX`/`focusZ` rather than by zoom. it exists because the beams' bug was a render-order tie broken by *projected depth*, and that flips with yaw — one heading can only ever photograph one side of the flip, and no pose in `tour` has the tower in frame at all. reach for it whenever the change touches the transparent stack.
 
@@ -461,7 +468,9 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `tarn-water.ts` | every island's pool in one still draw, its depth tint, and the winter it gets weeks before the sea |
 | `peat.ts` | the search for low ground level enough to cut turf out of, the bearing the face stands on, and the step the carve leaves |
 | `samplers.ts` | where the dressing throws its darts — island, disc, tread, skerry |
-| `dressing-zones.ts` | world-space keep-outs and pure scatter acceptance rules |
+| `treeline.ts` | where the wood stops: upwind fetch, the two lines it mixes, the margin band, and the salt on the weather shores |
+| `dressing-sampling.ts` | the samplers and per-feature quotas, in the one fixed order the shared rng depends on |
+| `dressing-zones.ts` | world-space keep-outs, pure scatter acceptance rules, and the treeline they are gated on |
 | `dressing-helpers.ts` | hand-placed runs and helpers shared by each holding |
 | `dressing-enclosures.ts` | the walled ground: the pasture wall, the churchyard wall and its graves, the plot fences |
 | `dressing.ts` | placement, hero merge, instanced scatter |
@@ -469,6 +478,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `water-caustics.test.ts` | the net is a daylight effect: nothing under the horizon, nothing in the polar night, a ramp rather than a step, and rain dims it without putting it out |
 | `beck.test.ts` | the sheet never runs uphill, lies flat across the channel, opens out with it, stops at the tideline, and locks after the sea does |
 | `tarn.test.ts` | no rim point stands below the water, the carve only goes down and only inside its radius, water actually stands in every basin, the pool is off the farm, and it locks ahead of the sea |
+| `treeline.test.ts` | the farm is sheltered and the outer islet is not, vigour never rises with height, nothing woody is accepted above its own line, and the archipelago keeps closed wood, a margin *and* bare ground |
 | `peat.test.ts` | the face is level along its length, the working is worked downhill from it, the floor is exactly one cut below the moor it replaced, a bulge inside it is taken off rather than followed, and nothing outside the rectangle moves |
 | `index.ts` | the scene module, and what raycasts |
 | `tide.test.ts` (in `src/scene/`) | two highs a lunar day, springs on new *and* full, a mean of zero over a cycle, a flat sea at range zero — and the shipped range fits under the router's clearance and inside the wrack band |

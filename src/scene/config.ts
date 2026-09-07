@@ -2,6 +2,8 @@ import type { AppModule } from 'threejs-scene'
 import { SCAPE_GUARD } from './config-guard.ts'
 import type { GuardConfig } from './config-guard.ts'
 import { SCAPE_LANDMASSES } from './config-landmasses.ts'
+import { SCAPE_TREELINE } from './config-treeline.ts'
+import type { TreelineConfig } from './config-treeline.ts'
 import type { QualityEffects } from './quality.ts'
 
 
@@ -199,7 +201,7 @@ export interface DressingBudget {
   lamb: number
 }
 
-export interface ScapeConfig extends GuardConfig {
+export interface ScapeConfig extends GuardConfig, TreelineConfig {
   seed:    number
   terrain: {
     size:       number
@@ -1390,6 +1392,11 @@ export interface ScapeConfig extends GuardConfig {
     /** How deep the wobble goes, 0..1. 1 takes a lamp all the way out at the bottom. */
     unsteady: number
   }
+  // The wood's own numbers — the two lines it gives out between, and the fetch
+  // that decides which one a hillside gets — are in `config-treeline.ts`, the
+  // second section to move out of this file whole. What stands *inside* those
+  // lines is still a budget here: `dressing.spruce` is a count, and the treeline
+  // is what a count is spent on.
   dressing: DressingBudget
 
   /**
@@ -2597,6 +2604,7 @@ export const SCAPE_CONFIG = {
     halfWidth: 3.4,
   },
   ...SCAPE_GUARD,
+  ...SCAPE_TREELINE,
   footpath: {
     width:  1.5,
     verge:  0.7,
@@ -2750,14 +2758,21 @@ export const SCAPE_CONFIG = {
   // it — the same forest spread over twice the hillside is a wood turning into
   // a scrub. What did not grow is the farm: one holding has the barrels, bales
   // and firewood one holding has, whatever it is standing on.
+  //
+  // The tree budgets went up by about a third the run the treeline arrived, and
+  // it is a restoration rather than a thickening. A budget is a number of darts
+  // and the treeline halved the ground they may land on — mean vigour over this
+  // archipelago's land is 0.59 — so leaving them alone would have kept the
+  // wood's new *shape* and thrown away half of the wood. Juniper went up further
+  // than the trees because it is the plant that takes the ground they lost.
   dressing: {
-    spruce:     520,
-    pine:       180,
-    birch:      148,
-    deadSpruce: 48,
-    sapling:    250,
+    spruce:     700,
+    pine:       244,
+    birch:      200,
+    deadSpruce: 62,
+    sapling:    300,
     stump:      80,
-    juniper:    140,
+    juniper:    210,
     grass:      1_700,
     heather:    500,
     wildflower: 230,

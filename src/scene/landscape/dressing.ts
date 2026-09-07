@@ -23,11 +23,12 @@ import type { Spot } from './landing.ts'
 import { createGroundContact, findCrossing, isFoliage, trackPointNear } from './dressing-helpers.ts'
 import { raiseEnclosures } from './dressing-enclosures.ts'
 import type { Walling } from './dressing-enclosures.ts'
+import { createDressingSampling } from './dressing-sampling.ts'
 import { createScatterRules, createZoneTests } from './dressing-zones.ts'
-import { createGrazingTest, planGrazing } from './grazing.ts'
+import { createGrazingTest } from './grazing.ts'
 import { yawAlong } from './layout.ts'
 import type { Plot, Vec2 } from './layout.ts'
-import { createDiscSampler, createSkerrySampler, createSpotSampler, createTreadSampler } from './samplers.ts'
+import { createSkerrySampler, createTreadSampler } from './samplers.ts'
 
 
 export interface Dressing {
@@ -39,6 +40,17 @@ interface ScatterSampling {
   sample?:     () => Vec2
   quota?:      readonly (() => Vec2)[]
   claimScale?: number
+
+  /**
+   * What the ground under a spot does to the size of what stands on it, 0..1.
+   *
+   * The one thing in here that is about the *prop* rather than about where the
+   * darts are thrown, and it earns the seat: the scale range is a pair of
+   * constants at the call site, and a tree at the treeline is not a tree rolled
+   * small — it is a tree of that size *because of where it is*. Multiplied into
+   * the roll rather than replacing it, so the wood keeps its own variety.
+   */
+  scaleBy?: (x: number, z: number) => number
 }
 
 const TAU = Math.PI * 2
@@ -112,100 +124,6 @@ function shade (rng: SeededRng, low: number, high: number): string {
   const clamped = Math.min(255, Math.max(0, value)).toString(16)
     .padStart(2, '0')
   return `#${clamped}${clamped}${clamped}`
-}
-
-function createDressingSampling (
-  config:      ScapeConfig,
-  archipelago: ArchipelagoSurvey,
-  rng:         SeededRng,
-) {
-  const sampleSpot = createSpotSampler(archipelago, rng)
-  const pastures   = archipelago.landmasses.flatMap(landmass => {
-    const pasture = landmass.survey.layout.pasture
-
-    return pasture
-      ? [{
-        x:      pasture.x + landmass.origin.x,
-        z:      pasture.z + landmass.origin.z,
-        radius: pasture.radius,
-      }]
-      : []
-  })
-  const yards = archipelago.landmasses.map(landmass => ({
-    x:      landmass.survey.layout.yard.x + landmass.origin.x,
-    z:      landmass.survey.layout.yard.z + landmass.origin.z,
-    radius: landmass.survey.layout.yard.radius * 0.72,
-  }))
-  const harbours = archipelago.landmasses.flatMap(landmass => {
-    const harbour = landmass.survey.harbour
-
-    return harbour
-      ? [{
-        x:      harbour.x + landmass.origin.x,
-        z:      harbour.z + landmass.origin.z,
-        radius: 30,
-      }]
-      : []
-  })
-  // The turf cuttings, one per island that has one. A working is a hundred and
-  // twenty square metres of a landmass that is tens of thousands, so it takes a
-  // disc of its own for the reason the pasture does — darts thrown at the island
-  // land on it about never.
-  const workings = archipelago.landmasses.flatMap(landmass => {
-    const peat = landmass.survey.peat
-
-    return peat
-      ? [{
-        x:      peat.floor.x + landmass.origin.x,
-        z:      peat.floor.z + landmass.origin.z,
-        radius: peat.floor.radius,
-      }]
-      : []
-  })
-  // The flocks are surveyed, not sampled: `grazing.ts` walks out from each yard
-  // and hands back the discs of hill a farm would turn its stock out onto. What
-  // the dressing does with them is what it does with the pasture — one sampler
-  // over all of them, and one per flock so every farm keeps its own sheep.
-  const grazings      = planGrazing(archipelago, config)
-  const samplePasture = createDiscSampler(rng, pastures)
-  const sampleYard    = createDiscSampler(rng, yards)
-  const sampleHarbour = createDiscSampler(rng, harbours)
-  const sampleGrazing = createDiscSampler(rng, grazings)
-  const samplePeat    = createDiscSampler(rng, workings)
-  const pastureQuota  = pastures.map(feature => createDiscSampler(rng, [ feature ]))
-  const grazingQuota  = grazings.map(feature => createDiscSampler(rng, [ feature ]))
-  const yardQuota     = yards.map(feature => createDiscSampler(rng, [ feature ]))
-  const harbourQuota  = harbours.map(feature => createDiscSampler(rng, [ feature ]))
-  const peatQuota     = workings.map(feature => createDiscSampler(rng, [ feature ]))
-  const homeArea      = config.terrain.size ** 2
-
-  // Weighted by each island's own `detail`, which is what keeps a landmass of
-  // ten times the area from multiplying every budget in the scape by ten. A
-  // budget is a count, so leaving this alone would not have thinned the outer
-  // islands — it would have thickened the whole archipelago, and put the
-  // placement solver, which is O(claims) per attempt, through six times the work
-  // for ground the camera rarely reaches.
-  const areaScale     = archipelago.landmasses.reduce(
-    (total, landmass) => total + landmass.config.terrain.size ** 2 * landmass.detail,
-    0,
-  ) / homeArea
-
-  return {
-    sampleSpot,
-    samplePasture,
-    sampleYard,
-    sampleHarbour,
-    sampleGrazing,
-    samplePeat,
-    pastureQuota,
-    yardQuota,
-    harbourQuota,
-    grazingQuota,
-    peatQuota,
-    grazings,
-    workings,
-    areaScale,
-  }
 }
 
 /**
@@ -693,6 +611,7 @@ export function createDressing (
 
   const {
     conifer, stoneRule, openGround, beachRule, birchRule, juniperRule, plotEdge, inPasture, inYard,
+    canopy, inTheWood,
   } = createScatterRules(config, archipelago, field, rng, zones)
 
 
@@ -738,10 +657,14 @@ export function createDressing (
     // left for a boulder, and the reverse is never a problem.
     scatterStructural('erratic', config.dressing.erratic, 1.6, stoneRule(0.2), 0.7, 1.4, 40, {}, TILT.loose)
     scatterStructural('cairn', config.dressing.cairn, 1.3, stoneRule(0.6), 0.85, 1.2, 40, {}, TILT.placed)
-    scatterStructural('pine', config.dressing.pine, 0.9, conifer(0.7, 2.4, 0.6), 0.7, 1.35, 40, {}, TILT.rooted)
-    scatterStructural('spruce', config.dressing.spruce, 0.6, conifer(1, 1, 0.7), 0.62, 1.5, 40, {}, TILT.rooted)
-    scatterStructural('birch', config.dressing.birch, 0.7, birchRule, 0.68, 1.3, 40, {}, TILT.rooted)
-    scatterStructural('deadSpruce', config.dressing.deadSpruce, 0.6, conifer(0.5, 0.8, 0.9), 0.6, 1.2, 40, {}, TILT.placed)
+    // The five that answer to the treeline, and the four of them that are
+    // scaled by it. Juniper is not: a juniper on the bare top is not a stunted
+    // juniper, it is a juniper on the ground it prefers, and shrinking it there
+    // would have taken the plant out of the one place this run gave it.
+    scatterStructural('pine', config.dressing.pine, 0.9, conifer(0.7, 2.4, 0.6), 0.7, 1.35, 40, { scaleBy: canopy }, TILT.rooted)
+    scatterStructural('spruce', config.dressing.spruce, 0.6, conifer(1, 1, 0.7), 0.62, 1.5, 40, { scaleBy: canopy }, TILT.rooted)
+    scatterStructural('birch', config.dressing.birch, 0.7, birchRule, 0.68, 1.3, 40, { scaleBy: canopy }, TILT.rooted)
+    scatterStructural('deadSpruce', config.dressing.deadSpruce, 0.6, conifer(0.5, 0.8, 0.9), 0.6, 1.2, 40, { scaleBy: canopy }, TILT.placed)
     scatterStructural('juniper', config.dressing.juniper, 0.55, juniperRule, 0.7, 1.35, 34, {}, TILT.rooted)
     scatterStructural('hayBale', config.dressing.hayBale, 1, plotEdge, 0.85, 1.15, 90, {}, TILT.placed)
     scatterStructural(
@@ -789,8 +712,28 @@ export function createDressing (
       40,
       { sample: samplePasture, quota: pastureQuota, claimScale: 0.35 },
     )
-    scatterStructural('sapling', config.dressing.sapling, 0.35, openGround(0.5, 0.95), 0.7, 1.5, 30, {}, TILT.rooted)
-    scatterStructural('stump', config.dressing.stump, 0.35, openGround(0.6, 0.85), 0.75, 1.4, 30, {}, TILT.rooted)
+    scatterStructural(
+      'sapling',
+      config.dressing.sapling,
+      0.35,
+      inTheWood(openGround(0.5, 0.95)),
+      0.7,
+      1.5,
+      30,
+      { scaleBy: canopy },
+      TILT.rooted,
+    )
+    scatterStructural(
+      'stump',
+      config.dressing.stump,
+      0.35,
+      inTheWood(openGround(0.6, 0.85)),
+      0.75,
+      1.4,
+      30,
+      {},
+      TILT.rooted,
+    )
 
     // ---- ground cover --------------------------------------------------------
 
@@ -1019,8 +962,9 @@ export function createDressing (
       return {
         at:     [ spot.x, surfaceAt(spot.x, spot.z) - 0.025, spot.z ],
         rotate: standing(spot.x, spot.z, yaw, tilt),
-        scale:  rng.range(minScale, maxScale),
-        tint:   shade(rng, 0.86, 1.1),
+        scale:  rng.range(minScale, maxScale) *
+          (sampling.scaleBy ? sampling.scaleBy(spot.x, spot.z) : 1),
+        tint: shade(rng, 0.86, 1.1),
       }
     }, isFoliage(name)))
   }

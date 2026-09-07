@@ -4,18 +4,20 @@ import { surveyFjord } from '../src/scene/landscape/fjord.ts'
 import { createHeightField } from '../src/scene/landscape/height.ts'
 import { countAshore, hauledSeals, planHaulouts } from '../src/scene/landscape/haulout.ts'
 import { iceCapOf, measureIce } from '../src/scene/landscape/icecap.ts'
+import { planTreeline } from '../src/scene/landscape/treeline.ts'
 import { tideAmplitudeAt } from '../src/scene/tide.ts'
 import type { MapStats } from './scape-map.ts'
 
 
 /**
- * The three landforms that live in world space, measured.
+ * The features that live in world space, measured.
  *
  * Split off `scape-map.ts` when that file went past the 666-line ceiling a
  * second time, and the seam is a real one rather than a line count: the bar, the
- * guard and the drowned valleys are the only features in the scape that are not
- * surveyed inside a single island's frame, so they are the only ones this
- * instrument cannot read out of a `LandmassSurvey` and has to walk itself.
+ * guard, the drowned valleys and now the wood's own edge are the features in the
+ * scape that are not surveyed inside a single island's frame, so they are the
+ * ones this instrument cannot read out of a `LandmassSurvey` and has to walk
+ * itself.
  *
  * Each of them also has to say *which* field it walked, and they do not all
  * answer the same way — see the note on {@link fjordStats}, which is the one
@@ -340,4 +342,111 @@ export function icecapStats (survey: ArchipelagoSurvey): IcecapStats[] {
       front:    round(report.front, 2),
     }]
   })
+}
+
+/**
+ * The wood's edge, walked.
+ *
+ * Here rather than in `scape-map-sites.ts` for the reason the bar and the guard
+ * are: the fetch that decides where a wood gives out runs over the sea *between*
+ * the islands, so a shore in the lee of the next island along is sheltered by
+ * ground that is not in its own patch. There is no reading this out of one
+ * `LandmassSurvey`.
+ *
+ * And it is the block the treeline needs, because none of it is visible in a
+ * still. A summit that lost its trees looks like a summit; a wood that quietly
+ * lost four fifths of itself to a mistuned salt band looks like a thinner wood.
+ * The three shares are what say which of those happened.
+ */
+export interface TreelineStats {
+
+  /** Share of land, as a percentage, in closed wood — vigour over 0.75. */
+  wooded: number
+
+  /** Share in the margin band, where the trees stand thin and stunted. */
+  margin: number
+
+  /** Share above the line or salted off it, where nothing woody stands. */
+  bare: number
+
+  /** The lowest and highest the line itself came out, in metres over the water. */
+  line: { low: number, high: number, mean: number }
+
+  /** Per island: how much of it is wooded, and the line it averaged. */
+  islands: { id: string, wooded: number, line: number, exposure: number }[]
+}
+
+/** Rows and columns the archipelago's land is walked at. */
+const TREELINE_WALK = 220
+
+export function treelineStats (
+  survey: ArchipelagoSurvey,
+  config: ScapeConfig,
+): TreelineStats {
+  const treeline = planTreeline(survey.field, config, survey.waterLevel)
+  const half     = survey.size * 0.5
+  const totals   = new Map<string, { land: number, wooded: number, line: number, exposure: number }>()
+
+  let land   = 0
+  let wooded = 0
+  let margin = 0
+  let low    = Infinity
+  let high   = -Infinity
+  let lines  = 0
+
+  for (let row = 0; row < TREELINE_WALK; row += 1)
+    for (let col = 0; col < TREELINE_WALK; col += 1) {
+      const x = -half + (col + 0.5) * survey.size / TREELINE_WALK
+      const z = -half + (row + 0.5) * survey.size / TREELINE_WALK
+
+      if (survey.field.heightAt(x, z) <= survey.waterLevel)
+        continue
+
+      const vigour   = treeline.vigourAt(x, z)
+      const limit    = treeline.limitAt(x, z)
+      const openness = treeline.exposureAt(x, z)
+      const id       = survey.field.landmassAt(x, z)?.id ?? 'between'
+      const tally    = totals.get(id) ?? { land: 0, wooded: 0, line: 0, exposure: 0 }
+
+      land  += 1
+      lines += limit
+      low    = Math.min(low, limit)
+      high   = Math.max(high, limit)
+
+      if (vigour > 0.75)
+        wooded += 1
+      else if (vigour > 0.15)
+        margin += 1
+
+      tally.land     += 1
+      tally.wooded   += vigour > 0.75 ? 1 : 0
+      tally.line     += limit
+      tally.exposure += openness
+      totals.set(id, tally)
+    }
+
+  const share = (count: number): number => land ? round(100 * count / land) : 0
+
+  return {
+    wooded: share(wooded),
+    margin: share(margin),
+    bare:   share(land - wooded - margin),
+    line:   {
+      low:  land ? round(low, 2) : 0,
+      high: land ? round(high, 2) : 0,
+      mean: land ? round(lines / land, 2) : 0,
+    },
+    islands: survey.landmasses.flatMap(landmass => {
+      const tally = totals.get(landmass.id)
+
+      return tally
+        ? [{
+          id:       landmass.id,
+          wooded:   round(100 * tally.wooded / tally.land),
+          line:     round(tally.line / tally.land, 2),
+          exposure: round(tally.exposure / tally.land, 2),
+        }]
+        : []
+    }),
+  }
 }
