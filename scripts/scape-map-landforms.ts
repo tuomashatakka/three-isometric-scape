@@ -1,5 +1,6 @@
 import type { ScapeConfig } from '../src/scene/config.ts'
 import type { ArchipelagoSurvey } from '../src/scene/landscape/archipelago.ts'
+import { measureDunes } from '../src/scene/landscape/dunes.ts'
 import { surveyFjord } from '../src/scene/landscape/fjord.ts'
 import { createHeightField } from '../src/scene/landscape/height.ts'
 import { countAshore, hauledSeals, planHaulouts } from '../src/scene/landscape/haulout.ts'
@@ -325,7 +326,17 @@ export function icecapStats (survey: ArchipelagoSurvey): IcecapStats[] {
       },
     }
 
-    const bed    = createHeightField(bare, landmass.survey.layout, landmass.survey.tarn, landmass.survey.peat)
+    // The dune belt goes into the control too. It is not what is being measured
+    // here, but it is part of the bed the ice is standing on, and a control
+    // missing a landform reads its thickness back as the dome's.
+    const bed = createHeightField(
+      bare,
+      landmass.survey.layout,
+      landmass.survey.tarn,
+      landmass.survey.peat,
+      null,
+      landmass.survey.dunes,
+    )
     const report = measureIce(landmass.config, landmass.survey.field.heightAt, bed.heightAt)
 
     if (!report)
@@ -449,4 +460,64 @@ export function treelineStats (
         : []
     }),
   }
+}
+
+
+/** One island's dune belt, measured. */
+export interface DuneStats {
+  id: string
+
+  /** Metres of sand standing over the ground at the highest point of the ridge. */
+  crest: number
+
+  /** Metres inland of the waterline that highest point stands. */
+  ridgeAt: number
+
+  /** Metres of coast the belt runs along, at the waterline. */
+  length: number
+
+  /** Bearings the blowouts have taken under a quarter of the crest. */
+  gaps: number
+
+  /** Percentage of the belt's probes the ground refused sand to. */
+  refused: number
+
+  /** Bearings inside the arc that found a shore at all. */
+  sampled: number
+
+  /** The least freeboard any sand was laid on, in metres. */
+  lowest: number
+}
+
+/**
+ * Every dune belt, walked along the coast it lies on.
+ *
+ * Six numbers, and five of them are claims a still cannot check. A screenshot
+ * of a pale shore says nothing about whether the ridge is two metres of sand or
+ * two centimetres, whether it has any gaps in it or runs as one unbroken
+ * embankment, whether the arc found a coast to sit on at all — an island whose
+ * weather side the coast warp has bitten into a bay has bearings with no
+ * waterline on them — or whether the belt has walked into the sea. That last one
+ * is `lowest`, and it is the landform's whole invariant: sand is laid on dry
+ * ground or it is not laid. At or under zero the belt has put a dune in the
+ * water, and no pose in the tour is pointed at the shore it would be on.
+ */
+export function duneStats (survey: ArchipelagoSurvey): DuneStats[] {
+  return survey.landmasses.flatMap(landmass => {
+    const report = measureDunes(landmass.config, landmass.survey.dunes)
+
+    if (!report)
+      return []
+
+    return [{
+      id:      landmass.id,
+      crest:   round(report.crest, 2),
+      ridgeAt: round(report.ridgeAt, 1),
+      length:  round(report.length),
+      gaps:    report.gaps,
+      refused: round(report.refused),
+      sampled: report.sampled,
+      lowest:  round(report.lowest, 3),
+    }]
+  })
 }

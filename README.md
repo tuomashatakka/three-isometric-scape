@@ -98,6 +98,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a beck traced downhill from a spring, carved through the terrain and flared at the shore into a tidal inlet the lake fills by itself — with water standing in it, lying flat across the channel, falling with the ground, breaking white where the hill drops, and freezing later than the sea it runs into
 - a tarn on the high ground of every island whose spare upland is flat enough to hold one — sited by a search for the least tilted acre the farm has not already claimed, standing at the lowest point of its own rim, edged with reeds, and locking into ice weeks before the sound below it does
 - **an ice cap on a sixth island in the north**: a permanent dome twenty-two metres of ice thick, standing over the summit it buried, with rock peaks left standing through it as nunataks, fractures opening in arcs where the ice is steep, and a front ending in the sea rather than on a hillside — the one white thing in the archipelago that midsummer does not take back
+- **a dune belt on the weather shore of every island**: 2.4 m of blown sand standing over the beach it came off, running from three metres inland of the waterline to twenty-four, ridged near the seaward end and thinning to a sand sheet behind it, cut through by blowouts and held together by marram — on the shore the wind arrives at and on no other, because sand goes where the weather puts it
 - a peat bank cut into the wet moor of every island that has any: an eleven-metre face standing across the fall, a stripped floor worked back seven metres behind it, ricks of cut turf drying on the bank, and a clearing round the whole of it — because blanket peat and a spruce wood are two things the same ground cannot be doing at once
 - showers standing out on the open water, crossing the archipelago from upwind ahead of the front that will reach the farm shortly after — read off the same clock the fall is, one lead ahead of it, and cut off at every coastline by the land it cannot rain on
 - lightning in that same front, out on the far islands only: a patch of cloud lit from inside for two thirds of a second, twice, with a jagged channel standing on the ground under it — scheduled off a comb of the front's own phases, so the storm arrives with the squall and can be photographed by naming a time
@@ -197,6 +198,7 @@ src/
     ├── config-landmasses.ts        the six islands, as a table rather than as schema
     ├── config-guard.ts             the guard's own slice of the schema: rocks, weed, seals
     ├── config-treeline.ts          the wood's own slice: the two lines, and the fetch between
+    ├── config-dunes.ts             the sand's own slice: the profile, the arc, and the two vetoes
     ├── config-access.ts            who owns the config, before and after the mount
     ├── state-path.ts               writePath with structural sharing
     ├── create-isometric-scape.ts   app/module composition root
@@ -242,6 +244,7 @@ src/
     │   ├── skerry.ts               the bare rocks standing in the water between the islands
     │   ├── fjord.ts                the drowned valley cut through one island's coast
     │   ├── icecap.ts               the ice standing on the northern island, and what it buries
+    │   ├── dunes.ts                the blown sand on the weather shore, solved against the coastline
     │   ├── beacon.ts               the outer rock a light would stand on
     │   ├── haulout.ts              which rocks seals use, and where on each one every animal lies
     │   ├── seals.ts                the colony, in one instanced draw the tide takes back
@@ -815,6 +818,31 @@ the fleet sails one loop in a fixed order at a fixed spacing, and `boats.separat
 ### what it did move
 
 `near` — the ten-metre pose in the farmyard — came back 21% changed, and no prop on the home island was touched. the archipelago's ground cover is dealt from **one shared rng and one world-wide dart sampler**, so a sixth island re-deals every tuft, stone and sapling in the world. `dressing.ts`'s own note has said so since the sheep arrived. it is the honest cost of growing the world under the current dressing, and the fix — a scatter stream per landmass — is a run of its own.
+
+## the sand the wind piled up
+
+every coast in this scape came out of the water at the same angle on every bearing. `terrain.shoreBand` grades the first metres over the waterline into a beach, the coast warp gives that beach a shape, and after that one island's shore is every other island's shore turned round a bit. what was missing is the one coastal landform that is *not* made by the sea: **a dune belt**, on the shore the weather is on, standing 2.4 m of blown sand over the beach it came off with a thinning sand sheet running on behind it and marram holding the ridge together.
+
+**it is on the weather shore, and the lee coasts get nothing.** sand is delivered by the sea and moved by the wind, so the belt is centred on the bearing the weather arrives from — `wind.bearing` read backwards, which is the same upwind sense [`treeline.ts`](src/scene/landscape/treeline.ts) walks in and read from the same base bearing rather than from this instant's gust. the two systems now say one thing between them: the coast that loses its trees to the salt is the coast that gets the sand. getting nothing on three quarters of the island is half of what makes the windward quarter read as a *side* rather than as a patch.
+
+**the belt is measured from the coastline, not from a height.** this is the one design decision in [`dunes.ts`](src/scene/landscape/dunes.ts) that everything else follows from. every other shore rule in the scape is written in freeboard — the beach shelves over the first metres above mean water, the snow line starts a couple of metres up, the salt band is the first two and a half metres of an exposed coast — and freeboard is a fine proxy for *near the sea* and a poor one for *twelve metres in from the water*. the coast warp means the ground climbs at a different rate on every bearing, so a band written at a height is wide in the bays and a stripe on the headlands, which reads as a contour and not as a coast.
+
+so the waterline's radius is solved once at each of 48 bearings — marched inward from open water, because an island with a fjord in it has several waterline crossings on one bearing and the one the sand is delivered to is the outermost — and every query after that is a distance *inland* of it. `foot` (3 m) is the dry strand the storms rework, `back` (24 m) is where the sand gives out, and `peak` (0.3) puts the ridge near the seaward end, so the profile is steep to the sea and long to the land. that asymmetry, plus an `apron` exponent under 1 on the landward fall, is most of what makes a ridge read as a ridge.
+
+**the belt asks and the ground answers, and both refusals were found by the instruments rather than by eye.** `depthAt` takes a position and nothing else, and the last thing it does is ask the bed itself whether any sand is allowed there at all:
+
+- **it must be dry.** the reach is radial and a coast is not a circle, so on a bearing where the waterline wanders — the mouth of an inlet, the inside of a bay — a distance solved from the table lands in the sea. the first `scape:map` block after this landed said `lowest ground -8.76m` on the fell, which is a dune belt built across open water. the fix is not a better table: it is a veto keyed on the ground, which cannot be wrong whatever the table says.
+- **it must be low.** the reach says how far *in* the wind carried sand and nothing about how far *up*. on the two lowest islands the highest ground is inside the coastal fringe, and the map said that too — `ridge` came back with a peak 1.4 m higher than the rock under it, and `meadow` 1.3 m. an island whose summit is made of sand is not a dune coast. `dunes.climb` is 3 m, faded out by 4.8, and every island's peak went back to the metre it was.
+
+there is a third bound, and it is the one place this landform's authored metres meet an island's size: `MAX_REACH` caps the belt at two fifths of the island's own radius on that bearing. a belt written in metres is right — a dune is the size a dune is — but the archipelago's islands are five different sizes, and twenty-four metres inland is the outer half of the home island's fringe and the whole of the ridge island.
+
+**the ridge is cut through rather than run as a wall.** blowouts are a two-octave noise field sampled *along* the shore — the belt's own tangential axis — so a gap is a notch you could walk through rather than a dip in the sand at one distance inland everywhere. on this seed two of the home island's fifteen bearings are blown out to under a quarter of the crest, and `blowout` at zero is an embankment somebody bulldozed along the beach.
+
+**what is laid on top of it, and what is laid through it.** the sand goes into the height field after the shore shelving, for the causeway's reason rather than the ice's: what is authored is a *thickness*, and the shelving is a multiplier on height above the water, so a ridge laid before it would quietly come out at half the sand it asked for. what comes after is everything people and water do — the farm levels whatever ended up under a plot, and the beck cuts its channel back out of the ridge on its way to the sea, exactly as it cuts through the bar it meets there. the paint follows the same order: `palette.dune` over the altitude bands and the aspect, and *under* the beck's own gravel.
+
+**the marram is the other half of the same fact.** loose sand is ground the ordinary sward cannot hold in, so [`buildMarram`](src/scene/props/vegetation.ts) is the grass tuft with every parameter pushed the other way — five blades instead of four, twice the height, half the spread, much straighter, in a glaucous green of its own. it grows on the belt's claim and the grass gives out over a third of it, which is what makes a dune read as a different *surface* rather than as a green hill of the usual kind.
+
+**cost: one instanced draw and no term the terrain did not already pay.** the belt itself is a solved table of 48 radii and a closed-form profile — no mesh, no material, no texture, so it costs a phone what it costs a workstation and there is no tier gate on it. the marram is one `InstancedMesh` of a 140-triangle tussock, on the same `dressing` budget every other ground cover is scaled by, so the mobile tier draws 16% of the count the ultra tier does.
 
 ## the peat bank on the moor
 

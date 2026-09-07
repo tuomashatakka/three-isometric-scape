@@ -4,6 +4,8 @@ import { findBeaconSite } from './beacon.ts'
 import type { BeaconSite } from './beacon.ts'
 import { solveCauseway } from './causeway.ts'
 import type { Causeway } from './causeway.ts'
+import { solveDunes } from './dunes.ts'
+import type { DuneBelt } from './dunes.ts'
 import { CHAPEL_FOOTING } from './chapel.ts'
 import { findCroftSite } from './croft.ts'
 import type { CroftSite } from './croft.ts'
@@ -65,6 +67,16 @@ export interface ScapeSurvey {
   /** The bar out to the nearest rock, or `null` when nothing is close enough. */
   causeway: Causeway | null
 
+  /**
+   * The blown sand on the weather shore, or `null` on an island with none.
+   *
+   * The one solved landform in here that asks the survey for nothing: the belt
+   * is a function of the config alone, so it is settled first and every field
+   * built below it — including the throwaway ones the pool and the cutting are
+   * sited against — is built with the same sand in it.
+   */
+  dunes: DuneBelt | null
+
   /** The street plan: every place walked to, and every leg planned between them. */
   network: FarmNetwork
   paths:   Footpaths
@@ -98,6 +110,7 @@ function joinTheRock (
   peat:   PeatBank | null,
   ashore: HeightField,
   berths: readonly (Spot | null)[],
+  dunes:  DuneBelt | null,
 ): JoinedGround {
   const causeway = solveCauseway(
     {
@@ -116,7 +129,7 @@ function joinTheRock (
 
   return {
     causeway,
-    field: causeway ? createHeightField(config, layout, tarn, peat, causeway) : ashore,
+    field: causeway ? createHeightField(config, layout, tarn, peat, causeway, dunes) : ashore,
   }
 }
 
@@ -138,24 +151,30 @@ function joinTheRock (
 export function surveyScape (config: ScapeConfig): ScapeSurvey {
   const layout = createScapeLayout(config)
 
+  // Before the fields rather than between them. The belt reads the falloff's
+  // own ground and nothing else, and every height field below has to carry it —
+  // a pool sited against a coast with no sand on it and then drawn on one with
+  // sand is the two-approximations bug this file exists to avoid.
+  const dunes = solveDunes(config)
+
   // The pool has to be sited against a ground that has no pool in it, and every
   // reader downstream has to see the ground that does. So the field is built
   // twice around the one solve — see `createHeightField`'s own note on why that
   // is cheaper than the alternative.
-  const tarn = solveTarn(config, layout, createHeightField(config, layout).heightAt)
+  const tarn = solveTarn(config, layout, createHeightField(config, layout, null, null, null, dunes).heightAt)
 
   // And the cutting against the ground the pool left, for the same reason again
   // — with the pool itself handed over as ground already spoken for. The middle
   // field is the one the tarn solve used to throw away, so this is one more
   // closure and one more pair of smoothed profiles rather than a third pass over
   // the island.
-  const peat    = solvePeatBank(config, layout, createHeightField(config, layout, tarn).heightAt, tarn)
-  const ashore  = createHeightField(config, layout, tarn, peat)
+  const peat    = solvePeatBank(config, layout, createHeightField(config, layout, tarn, null, null, dunes).heightAt, tarn)
+  const ashore  = createHeightField(config, layout, tarn, peat, null, dunes)
   const places  = steadingPlaces(layout.yard)
   const landing = findLanding(layout, ashore, config)
   const harbour = landing && findHarbourBank(layout, ashore, config, landing)
 
-  const { causeway, field } = joinTheRock(config, layout, tarn, peat, ashore, [ landing, harbour ])
+  const { causeway, field } = joinTheRock(config, layout, tarn, peat, ashore, [ landing, harbour ], dunes)
 
   // Offshore, and answering to nothing else in the survey: the light is sited on
   // the ring of rocks rather than on the island, so it neither moves anything
@@ -275,6 +294,7 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     tarn,
     peat,
     causeway,
+    dunes,
     network,
     paths,
   }

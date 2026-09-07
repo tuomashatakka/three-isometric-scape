@@ -292,6 +292,12 @@ export function formatStats (stats: MapStats): string {
       `covers ${cap.share}% of the island  apex ${cap.apex}m  ` +
       `thickest ${cap.thickest}m  ` +
       `${cap.front > 0 ? `front in ${cap.front}m of water` : 'ends ashore'}`),
+    ...stats.dunes.map(belt =>
+      `dune ${belt.id}  crest ${belt.crest}m  ridge ${belt.ridgeAt}m inland  ` +
+      `belt ${belt.length}m of coast  ${belt.gaps}/${belt.sampled} bearings blown out  ` +
+      `${belt.refused}% refused  lowest ground ${belt.lowest}m` +
+      (belt.lowest < 0 ? '  <- sand laid in the water' : '') +
+      (belt.crest <= 0 ? '  <- the belt found no coast to build on' : '')),
     `hearths ${stats.hearths.count}  lowest mouth ${stats.hearths.lowest}m over the ground` +
       (stats.hearths.lowest < 3 ? '  <- a stack is standing in its own roof' : ''),
     windowLine(stats.windows),

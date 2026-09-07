@@ -3,6 +3,8 @@ import type { ScapeConfig } from '../config.ts'
 import { coastWarp, sampleHeight } from '../noise.ts'
 import { raiseCauseway } from './causeway.ts'
 import type { Causeway } from './causeway.ts'
+import { raiseDunes } from './dunes.ts'
+import type { DuneBelt } from './dunes.ts'
 import { raiseIce } from './icecap.ts'
 import { baseAt, distanceToTrack, plotInfluence, remapRelief, sinkToIsland } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
@@ -201,6 +203,12 @@ export function resolveIsles (config: ScapeConfig): IsleSite[] {
  *   the crossing is measured against the *offshore* ground, and it has to miss
  *   the banks the boats use — so it cannot be found until the landing and the
  *   harbour have been. See `surveyScape`.
+ *
+ * @param dunes The sand on the weather shore. Optional like the three above it
+ *   and unlike them in what that optionality means: the belt answers to nothing
+ *   in the survey and could be solved in here, but it is passed for the reason
+ *   the others are — the painter, the dressing and the instruments all have to
+ *   read the shape this field was built from rather than one of their own.
  */
 export function createHeightField (
   config:   ScapeConfig,
@@ -208,6 +216,7 @@ export function createHeightField (
   tarn:     Tarn | null = null,
   peat:     PeatBank | null = null,
   causeway: Causeway | null = null,
+  dunes:    DuneBelt | null = null,
 ): HeightField {
   const { waterLevel, shoreBand } = config.terrain
   const { yard, track }           = layout
@@ -289,6 +298,18 @@ export function createHeightField (
     // cap is twenty metres of ice inland — and both only ever raise ground, so
     // the order between them decides nothing. It reads bar-then-ice because
     // that is low-to-high.
+    // The sand between them, and after the shelving for the causeway's reason
+    // rather than the ice's: what the belt authors is a *thickness* over the
+    // ground, and the shelving is a multiplier on height above the water, so a
+    // ridge laid before it would come out at half the sand it asked for. Laid
+    // after, it stands on the beach the shelving made.
+    //
+    // The three only ever raise ground and never meet — a bar is a metre over
+    // the water offshore, a dune belt is a few metres of sand within a couple of
+    // dozen of the coast, and a cap is twenty metres of ice inland — so the
+    // order between them decides nothing. It reads low to high.
+    height = raiseDunes(dunes, x, z, height)
+
     height = raiseIce(config, x, z, height)
 
     for (const plot of layout.plots) {

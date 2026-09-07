@@ -39,7 +39,14 @@ const cap    = iceCapOf(shield)!
 const { waterLevel } = shield.terrain
 
 /** The rock, with the same pool and cutting in it and no dome on top. */
-const bed = createHeightField(withoutIce(shield), survey.layout, survey.tarn, survey.peat).heightAt
+const bed = createHeightField(
+  withoutIce(shield),
+  survey.layout,
+  survey.tarn,
+  survey.peat,
+  null,
+  survey.dunes,
+).heightAt
 
 /** How much ice stands over a point, in metres. */
 function thicknessAt (x: number, z: number): number {

@@ -115,6 +115,19 @@ const PLINTH_REACH = 1.1
 const CUTTING_CLEARING = 1.5
 
 /**
+ * The share of the dune ridge at which the ordinary sward gives up, 0..1.
+ *
+ * A third of the belt's own crest, which on the authored profile is most of the
+ * ridge and none of the landward apron — so the sand thins back into meadow
+ * rather than ending at a line. Not tidiness either: turf cannot hold in sand
+ * that is moving, and the sand is moving wherever there is enough of it to bury
+ * what tries. Under this the grass keeps the ground and shares it with the
+ * marram; over it the marram has the belt to itself, which is what makes a dune
+ * read as a different surface rather than as a green hill of the usual kind.
+ */
+const SWARD_SMOTHERED = 0.34
+
+/**
  * A near-white tint. `scatterInstances` multiplies it into the baked vertex
  * colours, so staying close to white varies the shade of a prop rather than
  * repainting it.
@@ -204,8 +217,8 @@ export function createDressing (
 
   // ---- feature tests -------------------------------------------------------
 
-  const zones                                                              = createZoneTests(archipelago)
-  const { onTrack, onPath, onPlot, onPasture, atTarnMargin, onIce, clear } = zones
+  const zones                                                                      = createZoneTests(archipelago)
+  const { onTrack, onPath, onPlot, onPasture, atTarnMargin, onIce, onDune, clear } = zones
 
   // ---- hero props ----------------------------------------------------------
 
@@ -746,8 +759,23 @@ export function createDressing (
     scatterCover('grass', config.dressing.grass, (x, z) => {
       const height = heightAt(x, z)
       return height > water + 0.2 && !onTrack(x, z) && !onPath(x, z) && !onIce(x, z) &&
+        onDune(x, z) < SWARD_SMOTHERED &&
         (onPlot(x, z) === 0 || rng.next() > 0.75)
     }, 0.6, 1.5, 0, 16, true, sampleSpot, TILT.rooted)
+
+    // The one plant that grows where the sward cannot. Its own scatter rather
+    // than a bias on the grass, because the two are opposite answers to the same
+    // ground: the deeper the sand the worse it is for turf and the better it is
+    // for marram, so the roll rises with the belt's own claim and the tussocks
+    // are thickest along the ridge the blowouts have not taken.
+    //
+    // The roll comes first and is therefore always drawn. `rng` is the
+    // dressing's shared stream, and a short-circuit past a draw moves every prop
+    // stamped after this one — the trap the causeway test documents.
+    scatterCover('marram', config.dressing.marram, (x, z) => {
+      const roll = rng.next()
+      return roll < onDune(x, z) && !onTrack(x, z) && !onPath(x, z)
+    }, 0.75, 1.35, 0, 16, true, sampleSpot, TILT.rooted)
 
     scatterCover('heather', config.dressing.heather, (x, z) => {
       const height = heightAt(x, z)
