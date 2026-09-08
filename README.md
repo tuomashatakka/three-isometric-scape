@@ -200,6 +200,7 @@ src/
     ├── config-guard.ts             the guard's own slice of the schema: rocks, weed, seals
     ├── config-treeline.ts          the wood's own slice: the two lines, and the fetch between
     ├── config-dunes.ts             the sand's own slice: the profile, the arc, and the two vetoes
+    ├── config-force.ts             the fall's own slice: the step in the profile, and the sheet over it
     ├── config-access.ts            who owns the config, before and after the mount
     ├── state-path.ts               writePath with structural sharing
     ├── create-isometric-scape.ts   app/module composition root
@@ -238,6 +239,8 @@ src/
     │   ├── cart-ruts.ts            the wheel lines worn down the cart track
     │   ├── creek.ts                the beck: descent trace, channel, tidal mouth
     │   ├── beck.ts                 the water standing in that channel, and the white it breaks
+    │   ├── knickpoint.ts           the step gathered into that channel's long profile
+    │   ├── force.ts                the sheet of water hanging off that step
     │   ├── tarn.ts                 the flattest upland the farm has not taken, and the basin cut into it
     │   ├── tarn-water.ts           the still sheet lying in that basin, and the winter it gets first
     │   ├── peat.ts                 the turf cutting on the moor: where it is dug, and the step it leaves
@@ -751,6 +754,32 @@ the channel was cut for six runs before anything was standing in it. the terrain
 **the tier decides the texture, never the water.** every device gets the sheet — two thousand vertices in one draw is not a thing a phone cannot afford. what scales is `quality.beckRipples`, the octaves of value noise on top: `minimal` gets **zero** and compiles a beck that runs smooth, with no hash in its shader at all, and ultra gets three.
 
 `beck.depth` at zero is a dry bed, and there is no geometry rather than a sheet drawn at nothing. it is the switch, and the only one.
+
+## the fall the beck goes over
+
+the beck had a long profile and no step in it, and that was not an oversight — it was the smoothing. [`height.ts`](src/scene/landscape/height.ts) takes the course's ground, runs four passes of a three-tap blur over it and then clamps it to fall the whole way, which is exactly right for a channel that has to cut through a bar and is also what guarantees the fall arrives evenly, metre after metre, from the spring to the tide. a hill beck does not do that. it runs slack over the peat, meets a band of rock that will not cut, and goes over it in one drop.
+
+two modules, and the split is the same one `tarn.ts` and `tarn-water.ts` make: [`knickpoint.ts`](src/scene/landscape/knickpoint.ts) is the ground, [`force.ts`](src/scene/landscape/force.ts) is the water. *force* is the northern word for a waterfall and *knickpoint* is the geologist's for the break in a profile that makes one, and both are here for the reason *beck*, *tarn* and *fell* are.
+
+**it rearranges rather than adds.** the step is cut by taking the fall out of the reaches either side of the face and putting it into the face, so the total fall between the spring and the tideline is the same number afterwards and both ends of the profile come out exactly as they went in. that is not politeness. the mouth's height is what the tidal dredge, the bathymetry mask and every search that keeps clear of the estuary are written against — and `scape:map` proves it: the whole structural readout is **identical** to the run before it, line for line, with six new lines added.
+
+**the face goes where the ground already refuses to grade.** the first version chose the window with the greatest total fall in it, which on a hillside course is wherever the profile happens to be longest and steepest at once. it moved the home island's fall thirty metres downstream, and on the sound it took the drop out from under a face the ground already had and left it flat. a step belongs where a band of harder rock is, and the only evidence of one of those a long profile carries is a reach that would not smooth out. so the search reads the *unsmoothed* ground for where, and rewrites the smoothed profile there.
+
+**the step is bounded by the channel it is cut into, and that is the whole bug of this run.** gathering a window's fall necessarily *lifts* the reach above the face — that reach now falls at the slack rate instead of the hill's — and a bed lifted past the ground it was cut into is not a bed. `height.ts` clamps it back to the hillside, the lip quietly stops being a lip, and every number in the module goes on describing a step that is not in the ground. the sound asked for 1.9 m of drop and drew 0.83 before the ceiling was solved. seventy per cent of `creek.incision` is what a face may spend lifting its own approach, and `withinCut` is the invariant checked rather than derived: a step that cannot be cut inside the channel is not cut.
+
+**a step cannot be shorter than the gap between two points of the course**, which on this archipelago is 2.37 m — the profile carries one level per traced point, and moving them is not on offer. so `force.run` shapes the face *inside* the interval it lands in instead, biasing the interpolation toward the middle: at the default it puts the home island's 2.03 m drop into 1.2 m of run, which its 0.94 m terrain quads can just about carry.
+
+**the sheet is thrown, not draped.** water leaving a lip keeps the speed it arrived with and gains the fall on top of it, so the horizontal travel is linear in time and the drop goes as its square. that curve is the whole silhouette: drawn as a plain ramp between the lip and the foot the sheet reads as a wet slab lying on the face, and the one thing that separates a fall from a steep reach is the daylight behind the top of it. `force.reach` is how far past the foot it lands, and `force.standoff` keeps it out of the rock's depth.
+
+**it re-finds the lip in the ground *as drawn*.** the carve is a fact about the continuous field, and the camera sees triangles — the two differ by tens of centimetres wherever the ground curves, which is most of a metre out of a two metre drop. so `findFall` walks the same running-minimum construction the beck's own ribbon is built on, and anchors on the *steepest* section rather than on the reach with the most fall in it. that second part is not a detail: a knickpoint preserves the fall of the window it was cut from, so on a course already breaking white end to end the total drop over the reach is the same number before and after the carve. what changes is the grade, which is what a fall actually is.
+
+**the plunge stands above the waterline.** the beck keeps the first cut the sea has taken so its ribbon tucks under the water plane; a fall must do the opposite, because a sheet of white water standing in the sea is not a landform anybody has seen.
+
+**every island has one.** six courses, six falls — 1.26 m on the meadow to 3.88 m on the ridge, and 2.03 m over 1.2 m of channel on the home island, forty metres up the hill from the chapel. `force.least` is the floor below which a reach is left as the riffle it already was, and an island that failed it would simply have no force, the way the ridge has no tarn.
+
+**cost is one draw and about 330 vertices** for the whole archipelago — five columns by eleven rows per island. the fragment is `quality.beckRipples` lobes of value noise, the same tier decision the beck's own surface takes, so `minimal` compiles a sheet with no hash in it at all and gets the fall as a vertex gradient: green at the lip, white by the plunge. the spray at the foot is in that same branch, so the cheap tier pays nothing for it.
+
+`force.drop` at zero leaves the long profile untouched and there is no step anywhere. it is the switch, and the only one.
 
 ## the pool on the high ground
 

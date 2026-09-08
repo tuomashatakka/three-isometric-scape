@@ -28,6 +28,8 @@ import type { BoatFleet } from './boats.ts'
 import { planColonies } from './colony.ts'
 import type { Colony } from './colony.ts'
 import { createDressing } from './dressing.ts'
+import { createForce } from './force.ts'
+import type { Force } from './force.ts'
 import { surveyHearths } from './hearths.ts'
 import { surveyWindows } from './windows.ts'
 import type { Dressing } from './dressing.ts'
@@ -161,6 +163,7 @@ export function createLandscape (
   let seals: SealColony | null         = null
   let water: Water | null              = null
   let beck: Beck | null                = null
+  let force: Force | null              = null
   let tarns: TarnWater | null          = null
 
   /**
@@ -287,6 +290,15 @@ export function createLandscape (
         if (beck)
           root.add(beck.mesh)
 
+        // And the one place on the course where the water is not lying in the
+        // channel at all. Built after the beck and read off the same drawn
+        // ground, so the lip the sheet hangs from is a point on the ribbon the
+        // beck has just drawn rather than a second opinion about where it is.
+        force = createForce(config, archipelago, quality, quality.terrainSegments)
+
+        if (force)
+          root.add(force.mesh)
+
         // Same reasoning, one storey up: the pools are read against the ground
         // as the patch renders it, because that is the surface their banks are
         // going to occlude them with.
@@ -349,6 +361,7 @@ export function createLandscape (
       seals?.update(frame.delta)
       materials?.update(wind, now, front)
       beck?.update(frame.delta, now)
+      force?.update(frame.delta, now)
       tarns?.update(now)
       water?.update(frame.elapsed, wind, tide, now, front, fleet?.wakeEmitters)
     },
@@ -360,6 +373,7 @@ export function createLandscape (
       seals?.dispose()
       water?.dispose()
       beck?.dispose()
+      force?.dispose()
       tarns?.dispose()
 
       if (root) {
@@ -382,6 +396,7 @@ export function createLandscape (
       seals     = null
       water     = null
       beck      = null
+      force     = null
       tarns     = null
       materials = null
     },
@@ -404,7 +419,8 @@ export function createLandscape (
   }
 }
 
-// perf: one merged terrain draw, one water draw, one beck draw, one tarn draw,
+// perf: one merged terrain draw, one water draw, one beck draw, one force draw,
+// one tarn draw,
 // one merged settlement draw,
 // one moving fleet draw, one turning sail draw, one hauled colony draw, and one
 // InstancedMesh per scattered prop type.

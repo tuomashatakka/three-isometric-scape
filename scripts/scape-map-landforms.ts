@@ -2,6 +2,7 @@ import type { ScapeConfig } from '../src/scene/config.ts'
 import type { ArchipelagoSurvey } from '../src/scene/landscape/archipelago.ts'
 import { measureDunes } from '../src/scene/landscape/dunes.ts'
 import { surveyFjord } from '../src/scene/landscape/fjord.ts'
+import { findFall } from '../src/scene/landscape/force.ts'
 import { createHeightField } from '../src/scene/landscape/height.ts'
 import { countAshore, hauledSeals, planHaulouts } from '../src/scene/landscape/haulout.ts'
 import { iceCapOf, measureIce } from '../src/scene/landscape/icecap.ts'
@@ -518,6 +519,77 @@ export function duneStats (survey: ArchipelagoSurvey): DuneStats[] {
       refused: round(report.refused),
       sampled: report.sampled,
       lowest:  round(report.lowest, 3),
+    }]
+  })
+}
+
+
+/** One island's fall, measured. */
+export interface ForceStats {
+  id: string
+
+  /** Where the water goes over, in world metres. */
+  x: number
+  z: number
+
+  /** World height of the lip. */
+  lip: number
+
+  /** Metres the sheet falls, and metres of channel it crosses doing it. */
+  drop: number
+  run:  number
+
+  /** Width of the sheet at the lip, in metres. */
+  width: number
+}
+
+/**
+ * Every fall, measured against the ground its lip is cut into.
+ *
+ * The block a still cannot replace, and for a sharper reason than most: the
+ * whole landform is a *rearrangement* of a long profile whose two ends do not
+ * move, so every number the beck's own line reports — the wetted reach, the
+ * total fall, the mouth — comes out identical whether the step is two metres
+ * deep or was never cut at all. A run that retuned the smoothing, the gather
+ * window or the carve's claim could delete every fall in the archipelago without
+ * moving one figure anywhere else in this readout. These four are the only place
+ * that shows.
+ *
+ * Measured off the continuous field rather than the drawn one, the same way
+ * {@link beckOf} is and with the same consequence: the scene hangs its sheet on
+ * the triangles, which stand off this ground by tens of centimetres wherever it
+ * curves, so a drop here is the step the carve asked for rather than the one a
+ * given tier's grid resolved. A fall that reads well here and is invisible in a
+ * frame is a terrain segment count that cannot carry it.
+ */
+export function forceStats (survey: ArchipelagoSurvey): ForceStats[] {
+  return survey.landmasses.flatMap(landmass => {
+    const { config, origin } = landmass
+    const { creek }          = landmass.survey.layout
+
+    if (!creek)
+      return []
+
+    const fall = findFall({
+      creek,
+      depth:      config.beck.depth,
+      fill:       config.beck.fill,
+      waterLevel: config.terrain.waterLevel,
+      least:      config.force.least,
+      surfaceAt:  landmass.survey.field.heightAt,
+    })
+
+    if (!fall)
+      return []
+
+    return [{
+      id:    landmass.id,
+      x:     round(fall.x + origin.x),
+      z:     round(fall.z + origin.z),
+      lip:   round(fall.lip, 2),
+      drop:  round(fall.drop, 2),
+      run:   round(fall.run, 1),
+      width: round(fall.half * 2 * config.force.breadth, 2),
     }]
   })
 }
