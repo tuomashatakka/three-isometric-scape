@@ -18,7 +18,8 @@ import type { ScapeConfig } from '../src/scene/config.ts'
 import { formatStats } from './scape-map-format.ts'
 import { duneStats, fjordStats, hauloutStats, icecapStats, skerryStats, strandStats, treelineStats } from './scape-map-landforms.ts'
 import type { DuneStats, FjordStats, IcecapStats, TreelineStats } from './scape-map-landforms.ts'
-import { causewayOf, croftOf, peatOf, smokehouseOf, tarnOf } from './scape-map-sites.ts'
+import { pierHead } from '../src/scene/landscape/pier.ts'
+import { causewayOf, croftOf, peatOf, pierOf, smokehouseOf, tarnOf } from './scape-map-sites.ts'
 import { rainbowStats, stormStats } from './scape-map-weather.ts'
 import { applyOverrides, parseArgs } from './args.ts'
 
@@ -42,7 +43,7 @@ const SHALLOW = 0.45
 export const LEGEND =
   '~ deep  - shallow  . shore  : low  = mid  + upper  * high  # peak\n' +
   ', footpath  ≡ track  · waterway  b boat  s beck  ≈ tarn  T peat  ' +
-  'F/B/A/W/S steading  o well  J jetty  H harbour  V smokehouse  ' +
+  'F/B/A/W/S steading  o well  J jetty  H harbour  V smokehouse  P pier  ' +
   'W mill  K chapel  L light  C croft  p plot  ^ ridge'
 
 export interface Layers {
@@ -157,6 +158,23 @@ export interface CompositionStats {
    * and a screenshot at the default pose never shows.
    */
   smokehouse: { x: number, z: number, fromBank: number } | null
+
+  /**
+   * The trestle out to deep water, at its head.
+   *
+   * `null` on an island whose harbour bank never reached `pier.berth` inside
+   * `pier.reach` — a real answer, and one worth reading. Every other refusal in
+   * this block is about dry ground being scarce; this one is about the *bottom*,
+   * which nothing else in the stats measures and no still can show.
+   */
+  pier: {
+    x:      number
+    z:      number
+    length: number
+    depth:  number
+    deck:   number
+    bents:  number
+  } | null
 
   /**
    * The bar out to the nearest rock, and the share of the tide that covers it.
@@ -581,6 +599,7 @@ function compositionStats (landmass: LandmassSurvey, w: number, h: number): Comp
       fromYard:   round(layout.chapel.fromYard),
     },
     smokehouse: smokehouseOf(survey.smokehouse, worldX, worldZ),
+    pier:       pierOf(survey.pier, worldX, worldZ),
     causeway:   causewayOf(survey.causeway, config, worldX, worldZ),
     croft:      croftOf(survey.croft, worldX, worldZ),
     beacon:     survey.beacon && {
@@ -878,9 +897,9 @@ export function renderGrid (
 
   if (layers.buildings)
     for (const landmass of archipelago.landmasses) {
-      const { layout, places, landing, harbour, beacon, croft, smokehouse } = landmass.survey
-      const worldX                                                          = (x: number): number => x + landmass.origin.x
-      const worldZ                                                          = (z: number): number => z + landmass.origin.z
+      const { layout, places, landing, harbour, beacon, croft, pier, smokehouse } = landmass.survey
+      const worldX                                                                = (x: number): number => x + landmass.origin.x
+      const worldZ                                                                = (z: number): number => z + landmass.origin.z
 
       for (const ridge of layout.ridges)
         stamp(worldX(ridge.x), worldZ(ridge.z), '^')
@@ -906,6 +925,11 @@ export function renderGrid (
         [ croft, 'C' ],
         [ landing, 'J' ],
         [ harbour, 'H' ],
+        // The *head*, not the root. The root sits a couple of metres along the
+        // bank from the harbour's own glyph and would only ever overwrite it;
+        // the head is the thing worth finding on the grid, because it is the one
+        // point in the settlement that is out over deep water.
+        [ pier && pierHead(pier), 'P' ],
       ]
 
       for (const [ place, glyph ] of sited)

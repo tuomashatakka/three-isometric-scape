@@ -13,6 +13,7 @@ import type { Footprint } from '../props/ploppable.ts'
 import { BEACON_SINK } from '../props/beacon.ts'
 import { CROFT_SINK } from '../props/croft.ts'
 import { MILL_SINK } from '../props/mill.ts'
+import { PIER_WIDTH, buildPierRun } from '../props/pier.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import type { TiltWeight } from './align.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from './archipelago.ts'
@@ -537,6 +538,40 @@ export function createDressing (
         placeHero('netRack', rack.x + ox, rack.z + oz, yawAlong(bearing))
         solver.reserve(rack.x + ox, rack.z + oz, NET_RACK_CLEARING)
       }
+
+      raisePier()
+    }
+
+    /**
+     * The trestle out to deep water, alongside the boathouse.
+     *
+     * Built rather than plopped, and world-space rather than local: its length
+     * came from the shelf and every pile was cut to the bed under its own bent,
+     * so there is no fixed shape to stamp — see `props/pier.ts`. The bents are
+     * carried into world metres here because that is where the offsets live; the
+     * survey solved the whole thing in the island's own frame.
+     *
+     * Each bent is reserved against the scatter for the reason the boathouse is:
+     * the littoral band seeds wrack and driftwood along exactly this depth, and a
+     * clump of bladderwrack growing out of a deck is the one place on this coast
+     * where the shallows and the settlement are drawn on top of each other.
+     */
+    function raisePier (): void {
+      if (!survey.pier)
+        return
+
+      heroes.push(buildPierRun({
+        bents:  survey.pier.bents.map(bent => ({ x: bent.x + ox, z: bent.z + oz, bed: bent.bed })),
+        deck:   survey.pier.deck,
+        angle:  survey.pier.angle,
+        width:  PIER_WIDTH,
+        boards: quality.pierBoards,
+        rng:    rng.fork('pier'),
+        palette,
+      }))
+
+      for (const bent of survey.pier.bents)
+        solver.reserve(bent.x + ox, bent.z + oz, PIER_WIDTH)
     }
   }
 

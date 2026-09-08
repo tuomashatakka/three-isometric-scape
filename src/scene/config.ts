@@ -1138,6 +1138,86 @@ export interface ScapeConfig extends GuardConfig, TreelineConfig {
   }
 
   /**
+   * The pier — the deck the harbour carries out to water a keel can float in.
+   *
+   * Every number here is **metres** and stays metres. A hull draws what a hull
+   * draws, a plank spans what a plank spans, and how far somebody will walk over
+   * open water to reach their boat is a fact about people rather than about how
+   * wide the archipelago is — so a world that grows must not grow any of them.
+   *
+   * All four are read once, at build time, and none of them belong in the
+   * overlay for the reason `smokehouse` and `croft` do not: a pier is surveyed
+   * and then built, and a slider that needs a rebuild to be seen lies about what
+   * a slider does. See `landscape/pier.ts`.
+   */
+  pier: {
+
+    /**
+     * Metres of water the head has to stand in.
+     *
+     * The switch, and the only one. There is no `enabled` here for the reason
+     * there is none anywhere: raising this past what a shelf offers takes the
+     * pier off that island, and taking it past the deepest water inside `reach`
+     * on every island takes piers out of the scape. What it must not become is a
+     * *shorter* pier — a deck that stops in half a metre of water is a jetty
+     * with extra timber in it, and the scape already has jetties.
+     */
+    berth: number
+
+    /**
+     * Deepest water a pile is driven in, in metres.
+     *
+     * The other switch, and on this archipelago it is the one that decides which
+     * coasts get a pier at all. These coasts are rock: the bottom goes from
+     * boot-deep to twelve metres of open sound inside a couple of bays, so where
+     * a trestle stops is where there stopped being anything to drive a pile
+     * into — and at the default seed that is the three-bay minimum on every
+     * island that qualifies. Lowering it refuses them one at a time; raising it
+     * past the sound's own floor would walk one out over deep water on stilts
+     * nine metres long.
+     */
+    piled: number
+
+    /**
+     * Furthest out the trestle is carried, in metres.
+     *
+     * The walk rather than the engineering, and on this coast it is the loosest
+     * of the three: {@link piled} stops every pier in the archipelago well
+     * inside it. It is here so that a shelf which runs out flat for a hundred
+     * metres — which a retuned falloff could produce tomorrow — gets a pier
+     * rather than a promenade.
+     */
+    reach: number
+
+    /**
+     * Metres of navigable water the head needs still ahead of it.
+     *
+     * The third switch, and the one the first cut of this section did not have.
+     * A run that stays wet the whole way has not necessarily gone *out*: rooted
+     * on the harbour cove — which is chosen for shelter and never tested for a
+     * way out — the home island's pier crossed an enclosed bay and stopped three
+     * metres short of the far shore, which draws as a pier and reads as an
+     * unfinished bridge. The depth this is measured at is `boats.clearance`
+     * rather than {@link berth}: a berth is where a hull lies still and the
+     * offing is where it is under way, and asking for the deeper of the two out
+     * here took every pier in the archipelago.
+     */
+    offing: number
+
+    /** Metres between bents — one pair of piles and the cap beam over them. */
+    bay: number
+
+    /**
+     * Metres the deck stands over mean water.
+     *
+     * Over *mean* water, like every other thing on this coast that was solved
+     * rather than animated — see `tide`. It has to clear the spring high water
+     * `tide.range` reaches, or the pier is awash twice a month.
+     */
+    freeboard: number
+  }
+
+  /**
    * The croft out on the islets — the one holding that is not on the island.
    *
    * All three are read once, at build time, and none of them belong in the
@@ -2703,6 +2783,37 @@ export const SCAPE_CONFIG = {
     setback:   5,
     reach:     18,
     freeboard: 0.6,
+  },
+
+  // The berth is sized against the two numbers the fleet already lives by: the
+  // waterways are routed to keep `boats.clearance` — 0.55 m — under every hull,
+  // and the tide takes half of `tide.range` off that twice a day. A berth is
+  // where a boat *lies* rather than passes, so 1.4 m is two and a half times the
+  // running clearance and stays afloat at the bottom of a spring tide.
+  //
+  // 8 m of piling is the number that was measured rather than chosen, and on
+  // this archipelago it is what decides *whether* rather than how long: these
+  // coasts are rock, the bottom goes from boot-deep to twelve metres of open
+  // sound inside a couple of bays, and every pier that gets built comes out at
+  // the three-bay minimum because the shelf ends there. At 5.5 the count was one
+  // island in six; at 8 it is three.
+  //
+  // 12 m of offing is a hull's length and a bit — the room a boat needs to lie
+  // alongside and get away again — and it is the rule that halves the count. The
+  // three coasts it refuses are the enclosed ones: a harbour is sited for
+  // shelter, and the most sheltered cove on a coast is often the one with no way
+  // out of it.
+  //
+  // Three metres a bay is a span a sawn stringer actually holds, and 1.05 m of
+  // freeboard puts the deck a hand under the jetty's — the same waterfront,
+  // built to the same height, clearing the 0.4 m a spring high water reaches.
+  pier: {
+    berth:     1.4,
+    piled:     8,
+    reach:     27,
+    offing:    12,
+    bay:       3,
+    freeboard: 1.05,
   },
 
   // Sized against the ring the home island actually has. Its islets run from

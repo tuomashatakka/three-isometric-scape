@@ -15,6 +15,8 @@ import { createHeightField, resolveIsles } from './height.ts'
 import type { HeightField } from './height.ts'
 import { BOATHOUSE_FOOTING, NET_RACK_FOOTING, boathouseSpot, findHarbourBank, findLanding, netRackSpot } from './landing.ts'
 import type { Spot } from './landing.ts'
+import { solvePier } from './pier.ts'
+import type { Pier } from './pier.ts'
 import { createScapeLayout, distanceToTrack } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
 import { MILL_FOOTING } from './mill.ts'
@@ -57,6 +59,9 @@ export interface ScapeSurvey {
 
   /** The bank above the harbour the smokehouse stands on, or `null` if none is dry. */
   smokehouse: SmokehouseSite | null
+
+  /** The trestle out to deep water, or `null` when the shelf never drops away. */
+  pier: Pier | null
 
   /** The pool above the beck's spring, or `null` if no hollow up there holds one. */
   tarn: Tarn | null
@@ -131,6 +136,47 @@ function joinTheRock (
     causeway,
     field: causeway ? createHeightField(config, layout, tarn, peat, causeway, dunes) : ashore,
   }
+}
+
+/**
+ * The trestle, or the reason there is none.
+ *
+ * A function of its own rather than eight lines in `surveyScape` because that
+ * one is at the lint config's complexity ceiling and every null-able site it
+ * gains pushes it over — the same seam `joinTheRock` was cut on, and the same
+ * rule: what belongs in the survey is the *order*, not the argument lists.
+ *
+ * Rooted on the *harbour* bank rather than on the landing's, which is the whole
+ * siting decision and is argued out in `PIER_OFFSET`: the landing is the port,
+ * and a trestle beside one stands in the fairway every ferry uses.
+ *
+ * Surveyed against the field the crossing is already in rather than against the
+ * bare island, and that order is load-bearing for the reason `joinTheRock`
+ * exists: a bar laid across the harbour mouth is ground, and a trestle solved
+ * before it was there would walk out over the top of it on stilts. Read on the
+ * joined field, the same bar simply refuses the site.
+ */
+function reachDeepWater (
+  config:  ScapeConfig,
+  field:   HeightField,
+  harbour: Spot | null,
+): Pier | null {
+  return harbour && solvePier(
+    {
+      ground:     field.heightAt,
+      waterLevel: config.terrain.waterLevel,
+      berth:      config.pier.berth,
+      piled:      config.pier.piled,
+      reach:      config.pier.reach,
+      offing:     config.pier.offing,
+      // The fleet's own number rather than a second opinion about how much water
+      // a boat needs — see `PierSearch.clearance`.
+      clearance:  config.boats.clearance,
+      bay:        config.pier.bay,
+      freeboard:  config.pier.freeboard,
+    },
+    harbour,
+  )
 }
 
 /**
@@ -246,6 +292,8 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     ],
   )
 
+  const pier = reachDeepWater(config, field, harbour)
+
   const avoid: Obstacle[] = [
     ...standing,
     // The hut, for the same reason as the chapel and at a fifth of the size.
@@ -291,6 +339,7 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     beacon,
     croft,
     smokehouse,
+    pier,
     tarn,
     peat,
     causeway,

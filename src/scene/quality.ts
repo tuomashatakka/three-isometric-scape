@@ -279,6 +279,20 @@ export interface AtmosphereQuality {
    */
   tarnSectors: number
 
+  /**
+   * Deck boards per metre of pier — see `props/pier.ts`.
+   *
+   * A density rather than a switch, and it is deliberately not a gate. The whole
+   * trestle is merged into the steading's one hero draw, so a pier costs no draw
+   * call on any tier and there is nothing here to turn off; what scales is the
+   * vertex count of the deck, which is most of the geometry in it. The cheapest
+   * tier gets a pier planked in half-metre boards rather than no pier at all,
+   * which is the graceful absence the brief asks for — an island that lost its
+   * pier on a phone would be an island whose harbour changed shape with the
+   * hardware.
+   */
+  pierBoards: number
+
   /** Lake plane subdivisions per side. */
   waterSegments: number
 
@@ -346,6 +360,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     beckRipples:     0,
     rainbowArcs:     0,
     tarnSectors:     20,
+    pierBoards:      0.9,
     waterSegments:   24,
     waterSpan:       2.2,
     shoreMask:       384,
@@ -395,6 +410,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     beckRipples:   1,
     rainbowArcs:   2,
     tarnSectors:   28,
+    pierBoards:    1.2,
     waterSegments: 48,
     waterSpan:     3,
     shoreMask:     768,
@@ -442,6 +458,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     beckRipples:     2,
     rainbowArcs:     2,
     tarnSectors:     44,
+    pierBoards:      1.6,
     waterSegments:   96,
     waterSpan:       8,
     shoreMask:       1_024,
@@ -482,6 +499,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     beckRipples:     3,
     rainbowArcs:     2,
     tarnSectors:     56,
+    pierBoards:      2,
     waterSegments:   128,
     waterSpan:       8,
     shoreMask:       1_536,
