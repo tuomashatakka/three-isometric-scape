@@ -509,6 +509,31 @@ export const TOURS: Record<string, Pose[]> = {
   ],
 
   /**
+   * The pier, and the two coasts that answer differently about one.
+   *
+   * The tour cannot see this one and it is worth saying exactly why: a pier here
+   * is nine metres of two-and-a-half-metre deck standing a metre over the water,
+   * which at the tour's default 1400 m frame is a hairline and at `near`'s ten
+   * metres is inside the farmyard on the wrong side of the island. The one set
+   * already aimed at this ground — `smokehouse`'s `harbour` frame — looks up the
+   * *bank*, away from the water the trestle is out over, and it is on an island
+   * that has no pier at all.
+   *
+   * `pier` reads the structure on the ridge island: the bents, the cut of the
+   * piles down to the bed, the bollards and the ladder at the head. `pier-reach`
+   * pulls back to the claim the siting makes — the boathouse, the trestle beside
+   * it and the open water it walks into, in one frame. `pier-none` is the third
+   * and it is the control: the home island's harbour at the same view, where the
+   * shelf gives no pier at all. Half of what this run decided is which coasts
+   * *cannot* have one, and a set with no refusal in it cannot show that.
+   */
+  pier: [
+    { name: 'pier', zoom: 30, set: [ 'camera.focusX=-139', 'camera.focusZ=120.7' ]},
+    { name: 'pier-reach', zoom: 62, set: [ 'camera.focusX=-152', 'camera.focusZ=126' ]},
+    { name: 'pier-none', zoom: 62, set: [ 'camera.focusX=-13', 'camera.focusZ=-28' ]},
+  ],
+
+  /**
    * The croft, and the water it is cut off by.
    *
    * The lesson `smokehouse` and `chapel` both wrote down, applied before the
@@ -1350,6 +1375,7 @@ async function main (): Promise<void> {
       '                        guard (4, the rocks in the open sea)',
       '                        chapel (4, the church and its yard)',
       '                        smokehouse (3, the hut above the harbour)',
+      '                        pier (3, the trestle out to deep water, and a coast without one)',
       '                        croft (3, the holding out on the islets)',
       '                        shallows (4, the light on the bottom)',
       '                        beck (4, the water in the channel)',

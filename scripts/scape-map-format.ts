@@ -181,6 +181,10 @@ function sitedLines (stats: MapStats): string[] {
       ? `smokehouse (${stats.smokehouse.x},${stats.smokehouse.z}) ` +
         `${stats.smokehouse.fromBank}m up the bank`
       : 'smokehouse NONE  <- no dry ground behind the harbour',
+    stats.pier
+      ? `pier (${stats.pier.x},${stats.pier.z}) ${stats.pier.length}m out  ` +
+        `${stats.pier.bents} bents  berth ${stats.pier.depth}m  deck ${stats.pier.deck}m`
+      : 'pier NONE  <- no bearing off the harbour found a berth with a way out of it',
     stats.beacon
       ? `beacon (${stats.beacon.x},${stats.beacon.z}) isle ${stats.beacon.isle} ` +
         `freeboard ${stats.beacon.freeboard}m  reach ${stats.beacon.reach}m`
@@ -268,7 +272,8 @@ export function formatStats (stats: MapStats): string {
       `paths ${landmass.footpaths.routes}  ` +
       `jetty ${landmass.landing ? `(${landmass.landing})` : 'NONE'}  ` +
       `mill ${landmass.mill ? `(${landmass.mill.x},${landmass.mill.z})` : 'NONE'}  ` +
-      `peat ${landmass.peat ? `(${landmass.peat.x},${landmass.peat.z}) face ${landmass.peat.standing}m` : 'NONE'}`),
+      `peat ${landmass.peat ? `(${landmass.peat.x},${landmass.peat.z}) face ${landmass.peat.standing}m` : 'NONE'}  ` +
+      `pier ${landmass.pier ? `${landmass.pier.length}m berth ${landmass.pier.depth}m` : 'NONE'}`),
     `waterways ${stats.waterways.legs} legs ${stats.waterways.length}m  ` +
       `connected ${stats.waterways.connected ? 'OK' : 'BROKEN'}  ` +
       `wet ${stats.waterways.wet ? 'OK' : 'DRY'}  ` +

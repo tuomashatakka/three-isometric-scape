@@ -4,6 +4,8 @@ import type { Causeway } from '../src/scene/landscape/causeway.ts'
 import type { CroftSite } from '../src/scene/landscape/croft.ts'
 import type { HeightField } from '../src/scene/landscape/height.ts'
 import { peatFaceStanding } from '../src/scene/landscape/peat.ts'
+import { pierHead } from '../src/scene/landscape/pier.ts'
+import type { Pier } from '../src/scene/landscape/pier.ts'
 import type { PeatBank } from '../src/scene/landscape/peat.ts'
 import type { SmokehouseSite } from '../src/scene/landscape/smokehouse.ts'
 import { tarnWetted } from '../src/scene/landscape/tarn.ts'
@@ -82,6 +84,40 @@ export function tarnOf (
     level:  round(tarn.level, 2),
     wetted: round(tarnWetted(tarn, field.heightAt), 1),
     spread: round(tarn.spread, 2),
+  }
+}
+
+/**
+ * The pier, and the two numbers that say whether it is one.
+ *
+ * `depth` is the measurement that matters and it is the one a still cannot give
+ * you: the whole point of the trestle is that it reaches water a keel can lie
+ * in, and water is opaque from above. A pier drawn out over a shelf that never
+ * dropped away looks exactly like a pier that works — the deck is level either
+ * way — so a `berth` that a retuned falloff quietly stopped meeting shows up
+ * here and nowhere else.
+ *
+ * `bents` is the second half of the same question. A pier of two bents is a
+ * bank that shelved off a cliff, which is a real coast and a suspicious one on
+ * an island whose harbour was chosen for being sheltered.
+ */
+export function pierOf (
+  pier:   Pier | null,
+  worldX: Project,
+  worldZ: Project,
+): CompositionStats['pier'] {
+  if (!pier)
+    return null
+
+  const head = pierHead(pier)
+
+  return {
+    x:      round(worldX(head.x)),
+    z:      round(worldZ(head.z)),
+    length: round(pier.length, 1),
+    depth:  round(pier.depth, 2),
+    deck:   round(pier.deck, 2),
+    bents:  pier.bents.length,
   }
 }
 

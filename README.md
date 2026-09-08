@@ -84,6 +84,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - chains of bare rock standing out in the open water between the islands, breaking white on whichever side the swell is running at — and the ferries route around them by the clearance test they were already running
 - a cobbled network of paths between every place the farm goes — planned as a graph, worn as desire lines, paved with stones sampled along the treads themselves
 - a working boat harbour: a boathouse on piles with a slipway, a net rack, and stakes in the shallows
+- **a pier walking out of three of the six harbours to water a keel can lie in**: driven piles cut one by one to the bed under them, a level deck of sawn boards over them, bollards and a ladder at the head — carried out to the last bent the bottom will still take a pile in, standing in about seven metres of water with open sea past the end of it, while the three most sheltered coves get none, because the cove with the best shelter is usually the one with no way out
 - a walled upland hay meadow with a barn, a gate and drying poles
 - a limewashed chapel on a knoll above the farm — a bell tower with an open belfry and a spire, a stepped chancel, and a walled churchyard with twelve leaning markers in it
 - juniper bushes out on the dry upland heath — a low, spreading evergreen that reads apart from the conifers and answers to the same one wind
@@ -255,6 +256,7 @@ src/
     │   ├── fixtures.ts            carrying a point out of a raised building's own frame
     │   ├── chapel.ts               the knoll a chapel would stand on, and the yaw its door is turned by
     │   ├── smokehouse.ts           the patch of bank above the harbour the smokehouse is built on
+    │   ├── pier.ts                 the line off the harbour a trestle is carried out on, bent by bent
     │   ├── croft.ts                the free islet the croft is built on, and the row home that picked it
     │   ├── mill.ts                 the exposed shoulder a windmill would stand on
     │   ├── mill-sails.ts           every mill's wheel, turning in one instanced draw
@@ -294,6 +296,7 @@ src/
         ├── beacon.ts               the lighthouse tower, and the optic that turns in it
         ├── shore.ts                boathouse and slipway, net rack, mooring stakes
         ├── smokehouse.ts           the smokehouse — log walls, turf roof, ridge cowl
+        ├── pier.ts                 the pier — driven piles, a level deck, bollards and a ladder
         ├── croft.ts                the croft — boarded walls, turf roof, stone flue, oars at the gable
         ├── objects.ts              rowboat, bales, firewood, peat rick, barrel, mailbox, driftwood
         ├── stone.ts                erratics, field stones, cobbles, cairns
@@ -962,7 +965,27 @@ a few paces up the bank from the boats there is a smokehouse: a squat log hut on
 
 **and it is walked to.** the door is on local `+z` like every building but the chapel, so `faceToward` turns it at the water and `doorstepOf` finds the place the network is worn to — no yaw helper of its own. adding a third outlying place is also what finally took the positional `['landing', 'harbour']` name list out of `network.ts`: a waypoint whose name came from its index in an array is a waypoint that gets renamed `shore-2` the moment anything is added beside it.
 
-## the light on the outer rock
+## the pier out to deep water
+
+alongside the boathouse in three of the six harbours, a trestle walks out into the water: two driven piles to a bent, three metres to a bay, one level deck of sawn boards, a bollard on each side of the head and a ladder over the edge. where the line goes is [`landscape/pier.ts`](src/scene/landscape/pier.ts), the timber is [`props/pier.ts`](src/scene/props/pier.ts), and where it is rooted comes from the same [`landscape/landing.ts`](src/scene/landscape/landing.ts) that already knew where the shed and the net rack stood.
+
+**it is the first thing in the settlement sited by the bottom rather than by the ground.** everything the harbour had stops at the waterline, and all of it is sited by one question — where does the ground break the surface. the jetty is seven metres of deck on six short piles; the boathouse hangs its floor over the shallows on a slipway. that is the right question for a rowing boat and the wrong one for anything with a keel, and a coast whose whole economy is the sea had nowhere for one to come alongside. so the pier asks about the water instead, and it asks three times.
+
+**where does the water start.** the run is rooted a shed's footing and a working gap along the bank from the boathouse, because a trestle on the shed's own centreline is a deck through its roof and out over the slipway. but a bank is a point on a curve, and five metres along that curve is inland as often as it is wet. so the root is *seated*: the search walks each bearing until the ground goes under, up to ten metres, and starts the pier there.
+
+**where does the shelf end.** a pile is driven, and past `pier.piled` of water there is no driving one, so the trestle is carried out bent by bent while the bed stays inside it and the last bent that stood is the head. **on this archipelago every pier that gets built comes out at the three-bay minimum**, and that is a fact about the coast rather than a coincidence: these shores are rock, and the bottom goes from boot-deep to twelve metres of open sound inside a couple of bays. the length is measured rather than authored — a shelving bank would take the full twenty-seven metres `pier.reach` allows — and on this seed the ground has the same answer everywhere it has one at all.
+
+**is there anywhere to go from it.** the rule that halves the count, and the one no picture makes: a run that stays wet the whole way has not necessarily gone *out*. the first cut of this had no offing test, and the home island's pier crossed its harbour cove and stopped three metres short of the far shore — a pier in every still and an unfinished bridge to anyone looking at the water past it. so the head needs `pier.offing` metres of navigable water still ahead of it on the same bearing, measured at `boats.clearance` rather than at the berth depth: a berth is where a hull lies still and the offing is where it is under way.
+
+**`null` is an answer, the way it is for the mill, the chapel, the smokehouse and the croft — and here it is half the finding.** three islands build one and three do not, and the three refusals are all the same shape: **a harbour is sited for shelter, and the most sheltered cove on a coast is often the one with no way out of it.** the home island's is an enclosed shallow bay; the sound's is dug into a fjord basin whose sill is a metre down and whose floor is sixteen. there is no switch beside `berth`, `piled` and `offing`. `scape:map --stats` reports the head, the run, the bent count and the depth under the boat, or says no bearing found a berth with a way out of it, stamps the head `P`, and carries the run and the berth on every island's summary line.
+
+**the landing bank is the better-looking site and it is the wrong one.** every landing in the survey is *proved* to reach open water — `findLanding` accepts a bearing only when `reachesOpenSea` finds a boat-width corridor submerged all the way out of the island's radius — so rooting the pier there gives all six islands one, with runs from nine metres to twenty-seven. it is also the **port**: every ferry in the archipelago enters the water at a landing. a trestle beside one stands in the fairway, and both hands of the jetty fail differently — on the side the water entry is laid out to, the router came back `no water-only route joins two island jetties`, and on the other the nearest leg passed within 0.1 m of a pile at every reach down to twelve metres. teaching the router to go round it is a change to the boat network rather than to the settlement, and it is the follow-up rather than this run. the harbour is the cove nothing is routed to, which is exactly why it is the one to build on: the nearest ferry leg to any pile in the archipelago is 5.0 m, against a hull radius of 1.85 m and a deck half-width of 1.2 m, and `pier.test.ts` measures it rather than assuming it.
+
+**it is neither a prop nor a plop.** every builder in `props/index.ts` is a pure `(rng, palette)` factory whose result is a fixed shape standing on `y = 0`; a pier is a length the shelf chose, with every pile cut to the bed under its own bent, so it takes the shape `buildFenceRun` and `buildStoneWallRun` already took — a parametric run in world coordinates handed straight to the merged hero draw. **it costs no draw call on any tier.** what `quality.pierBoards` buys is the deck's board pitch, from 0.9 a metre on `minimal` to two on `ultra`; the piles, the stringers, the bollards and the ladder are the same on all four, because an island whose harbour changed shape with the hardware is worse than one planked coarsely.
+
+**the deck is level and the piles are not.** that is the whole reading of a trestle: piles of one length following the bottom down would be a ramp into the sea, and a deck that followed the bed would be the same mistake seen from the other end. both look plausible in a still at the far zoom, which is why `props/pier.test.ts` states them as facts about the vertices. the deck is solved against *mean* water like the jetty, the freeboard and the littoral band, so it clears the spring high water the tide reaches rather than moving twice a day.
+
+## the light on the outer rock## the light on the outer rock
 
 on the furthest skerry the ring has, there is a lighthouse: a battered stone tower with a painted band round its middle, a corbelled gallery with an iron rail, a glazed lantern room, and a cap with a vent finial on it. after dark the lamp comes up and the optic turns, sweeping two beams over the water on the desktop tier and three on ultra. the geometry is [`props/beacon.ts`](src/scene/props/beacon.ts), where it stands is [`landscape/beacon.ts`](src/scene/landscape/beacon.ts), and the light itself is [`scene/beacon.ts`](src/scene/beacon.ts).
 

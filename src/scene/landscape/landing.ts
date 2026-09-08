@@ -175,6 +175,43 @@ export const NET_RACK_SETBACK   = 5
 export const NET_RACK_FOOTING   = 2.4
 export const NET_RACK_CLEARING  = 4
 
+/**
+ * How far along the bank the pier is rooted from the boathouse's own line, in
+ * metres.
+ *
+ * The pier and the boathouse both run out from the harbour's one bank on its one
+ * bearing, and they are the two largest things in the cove. Rooting the trestle
+ * on the shed's centreline would carry a deck straight through its roof and out
+ * over the slipway a boat has to come down — so it is shifted a shed's footing
+ * plus a working gap to one side, and the two stand alongside each other the way
+ * a real waterfront lays itself out.
+ *
+ * **The harbour rather than the landing, and that is a decision with a scar on
+ * it.** The landing is the better-looking bank for this: `findLanding` accepts a
+ * bearing only when {@link reachesOpenSea} proves a boat-width corridor all the
+ * way out of the island's radius, so every landing has a way to sea and only
+ * some harbours do. But the landing is also the *port* — every ferry in the
+ * archipelago enters the water there. Rooting a twenty-four metre trestle beside
+ * one put it across the fairway: on the jetty's near side the router came back
+ * `no water-only route joins two island jetties`, and on the far side the nearest
+ * leg passed within 0.1 m of a pile. The harbour is the cove nothing is routed
+ * to, which is exactly why it is the one to build on.
+ *
+ * Always the same side, because a side chosen by a roll is a waterfront that
+ * rearranges itself when an unrelated prop is added upstream of the seed.
+ */
+export const PIER_OFFSET = BOATHOUSE_FOOTING + 1.6
+
+/** Where the pier meets the bank, along the shore from the boathouse. */
+export function pierSpot (bank: Spot): Vec2 {
+  const across = bank.angle + Math.PI / 2
+
+  return {
+    x: bank.x + Math.cos(across) * PIER_OFFSET,
+    z: bank.z + Math.sin(across) * PIER_OFFSET,
+  }
+}
+
 /** Where the boathouse deck sits, out over the water from its bank. */
 export function boathouseSpot (bank: Spot): Vec2 {
   return {
