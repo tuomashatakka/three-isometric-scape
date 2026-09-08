@@ -303,6 +303,9 @@ export function formatStats (stats: MapStats): string {
       `${belt.refused}% refused  lowest ground ${belt.lowest}m` +
       (belt.lowest < 0 ? '  <- sand laid in the water' : '') +
       (belt.crest <= 0 ? '  <- the belt found no coast to build on' : '')),
+    ...stats.forces.map(fall =>
+      `force ${fall.id}  lip (${fall.x},${fall.z}) ${fall.lip}m  drop ${fall.drop}m  ` +
+      `over ${fall.run}m  sheet ${fall.width}m wide`),
     `hearths ${stats.hearths.count}  lowest mouth ${stats.hearths.lowest}m over the ground` +
       (stats.hearths.lowest < 3 ? '  <- a stack is standing in its own roof' : ''),
     windowLine(stats.windows),

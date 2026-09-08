@@ -1,6 +1,8 @@
 import type { AppModule } from 'threejs-scene'
 import { SCAPE_DUNES } from './config-dunes.ts'
 import type { DuneBeltConfig } from './config-dunes.ts'
+import { SCAPE_FORCE } from './config-force.ts'
+import type { ForceConfig } from './config-force.ts'
 import { SCAPE_GUARD } from './config-guard.ts'
 import type { GuardConfig } from './config-guard.ts'
 import { SCAPE_LANDMASSES } from './config-landmasses.ts'
@@ -212,7 +214,7 @@ export interface DressingBudget {
   lamb: number
 }
 
-export interface ScapeConfig extends GuardConfig, TreelineConfig {
+export interface ScapeConfig extends ForceConfig, GuardConfig, TreelineConfig {
   seed:    number
   terrain: {
     size:       number
@@ -2718,6 +2720,7 @@ export const SCAPE_CONFIG = {
     camber:    0.55,
     halfWidth: 3.4,
   },
+  ...SCAPE_FORCE,
   ...SCAPE_GUARD,
   ...SCAPE_TREELINE,
   footpath: {

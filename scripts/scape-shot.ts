@@ -728,6 +728,40 @@ export const TOURS: Record<string, Pose[]> = {
   ],
 
   /**
+   * The fall, from the two sides a fall has.
+   *
+   * Added for the reason `beck` was and at a tighter zoom again: the home
+   * island's step is a metre and a half of drop over eight tenths of a metre of
+   * channel, three and a half metres across. At `beck`'s 26 m of view it is four
+   * pixels of white in the middle of a stripe.
+   *
+   * `force` looks down the flow at the sheet, which is the heading the drop
+   * reads at — the home island's water goes over on a bearing of 66°, and at
+   * the other three quarter-turns the lip is either edge-on or behind the hill
+   * it is cut into. `force-across` is the same fall from 330°, side on and
+   * pulled back far enough to hold the chapel, which is where the *throw* reads:
+   * the sheet leaves the lip travelling and lands out from the foot, and a frame
+   * square on cannot show that. `force-winter` is the column locked, at noon and
+   * a fortnight off the shortest day, pinned that way for the reason
+   * `beck-winter` is. `force-shield` is the biggest fall in the archipelago, on
+   * the one island whose course falls twenty-two metres — a check that the sheet
+   * is sized against the drop it found rather than against the home island's.
+   */
+  force: [
+    { name: 'force', rot: 60, zoom: 14, set: [ 'camera.focusX=19.6', 'camera.focusZ=27.5' ]},
+    { name: 'force-across', rot: 330, zoom: 16, set: [ 'camera.focusX=19.6', 'camera.focusZ=27.5' ]},
+    {
+      name:   'force-winter',
+      rot:    60,
+      zoom:   14,
+      time:   0.5,
+      season: 0.06,
+      set:    [ 'camera.focusX=19.6', 'camera.focusZ=27.5' ],
+    },
+    { name: 'force-shield', rot: 60, zoom: 18, set: [ 'camera.focusX=-36.7', 'camera.focusZ=582.9' ]},
+  ],
+
+  /**
    * The turf cutting, which is a hole and photographs like one.
    *
    * The lesson every one of the sets above wrote down, applied to a feature that
@@ -1040,6 +1074,13 @@ export const STILL = [
   // a surface that scrolls a metre a second is a different beck in every frame
   // of a tour.
   'beck.flow=0',
+
+  // And the fall's own rate, which nothing above stops: the sheet goes over the
+  // lip faster than the channel above it runs, so it carries a speed of its own
+  // rather than a share of `beck.flow`. A fall left running is a different
+  // pattern of white in every frame of a tour, and it is the one surface in the
+  // scape whose texture crosses its whole extent in under a second.
+  'force.flow=0',
 
   'boats.speed=0',
 
@@ -1379,6 +1420,7 @@ async function main (): Promise<void> {
       '                        croft (3, the holding out on the islets)',
       '                        shallows (4, the light on the bottom)',
       '                        beck (4, the water in the channel)',
+      '                        force (4, the fall the beck goes over)',
       '                        peat (3, the turf cutting on the moor)',
       '                        tide (3, the sea at both ends of its swing)',
       '                        causeway (3, the bar out to the nearest rock)',

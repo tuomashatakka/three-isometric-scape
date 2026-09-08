@@ -136,7 +136,7 @@ bun run scape:map --layers paths,waterways,boats,buildings
 bun run scape:map --json               # for scripting
 ```
 
-the stats block is the check that catches what a still cannot — a beck that stopped tracing, an island that drowned, a pasture that never found room, a mill that lost its shoulder, footpaths that collapsed to zero, a route that crossed land or a fleet that collided. the first block is the legacy home-island shape; the landmass, waterway and boat blocks cover the full world. **read it before and after every change.**
+the stats block is the check that catches what a still cannot — a beck that stopped tracing, an island that drowned, a pasture that never found room, a mill that lost its shoulder, footpaths that collapsed to zero, a route that crossed land or a fleet that collided. the `force` lines are the sharpest case of it: the step in a beck's long profile preserves the fall of the window it was cut from, so every other figure in this readout — the wetted reach, the total fall, the mouth — is identical whether the fall is two metres deep or was never cut at all. the first block is the legacy home-island shape; the landmass, waterway and boat blocks cover the full world. **read it before and after every change.**
 
 ```text
 seed 7319  world 1520m  home 196m  water -1.25m  grid 96x48  15.83x31.67 m/cell
@@ -263,6 +263,7 @@ bun run scape:shot --poses chapel                   # the church and its yard, 4
 bun run scape:shot --poses grazing                  # the flocks on the rough ground, 3 frames
 bun run scape:shot --poses shallows                 # the light on the bottom, 4 frames
 bun run scape:shot --poses beck                     # the water in the channel, 4 frames
+bun run scape:shot --poses force                    # the fall the beck goes over, 4 frames
 bun run scape:shot --poses smokehouse               # the hut above the harbour, 3 frames
 bun run scape:shot --poses croft                    # the holding out on the islets, 3 frames
 bun run scape:shot --poses tide                     # the sea at both ends of its swing, 3 frames

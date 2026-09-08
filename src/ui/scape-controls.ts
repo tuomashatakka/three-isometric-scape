@@ -377,6 +377,21 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           1.1,
           [ range('beck.riffle', 'white water', 0, 1.5, 0.01, quality.beckRipples > 0) ],
         ),
+        // The one place on the course the water is not lying in the channel.
+        // Its own rate rather than a multiple of the beck's, because that is
+        // the difference between a fall and a reach — and the two knobs under
+        // it are both gated on the tier's water texture, which is the same
+        // switch the beck's white water is behind. Where the step *is* and how
+        // deep it was cut are folded into the ground at build time.
+        toggled(
+          'the fall',
+          range('force.flow', 'flow (m/s)', 0, 8, 0.05),
+          3.2,
+          [
+            range('force.white', 'white water', 0, 1.5, 0.01, quality.beckRipples > 0),
+            range('force.spray', 'spray', 0, 1, 0.01, quality.beckRipples > 0),
+          ],
+        ),
         // Filed under the water for the reason the beck is, and with the same
         // two-knob restraint: where a pool stands and how deep its basin is cut
         // are folded into the ground at build time, so what is here is what a

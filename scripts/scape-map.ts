@@ -16,8 +16,8 @@ import { STEADING_BUILDINGS } from '../src/scene/landscape/steading.ts'
 import { sampleWaterway } from '../src/scene/landscape/waterway.ts'
 import type { ScapeConfig } from '../src/scene/config.ts'
 import { formatStats } from './scape-map-format.ts'
-import { duneStats, fjordStats, hauloutStats, icecapStats, skerryStats, strandStats, treelineStats } from './scape-map-landforms.ts'
-import type { DuneStats, FjordStats, IcecapStats, TreelineStats } from './scape-map-landforms.ts'
+import { duneStats, fjordStats, forceStats, hauloutStats, icecapStats, skerryStats, strandStats, treelineStats } from './scape-map-landforms.ts'
+import type { DuneStats, FjordStats, ForceStats, IcecapStats, TreelineStats } from './scape-map-landforms.ts'
 import { pierHead } from '../src/scene/landscape/pier.ts'
 import { causewayOf, croftOf, peatOf, pierOf, smokehouseOf, tarnOf } from './scape-map-sites.ts'
 import { rainbowStats, stormStats } from './scape-map-weather.ts'
@@ -285,6 +285,15 @@ export interface MapStats extends CompositionStats {
    * only knowable by walking it.
    */
   dunes: DuneStats[]
+
+  /**
+   * The falls, one entry per island whose beck goes over a step.
+   *
+   * Beside the belts for the reason they are beside the caps, and it is the one
+   * block here that no other line can stand in for — see {@link forceStats} for
+   * why the beck's own two figures are blind to it.
+   */
+  forces: ForceStats[]
 
   /**
    * The wood's edge — the shares of land inside it, at it and above it.
@@ -708,6 +717,7 @@ export function surveyStats (
     fjords:   fjordStats(survey),
     icecaps:  icecapStats(survey),
     dunes:    duneStats(survey),
+    forces:   forceStats(survey),
     treeline: treelineStats(survey, config),
     grazing:  {
       count: flocks.length,

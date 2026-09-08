@@ -5,6 +5,7 @@ import { raiseCauseway } from './causeway.ts'
 import type { Causeway } from './causeway.ts'
 import { raiseDunes } from './dunes.ts'
 import type { DuneBelt } from './dunes.ts'
+import { stepEase, stepProfile } from './knickpoint.ts'
 import { raiseIce } from './icecap.ts'
 import { baseAt, distanceToTrack, plotInfluence, remapRelief, sinkToIsland } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
@@ -380,14 +381,30 @@ export function createHeightField (
   // tempting on a course this short and it is a trap: eight passes over
   // fourteen points is very nearly one average, and a long profile averaged
   // flat carves a level canal instead of a beck.
-  const bedProfile = creek
-    ? fallOnly(smoothProfile(creek.points.map(point => graded(point.x, point.z)), 4))
-    : []
+  const bedGround = creek ? creek.points.map(point => graded(point.x, point.z)) : []
+  const smoothed  = fallOnly(smoothProfile(bedGround, 4))
+
+  // And then the one place the beck is allowed to stop being smooth. The passes
+  // above are what stop a channel inheriting every bump of the fBm, and they are
+  // also what guarantees the fall is spread evenly over every metre of the
+  // course — which no hill beck does. This gathers the steepest reach of that
+  // profile into a single step and slackens what is left, preserving the total
+  // fall and both ends of it. See `landscape/force.ts`.
+  const { profile: bedProfile, step: bedStep } = stepProfile(smoothed, bedGround, {
+    ...config.force,
+    spacing: creek && creek.points.length > 1 ? creek.length / (creek.points.length - 1) : 0,
+
+    // The long profile is the ground the channel is cut *into*, so the floor the
+    // water will actually stand on is this much lower — and it is the floor that
+    // has to keep out of the sea.
+    above: waterLevel + config.creek.incision,
+    cut:   config.creek.incision,
+  })
 
   /** The floor the channel wants at a course position, in world height. */
   function bedLevel (at: number, course: number): number {
     const index  = Math.min(Math.floor(at), bedProfile.length - 2)
-    const local  = at - index
+    const local  = stepEase(bedStep, index, at - index)
     const ground = bedProfile[index] + (bedProfile[index + 1] - bedProfile[index]) * local
 
     const cut = ground - (creek?.incisionAt(course) ?? 0)
