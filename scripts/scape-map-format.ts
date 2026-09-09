@@ -45,6 +45,24 @@ function treelineLine (treeline: MapStats['treeline']): string {
     (islands ? `\n            ${islands}` : '')
 }
 
+/**
+ * One island's winter, with the wind in it and without.
+ *
+ * `cover -> cover` is the finding and the rest is the working: two identical
+ * shares mean the swing never reached the ground, which is the failure this
+ * line exists to catch and the one a winter still cannot show — a whitened
+ * island looks whitened either way. `realised` says whether that would be the
+ * knob's fault or the hillside's.
+ */
+function driftLine (island: MapStats['drift'][number]): string {
+  return `drift ${island.id}  scoured ${island.scoured}% / drifted ${island.drifted}%  ` +
+    `cover ${island.even}% -> ${island.cover}%  bared ${island.bared}%  banked ${island.banked}%  ` +
+    `swing ${island.realised}m` +
+    (island.bared === 0 && island.banked === 0
+      ? '  <- the wind moved no snow on this island'
+      : '')
+}
+
 function grazingLine (grazing: MapStats['grazing']): string {
   const head = `grazing ${grazing.count}/${grazing.asked} flocks  `
 
@@ -337,6 +355,7 @@ export function formatStats (stats: MapStats): string {
     stormLine(stats.storm),
     rainbowLine(stats.rainbow),
     treelineLine(stats.treeline),
+    ...stats.drift.map(driftLine),
     grazingLine(stats.grazing),
     `gulls ${stats.colonies.count}/${stats.colonies.asked} colonies  ` +
       (stats.colonies.sited

@@ -4,7 +4,7 @@ import { hash2, smoothstep } from 'threejs-scene'
 import { createSurfaceRibbon, mergeGeometryList } from 'threejs-scene/modules/assets'
 import type { ScapeConfig } from '../config.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
-import { dampBand, shadeAmount, shadeDirection } from './aspect.ts'
+import { dampBand, faceAmount, shadeDirection } from './aspect.ts'
 import { cartRutGeometry, trafficAt } from './cart-ruts.ts'
 import { duneClaim } from './dunes.ts'
 import type { DuneBelt } from './dunes.ts'
@@ -165,7 +165,7 @@ export function createTerrainPainter (
    * different amounts and neither is the other's negative.
    */
   function turned (target: Color, relative: number, x: number, z: number): void {
-    const lean = shadeAmount(field.normalAt(x, z, facing), shade)
+    const lean = faceAmount(field.normalAt(x, z, facing), shade)
     const damp = dampBand(relative, aspect.line)
 
     if (lean > 0)

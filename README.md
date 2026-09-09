@@ -271,6 +271,7 @@ src/
     │   ├── boat-motion.ts          one shared departure clock, one leg each
     │   ├── terrain.ts              geometry, banded colour, path wear and cart soil painted in, ruts merged on
     │   ├── aspect.ts               which way a slope is turned, and the moss and snow that follow from it
+    │   ├── drift.ts                where the wind put the winter: the snow line's second swing, and the cover measured
     │   ├── treeline.ts             where the wood stops: fetch, two lines, and the margin between them
     │   ├── shore-mask.ts           the baked bathymetry, and which way each coast faces
     │   ├── water.ts                swell, surf, foam, glitter, winter ice
@@ -318,11 +319,13 @@ scripts/
 ├── gate.ts                         lint, typecheck, test and build as one answer
 ├── api-digest.ts                   what the runtime exports, and what we use of it
 ├── prop-map.ts                     one prop as ascii, from six angles
-├── scape-map.ts                    the whole composition as ascii
+├── scape-map.ts                    the whole composition as ascii, surveyed
+├── scape-map-render.ts             the picture half: the ramp, the layers and the grid
 ├── scape-map-format.ts             the stats block, as the run reads it
 ├── scape-map-landforms.ts          the bar, the guard, the fjords and the treeline, walked
 ├── scape-map-sites.ts              the sited features of one island, projected and measured
 ├── scape-map-weather.ts            the storm the front carries, and where its strikes land
+├── scape-poses.ts                  every named pose set, and the clocks a capture stops
 ├── scape-shot.ts                   headless stills, posed and pinned
 ├── scape-diff.ts                   what a change did to the picture, in numbers
 └── setup.ts                        what a run has before it starts thinking
@@ -833,7 +836,7 @@ the beck was the scape's one *found* landform: a steepest-descent walk that obey
 
 **it freezes weeks before the sound does.** a pool a stone's throw across and knee deep on a fell has no fetch, no swell and almost no thermal mass. `tarnFreeze` runs the one `season.freeze` the lake and the beck already read through `tarn.frost`, so there is still exactly one winter in the scape and this water simply gives up sooner — and once it is ice it goes matte, because ice is not a mirror, and it takes lying snow on top.
 
-**it does not move, and that is a decision.** nothing on a fell has the fetch to raise a wave on water you could throw a stone across, so the surface is flat and still. that also means it has no speed to add to `STILL` in [`scape-shot.ts`](scripts/scape-shot.ts) — a system with nothing to stop is a system every capture can already see.
+**it does not move, and that is a decision.** nothing on a fell has the fetch to raise a wave on water you could throw a stone across, so the surface is flat and still. that also means it has no speed to add to `STILL` in [`scape-poses.ts`](scripts/scape-poses.ts) — a system with nothing to stop is a system every capture can already see.
 
 **the two live knobs are the two a frame can honour.** `tarn.mirror` is the whole character of the thing and moves the material's roughness the other way; `tarn.frost` is how far ahead of the sea it locks. both are in the overlay. `radius`, `depth`, `lift` and `spread` are folded into the composite height field at build time and are deliberately not, for the reason `creek` and `strand` are not: a slider that needs a rebuild lies about what a slider does.
 
@@ -1603,7 +1606,7 @@ the ground knew how *steep* it was and never which way it was **turned**. slope 
 
 **the snow line swings rather than the cover thinning.** `season.snowSwing` is metres, and they stay metres — how far up a hill the last snow survives is a fact about the latitude, not about the world's width or the frame's. the shaded face keeps its cover that much lower than the side the sun has been on, so a thaw eats the south face first and leaves the north one white, which is what a thaw looks like. fading the cover instead would have been a snow field going transparent, which is what nothing does.
 
-**it rides in a varying that already existed.** `vScapeUp` was one float carrying the normal's `y` for the grain and for lying snow; it is now `vScapeFace`, a `vec2` whose second component is the aspect. a driver that packs before it eliminates gives a lone float a whole slot, so the companion float this could have been would have cost four times what riding along here does. foliage declares neither: a grass tuft is a scatter whose facets point every way at once, so its season resolves the aspect to a constant — and a hillside of grass still changes with the aspect, because the ground it stands in does.
+**it rides in a varying that already existed.** `vScapeUp` was one float carrying the normal's `y` for the grain and for lying snow; it became `vScapeFace`, whose second component is the aspect — and whose third is the wind's, added by [the drift](#the-side-of-the-hill-the-weather-is-on) below. a driver that packs before it eliminates gives a lone float a whole slot, so the companion float this could have been would have cost four times what riding along here does. foliage declares neither: a grass tuft is a scatter whose facets point every way at once, so its season resolves the aspect to a constant — and a hillside of grass still changes with the aspect, because the ground it stands in does.
 
 ### it is a bearing times a steepness, not a dot against the normal
 
@@ -1618,6 +1621,26 @@ the third time this has been written down, and the same lesson each time. `--pos
 `--poses aspect` is one more set added for this reason. the fell is the subject because it is the steepest ground in the archipelago and the least built on, so what is in frame is ground rather than farm. `aspect` and `aspect-turned` are the same hill from opposite headings, which is the claim in two pictures: the face that is dark and green from one is pale from the other. `aspect-thaw` is a *thaw* rather than midwinter — at `season: 0.02` the cover is 1.0 and a line that has run off the top of the island cannot be seen to swing, where 0.16 leaves two thirds of it and where the line falls is the whole picture.
 
 one number in the instrument had to be named rather than trusted, too. the ground tint is a **wide, low-amplitude** change — every slope on five islands, none of it by much — and `scape:diff` defaults to a per-pixel tolerance of 0.1, which is a tenth of the full colour range and is built to catch a thing appearing rather than a surface leaning. at `--tolerance 0.04` all four aspect poses report `CHANGED` with blocks up to 75%; at the default only the snow line's swing clears it. both readings are in the pull request, because quoting only the flattering one is how a tolerance becomes a way of not looking.
+
+## the side of the hill the weather is on
+
+the snow line had two facts in it and both were about **melt** — a height where cover starts, swung up and down the hill by how much sun a face takes. neither is a fact about where the snow *landed*. at this latitude that is the stronger of the two: snow falls through a wind that never stops, and a winter's worth of it ends up scoured off every face turned into the weather and banked metres deep against every face turned out of it. an island evenly whitened to one contour is an island somewhere with no wind in it.
+
+[`landscape/drift.ts`](src/scene/landscape/drift.ts) is the second swing, and it is the aspect rule with a different compass in it. `driftDirection` is the only new geometry — the direction a *sheltered* face points in, which is the direction the wind blows toward, so it is `wind.bearing` with no negation anywhere. everything after that is `faceAmount` from [`aspect.ts`](src/scene/landscape/aspect.ts), which is why that function no longer has the sun's name on it: there is one "which way is this face turned" in the scape and both agents ask it.
+
+**`season.snowDrift` is metres, and they stay metres**, for the reason `snowSwing` is. it defaults to 3.4, which is deeper than the sun's 2.2 and is the one number in the section measured rather than chosen: these islands stand five to twenty-three metres out of the water and 77% of that is already over the line at midwinter, so a swing under about two metres only re-shades ground that is white either way. 0 is the winter the scape had, and there is no boolean beside it.
+
+**it is the same normal, read against a second bearing, in the same varying.** `vScapeFace` is a `vec3` now: `y` is the sun's aspect, `z` is the weather's, and the vertex stage normalises the horizontal turn and shapes the steepness gate **once** and dots it twice. a `vec3` occupies the varying slot the `vec2` already had, so the whole system costs two dot products, one subtraction and one `mix` — no texture, no fetch, no bake, no program, nothing per frame, and **the same on every tier**, which is why it has no `quality` entry: a system that costs a handset nothing does not need defending from one.
+
+**the lee is the smoother surface.** a drift is packed by the wind that built it; a scoured face keeps only what fell straight down. so the roughness the snow mixes toward is itself mixed between 0.78 and 0.56 by the exposure — weighted by the cover, so ground with no snow on it has no drift to be smooth whichever way it faces. it is one more `mix` on a term the fragment already holds, and at a low winter sun it is most of what separates a bank from a dusting.
+
+**the cpu half is a *measurement* rather than a second implementation.** nothing in the scene calls `snowCover`; the gpu owns the pixels. what calls it is `measureDrift`, which walks the world and reports what the cover *is* — and the constants it shapes the cover with are the same four the shader is built from, interpolated into the glsl from this module rather than written down twice. the aspect section above says its two halves "agree because they run the same arithmetic on the same two inputs"; this pair agrees because there is only one copy of the numbers.
+
+**the finding is a pair of shares, and neither alone is one.** `scape:map --stats` gained a `drift` line per island: `cover 68.1% -> 68.9%` is the same deep winter without the wind's swing and with it, and the interesting thing about the home island is that those two numbers are nearly equal while `bared 10.1%  banked 11%` says a fifth of the island changed. the wind **moves** the winter rather than adding or removing one — which is exactly what a redistribution should look like in a total, and exactly what no single share could have told you. `swing` is the metres the island's own ground earns out of the metres the knob offers: 6.8 of a possible 6.8 everywhere, because a coast this warped has a face pointing every way.
+
+**and the tour could not see any of it — the fourth time this has been written down.** `winter` moved 0.07% with a 2.9% max block and reported `same`, and it was right to: at 1 520 m every island is a white lozenge and whether one *side* of a ridge came out from under the cover is a question about forty metres of hillside. `--poses drift` is four frames on the fell island — the tallest ground in the archipelago with no ice cap on it, because a run about lying snow cannot be judged on the one island where the white is mostly not snow. `drift` is the hillside as it now is, `drift-even` is the same frame with `season.snowDrift=0` and is the control, `drift-lee` turns the weather right around and has to take the bare ground to the far side of every ridge, and `drift-near` is 45 m, where the scoured face and the packed bank either side of one shoulder are surfaces rather than a tone. the set reads `drift` 3.50% / 55.2% `CHANGED`, `drift-near` 5.51% / 87.4%, `drift-lee` 0.81% / 35.2% — and `drift-even` **0.00%, `same`**, which is the one worth reading twice: the control is byte-identical to the reference, so `snowDrift = 0` is the winter this scape had rather than a very close approximation of it.
+
+**nothing here is in `STILL`, and `scape-shot.test.ts` had to be told why.** the rule that guards captures reads candidates off the overlay by *name*, and `snowDrift` ends in a word that pattern treats as a rate. it is not one: it is metres, resolved from a bearing and a ground normal, and both of those are as still in a capture as the hillside is. zeroing it would mean no capture of this scape ever had a drift in it — the same failure `storm.rate`'s exemption names.
 
 ## ground that casts
 

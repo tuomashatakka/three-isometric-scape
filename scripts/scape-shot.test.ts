@@ -3,8 +3,8 @@ import { readPath } from 'threejs-scene'
 import { SCAPE_CONFIG } from '../src/scene/config.ts'
 import { atmosphereQuality } from '../src/scene/quality.ts'
 import { controlPaths, createScapeControls } from '../src/ui/scape-controls.ts'
-import type { Pose } from './scape-shot.ts'
-import { STILL, TOURS } from './scape-shot.ts'
+import { STILL, TOURS } from './scape-poses.ts'
+import type { Pose } from './scape-poses.ts'
 
 
 /**
@@ -54,6 +54,14 @@ const NOT_A_RATE: Record<string, string> = {
   // stop is already stopped, and zeroing it here would mean no capture of this
   // scape ever contained a strike at all. See `scene/storm.ts`.
   'storm.rate': 'a share, 0..1 — how many of the front\'s slots carry a strike',
+
+  // Metres, and the noun rather than the verb: how far up a hill the snow line
+  // swings between the face the weather is on and the lee of it. Nothing about
+  // it advances — it is resolved from `wind.bearing` and a ground normal, and
+  // both of those are as still in a capture as the hillside is. Zeroing it here
+  // would mean no capture of this scape ever had a drift in it, which is the
+  // same failure `storm.rate` names. See `landscape/drift.ts`.
+  'season.snowDrift': 'metres — where the wind put the winter, not how fast',
 }
 
 /**

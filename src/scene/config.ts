@@ -1985,6 +1985,24 @@ export interface ScapeConfig extends ForceConfig, GuardConfig, KelpConfig, Treel
      */
     snowSwing: number
 
+    /**
+     * Metres the snow line swings between the weather face and the lee of it.
+     *
+     * **Metres, and they stay metres**, for the reason
+     * {@link ScapeConfig.season.snowSwing} is: how deep a drift banks is set by
+     * how much snow crosses the hill, which is a fact about the winter rather
+     * than about the world's width or the frame's.
+     *
+     * The other half of where lying snow *is*. `snowSwing` is a fact about melt
+     * — the shaded face keeps its cover longest — and this is a fact about
+     * fall: a winter's snow crossing a hill in a wind that never stops is taken
+     * off every face turned into the weather and banked against every face
+     * turned out of it. 0 is a hillside evenly whitened to one contour, which is
+     * a hillside in a place with no wind in it. Which way the weather comes from
+     * is `wind.bearing`, exactly as which way is shaded is `daylight.azimuth`.
+     */
+    snowDrift: number
+
     /** How hard the year turns and withers what is green, 0..1. */
     turn: number
 
@@ -3126,6 +3144,16 @@ export const SCAPE_CONFIG = {
     // under that and the swing reads as a blurrier contour rather than as two
     // faces.
     snowSwing: 2.2,
+
+    // Deeper than the sun's swing on purpose, and it is the one number in this
+    // section measured against the ground rather than chosen: the islands stand
+    // 5 m to 23 m out of the water and 77% of that is already over the line at
+    // midwinter, so a swing under about 2 m only re-shades ground that is white
+    // either way. At 3.4 the weather faces come out from under the cover
+    // altogether and the drift banks a good two metres further down the lee,
+    // which is the read — bare rock on one side of a ridge, filled hollow on
+    // the other.
+    snowDrift: 3.4,
     turn:      0.55,
     ice:       0.9,
     seaSmoke:  0.9,

@@ -5,8 +5,9 @@ import pixelmatch from 'pixelmatch'
 import { PNG } from 'pngjs'
 import { serveStatic } from './browser.ts'
 import { parseArgs } from './args.ts'
-import { TOURS, optionsFrom, posesFrom, shoot, withBrowser } from './scape-shot.ts'
-import type { Pose } from './scape-shot.ts'
+import { optionsFrom, posesFrom, shoot, withBrowser } from './scape-shot.ts'
+import { TOURS } from './scape-poses.ts'
+import type { Pose } from './scape-poses.ts'
 
 
 export interface Comparison {
