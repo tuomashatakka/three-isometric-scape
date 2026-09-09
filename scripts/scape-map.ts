@@ -16,7 +16,7 @@ import { STEADING_BUILDINGS } from '../src/scene/landscape/steading.ts'
 import { sampleWaterway } from '../src/scene/landscape/waterway.ts'
 import type { ScapeConfig } from '../src/scene/config.ts'
 import { formatStats } from './scape-map-format.ts'
-import { duneStats, fjordStats, forceStats, hauloutStats, icecapStats, skerryStats, strandStats, treelineStats } from './scape-map-landforms.ts'
+import { duneStats, fjordStats, forceStats, hauloutStats, icecapStats, kelpStats, skerryStats, strandStats, treelineStats } from './scape-map-landforms.ts'
 import type { DuneStats, FjordStats, ForceStats, IcecapStats, TreelineStats } from './scape-map-landforms.ts'
 import { pierHead } from '../src/scene/landscape/pier.ts'
 import { causewayOf, croftOf, peatOf, pierOf, smokehouseOf, tarnOf } from './scape-map-sites.ts'
@@ -338,6 +338,29 @@ export interface MapStats extends CompositionStats {
     lowest:  number
     highest: number
     springs: number
+  }
+
+  /**
+   * The kelp in the shallows, and the two ends of a spring tide in it.
+   *
+   * Here rather than in a screenshot for the reason the colony is: a bed is a
+   * relation between a plant's length and the water over it, and a still is one
+   * state of the tide. `low` and `high` are the mean lean at low and high
+   * springs — the same plants, standing up and lying over — and `low === high`
+   * is the finding, a bed the sea has stopped mattering to.
+   */
+  kelp: {
+    plants:  number
+    offered: number
+    beds:    number
+    coasts:  number
+    islands: number
+    afloat:  number
+    shallow: number
+    deep:    number
+    longest: number
+    low:     number
+    high:    number
   }
 
   /**
@@ -714,6 +737,7 @@ export function surveyStats (
     strand,
     skerries: skerryStats(survey, config),
     haulout:  hauloutStats(survey, config),
+    kelp:     kelpStats(survey, config),
     fjords:   fjordStats(survey),
     icecaps:  icecapStats(survey),
     dunes:    duneStats(survey),

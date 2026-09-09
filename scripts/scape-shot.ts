@@ -1035,6 +1035,67 @@ export const TOURS: Record<string, Pose[]> = {
     },
   ],
 
+  /**
+   * The kelp beds, at the two ends of one spring tide.
+   *
+   * Added for the reason `haulout` was, and it is the same argument twice over.
+   * A plant is one to five metres long, standing in water, on a band ten metres
+   * wide that runs round a coast — every pose in `tour` is either the whole
+   * archipelago at better than half a metre to the pixel, where the entire skirt
+   * is a smudge in the depth tint, or `near` at ten metres, which is standing in
+   * the farmyard forty metres inland of the nearest bed.
+   *
+   * And the thing actually worth photographing is not the plant. It is *how far
+   * over* the bed is lying, which is a relation between the plant's length and
+   * the water on top of it and therefore a difference between two states of the
+   * sea — so it cannot be in one frame at all. `kelp-low` and `kelp-high` are
+   * the same bed on the home island's north shore at low and at high water of
+   * one spring tide, and the pair is the claim. The two hours are the haul-out's
+   * own, and solved rather than chosen: week 0.687 is where `springAmount`
+   * reaches 1 with the sun still well up, and 0.35 and 0.6 of that day are the
+   * low and the high inside it.
+   *
+   * `kelp-near` is the same bed at a zoom where a plant is a plant rather than a
+   * dark fleck, which is the only frame the crown and the stipe are separable
+   * in. `kelp-shore` is the meadow island's long bed — the widest skirt in the
+   * archipelago, and the one frame that shows a *bed* rather than plants: the
+   * band following the coast, with the clearings cut through it.
+   *
+   * `kelp.sway` is in {@link STILL} and the lean deliberately is not — it is a
+   * function of the tide, which is a function of the two clocks that list stops
+   * at the top, which is exactly why these two frames differ at all.
+   */
+  kelp: [
+    {
+      name:   'kelp-low',
+      zoom:   60,
+      time:   0.35,
+      season: 0.687,
+      set:    [ 'camera.focusX=-14', 'camera.focusZ=-46' ],
+    },
+    {
+      name:   'kelp-high',
+      zoom:   60,
+      time:   0.6,
+      season: 0.687,
+      set:    [ 'camera.focusX=-14', 'camera.focusZ=-46' ],
+    },
+    {
+      name:   'kelp-near',
+      zoom:   24,
+      time:   0.35,
+      season: 0.687,
+      set:    [ 'camera.focusX=-14', 'camera.focusZ=-46' ],
+    },
+    {
+      name:   'kelp-shore',
+      zoom:   150,
+      time:   0.35,
+      season: 0.687,
+      set:    [ 'camera.focusX=172', 'camera.focusZ=112' ],
+    },
+  ],
+
   // The cheap pass: is there a scape at all, and does it survive being drawn.
   quick: [{ name: 'default' }],
 }
@@ -1133,6 +1194,15 @@ export const STILL = [
   // ashore: that is a function of the two clocks already stopped at the top of
   // this list, and it is the same reason the sea itself has no entry.
   'haulout.shuffle=0',
+
+  // The swell in the kelp beds. Its own rate rather than a share of the wind,
+  // because a swell is weather that happened somewhere else a day ago and runs
+  // through a flat calm — so nothing else in this list stops it, and several
+  // hundred plants leaning a different way in every frame is a shore that cannot
+  // be diffed. Nothing here for the *lean* itself: it is a function of the tide,
+  // which is a function of the two clocks already stopped at the top of this
+  // list, and it is the same reason the colony has no entry for it either.
+  'kelp.sway=0',
 
   // Nothing for the lightning, deliberately, and it is the reason the storm has
   // no rate of its own to zero. A strike's whole life is measured in the front's

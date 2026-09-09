@@ -108,6 +108,24 @@ export interface AtmosphereQuality {
   sealCount: number
 
   /**
+   * Kelp plants one island's skirt may carry. 0 is a sea with no weed in it.
+   *
+   * A count per *island* rather than for the archipelago, for the reason
+   * `sealCount` is per rock: the beds ring six coasts of five different sizes,
+   * and a number dealt across the whole world would leave the fell with a
+   * handful of plants strung round two kilometres of shore. It is capped again
+   * per island by how much band the coast actually offers, so a shelving island
+   * takes the budget and a steep one takes what it can fit — and the tier's
+   * share is spread evenly round the whole skirt rather than filling one side of
+   * it, which is what `PHI` in `landscape/kelpbed.ts` is for.
+   *
+   * The cost is instances in one shared draw, not draws: a seven-part plant of
+   * 180 triangles, stamped once per plant, with one arccosine and one quaternion
+   * per plant per frame to lean it against the tide.
+   */
+  kelpCount: number
+
+  /**
    * Puffs in one chimney's plume. 0 is a tier whose hearths do not smoke.
    *
    * A count and not a density, and — like `birdCount` and unlike `starCount` —
@@ -341,6 +359,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     stormFlashes:    0,
     birdCount:       0,
     sealCount:       0,
+    kelpCount:       0,
     beaconBlades:    0,
     lampSpill:       0,
     cursorLight:     false,
@@ -382,6 +401,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     stormFlashes:    1,
     birdCount:       90,
     sealCount:       5,
+    kelpCount:       100,
     beaconBlades:    1,
     lampSpill:       2,
     cursorLight:     false,
@@ -439,6 +459,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     stormFlashes:    2,
     birdCount:       260,
     sealCount:       11,
+    kelpCount:       250,
     beaconBlades:    2,
     lampSpill:       3,
     cursorLight:     true,
@@ -480,6 +501,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     stormFlashes:    3,
     birdCount:       420,
     sealCount:       16,
+    kelpCount:       340,
     beaconBlades:    3,
     lampSpill:       4,
     cursorLight:     true,
@@ -538,6 +560,7 @@ const UNLOCKED_FLOOR = {
   stormFlashes:   1,
   birdCount:      90,
   sealCount:      5,
+  kelpCount:      100,
   beaconBlades:   1,
   lampSpill:      2,
   cursorLight:    true,
@@ -584,6 +607,7 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
     stormFlashes:   Math.max(quality.stormFlashes, UNLOCKED_FLOOR.stormFlashes),
     birdCount:      Math.max(quality.birdCount, UNLOCKED_FLOOR.birdCount),
     sealCount:      Math.max(quality.sealCount, UNLOCKED_FLOOR.sealCount),
+    kelpCount:      Math.max(quality.kelpCount, UNLOCKED_FLOOR.kelpCount),
     beaconBlades:   Math.max(quality.beaconBlades, UNLOCKED_FLOOR.beaconBlades),
     lampSpill:      Math.max(quality.lampSpill, UNLOCKED_FLOOR.lampSpill),
     cursorLight:    true,

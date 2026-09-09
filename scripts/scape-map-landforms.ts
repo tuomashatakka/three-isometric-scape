@@ -6,6 +6,7 @@ import { findFall } from '../src/scene/landscape/force.ts'
 import { createHeightField } from '../src/scene/landscape/height.ts'
 import { countAshore, hauledSeals, planHaulouts } from '../src/scene/landscape/haulout.ts'
 import { iceCapOf, measureIce } from '../src/scene/landscape/icecap.ts'
+import { kelpDepth, kelpLean, kelpPlants, planKelp } from '../src/scene/landscape/kelpbed.ts'
 import { planTreeline } from '../src/scene/landscape/treeline.ts'
 import { tideAmplitudeAt } from '../src/scene/tide.ts'
 import type { MapStats } from './scape-map.ts'
@@ -161,6 +162,63 @@ export function hauloutStats (survey: ArchipelagoSurvey, config: ScapeConfig): M
     lowest:  seals.length ? round(Math.min(...seals.map(seal => seal.ledge - waterLevel)), 2) : 0,
     highest: seals.length ? round(Math.max(...seals.map(seal => seal.ledge - waterLevel)), 2) : 0,
     springs: round(springs, 2),
+  }
+}
+
+/**
+ * How many plants a coast is dealt when the map asks, whatever tier is running.
+ *
+ * The desktop budget, for the reason {@link MAP_TIER_HEADS} is the desktop one:
+ * `scape:map` has no renderer and so no device to read a tier off, and a number
+ * that changed with the box it ran on would make the instrument useless for
+ * comparing two runs.
+ */
+const MAP_TIER_PLANTS = 250
+
+/**
+ * The kelp beds, and the relation the tide has with them.
+ *
+ * Here rather than in a screenshot for the reason the colony is, and more so: a
+ * bed is under the sea, seen through a depth tint, and the two things worth
+ * knowing about it cannot be in a still at all. `offered` against `plants` is
+ * the *search* — how much band the depth rule actually found, before any tier
+ * spent a budget on it — and `beds` is whether the clearings left a coast with
+ * several beds on it or one unbroken ring. `afloat` is the claim the whole
+ * system rests on: the share of plants long enough to have canopy lying on the
+ * surface at mean water, which at 0 is a bed that is technically present and
+ * reads as a lawn on the seabed.
+ */
+export function kelpStats (survey: ArchipelagoSurvey, config: ScapeConfig): MapStats['kelp'] {
+  const skirts         = planKelp(survey, config, MAP_TIER_PLANTS)
+  const plants         = kelpPlants(skirts)
+  const { waterLevel } = config.terrain
+  const springs        = tideAmplitudeAt(1, config.tide)
+
+  const depths = plants.map(plant => kelpDepth(plant, waterLevel, 0))
+  const afloat = plants.filter(plant => plant.length > kelpDepth(plant, waterLevel, 0)).length
+
+  // The two ends of a spring tide, in degrees of lean. One number would say
+  // nothing: the whole behaviour of this system is that the same plant stands up
+  // as the water comes in, and only the pair states it.
+  const lean = (tide: number): number => plants.length === 0
+    ? 0
+    : plants.reduce(
+      (sum, plant) => sum + kelpLean(kelpDepth(plant, waterLevel, tide), plant.length),
+      0,
+    ) / plants.length * 180 / Math.PI
+
+  return {
+    plants:  plants.length,
+    offered: skirts.reduce((sum, skirt) => sum + skirt.offered, 0),
+    beds:    skirts.reduce((sum, skirt) => sum + skirt.beds, 0),
+    coasts:  skirts.filter(skirt => skirt.plants.length > 0).length,
+    islands: skirts.length,
+    afloat:  plants.length === 0 ? 0 : round(afloat / plants.length * 100, 1),
+    shallow: depths.length ? round(Math.min(...depths), 2) : 0,
+    deep:    depths.length ? round(Math.max(...depths), 2) : 0,
+    longest: plants.length ? round(Math.max(...plants.map(plant => plant.length)), 2) : 0,
+    low:     round(lean(-springs), 1),
+    high:    round(lean(springs), 1),
   }
 }
 

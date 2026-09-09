@@ -5,6 +5,8 @@ import { SCAPE_FORCE } from './config-force.ts'
 import type { ForceConfig } from './config-force.ts'
 import { SCAPE_GUARD } from './config-guard.ts'
 import type { GuardConfig } from './config-guard.ts'
+import { SCAPE_KELP } from './config-kelp.ts'
+import type { KelpConfig } from './config-kelp.ts'
 import { SCAPE_LANDMASSES } from './config-landmasses.ts'
 import { SCAPE_TREELINE } from './config-treeline.ts'
 import type { TreelineConfig } from './config-treeline.ts'
@@ -214,7 +216,7 @@ export interface DressingBudget {
   lamb: number
 }
 
-export interface ScapeConfig extends ForceConfig, GuardConfig, TreelineConfig {
+export interface ScapeConfig extends ForceConfig, GuardConfig, KelpConfig, TreelineConfig {
   seed:    number
   terrain: {
     size:       number
@@ -2722,6 +2724,7 @@ export const SCAPE_CONFIG = {
   },
   ...SCAPE_FORCE,
   ...SCAPE_GUARD,
+  ...SCAPE_KELP,
   ...SCAPE_TREELINE,
   footpath: {
     width:  1.5,

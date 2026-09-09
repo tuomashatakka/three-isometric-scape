@@ -70,6 +70,7 @@ boats 5  separation 115.79m  conflicts 0
 strand sound<->fell  len 450m  crest 1.1m  lowest 0.4m  CONNECTED
 skerries 59 in 16 guards  widest 23.7m  lowest 0.8m over the water  nearest island 76.4m
 seals 246 on 23/59 rocks in 13 guards  ashore 246 low / 189 high  ledges 0.21..1.4m over mean  springs ±0.4m
+kelp 1106/1282 plants in 33 beds on 6/6 coasts  water 1..4.2m  longest 6.71m  afloat 100%  lean 61.3° low / 39.2° high
 fjord sound  len 115m  sea 11.7m  sill 5.5m  basin 16.3m  head +2.8m  OVERDEEPENED
 fjord fell  len 115m  sea 11.7m  sill 6m  basin 16.3m  head +3.8m  OVERDEEPENED
 ice shield  (-11.1,482.9) reach 56.1m  covers 38.3% of the island  apex 21.93m  thickest 19.88m  front in 2.12m of water
@@ -169,6 +170,7 @@ boats 5  separation 115.79m  conflicts 0
 strand sound<->fell  len 450m  crest 1.1m  lowest 0.4m  CONNECTED
 skerries 59 in 16 guards  widest 23.7m  lowest 0.8m over the water  nearest island 76.4m
 seals 246 on 23/59 rocks in 13 guards  ashore 246 low / 189 high  ledges 0.21..1.4m over mean  springs ±0.4m
+kelp 1106/1282 plants in 33 beds on 6/6 coasts  water 1..4.2m  longest 6.71m  afloat 100%  lean 61.3° low / 39.2° high
 fjord sound  len 115m  sea 11.7m  sill 5.5m  basin 16.3m  head +2.8m  OVERDEEPENED
 fjord fell  len 115m  sea 11.7m  sill 6m  basin 16.3m  head +3.8m  OVERDEEPENED
 ice shield  (-11.1,482.9) reach 56.1m  covers 38.3% of the island  apex 21.93m  thickest 19.88m  front in 2.12m of water
@@ -278,6 +280,7 @@ bun run scape:shot --poses bow                      # the rainbow, 4 frames, thr
 bun run scape:shot --poses haulout                  # the seals on the guard, 4 frames, low water and high
 bun run scape:shot --poses wood                     # the treeline on two hillsides, 3 frames
 bun run scape:shot --poses pier                     # the trestle out to deep water, 3 frames, and a coast without one
+bun run scape:shot --poses kelp                     # the weed in the shallows, 4 frames, low water and high
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain
@@ -288,6 +291,8 @@ bun run scape:shot --skip post                      # drop the optical chain
 `ice` is the set for the cap, and it exists for the reason `beacon` and `peat` do: the cap is 520 m north of the world origin every tour pose is aimed at, so `default` and `far` render a dome a hundred metres across as a white thumbprint. three frames — `ice` is the whole island at a 200 m view, and it is also the claim, because the config opens at midsummer and this is therefore the week every other white thing in the archipelago has gone; `ice-front` drops onto the seaward side at 90 m, the only frame that shows the ice *ending* in water rather than on a hillside; `ice-winter` is the control, where the lying snow reaches the same white down to the shore and the dome still has to read as a shape. reach for it whenever the change touches `terrain.icecap.*`, the terrain paint, or anything that scatters on ground.
 
 `pier` is the set for the trestle, and it carries its own control. a pier here is nine metres of two-and-a-half-metre deck standing a metre over the water, which at the tour's default 1400 m frame is a hairline and at `near`'s ten metres is inside the farmyard on the wrong side of the island; the one set already aimed at this ground, `smokehouse`'s `harbour` frame, looks up the bank away from the water — and it is on an island that has no pier at all. three frames: `pier` close on the ridge island's run — the bents, the cut of the piles, the bollards and the ladder — `pier-reach` back to 62 m so the boathouse, the trestle beside it and the open water it walks into are in one frame, and `pier-none` on the home island's harbour at that same view, which is the control. half of what the pier decides is which coasts *cannot* have one, and a set with no refusal in it cannot show that. reach for it whenever the change touches `pier.*`, the harbour's own arrangement in [`landing.ts`](src/scene/landscape/landing.ts), the coast warp, or the depth the falloff drops to.
+
+`kelp` is the set for the beds, and it needs two hours for the reason `haulout` does. a plant is one to five metres long, standing under water, on a band ten metres wide that follows a coast — at the tour's 1400 m frame the whole skirt is a smudge in the depth tint, and `near` at ten metres is in the farmyard forty metres inland of the nearest bed. worse, the thing worth photographing is *how far over* the bed is lying, which is a relation between a plant's length and the water on top of it and therefore a difference between two states of the sea. four frames: `kelp-low` and `kelp-high` are the same bed on the home island's north shore at low and at high water of one spring tide — the pair is the claim — `kelp-near` is that bed at 24 m where a crown is separable from a stipe, and `kelp-shore` is the meadow island's long bed at 150 m, the one frame that shows a *bed* rather than plants: the band following the coast with the clearings cut through it. the two hours are the haul-out's own, solved rather than chosen. reach for it whenever the change touches `kelp.*`, the tide, the shore shelving, the falloff or the depth the seabed drops to.
 
 `storm` is the one set that names a *time* rather than a place, and it is the only way to photograph the lightning at all. every other system in the scape is somewhere in every frame; a strike is somewhere for two thirds of a second in seven minutes. so the set asks `stormPeak` in [`storm.ts`](src/scene/storm.ts) for the front's brightest strike and pins `weather.time` a fiftieth of a flash into it — the phase is resolved from the seed rather than written down, because a hard-coded one would go stale silently and photograph an empty sky. four frames: `storm` at the default frame, `storm-night` at the same instant in the dark half of the year, `storm-fork` on the striking island at 70 m where the channel is readable, and `storm-clear` a quarter of a cycle on, which is the control and must stay identical to the reference. reach for it whenever the change touches the front, the deck the flash sits under, or the render order between the two.
 

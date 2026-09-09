@@ -468,6 +468,27 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
     },
     {
       group: 'ground & water',
+      title: 'the kelp',
+
+      // Filed under the water because that is what it grows in. The split is the
+      // seals' split again: how many plants a coast carries is the tier's — see
+      // `quality.kelpCount` — and which water carries any is the survey's, so
+      // what is left here is the swell that works the canopy. `kelp.sill`,
+      // `reach`, `over`, `spacing`, `patch`, `bare` and `clear` are deliberately
+      // absent: between them they decide where every plant is and how long it
+      // grew, which takes a rebuild to see.
+      //
+      // Nothing here for the *lean*, which is the thing a reader actually
+      // watches. It is not a knob at all — it is `acos(depth / length)` against
+      // the tide, so the hour slider is its control, and a second number that
+      // could tilt the bed independently would be a canopy floating off the sea.
+      controls: [
+        range('kelp.surge', 'swell lean (rad)', 0, 0.6, 0.01, quality.kelpCount > 0),
+        range('kelp.sway', 'surges a minute', 0, 20, 0.5, quality.kelpCount > 0),
+      ],
+    },
+    {
+      group: 'ground & water',
       title: 'hearth smoke',
 
       // Filed with the ground because that is where the fires are, the way the

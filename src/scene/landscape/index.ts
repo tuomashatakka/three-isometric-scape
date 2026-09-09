@@ -35,6 +35,10 @@ import { surveyWindows } from './windows.ts'
 import type { Dressing } from './dressing.ts'
 import { planHaulouts } from './haulout.ts'
 import type { Haulout } from './haulout.ts'
+import { createKelpForest } from './kelp.ts'
+import type { KelpForest } from './kelp.ts'
+import { planKelp } from './kelpbed.ts'
+import type { KelpSkirt } from './kelpbed.ts'
 import { yawAlong } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
 import { createMillSails } from './mill-sails.ts'
@@ -76,6 +80,17 @@ export interface Landscape {
    * is the tide's.
    */
   haulouts: readonly Haulout[]
+
+  /**
+   * Every island's kelp skirt, and every plant in it.
+   *
+   * Published for the reason the haul-outs are: which water grows weed is an
+   * answer about the seabed and the sea over it, and it is the one thing
+   * `scape:map` can measure about a bed without a browser. What is drawn from it
+   * is `landscape/kelp.ts`, and how far each plant is leaning at any hour is the
+   * tide's.
+   */
+  kelp: readonly KelpSkirt[]
 
   /** Live fleet accessor; null until the landscape module has built. */
   boatFleet(): BoatFleet | null
@@ -161,6 +176,7 @@ export function createLandscape (
   let fleet: BoatFleet | null          = null
   let sails: MillSails | null          = null
   let seals: SealColony | null         = null
+  let kelp: KelpForest | null          = null
   let water: Water | null              = null
   let beck: Beck | null                = null
   let force: Force | null              = null
@@ -244,6 +260,16 @@ export function createLandscape (
    */
   const haulouts = planHaulouts(archipelago, config(), quality.sealCount)
 
+  /**
+   * Every kelp plant in the archipelago, sited once against mean water.
+   *
+   * Surveyed here beside the haul-outs, and for the same reason — where a plant
+   * can grow is a fact about how much water is over the seabed rather than about
+   * geometry. The tier is asked here rather than inside the walk because how many
+   * plants a coast carries is a budget and which water carries any is not.
+   */
+  const skirts = planKelp(archipelago, config(), quality.kelpCount)
+
   const module = defineModule<ScapeConfig>({
     name: 'nordic-landscape',
 
@@ -323,6 +349,7 @@ export function createLandscape (
         })
         sails = createMillSails({ config, hubs: millHubs, material: materials.ground })
         seals = createSealColony({ config, haulouts, material: materials.ground, tide })
+        kelp = createKelpForest({ config, skirts, material: materials.ground, tide })
         root.add(dressing.object, fleet.mesh)
 
         if (sails)
@@ -330,6 +357,9 @@ export function createLandscape (
 
         if (seals)
           root.add(seals.mesh)
+
+        if (kelp)
+          root.add(kelp.mesh)
       }
 
       ctx.scene.add(root)
@@ -359,6 +389,7 @@ export function createLandscape (
       fleet?.update(frame.delta)
       sails?.update(frame.delta, wind.strength)
       seals?.update(frame.delta)
+      kelp?.update(frame.delta)
       materials?.update(wind, now, front)
       beck?.update(frame.delta, now)
       force?.update(frame.delta, now)
@@ -371,6 +402,7 @@ export function createLandscape (
       fleet?.dispose()
       sails?.dispose()
       seals?.dispose()
+      kelp?.dispose()
       water?.dispose()
       beck?.dispose()
       force?.dispose()
@@ -394,6 +426,7 @@ export function createLandscape (
       fleet     = null
       sails     = null
       seals     = null
+      kelp      = null
       water     = null
       beck      = null
       force     = null
@@ -411,6 +444,7 @@ export function createLandscape (
     boatFleet: () => fleet,
     colonies,
     haulouts,
+    kelp:      skirts,
     lanternHubs,
     hearths,
     windows,
@@ -422,5 +456,6 @@ export function createLandscape (
 // perf: one merged terrain draw, one water draw, one beck draw, one force draw,
 // one tarn draw,
 // one merged settlement draw,
-// one moving fleet draw, one turning sail draw, one hauled colony draw, and one
+// one moving fleet draw, one turning sail draw, one hauled colony draw, one
+// leaning kelp draw, and one
 // InstancedMesh per scattered prop type.

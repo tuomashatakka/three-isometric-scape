@@ -41,6 +41,16 @@ export const NORDIC_PALETTE = {
   // borrowed `moss` would read as grass growing in the sea.
   wrack:     '#4a4526',
   wrackDeep: '#332f1a',
+
+  // The bed below the wrack line. Warmer in hue than either of the two above and
+  // *darker* in value, and both were measured rather than chosen: the first cut
+  // was painted a light amber-olive on the reasoning that a couple of metres of
+  // cold water would take the warmth back out, and `--poses kelp` came back with
+  // a shore full of pale straw sticks standing on a pale beach. A bed is the
+  // darkest thing on a shallow coast — that is what makes one readable from the
+  // air at all — so it is well under the sand it grows beside.
+  kelp:      '#4a4420',
+  kelpDeep:  '#26230f',
   // Marram on the dune belt. Its own green rather than a reuse of `grass`,
   // because the one thing that grows in loose sand is not the sward that grows
   // in soil: marram is glaucous, nearly grey-blue against the pale ground it
