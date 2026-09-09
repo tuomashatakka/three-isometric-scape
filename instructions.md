@@ -98,7 +98,7 @@ the house rules. each is load-bearing for either performance or determinism, and
 
 **there is no `enabled` flag.** an effect is off when its strength is zero. do not add a boolean that duplicates a number that already exists.
 
-**anything that moves needs a speed that can reach zero**, and that speed goes into `STILL` in [`scripts/scape-shot.ts`](scripts/scape-shot.ts). a hard-coded rate cannot be stopped, so it cannot be captured, so it poisons every visual diff taken after it lands.
+**anything that moves needs a speed that can reach zero**, and that speed goes into `STILL` in [`scripts/scape-poses.ts`](scripts/scape-poses.ts). a hard-coded rate cannot be stopped, so it cannot be captured, so it poisons every visual diff taken after it lands.
 
 **moving state has one authority.** cameras, wakes and diagnostics consume stable pose records from the simulation; they do not resample the route or derive a second turn clock. a selectable moving thing also needs an explicit way back to manual control — escape plus the direct-manipulation gestures that would otherwise fight the follow target.
 

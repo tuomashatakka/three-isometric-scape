@@ -71,14 +71,19 @@ const LEAN_FLOOR = 0.02
 const LEAN_FULL  = 0.18
 
 /**
- * How shaded a face is, -1..1. 1 is turned fully from the sun, -1 fully to it.
+ * How far a face is turned toward a bearing, -1..1. 1 is straight at it.
  *
  * The dot is taken against a normalised copy of the horizontal normal, so the
  * answer is a *bearing* rather than a bearing scaled by a steepness — and the
  * steepness comes back separately, shaped through {@link LEAN_FLOOR} and
  * {@link LEAN_FULL}, which is what stops a gentle island reading as a flat one.
+ *
+ * Named for the geometry rather than for the sun, because the scape asks it of
+ * two agents: {@link shadeDirection} for the light a face takes over a year, and
+ * `drift.ts`'s `driftDirection` for the wind that crosses it. There is one
+ * "which way is this face turned" here, and both of them are it.
  */
-export function shadeAmount (normal: GroundNormal, direction: Vec2): number {
+export function faceAmount (normal: GroundNormal, direction: Vec2): number {
   const lean = Math.hypot(normal.x, normal.z)
 
   if (lean < 1e-4)

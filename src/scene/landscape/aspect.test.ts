@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { Color } from 'three'
 import { SCAPE_CONFIG } from '../config.ts'
 import type { ScapeConfig } from '../config.ts'
-import { dampBand, shadeAmount, shadeDirection } from './aspect.ts'
+import { dampBand, faceAmount, shadeDirection } from './aspect.ts'
 import type { Footpaths } from './footpath.ts'
 import type { GroundNormal, HeightField } from './height.ts'
 import { createScapeLayout } from './layout.ts'
@@ -53,9 +53,9 @@ describe('which way the ground is turned', () => {
 
     // A face lying right over onto the shaded bearing, and its opposite. `lean`
     // of 1 is a vertical face, which is as far as an aspect can go.
-    expect(shadeAmount(leaning(azimuth + 180, 1), shade)).toBeCloseTo(1, 12)
-    expect(shadeAmount(leaning(azimuth, 1), shade)).toBeCloseTo(-1, 12)
-    expect(shadeAmount({ x: 0, y: 1, z: 0 }, shade)).toBeCloseTo(0, 12)
+    expect(faceAmount(leaning(azimuth + 180, 1), shade)).toBeCloseTo(1, 12)
+    expect(faceAmount(leaning(azimuth, 1), shade)).toBeCloseTo(-1, 12)
+    expect(faceAmount({ x: 0, y: 1, z: 0 }, shade)).toBeCloseTo(0, 12)
   })
 
   test('is gated by the slope, but over the grades this ground actually has', () => {
@@ -66,13 +66,13 @@ describe('which way the ground is turned', () => {
     // grade is what most of this island runs at, and it has to read. The
     // difference between the two is the whole reason the gate is shaped rather
     // than taken straight off the horizontal normal.
-    expect(shadeAmount(leaning(away, 0), shade)).toBeCloseTo(0, 12)
-    expect(shadeAmount(leaning(away, 0.01), shade)).toBeCloseTo(0, 12)
-    expect(shadeAmount(leaning(away, 0.09), shade)).toBeGreaterThan(0.3)
-    expect(shadeAmount(leaning(away, 0.2), shade)).toBeCloseTo(1, 6)
+    expect(faceAmount(leaning(away, 0), shade)).toBeCloseTo(0, 12)
+    expect(faceAmount(leaning(away, 0.01), shade)).toBeCloseTo(0, 12)
+    expect(faceAmount(leaning(away, 0.09), shade)).toBeGreaterThan(0.3)
+    expect(faceAmount(leaning(away, 0.2), shade)).toBeCloseTo(1, 6)
 
-    expect(shadeAmount(leaning(away, 0.09), shade))
-      .toBeLessThan(shadeAmount(leaning(away, 0.14), shade))
+    expect(faceAmount(leaning(away, 0.09), shade))
+      .toBeLessThan(faceAmount(leaning(away, 0.14), shade))
   })
 
   test('never leaves -1..1, at any lean', () => {
@@ -80,7 +80,7 @@ describe('which way the ground is turned', () => {
 
     for (let lean = 0; lean <= 1; lean += 0.05)
       for (const bearing of [ 0, 61, 143, 250, 311 ]) {
-        const turned = shadeAmount(leaning(bearing, lean), shade)
+        const turned = faceAmount(leaning(bearing, lean), shade)
 
         expect(turned).toBeGreaterThanOrEqual(-1)
         expect(turned).toBeLessThanOrEqual(1)
@@ -91,8 +91,8 @@ describe('which way the ground is turned', () => {
     const shade = shadeDirection(41)
 
     for (const bearing of [ 0, 37, 90, 214, 359 ])
-      expect(shadeAmount(leaning(bearing, 0.6), shade))
-        .toBeCloseTo(-shadeAmount(leaning(bearing + 180, 0.6), shade), 12)
+      expect(faceAmount(leaning(bearing, 0.6), shade))
+        .toBeCloseTo(-faceAmount(leaning(bearing + 180, 0.6), shade), 12)
   })
 })
 

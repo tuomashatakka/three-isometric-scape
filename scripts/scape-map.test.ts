@@ -3,7 +3,8 @@ import { SCAPE_CONFIG } from '../src/scene/config.ts'
 import type { ScapeConfig } from '../src/scene/config.ts'
 import { SURVEY_BUDGET_MS, surveyArchipelago } from '../src/scene/landscape/archipelago.ts'
 import { applyOverrides, coerce, parseArgs } from './args.ts'
-import { ALL_LAYERS, LAND_RAMP, WATER_RAMP, glyphFor, renderGrid, surveyStats } from './scape-map.ts'
+import { surveyStats } from './scape-map.ts'
+import { ALL_LAYERS, LAND_RAMP, WATER_RAMP, glyphFor, renderGrid } from './scape-map-render.ts'
 import { shotUrl } from './scape-shot.ts'
 
 
