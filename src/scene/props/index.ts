@@ -4,6 +4,7 @@ import { buildLighthouse } from './beacon.ts'
 import { buildAitta, buildBarn, buildFarmhouse, buildSauna, buildWoodshed } from './buildings.ts'
 import { buildChapel, buildGraveMarker } from './chapel.ts'
 import { buildCroft } from './croft.ts'
+import { buildKelp } from './kelp.ts'
 import { buildWindmill } from './mill.ts'
 import { buildBladderwrack, buildRockLichen } from './littoral.ts'
 import { buildLamb, buildSheep } from './livestock.ts'
@@ -110,6 +111,7 @@ export const PROPS = {
 
   bladderwrack: buildBladderwrack,
   rockLichen:   buildRockLichen,
+  kelp:         buildKelp,
 
   erratic:    buildErratic,
   fieldStone: buildFieldStone,
@@ -141,7 +143,7 @@ export const SCATTER_PROPS = [
   'spruce', 'pine', 'birch', 'deadSpruce', 'sapling', 'stump', 'juniper',
   'grass', 'marram', 'heather', 'wildflower', 'reeds', 'lilyPads', 'crop',
   'erratic', 'fieldStone', 'cobble', 'cairn',
-  'bladderwrack', 'rockLichen',
+  'bladderwrack', 'rockLichen', 'kelp',
   'hayBale', 'firewood', 'barrel', 'driftwood', 'mooringPost', 'hayPole', 'peatStack',
   'sheep', 'lamb', 'seal',
 ] as const satisfies readonly PropName[]

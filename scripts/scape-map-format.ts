@@ -123,6 +123,30 @@ function hauloutLine (haulout: MapStats['haulout']): string {
 }
 
 /**
+ * The kelp's line, and the two findings hiding in it.
+ *
+ * Its own function for `hauloutLine`'s reason, and it carries the same two
+ * classes of failure. `offered` at zero is the *search* having found no water at
+ * all between the sill and the reach — a depth window that no longer straddles
+ * anything the falloff and the shelving leave behind. `low === high` is the
+ * *siting*: plants were grown, and every one of them is so much longer than its
+ * own water that a spring tide no longer changes how it lies, which leaves a bed
+ * that is decoration rather than a system.
+ */
+function kelpLine (kelp: MapStats['kelp']): string {
+  if (!kelp.offered)
+    return `kelp NONE  <- no water on any coast is between the sill and the reach`
+
+  return `kelp ${kelp.plants}/${kelp.offered} plants ` +
+    `in ${kelp.beds} beds on ${kelp.coasts}/${kelp.islands} coasts  ` +
+    `water ${kelp.shallow}..${kelp.deep}m  longest ${kelp.longest}m  ` +
+    `afloat ${kelp.afloat}%  ` +
+    `lean ${kelp.low}° low / ${kelp.high}° high` +
+    (kelp.afloat === 0 ? '  <- no plant is longer than its own water' : '') +
+    (kelp.low === kelp.high ? '  <- the tide never reaches the canopy' : '')
+}
+
+/**
  * The channel and the water in it, as two lines.
  *
  * Their own function for the reason `windowLine` and `skerryLine` have one: a
@@ -288,6 +312,7 @@ export function formatStats (stats: MapStats): string {
       : 'strand NONE  <- no pair of islands is named, or the crest is zero',
     skerryLine(stats.skerries),
     hauloutLine(stats.haulout),
+    kelpLine(stats.kelp),
     ...stats.fjords.map(fjord =>
       `fjord ${fjord.id}  len ${fjord.length}m  sea ${fjord.sea}m  ` +
       `sill ${fjord.sill}m  basin ${fjord.basin}m  head +${fjord.head}m  ` +
