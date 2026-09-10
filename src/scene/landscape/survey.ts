@@ -11,6 +11,9 @@ import type { DuneBelt } from './dunes.ts'
 import { CHAPEL_FOOTING } from './chapel.ts'
 import { findCroftSite } from './croft.ts'
 import type { CroftSite } from './croft.ts'
+import { solveHeadDyke } from './dyke.ts'
+import type { HeadDyke } from './dyke.ts'
+import { iceClaim } from './icecap.ts'
 import { createFootpaths } from './footpath.ts'
 import type { Footpaths, Obstacle } from './footpath.ts'
 import { createHeightField, resolveIsles } from './height.ts'
@@ -100,6 +103,14 @@ export interface ScapeSurvey {
   /** The street plan: every place walked to, and every leg planned between them. */
   network: FarmNetwork
   paths:   Footpaths
+
+  /**
+   * The march round the hill, or `null` on an island with no hill to divide.
+   *
+   * The last thing in the survey, and the only one that reads the *paths* rather
+   * than only the ground — see {@link ringTheHill}.
+   */
+  dyke: HeadDyke | null
 }
 
 /**
@@ -192,6 +203,78 @@ function reachDeepWater (
       freeboard:  config.pier.freeboard,
     },
     harbour,
+  )
+}
+
+/**
+ * The wall between the farm and the hill, or the reason there is none.
+ *
+ * A function of its own for the reason {@link reachDeepWater} is one — the
+ * survey holds the *order*, not the argument lists — and it is the last thing
+ * that order reaches, because it is the only site in the scape that answers to
+ * the paths. Every other search is run before the routes are traced and hands
+ * the tracer something to bend around; this one is run after them and bends
+ * around nothing, because a head dyke is opened where people already walk
+ * rather than walked around.
+ *
+ * What the ring may not be built across is handed over as two different kinds of
+ * fact. `taken` is ground something already stands on — the byres, the mill, the
+ * chapel, the pool, the cutting, the graded farmyard and the walled meadow — and
+ * the wall abuts each of them and starts again beyond. `barred` is ground no
+ * stone can be founded on at all: under the ice, where `tarn.ts` and `peat.ts`
+ * already refuse to put anything, and in the beck's own channel, where a wall
+ * would be a dam.
+ */
+function ringTheHill (
+  config: ScapeConfig,
+  layout: ScapeLayout,
+  field:  HeightField,
+  paths:  Footpaths,
+  avoid:  readonly Obstacle[],
+): HeadDyke | null {
+  const { creek } = layout
+
+  return solveHeadDyke(
+    {
+      ground:     field.heightAt,
+      waterLevel: config.terrain.waterLevel,
+      foot:       field.heightAt(layout.yard.x, layout.yard.z),
+      headroom:   config.dyke.headroom,
+      freeboard:  config.dyke.freeboard,
+      gateway:    config.dyke.gateway,
+      height:     config.dyke.height,
+      // World-sized: the island's own land radius with the falloff's shoulder on
+      // it, so a hill that reaches past the mean coastline is still walked to
+      // its end. See `DykeSearch.reach`.
+      reach:      layout.landRadius * 1.3,
+      taken:      [
+        ...avoid,
+        // The graded shelf the farmstead stands on, whole. The buildings are
+        // already in `avoid` at their own footings, but the yard is one levelled
+        // platform and a wall laid across it is a wall through the farm.
+        { x: layout.yard.x, z: layout.yard.z, radius: layout.yard.radius },
+        // The hay meadow with its own wall on it, and the width of that wall as
+        // well — two drystone walls a stone apart is one wide heap of stones.
+        ...layout.pasture
+          ? [{ x: layout.pasture.x, z: layout.pasture.z, radius: layout.pasture.radius + 1.5 }]
+          : [],
+        // The churchyard at the wall rather than at the nave, for the same
+        // reason. `avoid` carries the building's own footing only.
+        ...layout.chapel
+          ? [{ x: layout.chapel.x, z: layout.chapel.z, radius: Math.max(config.chapel.yardRadius, CHAPEL_FOOTING) }]
+          : [],
+      ],
+      barred: (x, z) =>
+        iceClaim(config, x, z, field.heightAt(x, z)) > 0 ||
+        (creek?.clearanceAt(x, z) ?? Infinity) < 0,
+    },
+    [
+      ...paths.paths.map(path => path.points),
+      // The cart track as well as the worn routes: it is the one way onto the
+      // island that a cart takes, and a wall across it with no gate in it would
+      // be a wall somebody would have to lift a cart over.
+      layout.track.points,
+    ],
   )
 }
 
@@ -368,5 +451,6 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     crag,
     network,
     paths,
+    dyke: ringTheHill(config, layout, field, paths, avoid),
   }
 }

@@ -311,6 +311,26 @@ export interface AtmosphereQuality {
    */
   pierBoards: number
 
+  /**
+   * Metres between stone stations on the head dyke — see `landscape/dyke.ts`.
+   *
+   * A spacing rather than a switch, and it is not a gate for the reason
+   * {@link AtmosphereQuality.pierBoards} is not one: the whole ring is merged
+   * into the steading's single hero draw, so a dyke costs no draw call on any
+   * tier and there is nothing here to turn off. What scales is the vertex count,
+   * and on this the swing is worth having — the archipelago carries something
+   * like six hundred metres of wall, which is more running stone than everything
+   * else in the scape put together.
+   *
+   * The floor is set by the stones themselves rather than by taste. Each course
+   * is a rock about `height * 1.09` long, and a wall is only a pile that happens
+   * to be long: space the stations further apart than a stone and the run stops
+   * interlocking and reads as a dotted line of separate boulders. At the default
+   * 0.9 m wall that is a shade under a metre, which is what holds the cheap tier
+   * where it is.
+   */
+  dykeSpacing: number
+
   /** Lake plane subdivisions per side. */
   waterSegments: number
 
@@ -380,6 +400,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     rainbowArcs:     0,
     tarnSectors:     20,
     pierBoards:      0.9,
+    dykeSpacing:     0.98,
     waterSegments:   24,
     waterSpan:       2.2,
     shoreMask:       384,
@@ -431,6 +452,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     rainbowArcs:   2,
     tarnSectors:   28,
     pierBoards:    1.2,
+    dykeSpacing:   0.92,
     waterSegments: 48,
     waterSpan:     3,
     shoreMask:     768,
@@ -480,6 +502,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     rainbowArcs:     2,
     tarnSectors:     44,
     pierBoards:      1.6,
+    dykeSpacing:     0.76,
     waterSegments:   96,
     waterSpan:       8,
     shoreMask:       1_024,
@@ -522,6 +545,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     rainbowArcs:     2,
     tarnSectors:     56,
     pierBoards:      2,
+    dykeSpacing:     0.64,
     waterSegments:   128,
     waterSpan:       8,
     shoreMask:       1_536,

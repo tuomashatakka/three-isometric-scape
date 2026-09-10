@@ -2,6 +2,7 @@ import type { ScapeConfig } from '../src/scene/config.ts'
 import { causewayCover } from '../src/scene/landscape/causeway.ts'
 import type { Causeway } from '../src/scene/landscape/causeway.ts'
 import type { CroftSite } from '../src/scene/landscape/croft.ts'
+import type { HeadDyke } from '../src/scene/landscape/dyke.ts'
 import type { HeightField } from '../src/scene/landscape/height.ts'
 import { peatFaceStanding } from '../src/scene/landscape/peat.ts'
 import { pierHead } from '../src/scene/landscape/pier.ts'
@@ -47,6 +48,32 @@ export function smokehouseOf (
     x:        round(worldX(site.x)),
     z:        round(worldZ(site.z)),
     fromBank: round(site.fromBank, 1),
+  }
+}
+
+/**
+ * The march round the hill, and how much of the ring it actually is.
+ *
+ * `length` against `circuit` is the whole of this line's value: the contour is a
+ * fact about the ground and moves only when the terrain does, while the built
+ * share moves whenever anything else in the composition steps onto it. Reported
+ * as two numbers rather than a percentage so a reader can see which of them
+ * changed.
+ */
+export function dykeOf (
+  dyke:   HeadDyke | null,
+  worldX: Project,
+  worldZ: Project,
+): CompositionStats['dyke'] {
+  return dyke && {
+    x:        round(worldX(dyke.summit.x)),
+    z:        round(worldZ(dyke.summit.z)),
+    level:    round(dyke.level, 2),
+    length:   round(dyke.length),
+    circuit:  round(dyke.circuit),
+    runs:     dyke.runs.length,
+    gates:    dyke.gates.length,
+    encloses: round(dyke.encloses),
   }
 }
 

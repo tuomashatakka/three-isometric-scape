@@ -1206,6 +1206,36 @@ export const TOURS: Record<string, Pose[]> = {
     },
   ],
 
+  /**
+   * The head dyke, and the hillside it is not on.
+   *
+   * The tour cannot see this one, and the reason is the one the drift set wrote
+   * down: at 1 400 m an island is a lozenge, and a wall 0.9 m high is a line a
+   * fraction of a pixel wide however long it is. What makes it worth four frames
+   * rather than two is that this feature's whole argument is about *where the
+   * line goes* — a wall in the wrong place still reads as a wall.
+   *
+   * `dyke` is the home island's hillside at 60 m, which holds the ring, the
+   * farmyard below it and the walled meadow inside it in one frame — the siting
+   * claim, whole. `dyke-bare` is the identical frame with `dyke.height=0`, which
+   * is the control and the hillside this island had before the run. `dyke-gate`
+   * is 24 m at the one gap the home island's paths opened, where the question is
+   * whether the gate stands *in* the wall rather than beside it. `dyke-march`
+   * is the fell island at 150 m, because the longest ring in the archipelago is
+   * two hundred metres of it and the reason to build one is only legible at the
+   * scale of a whole hill.
+   */
+  dyke: [
+    { name: 'dyke', zoom: 50, set: [ 'camera.focusX=3', 'camera.focusZ=17' ]},
+    {
+      name: 'dyke-bare',
+      zoom: 50,
+      set:  [ 'camera.focusX=3', 'camera.focusZ=17', 'dyke.height=0' ],
+    },
+    { name: 'dyke-gate', zoom: 16, set: [ 'camera.focusX=-7.2', 'camera.focusZ=17.6' ]},
+    { name: 'dyke-march', zoom: 70, set: [ 'camera.focusX=350', 'camera.focusZ=-516' ]},
+  ],
+
   // The cheap pass: is there a scape at all, and does it survive being drawn.
   quick: [{ name: 'default' }],
 }

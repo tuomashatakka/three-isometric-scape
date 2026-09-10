@@ -3,6 +3,8 @@ import { SCAPE_CRAG } from './config-crag.ts'
 import type { CragConfig } from './config-crag.ts'
 import { SCAPE_DUNES } from './config-dunes.ts'
 import type { DuneBeltConfig } from './config-dunes.ts'
+import { SCAPE_DYKE } from './config-dyke.ts'
+import type { DykeConfig } from './config-dyke.ts'
 import { SCAPE_FORCE } from './config-force.ts'
 import type { ForceConfig } from './config-force.ts'
 import { SCAPE_GUARD } from './config-guard.ts'
@@ -234,7 +236,7 @@ export interface DressingBudget {
   lamb: number
 }
 
-export interface ScapeConfig extends ForceConfig, GuardConfig, KelpConfig, TreelineConfig {
+export interface ScapeConfig extends DykeConfig, ForceConfig, GuardConfig, KelpConfig, TreelineConfig {
   seed:    number
   terrain: {
     size:       number
@@ -2611,6 +2613,7 @@ export const SCAPE_CONFIG = {
     camber:    0.55,
     halfWidth: 3.4,
   },
+  ...SCAPE_DYKE,
   ...SCAPE_FORCE,
   ...SCAPE_GUARD,
   ...SCAPE_KELP,
