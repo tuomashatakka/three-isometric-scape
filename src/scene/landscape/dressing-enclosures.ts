@@ -58,6 +58,15 @@ export interface Walling {
 
   /** Stand a building on its own ground-following footings — one more draw. */
   raiseBuilding(name: PropName, x: number, z: number, angle: number, toward?: Vec2 | null): void
+
+  /**
+   * Metres between stone stations on the head dyke, from the device tier.
+   *
+   * The one thing in here that is a *budget* rather than a capability, and it is
+   * here rather than read off a config because the ring is the longest run of
+   * stone in the scape by a factor of eight — see `AtmosphereQuality.dykeSpacing`.
+   */
+  dykeSpacing: number
 }
 
 const TAU = Math.PI * 2
@@ -291,9 +300,92 @@ function raiseFences (landmass: LandmassSurvey, walling: Walling): void {
   }
 }
 
+/**
+ * Half the metres a dyke claim reaches, and how far apart the claims are set.
+ *
+ * The pasture wall claims every station it lays, which is right for a
+ * twelve-metre enclosure and wrong for a two-hundred-metre one: the survey hands
+ * the dyke a station every 0.8 m, and claiming each of them would put six hundred
+ * discs into a registry every scattered prop in the archipelago is then tested
+ * against. Spaced at 1.6 m the discs still overlap — a claim reaches 1.1 m — so
+ * the line is covered end to end by a third of the claims.
+ */
+const DYKE_CLAIM  = 1.1
+const DYKE_STRIDE = 1.6
+
+/** Claim the ground under one run of wall, at {@link DYKE_STRIDE} intervals. */
+function claimAlong (run: readonly Vec2[], walling: Walling, ox: number, oz: number): void {
+  let last: Vec2 | null = null
+
+  for (const point of run)
+    if (!last || Math.hypot(point.x - last.x, point.z - last.z) >= DYKE_STRIDE) {
+      walling.reserve(point.x + ox, point.z + oz, DYKE_CLAIM)
+      last = point
+    }
+}
+
+/**
+ * The head dyke: the march round the hill, gapped where the ground is spoken
+ * for and gated where the paths cross it.
+ *
+ * The fourth walled thing, and the only one that encloses nothing. The other
+ * three are rings drawn round ground with a use — hay, graves, a crop — and each
+ * is built as one closed run with a single gateway in it. This one is a *line*
+ * that happens to close, it comes back from the survey already cut into the
+ * stretches that can carry stone, and every gap in it is a fact about the island
+ * rather than a way in. So it is raised run by run rather than as one enclosure,
+ * and the gates are placed against the survey's own crossings instead of at a
+ * bearing chosen here — see `landscape/dyke.ts`.
+ *
+ * Reserved against the scatter the way the meadow's wall is, and for the reason
+ * that one is: the solver has no idea the wall exists and would otherwise seed a
+ * juniper through it. The claim follows the *line* rather than covering the ring —
+ * this encloses a couple of acres of open fell, and a claim over the middle of it
+ * would empty the hill of everything the treeline puts there.
+ */
+function raiseHeadDyke (landmass: LandmassSurvey, walling: Walling): void {
+  const { dyke } = landmass.survey
+
+  // No second opinion about whether there is a wall: the survey already refuses
+  // the island when `dyke.height` is zero, so `null` is the only test here.
+  if (!dyke)
+    return
+
+  const { x: ox, z: oz } = landmass.origin
+  const world            = (point: Vec2): FencePoint => ({ x: point.x + ox, z: point.z + oz })
+
+  for (const [ index, run ] of dyke.runs.entries()) {
+    const wall = buildStoneWallRun({
+      points:    run.map(world),
+      heightAt:  walling.heightAt,
+      rng:       walling.rng.fork(`dyke-${landmass.id}-${index}`),
+      palette:   walling.palette,
+      spacing:   walling.dykeSpacing,
+      height:    landmass.config.dyke.height,
+      // The survey already refused every station standing in the water, so this
+      // is the second reader of the same rule rather than a different one: the
+      // ground the *dressing* draws is smoothed by the tier's own tessellation,
+      // and a station the survey found a handspan clear can come back under the
+      // waterline on a mobile grid.
+      minHeight: walling.waterLevel + landmass.config.dyke.freeboard,
+    })
+
+    if (wall)
+      walling.addHero(wall)
+
+    claimAlong(run, walling, ox, oz)
+  }
+
+  // Across the gap, on the ring's own radial turned a quarter — the same
+  // relationship the pasture's gate has to its gateway, and the same turn.
+  for (const [ index, gate ] of dyke.gates.entries())
+    walling.placeHero('gate', gate.x + ox, gate.z + oz, gate.bearing + Math.PI / 2, undefined, `-dyke-${landmass.id}-${index}`)
+}
+
 /** Every walled and fenced thing on one landmass, in the order it is built. */
 export function raiseEnclosures (landmass: LandmassSurvey, walling: Walling): void {
   raiseUpland(landmass, walling)
   raiseChurchyard(landmass, walling)
   raiseFences(landmass, walling)
+  raiseHeadDyke(landmass, walling)
 }

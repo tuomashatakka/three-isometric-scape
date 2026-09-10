@@ -235,6 +235,11 @@ function sitedLines (stats: MapStats): string[] {
       ? `croft (${stats.croft.x},${stats.croft.z}) isle ${stats.croft.isle}  ` +
         `freeboard ${stats.croft.freeboard}m  ${stats.croft.fromHarbour}m from the harbour`
       : 'croft NONE  <- no free islet was broad, dry and level enough',
+    stats.dyke
+      ? `dyke (${stats.dyke.x},${stats.dyke.z}) contour ${stats.dyke.level}m  ` +
+        `${stats.dyke.length}m built of ${stats.dyke.circuit}m  ${stats.dyke.runs} runs  ` +
+        `${stats.dyke.gates} gates  encloses ${stats.dyke.encloses}m2`
+      : 'dyke NONE  <- no hill over the farm, or its contour is under the ice',
     stats.causeway
       ? `causeway (${stats.causeway.x},${stats.causeway.z}) isle ${stats.causeway.isle}  ` +
         `crossing ${stats.causeway.crossing}m  crest ${stats.causeway.crest}m  ` +
@@ -315,7 +320,8 @@ export function formatStats (stats: MapStats): string {
       `jetty ${landmass.landing ? `(${landmass.landing})` : 'NONE'}  ` +
       `mill ${landmass.mill ? `(${landmass.mill.x},${landmass.mill.z})` : 'NONE'}  ` +
       `peat ${landmass.peat ? `(${landmass.peat.x},${landmass.peat.z}) face ${landmass.peat.standing}m` : 'NONE'}  ` +
-      `pier ${landmass.pier ? `${landmass.pier.length}m berth ${landmass.pier.depth}m` : 'NONE'}`),
+      `pier ${landmass.pier ? `${landmass.pier.length}m berth ${landmass.pier.depth}m` : 'NONE'}  ` +
+      `dyke ${landmass.dyke ? `${landmass.dyke.length}/${landmass.dyke.circuit}m ${landmass.dyke.gates}g` : 'NONE'}`),
     `waterways ${stats.waterways.legs} legs ${stats.waterways.length}m  ` +
       `connected ${stats.waterways.connected ? 'OK' : 'BROKEN'}  ` +
       `wet ${stats.waterways.wet ? 'OK' : 'DRY'}  ` +

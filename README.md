@@ -202,6 +202,7 @@ src/
     ├── config-treeline.ts          the wood's own slice: the two lines, and the fetch between
     ├── config-dunes.ts             the sand's own slice: the profile, the arc, and the two vetoes
     ├── config-crag.ts              the cliff's own slice: the profile, the siting gradient, the clefts
+    ├── config-dyke.ts              the head dyke's own slice: how far up the hill, and how wide a gate
     ├── config-palette.ts           every colour in the scape, schema and values together
     ├── config-kelp.ts              the weed's own slice: the depth window, the canopy, the clearings
     ├── config-force.ts             the fall's own slice: the step in the profile, and the sheet over it
@@ -269,6 +270,7 @@ src/
     │   ├── smokehouse.ts           the patch of bank above the harbour the smokehouse is built on
     │   ├── pier.ts                 the line off the harbour a trestle is carried out on, bent by bent
     │   ├── croft.ts                the free islet the croft is built on, and the row home that picked it
+    │   ├── dyke.ts                 the contour the head dyke follows, where it stops, and where it is gated
     │   ├── mill.ts                 the exposed shoulder a windmill would stand on
     │   ├── mill-sails.ts           every mill's wheel, turning in one instanced draw
     │   ├── waterway.ts             the navigable water between the ports
@@ -285,7 +287,7 @@ src/
     │   ├── dressing-sampling.ts    what the darts are thrown at, and each feature's quota
     │   ├── dressing-zones.ts       what the composition already claims the ground for
     │   ├── dressing-helpers.ts     the placement questions that are pure geometry
-    │   ├── dressing-enclosures.ts  the pasture wall, the churchyard wall, the plot fences
+    │   ├── dressing-enclosures.ts  the pasture wall, the churchyard wall, the plot fences, the head dyke
     │   ├── dressing.ts             placement, hero merge, instanced scatter
     │   └── index.ts                the scene module, and what raycasts
     ├── textures/
@@ -977,6 +979,30 @@ the count is the exception in the dressing budget and says so: `dressing.sheep` 
 they do not move. an instance matrix is baked once at build, and the alternative — a hundred animals re-posed every frame — is a per-frame cost for something a metre long in a frame that holds an island. what a sheep does take from the ground is a *tilt*: `TILT.footed` at 0.2, because an animal stands square to gravity but reads as leaning slightly into a slope, its legs being shorter uphill than down. at zero it hovers beside the bank rather than standing on it.
 
 `scape:map --stats` grew a `grazing` line — flocks found against flocks asked, and the thinnest cover among them — because every way this goes wrong is invisible in a still: a farm whose search found nothing at all, a flock a third of the way into a wood, two flocks collapsed onto one hillside. and `--poses grazing` is the third instrument, for the reason `beacon` and `coast` were: a ewe is 1.4 m long, which is three pixels at the tour's default frame and nothing at all pulled out.
+
+## the wall between the farm and the hill
+
+five of the six islands now carry a head dyke: one drystone march running right round the high ground, with the farmstead outside it and the fell inside. it is the largest built thing on any of them — two hundred and eleven metres of it on the fell island against the twelve-metre hay meadow enclosure — and it is the first wall in this scape that encloses nothing. the other three wall *ground with a use*. this one divides.
+
+the line is [`landscape/dyke.ts`](src/scene/landscape/dyke.ts), the stones are laid in [`landscape/dressing-enclosures.ts`](src/scene/landscape/dressing-enclosures.ts) beside the pasture's and the churchyard's, and the knobs are [`config-dyke.ts`](src/scene/config-dyke.ts).
+
+**the line is found rather than drawn.** the search takes the island's own summit, picks a height a share of the way back down toward the farm, and walks outward on every one of ninety-six bearings until the ground drops through it. that is a contour, and a contour is what a hillside actually gives you to build along.
+
+**the first crossing outward, not the last**, and that is the difference between a ring and a starfish. a contour on real ground is met again on every spur the hill has, so a walk that keeps the furthest crossing comes back with radii swinging from ten metres to fifty. the first crossing is the shape of the hill itself. six passes of `[1, 2, 1] / 4` round the ring then take the single-bearing spikes out of it — measured rather than guessed: at two passes the home island's line still swung fourteen metres between neighbours, and at twelve it had rounded into a circle that no longer touched the contour anywhere.
+
+**a share of the island's own rise, not a height over the sea.** `dyke.headroom` is 0.38 of the way from the ground under the farmyard up to the summit. written as a height it would put the shield island's wall on the shore and the ridge island's on the cairn; written as a share, one number stands a dyke in the right place on a six-metre island and on a twenty-six-metre one.
+
+**it stops rather than bends.** a wall that detours round a byre is a wall somebody surveyed. so every station that falls on ground the composition has already taken — the graded farmyard, the walled meadow and its own wall's width, the churchyard, the mill, the pool on the fell, the peat cutting — is simply not built, and the run picks up again on the far side. two more things bar it outright rather than merely claiming it: the beck's channel, because a wall across running water is a dam, and the ice, which is where `tarn.ts` and `peat.ts` already refuse to put anything.
+
+that is why the readout carries two numbers. `scape:map --stats` reports **`Nm built of Mm`**, and the ratio is the finding: the circuit is a fact about the ground and moves only when the terrain does, while the built share moves whenever anything else steps onto the contour. a dyke whose circuit holds and whose built length has halved has been eaten by something — a churchyard that grew, an ice front that advanced — and none of that is visible in a still, because what changed is the wall that is no longer there.
+
+**it opens where people already walk.** the dyke is the last thing the survey resolves, and the only one that reads the *paths*. every other search runs before the routes are traced and hands the tracer something to bend around; this one runs after them and bends around nothing. where a worn route or the cart track crosses the ring, three metres of wall comes out and a gate goes in — and where the crossing lands on ground that was never going to carry stone anyway, nothing is placed, because a gate into a gateway is not a gate. the home island gets one, the sound gets three, the ridge and the meadow get none.
+
+the claim is a test rather than a screenshot: no standing run of wall crosses any route on any island, checked segment against segment. the crossing itself is bisected onto the ring rather than snapped to the nearest bearing — a leg that meets the wall obliquely, which is most of them, is a station or two out that way, and a gate a station out is a gate with a length of wall still standing across the path.
+
+**`null` is an answer, and the shield is the island that gets it.** its contour at any headroom runs under the ice cap, and a drystone wall under a glacier is not a wall. told there is no ice, the same island walls itself — which is what the test asserts, so a later run that loses the shield's dyke for some *other* reason fails rather than passing quietly. the ridge island is the other near miss: below thirty metres of standing wall the thing on the hill is a sheepfold that has lost its shape, and it clears that by three.
+
+**cost is vertices, not draws.** the whole ring merges into the steading's single hero geometry the way the pasture wall already does, so five hundred and fifteen metres of new wall is zero new draw calls. what it *is* is about forty thousand triangles of granite, which is more running stone than everything else in the scape put together — so the station spacing is a tier decision, `dykeSpacing`, from 0.64 m on ultra out to 0.98 m on minimal. the floor is set by the stones rather than by taste: a course is a rock about `height * 1.09` long, and a wall is only a pile that happens to be long, so spacing them further apart than a stone stops the run interlocking and draws a dotted line of boulders. the test states that as a fact about every tier.
 
 ## the mill on the shoulder
 

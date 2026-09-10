@@ -1,5 +1,6 @@
 import type { ScapeConfig } from '../src/scene/config.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from '../src/scene/landscape/archipelago.ts'
+import type { HeadDyke } from '../src/scene/landscape/dyke.ts'
 import { distanceToTrack } from '../src/scene/landscape/layout.ts'
 import { createPathQuery } from '../src/scene/landscape/path.ts'
 import { pierHead } from '../src/scene/landscape/pier.ts'
@@ -39,7 +40,7 @@ export const LEGEND =
   '~ deep  - shallow  . shore  : low  = mid  + upper  * high  # peak\n' +
   ', footpath  ≡ track  · waterway  b boat  s beck  ≈ tarn  T peat  ' +
   'F/B/A/W/S steading  o well  J jetty  H harbour  V smokehouse  P pier  ' +
-  'W mill  K chapel  L light  C croft  p plot  ^ ridge'
+  'W mill  K chapel  L light  C croft  p plot  ^ ridge  x dyke  g gate'
 
 export interface Layers {
   height:    boolean
@@ -92,6 +93,31 @@ export function glyphFor (
     band += 1
 
   return LAND_RAMP[band]
+}
+
+/**
+ * The wall round the hill, as stone and gates.
+ *
+ * Its own function rather than four lines inside `renderGrid`, because that one
+ * is at the lint config's complexity ceiling and this is the second thing the
+ * grid draws that is a line rather than a point — the same seam the `sited`
+ * table was cut on, and for the same reason.
+ */
+function stampDyke (
+  dyke:   HeadDyke | null,
+  stamp:  (x: number, z: number, glyph: string) => void,
+  worldX: (x: number) => number,
+  worldZ: (z: number) => number,
+): void {
+  if (!dyke)
+    return
+
+  for (const run of dyke.runs)
+    for (const station of run)
+      stamp(worldX(station.x), worldZ(station.z), 'x')
+
+  for (const gate of dyke.gates)
+    stamp(worldX(gate.x), worldZ(gate.z), 'g')
 }
 
 /**
@@ -239,9 +265,15 @@ export function renderGrid (
 
   if (layers.buildings)
     for (const landmass of archipelago.landmasses) {
-      const { layout, places, landing, harbour, beacon, croft, pier, smokehouse } = landmass.survey
-      const worldX                                                                = (x: number): number => x + landmass.origin.x
-      const worldZ                                                                = (z: number): number => z + landmass.origin.z
+      const { layout, places, landing, harbour, beacon, croft, dyke, pier, smokehouse } = landmass.survey
+      const worldX                                                                      = (x: number): number => x + landmass.origin.x
+      const worldZ                                                                      = (z: number): number => z + landmass.origin.z
+
+      // First of everything on this island, so a byre or a plot marker laid over
+      // it wins the cell. The dyke is the one thing here that is a *line* rather
+      // than a point, and a line that overwrote the things it runs between would
+      // hide the very collision it is worth reading the grid for.
+      stampDyke(dyke, stamp, worldX, worldZ)
 
       for (const ridge of layout.ridges)
         stamp(worldX(ridge.x), worldZ(ridge.z), '^')

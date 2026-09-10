@@ -19,7 +19,7 @@ import { cragStats, duneStats, fjordStats, forceStats, hauloutStats, icecapStats
 import type { CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, TreelineStats } from './scape-map-landforms.ts'
 import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
-import { causewayOf, croftOf, peatOf, pierOf, smokehouseOf, tarnOf } from './scape-map-sites.ts'
+import { causewayOf, croftOf, dykeOf, peatOf, pierOf, smokehouseOf, tarnOf } from './scape-map-sites.ts'
 import { rainbowStats, stormStats } from './scape-map-weather.ts'
 import { applyOverrides, parseArgs } from './args.ts'
 
@@ -117,6 +117,28 @@ export interface CompositionStats {
     crest:    number
     springs:  number
     neaps:    number
+  } | null
+
+  /**
+   * The march round the hill: what it encloses, how much of it stands, and how
+   * many gates are in it.
+   *
+   * The one line in this block that reports a *ratio*, and it is the ratio that
+   * carries the finding. A dyke whose circuit holds but whose built length has
+   * halved is a dyke that has been eaten by something else moving onto the
+   * contour — a chapel yard that grew, a pool that rose, an ice front that
+   * advanced — and none of that is visible in a still, because what changed is
+   * the wall that is no longer there.
+   */
+  dyke: {
+    x:        number
+    z:        number
+    level:    number
+    length:   number
+    circuit:  number
+    runs:     number
+    gates:    number
+    encloses: number
   } | null
 
   beacon:   { x: number, z: number, freeboard: number, reach: number, isle: number } | null
@@ -578,6 +600,7 @@ function compositionStats (landmass: LandmassSurvey, w: number, h: number): Comp
       fromYard:   round(layout.chapel.fromYard),
     },
     smokehouse: smokehouseOf(survey.smokehouse, worldX, worldZ),
+    dyke:       dykeOf(survey.dyke, worldX, worldZ),
     pier:       pierOf(survey.pier, worldX, worldZ),
     causeway:   causewayOf(survey.causeway, config, worldX, worldZ),
     croft:      croftOf(survey.croft, worldX, worldZ),

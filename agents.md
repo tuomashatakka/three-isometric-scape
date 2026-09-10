@@ -139,7 +139,7 @@ bun run scape:map --layers paths,waterways,boats,buildings
 bun run scape:map --json               # for scripting
 ```
 
-the stats block is the check that catches what a still cannot — a beck that stopped tracing, an island that drowned, a pasture that never found room, a mill that lost its shoulder, footpaths that collapsed to zero, a route that crossed land or a fleet that collided. the `force` lines are the sharpest case of it: the step in a beck's long profile preserves the fall of the window it was cut from, so every other figure in this readout — the wetted reach, the total fall, the mouth — is identical whether the fall is two metres deep or was never cut at all. the first block is the legacy home-island shape; the landmass, waterway and boat blocks cover the full world. **read it before and after every change.**
+the stats block is the check that catches what a still cannot — a beck that stopped tracing, an island that drowned, a pasture that never found room, a mill that lost its shoulder, footpaths that collapsed to zero, a route that crossed land or a fleet that collided. the `dyke` line is the sharpest *ratio* in it: `Nm built of Mm` says how much of the head dyke's contour actually carries stone, and the circuit half of that only moves when the terrain does — so a built length that fell while the circuit held means something else has moved onto the contour, and the wall that is no longer there is invisible in every still. the `force` lines are the sharpest case of it: the step in a beck's long profile preserves the fall of the window it was cut from, so every other figure in this readout — the wetted reach, the total fall, the mouth — is identical whether the fall is two metres deep or was never cut at all. the first block is the legacy home-island shape; the landmass, waterway and boat blocks cover the full world. **read it before and after every change.**
 
 ```text
 seed 7319  world 1520m  home 196m  water -1.25m  grid 96x48  15.83x31.67 m/cell
@@ -288,6 +288,7 @@ bun run scape:shot --poses wood                     # the treeline on two hillsi
 bun run scape:shot --poses pier                     # the trestle out to deep water, 3 frames, and a coast without one
 bun run scape:shot --poses kelp                     # the weed in the shallows, 4 frames, low water and high
 bun run scape:shot --poses drift                    # where the wind put the winter, 4 frames, with the swing and without
+bun run scape:shot --poses dyke                     # the wall between the farm and the hill, 4 frames, with the wall and without
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain
