@@ -15,8 +15,8 @@ import type { ScapeConfig } from '../src/scene/config.ts'
 import { formatStats } from './scape-map-format.ts'
 import { LEGEND, readLayers, renderGrid } from './scape-map-render.ts'
 import type { Window } from './scape-map-render.ts'
-import { duneStats, fjordStats, forceStats, hauloutStats, icecapStats, kelpStats, skerryStats, strandStats, treelineStats } from './scape-map-landforms.ts'
-import type { DuneStats, FjordStats, ForceStats, IcecapStats, TreelineStats } from './scape-map-landforms.ts'
+import { cragStats, duneStats, fjordStats, forceStats, hauloutStats, icecapStats, kelpStats, skerryStats, strandStats, treelineStats } from './scape-map-landforms.ts'
+import type { CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, TreelineStats } from './scape-map-landforms.ts'
 import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
 import { causewayOf, croftOf, peatOf, pierOf, smokehouseOf, tarnOf } from './scape-map-sites.ts'
@@ -210,6 +210,16 @@ export interface MapStats extends CompositionStats {
    * only knowable by walking it.
    */
   dunes: DuneStats[]
+
+  /**
+   * The rock faces, one entry per island whose coast was steep enough for one.
+   *
+   * Beside the belts because they are the same kind of measurement of the same
+   * kind of thing — a landform written against the coastline — and because the
+   * two are each other's control: an island should never have both on one
+   * bearing, and these two blocks are where that is checkable.
+   */
+  crags: CragStats[]
 
   /**
    * The falls, one entry per island whose beck goes over a step.
@@ -678,6 +688,7 @@ export function surveyStats (
     fjords:   fjordStats(survey),
     icecaps:  icecapStats(survey),
     dunes:    duneStats(survey),
+    crags:    cragStats(survey),
     forces:   forceStats(survey),
     treeline: treelineStats(survey, config),
     drift:    measureDrift(survey.field, config, survey.landmasses, config.archipelago.worldSize),

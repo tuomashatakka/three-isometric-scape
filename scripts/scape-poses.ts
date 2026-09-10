@@ -1042,6 +1042,48 @@ export const TOURS: Record<string, Pose[]> = {
   ],
 
   /**
+   * The crag, from the water it stands over.
+   *
+   * The belt's arrangement and for its reason: a headland is a *coast*-scaled
+   * subject — 45 m of the home island's shore and fifteen metres deep — and
+   * every pose in `tour` is aimed at the middle of the archipelago, where that
+   * is a dark notch a few pixels across.
+   *
+   * The home island's crag stands on the 322° bearing, which is world
+   * (39, −30) — the far side of the island from the yard, and the opposite
+   * shore from the sand. `crag` is that headland at 110 m, which holds the
+   * face, the platform at the bottom of it and the ordinary shelving coast
+   * either side; the contrast between the three *is* the landform. `crag-near`
+   * is 38 m, the only frame where a talus block is more than a pixel and the
+   * one that shows the platform as a surface rather than as a line. `crag-sea`
+   * looks along the cliff line rather than at it, at the rotation that puts the
+   * face side-on, because a cliff seen square is a dark band and a cliff seen
+   * along is a profile — which is the view that says whether the lip wanders or
+   * runs like masonry. `crag-bare` is the control and the one that carries the
+   * claim: the *same* frame with `terrain.crag.height` at zero, which is the
+   * coast this island had before the run — so the pair is the landform, and a
+   * pair that came out alike would mean there is no landform.
+   *
+   * Nothing here is in {@link STILL}: rock does not move, and the sea against
+   * the foot of it is the water's own clock.
+   */
+  crag: [
+    { name: 'crag', zoom: 110, set: [ 'camera.focusX=39', 'camera.focusZ=-30' ]},
+    { name: 'crag-near', zoom: 38, set: [ 'camera.focusX=39', 'camera.focusZ=-30' ]},
+    {
+      name: 'crag-sea',
+      zoom: 70,
+      rot:  135,
+      set:  [ 'camera.focusX=39', 'camera.focusZ=-30' ],
+    },
+    {
+      name: 'crag-bare',
+      zoom: 110,
+      set:  [ 'camera.focusX=39', 'camera.focusZ=-30', 'terrain.crag.height=0' ],
+    },
+  ],
+
+  /**
    * The winter, with the wind in it and without.
    *
    * The snow line has swung with the sun's aspect for as long as the ground has

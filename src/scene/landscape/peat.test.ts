@@ -17,10 +17,24 @@ const bank   = home.survey.peat!
 
 /**
  * The ground the search measured: the home island's own field with the pool
- * carved into it and nothing else — which is exactly what `surveyScape` hands
- * the solver, and a different surface from the one the scape finally draws.
+ * carved into it and the two coastal landforms laid on it — which is exactly
+ * what `surveyScape` hands the solver, and a different surface from the one the
+ * scape finally draws.
+ *
+ * The belt and the crag are both solved from the config before the cutting is
+ * sited, so both are in the ground the search reads. Leaving them out was
+ * harmless while nothing on a coast stood high enough to matter to a bank on
+ * the moor, and stopped being harmless when a headland did.
  */
-const sited = createHeightField(home.config, home.survey.layout, home.survey.tarn).heightAt
+const sited = createHeightField(
+  home.config,
+  home.survey.layout,
+  home.survey.tarn,
+  null,
+  null,
+  home.survey.dunes,
+  home.survey.crag,
+).heightAt
 
 /** The ground as drawn, with the cutting in it. */
 const carved = home.survey.field.heightAt

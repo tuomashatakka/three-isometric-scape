@@ -3,6 +3,7 @@ import type { ScapeConfig } from '../config.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
 import type { HeightField } from './height.ts'
 import { BEACON_FOOTING } from './beacon.ts'
+import { cragFoot } from './crag.ts'
 import { duneClaim } from './dunes.ts'
 import { iceClaim } from './icecap.ts'
 import { distanceToTrack, pastureInfluence, plotInfluence, ridgeInfluence } from './layout.ts'
@@ -61,6 +62,16 @@ export interface DressingZones {
    * and the ordinary sward gives out under it.
    */
   onDune(x: number, z: number): number
+
+  /**
+   * How much broken rock stands at a point, 0..1 — the talus at a crag's foot.
+   *
+   * Its own test rather than a slope rule, because the platform is *flat*: what
+   * puts blocks on it is the face standing over it rather than the ground under
+   * it, and a scatter keyed on steepness puts stones everywhere on the cliff
+   * and none at the bottom of it, which is precisely backwards.
+   */
+  atCragFoot(x: number, z: number): number
 
   /** The stripped floor of a turf cutting: ground the farm has carried away. */
   onPeat(x: number, z: number): boolean
@@ -231,6 +242,20 @@ export function createZoneTests (archipelago: ArchipelagoSurvey): DressingZones 
     return duneClaim(dunes, x - landmass.origin.x, z - landmass.origin.z)
   }
 
+  // The bottom of a cliff. A share rather than a boundary, for the reason the
+  // sand is one: the scree is thickest against the face and thins across the
+  // platform, so what a scatter wants is how much talus is here rather than
+  // whether it is inside a line somebody drew.
+  const atCragFoot = (x: number, z: number): number => {
+    const landmass = archipelago.field.landmassAt(x, z)
+    const crag     = landmass?.survey.crag
+
+    if (!crag)
+      return 0
+
+    return cragFoot(crag, x - landmass.origin.x, z - landmass.origin.z)
+  }
+
   const onCauseway = (x: number, z: number): boolean => {
     const landmass = archipelago.field.landmassAt(x, z)
     const causeway = landmass?.survey.causeway
@@ -260,6 +285,7 @@ export function createZoneTests (archipelago: ArchipelagoSurvey): DressingZones 
     onIce,
     onCauseway,
     onDune,
+    atCragFoot,
     clear,
   }
 }

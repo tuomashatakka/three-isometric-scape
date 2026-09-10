@@ -45,6 +45,54 @@ export function buildErratic (rng: SeededRng, palette: NordicPalette): BufferGeo
   return graniteBody(rng, palette, 1.4, 0.3, 3)
 }
 
+/**
+ * A block off a cliff face, lying where it landed.
+ *
+ * Its own builder rather than a smaller erratic, because the two stones have
+ * had entirely different lives and it shows in the shape. An erratic was
+ * carried under a mile of ice and rolled the whole way: it is rounded, and it
+ * has stood on a hillside long enough to grow lichen over the top of it. A
+ * talus block came off a face last winter along a joint in the rock, so it is
+ * *angular* — the roughness is turned right up and the low detail keeps the
+ * facets flat rather than dimpling them — and it carries no lichen at all,
+ * because it spends half of every tide underwater.
+ *
+ * Wider than it is tall, and deliberately: a fallen block comes to rest on its
+ * broadest face, and a scatter of upright ones reads as a field of menhirs.
+ */
+export function buildTalusBlock (rng: SeededRng, palette: NordicPalette): BufferGeometry {
+  const radius = rng.range(0.38, 0.62)
+
+  return mergeParts(
+    [
+      part(
+        createRockGeometry({
+          radius,
+          detail:    0,
+          rng,
+          roughness: 0.62,
+          scale:     [ 1.25, 0.58, 1.05 ],
+        }),
+        {
+          // Sat on the ground rather than balanced on it: the lift is the
+          // scaled half-height plus what the roughness pushes past it, and the
+          // only turn is about the upright. A block that came off a face lands
+          // on its broadest side, and a tilt here would leave a corner of it
+          // under the platform it is lying on.
+          at:     [ 0, radius * 0.62, 0 ],
+          rotate: [ 0, rng.range(0, Math.PI), 0 ],
+          color:  rng.next() > 0.42 ? palette.graniteDark : palette.granite,
+          jitter: 0.16,
+          rng,
+        },
+      ),
+    ],
+    // Grimed hard and from the ground up: the bottom of a block on a shore
+    // platform is the part the weed and the barnacles are on.
+    { grime: radius * 1.5, grimeFloor: 0.38 },
+  )
+}
+
 /** A mid-sized field stone. */
 export function buildFieldStone (rng: SeededRng, palette: NordicPalette): BufferGeometry {
   return graniteBody(rng, palette, 0.62, 0.26, 2)

@@ -1,5 +1,6 @@
 import type { ScapeConfig } from '../src/scene/config.ts'
 import type { ArchipelagoSurvey } from '../src/scene/landscape/archipelago.ts'
+import { measureCrag } from '../src/scene/landscape/crag.ts'
 import { measureDunes } from '../src/scene/landscape/dunes.ts'
 import { surveyFjord } from '../src/scene/landscape/fjord.ts'
 import { findFall } from '../src/scene/landscape/force.ts'
@@ -577,6 +578,79 @@ export function duneStats (survey: ArchipelagoSurvey): DuneStats[] {
       refused: round(report.refused),
       sampled: report.sampled,
       lowest:  round(report.lowest, 3),
+    }]
+  })
+}
+
+
+/** One island's headland, measured. */
+export interface CragStats {
+  id: string
+
+  /** The bearing the cliff stands on, in degrees. */
+  bearing: number
+
+  /** The gradient of the bare coast that won the siting search. */
+  steep: number
+
+  /** Metres over mean water the highest drawn ground on the headland stands. */
+  lip: number
+
+  /** The steepest drawn fall on the face, in degrees. */
+  face: number
+
+  /** Metres of coast the cliff line runs along. */
+  length: number
+
+  /** Bearings inside the arc the clefts have taken under three fifths of the lip. */
+  clefts: number
+
+  /** Metres over mean water the lowest bearing of the cliff line stands. */
+  least: number
+
+  /** The most metres of rock the crag stood over the coast that was there. */
+  standing: number
+
+  /** The most metres of ground it took away. The invariant: zero. */
+  cut: number
+
+  /** Metres of water off the outer edge of the platform. */
+  plunge: number
+}
+
+/**
+ * Every crag, walked across the coast it stands on.
+ *
+ * Nine numbers, and a still can check exactly one of them — that there is a
+ * cliff there. A screenshot of a dark headland says nothing about whether the
+ * face is sixty degrees of rock or a bank at twenty; whether the lip stands at
+ * the seven metres it was asked for or at three because the coast under it was
+ * already high; whether the clefts cut anything or the line runs unbroken like
+ * a sea wall; whether there is water off the platform at all, which is the
+ * difference between a cliff and a step in a field. And `cut` is the whole
+ * invariant: a crag is the rock the sea did *not* take, so it only ever raises
+ * ground, and anything over zero here is a landform that has started eating an
+ * island the farm was already sited on.
+ */
+export function cragStats (survey: ArchipelagoSurvey): CragStats[] {
+  return survey.landmasses.flatMap(landmass => {
+    const report = measureCrag(landmass.config, landmass.survey.crag)
+
+    if (!report)
+      return []
+
+    return [{
+      id:       landmass.id,
+      bearing:  round(report.bearing),
+      steep:    round(report.steepness, 2),
+      lip:      round(report.lip, 2),
+      face:     round(report.face),
+      length:   round(report.length),
+      clefts:   report.clefts,
+      least:    round(report.least, 2),
+      standing: round(report.standing, 2),
+      cut:      round(report.cut, 3),
+      plunge:   round(report.plunge, 2),
     }]
   })
 }

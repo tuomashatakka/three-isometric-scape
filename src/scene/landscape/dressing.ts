@@ -705,6 +705,7 @@ export function createDressing (
     // left for a boulder, and the reverse is never a problem.
     scatterStructural('erratic', config.dressing.erratic, 1.6, stoneRule(0.2), 0.7, 1.4, 40, {}, TILT.loose)
     scatterStructural('cairn', config.dressing.cairn, 1.3, stoneRule(0.6), 0.85, 1.2, 40, {}, TILT.placed)
+
     // The five that answer to the treeline, and the four of them that are
     // scaled by it. Juniper is not: a juniper on the bare top is not a stunted
     // juniper, it is a juniper on the ground it prefers, and shrinking it there
@@ -950,6 +951,36 @@ export function createDressing (
       TILT.placed,
       workings.length,
     )
+
+    // What came off the face. Last in the function, where the ricks are and for
+    // their reason: this batch is the newest thing in here, so it goes where
+    // inserting it disturbs the fewest draws downstream. It does not buy an
+    // unchanged world — a landform that moves the ground moves what every
+    // acceptance test after it sees, and the darts re-deal from there whatever
+    // order this call is in — but it is still the right place for the newest
+    // batch, and there is nothing on a shore platform for a boulder to compete
+    // with anyway.
+    //
+    // Rolled against the talus share rather than tested against a boundary, so
+    // the blocks pile against the bottom of the cliff and thin across the
+    // platform the way scree actually lies — and so an island with no crag on
+    // it pays only for the darts that missed.
+    //
+    // Structural rather than cover, and the mutual spacing is the reason: these
+    // are metre-wide blocks, and two of them in the same square metre reads as
+    // one broken boulder rather than as two. The roll comes first and is
+    // therefore always drawn — a short-circuit past a draw is a draw the stream
+    // does not make.
+    //
+    // The spread is 1 rather than the island area, for the guard's reason: a
+    // crag is a *place* and not an area of ground, so a budget scaled by how
+    // much island the archipelago has would put five islands' worth of scree on
+    // five headlands whose total footprint is under a thousand square metres.
+    scatterStructural('talus', config.dressing.talus, 1.1, (x, z) => {
+      const roll = rng.next()
+
+      return roll < zones.atCragFoot(x, z)
+    }, 0.6, 1.45, 40, {}, TILT.loose, 1)
   }
 
   dressGround()

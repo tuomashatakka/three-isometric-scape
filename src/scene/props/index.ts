@@ -20,7 +20,7 @@ import {
 import type { NordicPalette } from './palette.ts'
 import { buildBoathouse, buildMooringPost, buildNetRack } from './shore.ts'
 import { buildSmokehouse } from './smokehouse.ts'
-import { buildCairn, buildCobble, buildErratic, buildFieldStone } from './stone.ts'
+import { buildCairn, buildCobble, buildErratic, buildFieldStone, buildTalusBlock } from './stone.ts'
 import {
   buildBridge,
   buildCart,
@@ -114,6 +114,7 @@ export const PROPS = {
   kelp:         buildKelp,
 
   erratic:    buildErratic,
+  talus:      buildTalusBlock,
   fieldStone: buildFieldStone,
   cobble:     buildCobble,
   cairn:      buildCairn,
@@ -142,7 +143,7 @@ export const HERO_PROPS = [
 export const SCATTER_PROPS = [
   'spruce', 'pine', 'birch', 'deadSpruce', 'sapling', 'stump', 'juniper',
   'grass', 'marram', 'heather', 'wildflower', 'reeds', 'lilyPads', 'crop',
-  'erratic', 'fieldStone', 'cobble', 'cairn',
+  'erratic', 'talus', 'fieldStone', 'cobble', 'cairn',
   'bladderwrack', 'rockLichen', 'kelp',
   'hayBale', 'firewood', 'barrel', 'driftwood', 'mooringPost', 'hayPole', 'peatStack',
   'sheep', 'lamb', 'seal',
