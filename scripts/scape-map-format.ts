@@ -346,6 +346,12 @@ export function formatStats (stats: MapStats): string {
       `${belt.refused}% refused  lowest ground ${belt.lowest}m` +
       (belt.lowest < 0 ? '  <- sand laid in the water' : '') +
       (belt.crest <= 0 ? '  <- the belt found no coast to build on' : '')),
+    ...stats.crags.map(crag =>
+      `crag ${crag.id}  headland ${crag.bearing}°  lip ${crag.lip}m  face ${crag.face}°  ` +
+      `runs ${crag.length}m of coast  low ${crag.least}m  ${crag.clefts} clefts  ` +
+      `stands ${crag.standing}m over the coast  plunge ${crag.plunge}m  coast ${crag.steep}` +
+      (crag.cut > 0 ? `  <- the crag cut ${crag.cut}m out of the island` : '') +
+      (crag.plunge <= 0 ? '  <- the platform has no water off the end of it' : '')),
     ...stats.forces.map(fall =>
       `force ${fall.id}  lip (${fall.x},${fall.z}) ${fall.lip}m  drop ${fall.drop}m  ` +
       `over ${fall.run}m  sheet ${fall.width}m wide`),

@@ -1,7 +1,7 @@
 import { smoothstep } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 import { valueNoise } from '../noise.ts'
-import { baseAt, remapRelief, sinkToIsland } from './layout.ts'
+import { COAST_BEARINGS, coastBedAt, solveCoastline } from './coast.ts'
 
 
 /**
@@ -20,7 +20,7 @@ import { baseAt, remapRelief, sinkToIsland } from './layout.ts'
  *
  * So the belt is solved: the waterline's radius is found once per bearing, and
  * every query is a distance *inland* of it. The table is the only state, it is
- * a pure function of the config, and it is small — see {@link BEARINGS}.
+ * a pure function of the config, and it is small — see `coast.ts`.
  *
  * ## which shore
  *
@@ -80,23 +80,8 @@ export interface DuneBelt {
 }
 
 
-/**
- * Bearings the waterline is solved at.
- *
- * Forty-eight is 7.5° apart, which on the home island's 44 m of land is a
- * sample every five and a half metres of coast — finer than the belt's own
- * blowouts and far finer than the ridge, so the interpolation between two
- * samples never invents a shape. It is also the whole cost of this landform at
- * build: forty-eight marches of a few dozen probes, against a terrain patch that
- * samples the ground a quarter of a million times.
- */
-const BEARINGS = 48
-
-/** Metres between probes on the inward march, before the refinement. */
-const MARCH_STEP = 1.5
-
-/** Bisection passes that turn a 1.5 m bracket into a waterline. Four is 9 cm. */
-const REFINE = 4
+/** The waterline's own sampling, so the report walks the bearings it was solved at. */
+const BEARINGS = COAST_BEARINGS
 
 /**
  * Where the arc's own feather starts, as a fraction of the half-angle.
@@ -161,25 +146,6 @@ const GAP_FULL  = 0.86
 
 
 /**
- * The ground the belt is measured against: the falloff's, before anything else.
- *
- * Not the ground the terrain draws, and the difference is the whole reason this
- * is exported rather than kept private. What the belt answers to is the *coast*
- * — the fBm sunk into an island and its relief shaped — because that is the
- * shape the sea delivered sand to. Everything the authored scape does afterwards
- * happens to the sand rather than deciding it: the shore shelving grades the
- * belt's foot into the beach, the farm levels whatever ended up under a field,
- * and the beck cuts its channel back out of the ridge on its way to the sea,
- * exactly as it cuts through the bar it meets there.
- *
- * So a test that wants to check what the belt was allowed has to ask this and
- * not the height field, which is a different question with a different answer.
- */
-export function duneBedAt (config: ScapeConfig, x: number, z: number): number {
-  return remapRelief(config, x, z, sinkToIsland(config, x, z, baseAt(config, x, z)))
-}
-
-/**
  * What the ground under a point will take, 0..1.
  *
  * Two vetoes and nothing else: dry, and low. Both are read off the bed rather
@@ -189,54 +155,10 @@ export function duneBedAt (config: ScapeConfig, x: number, z: number): number {
  */
 function allowanceAt (config: ScapeConfig, x: number, z: number): number {
   const { waterLevel, dunes } = config.terrain
-  const freeboard             = duneBedAt(config, x, z) - waterLevel
+  const freeboard             = coastBedAt(config, x, z) - waterLevel
 
   return smoothstep(0, DRY_HOLD, freeboard) *
     (1 - smoothstep(dunes.climb, dunes.climb + CLIMB_FADE, freeboard))
-}
-
-/**
- * Metres from the island's middle to the waterline on one bearing.
- *
- * Marched inward from open water rather than outward from the middle, and that
- * is not arbitrary: an island with a fjord in it, or a bay that cuts most of
- * the falloff band inward, has *several* waterline crossings on one bearing, and
- * the one the sand is delivered to is the outermost. Walking in from the sea
- * finds that one first. 0 where the bearing crosses no dry land at all — which
- * happens on any island the coast warp has bitten a whole quadrant out of.
- */
-function shoreRadius (config: ScapeConfig, angle: number): number {
-  const { size, waterLevel, islandInner, islandOuter } = config.terrain
-
-  const half = size * 0.5
-  const cos  = Math.cos(angle)
-  const sin  = Math.sin(angle)
-  const from = half * (islandOuter + 0.02)
-  const to   = half * islandInner * 0.5
-
-  let outer = from
-
-  for (let radius = from; radius >= to; radius -= MARCH_STEP) {
-    if (duneBedAt(config, cos * radius, sin * radius) > waterLevel) {
-      let dry = radius
-      let wet = outer
-
-      for (let pass = 0; pass < REFINE; pass += 1) {
-        const middle = (dry + wet) * 0.5
-
-        if (duneBedAt(config, cos * middle, sin * middle) > waterLevel)
-          dry = middle
-        else
-          wet = middle
-      }
-
-      return dry
-    }
-
-    outer = radius
-  }
-
-  return 0
 }
 
 /**
@@ -286,26 +208,9 @@ export function solveDunes (config: ScapeConfig): DuneBelt | null {
   const cosOuter = Math.cos(arc)
   const cosInner = Math.cos(arc * ARC_INNER)
 
-  const step  = Math.PI * 2 / BEARINGS
-  const table = Array.from(
-    { length: BEARINGS },
-    (_unused, index) => shoreRadius(config, index * step),
-  )
-
-  function shoreAt (angle: number): number {
-    const at    = (angle / step % BEARINGS + BEARINGS) % BEARINGS
-    const index = Math.floor(at)
-    const near  = table[index]
-    const far   = table[(index + 1) % BEARINGS]
-
-    // A bearing with no land on it does not get to be half a coastline. Without
-    // this the interpolation walks a shore radius from 40 m down to nothing
-    // across one 7.5° step and the belt follows it into the sea.
-    if (near <= 0 || far <= 0)
-      return 0
-
-    return near + (far - near) * (at - index)
-  }
+  // The island's own waterline, solved once and shared with the crag — see
+  // `coast.ts`, which is where the march used to live in this file.
+  const { shoreAt } = solveCoastline(config)
 
   /** What the island can afford of the authored reach. See {@link MAX_REACH}. */
   function reachAt (angle: number): number {
@@ -481,7 +386,7 @@ export function measureDunes (config: ScapeConfig, belt: DuneBelt | null): DuneR
       const x      = cos * radius
       const z      = sin * radius
       const depth  = belt.depthAt(x, z)
-      const bed    = duneBedAt(config, x, z) - waterLevel
+      const bed    = coastBedAt(config, x, z) - waterLevel
 
       // Inside the reach and inside the arc, so the belt wanted sand here. What
       // it got is the ground's business, and the two are counted apart: a probe

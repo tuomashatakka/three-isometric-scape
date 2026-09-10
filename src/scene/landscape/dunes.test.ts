@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { SCAPE_CONFIG, landmassLayout, landmassTerrain } from '../config.ts'
 import type { LandmassSpec, ScapeConfig } from '../config.ts'
-import { duneBedAt, duneClaim, measureDunes, solveDunes } from './dunes.ts'
+import { coastBedAt } from './coast.ts'
+import { duneClaim, measureDunes, solveDunes } from './dunes.ts'
 import { createHeightField } from './height.ts'
 import { createScapeLayout, distanceToTrack, plotInfluence } from './layout.ts'
 import type { Vec2 } from './path.ts'
@@ -117,7 +118,7 @@ describe('the dune belt', () => {
     // different questions: the beck cuts its channel back out of the ridge and
     // the farm levels what ended up under a plot, both of them *after* the sand
     // was laid. What the belt was allowed is what the coast said, and the coast
-    // is `duneBedAt`.
+    // is `coastBedAt`.
     const { climb } = home.terrain.dunes
     const half      = home.terrain.size * 0.5
     let dry          = 0
@@ -130,7 +131,7 @@ describe('the dune belt', () => {
         if (belt.depthAt(x, z) <= 0)
           continue
 
-        const freeboard = duneBedAt(home, x, z) - waterLevel
+        const freeboard = coastBedAt(home, x, z) - waterLevel
 
         expect(freeboard).toBeGreaterThan(0)
         expect(freeboard).toBeLessThan(climb + 2)

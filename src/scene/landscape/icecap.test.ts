@@ -38,7 +38,15 @@ const cap    = iceCapOf(shield)!
 
 const { waterLevel } = shield.terrain
 
-/** The rock, with the same pool and cutting in it and no dome on top. */
+/**
+ * The rock, with the same pool and cutting in it and no dome on top.
+ *
+ * Both coastal landforms go in, and the crag is why this line has to be kept
+ * honest: `thicknessAt` is the *difference* between this field and the drawn
+ * one, so anything the drawn ground has that this does not is measured as ice.
+ * A headland left out of here reads as a metre of glacier standing on a
+ * coast the cap has never reached.
+ */
 const bed = createHeightField(
   withoutIce(shield),
   survey.layout,
@@ -46,6 +54,7 @@ const bed = createHeightField(
   survey.peat,
   null,
   survey.dunes,
+  survey.crag,
 ).heightAt
 
 /** How much ice stands over a point, in metres. */

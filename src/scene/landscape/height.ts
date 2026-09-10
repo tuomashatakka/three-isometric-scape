@@ -3,6 +3,8 @@ import type { ScapeConfig } from '../config.ts'
 import { coastWarp, sampleHeight } from '../noise.ts'
 import { raiseCauseway } from './causeway.ts'
 import type { Causeway } from './causeway.ts'
+import { raiseCrag } from './crag.ts'
+import type { Crag } from './crag.ts'
 import { raiseDunes } from './dunes.ts'
 import type { DuneBelt } from './dunes.ts'
 import { stepEase, stepProfile } from './knickpoint.ts'
@@ -210,6 +212,11 @@ export function resolveIsles (config: ScapeConfig): IsleSite[] {
  *   in the survey and could be solved in here, but it is passed for the reason
  *   the others are — the painter, the dressing and the instruments all have to
  *   read the shape this field was built from rather than one of their own.
+ *
+ * @param crag The rock face on the steep shore, passed for the dune belt's
+ *   reason and solved beside it. The two are the same kind of thing — a coastal
+ *   landform that answers to the waterline and to nothing in the survey — and
+ *   they are sited apart on purpose, so an island never has both on one shore.
  */
 export function createHeightField (
   config:   ScapeConfig,
@@ -218,6 +225,7 @@ export function createHeightField (
   peat:     PeatBank | null = null,
   causeway: Causeway | null = null,
   dunes:    DuneBelt | null = null,
+  crag:     Crag | null = null,
 ): HeightField {
   const { waterLevel, shoreBand } = config.terrain
   const { yard, track }           = layout
@@ -310,6 +318,16 @@ export function createHeightField (
     // dozen of the coast, and a cap is twenty metres of ice inland — so the
     // order between them decides nothing. It reads low to high.
     height = raiseDunes(dunes, x, z, height)
+
+    // And the rock, after the shelving for the causeway's reason rather than
+    // the sand's: what the crag authors is an absolute level over mean water,
+    // and the shelving is a multiplier on height above it — laid before, a lip
+    // asked for seven metres would come out at four. It cannot meet the other
+    // two: the sand is on the weather shore and the crag is refused that shore
+    // outright, and a bar out to a rock is a metre of shingle where this is a
+    // headland. Like both of them it only ever raises ground, so the order
+    // between them decides nothing.
+    height = raiseCrag(crag, x, z, height)
 
     height = raiseIce(config, x, z, height)
 

@@ -1,4 +1,6 @@
 import type { AppModule } from 'threejs-scene'
+import { SCAPE_CRAG } from './config-crag.ts'
+import type { CragConfig } from './config-crag.ts'
 import { SCAPE_DUNES } from './config-dunes.ts'
 import type { DuneBeltConfig } from './config-dunes.ts'
 import { SCAPE_FORCE } from './config-force.ts'
@@ -8,6 +10,8 @@ import type { GuardConfig } from './config-guard.ts'
 import { SCAPE_KELP } from './config-kelp.ts'
 import type { KelpConfig } from './config-kelp.ts'
 import { SCAPE_LANDMASSES } from './config-landmasses.ts'
+import { SCAPE_PALETTE } from './config-palette.ts'
+import type { ScapePalette } from './config-palette.ts'
 import { SCAPE_TREELINE } from './config-treeline.ts'
 import type { TreelineConfig } from './config-treeline.ts'
 import type { QualityEffects } from './quality.ts'
@@ -174,6 +178,20 @@ export interface DressingBudget {
   lilyPads:   number
   crop:       number
   erratic:    number
+
+  /**
+   * Blocks at the foot of a crag — count before the tier scales it.
+   *
+   * Thrown at the whole archipelago like the marram and kept by the crag's own
+   * talus share, so an island with no cliff on it costs nothing but the darts
+   * that missed — and *not* scaled by island area, for the guard's reason: a
+   * crag is a place rather than an area of ground, and the five headlands in
+   * this archipelago come to under a thousand square metres between them.
+   * Separate from `erratic` because the two are different stones:
+   * an erratic is a boulder the ice left standing on a hillside, and this is
+   * rock that came off a face last winter and has not been anywhere since.
+   */
+  talus:      number
   fieldStone: number
   cobble:     number
 
@@ -499,6 +517,17 @@ export interface ScapeConfig extends ForceConfig, GuardConfig, KelpConfig, Treel
      * the solve.
      */
     dunes: DuneBeltConfig
+
+    /**
+     * The rock face on the steep shore.
+     *
+     * Beside `dunes` and under `terrain` for the same reason it is: a landmass
+     * spec overrides `terrain`, so the fell can stand a taller headland than
+     * the home island the same way the shield carries an ice cap nobody else
+     * does. See `config-crag.ts` for the section itself, and
+     * `landscape/crag.ts` for the siting and the solve.
+     */
+    crag: CragConfig
   }
 
   /**
@@ -2256,166 +2285,7 @@ export interface ScapeConfig extends ForceConfig, GuardConfig, KelpConfig, Treel
     /** Ambient-occlusion strength on the ultra tier, 0 disables. */
     ao: number
   }
-  palette: {
-    sky:          number
-    fog:          number
-    deepWater:    number
-    shallowWater: number
-    foam:         number
-    silt:         number
-    shore:        number
-
-    /**
-     * Blown shell sand — the belt on the weather shore, and nothing else.
-     *
-     * Its own entry rather than a lighter `shore`, and for the reason `wrack`
-     * has one: sand the wind has sorted is a different substance from the
-     * shingle the tide left, paler and greyer because what survives the trip up
-     * the beach is the light fraction. A second name for an existing tone is how
-     * two beaches in one scape drift apart on the first retune.
-     */
-    dune:     number
-    meadow:   number
-    dryGrass: number
-    heath:    number
-    scree:    number
-    lichen:   number
-
-    /**
-     * Bladderwrack on wet stone — the tidal band on the rocks in the open sea.
-     *
-     * Olive-brown and very dark, because weed out of the water nearly is. Its
-     * own entry rather than a reuse of `heath` or `streambed`: the band has to
-     * read as a different substance from the rock it is on, and a second name
-     * for an existing tone is how two rocks in one scape end up different
-     * colours. See `ScapeConfig.littoral`.
-     */
-    wrack: number
-
-    /**
-     * Moss on the shaded side — the ground that never dries out.
-     *
-     * Its own entry rather than a darker `meadow`, and for the reason `wrack`
-     * has one: moss is a different plant from grass, colder and bluer than any
-     * amount of shade would make a sward, and a second name for an existing
-     * tone is how two greens in one scape drift apart on the first retune. The
-     * props already paint from a moss of their own in `props/palette.ts` — this
-     * is the ground's, and the two are deliberately close.
-     */
-    moss: number
-
-    /** Mown upland grass — the clearing inside the pasture wall. */
-    pasture: number
-
-    /** Wet gravel in the beck's channel, above and below the waterline alike. */
-    streambed: number
-
-    /**
-     * Cut peat — the floor of the working, and the face standing over it.
-     *
-     * Its own entry rather than a darker `trodden`, and for the reason `wrack`
-     * and `moss` have one: peat is a different substance from soil, nearly black
-     * and faintly red where it has been turned, and no amount of darkening a
-     * footpath produces it. It is also, deliberately, the darkest thing on the
-     * island — which is what lets a rectangle of it read as a cutting from the
-     * pulled-out zoom rather than as a shadow.
-     */
-    peat: number
-
-    /**
-     * Bare earth underfoot. Greyer and darker than `track`, because a cart road
-     * is gravel laid down and a footpath is only the turf taken off.
-     */
-    trodden: number
-    track:   number
-    tilled:  number
-    yard:    number
-
-    /** Lying snow. The one colour the year adds that the scape has no other use for. */
-    snow: number
-
-    /** Turned leaf — what the year leans the straw toward in autumn. */
-    autumn: number
-
-    /**
-     * Sea ice. Colder and greyer than lying snow on purpose — new ice is the
-     * water seen through it, and it only goes white where it has been broken.
-     */
-    ice: number
-
-    /**
-     * Glacier ice, on the surface of a cap.
-     *
-     * Its own colour rather than `snow` reused, and the difference is the whole
-     * reason the cap is visible in July. Lying snow is fresh and white; the
-     * surface of an ice cap is old firn, denser and faintly blue, and it sits
-     * beside a summer hillside rather than on top of a white one. Give it
-     * `snow` and midsummer paints the ice the same colour as ground that has no
-     * snow on it at all.
-     */
-    glacier: number
-
-    /**
-     * The blue inside a crevasse.
-     *
-     * Deep, and deliberately far from every other blue in the palette: this is
-     * not water and not shadow but ice thick enough to have taken the red out
-     * of what came back up. It is only ever a fraction of a vertex — the
-     * fractures are lines a metre or two across — so a colour that reads as
-     * blue at full strength reads as a hairline at the strength it is used at.
-     */
-    crevasse: number
-
-    /**
-     * A falling drop.
-     *
-     * Not the water's colour and not the fog's. A streak of rain seen against
-     * dark ground is the sky it is falling out of, so this is a pale, slightly
-     * blue grey — and the same streak is mixed toward `snow` as the year freezes
-     * it, which is why there is no second colour for the snowfall.
-     */
-    rain: number
-
-    /**
-     * The cool end of the star field.
-     *
-     * One colour rather than two: the warm end of the field is the scape's own
-     * `daylight.dusk` amber, so the sky's warm and its low sun stay in one
-     * family and there is no second red that only the stars can be tuned by.
-     */
-    star: number
-
-    /** The lit face of the moon. Paler and cooler than lying snow — it is a light, not a surface. */
-    moon: number
-
-    /**
-     * Wood smoke, at the mouth of the flue.
-     *
-     * Neither the fog's grey nor the snow's white, and one colour rather than
-     * two: a plume is dense and warm where it leaves the brick and pale where it
-     * has spread, and the pale end is this same colour seen through less of it.
-     * Browner than `fog` on purpose — birch smoke off a damp autumn fire is not
-     * the sea haze it drifts into.
-     */
-    smoke: number
-
-    /**
-     * A gull, at its brightest.
-     *
-     * One colour rather than three, the way the star field carries one: a gull
-     * is a white bird with a grey back and black tips, and both of those are
-     * this white seen at a fraction of it. Three entries would be three things
-     * to keep in one family by hand, and the first retune is when they stop
-     * being in one.
-     */
-    gull: number
-
-    /** The dense heart of an auroral curtain, where it is thick enough to be green. */
-    aurora: number
-
-    /** What the same curtain thins out to at its fringes and its crown. */
-    auroraCrown: number
-  }
+  palette: ScapePalette
 
   /**
    * What the machine is asked for, rather than what the scape is made of.
@@ -2613,6 +2483,7 @@ export const SCAPE_CONFIG = {
     aspectBleach: 0.38,
     aspectLine:   11,
     ...SCAPE_DUNES,
+    ...SCAPE_CRAG,
   },
   // Five full holdings, each generated by the same local survey and projected
   // into one world only after its terrain, paths and landings have agreed. Their
@@ -2951,6 +2822,7 @@ export const SCAPE_CONFIG = {
     lilyPads:   70,
     crop:       560,
     erratic:    52,
+    talus:      190,
     fieldStone: 176,
     cobble:     300,
     pathStone:  900,
@@ -3216,42 +3088,7 @@ export const SCAPE_CONFIG = {
     anamorphic: 0.4,
     ao:         0.7,
   },
-  palette: {
-    sky:          0x9daaa2,
-    fog:          0x8d9a93,
-    deepWater:    0x263a3d,
-    shallowWater: 0x44605a,
-    foam:         0xd9e2da,
-    silt:         0x565b4a,
-    shore:        0xa9977a,
-    dune:         0xd8d0b2,
-    meadow:       0x5d6b3c,
-    dryGrass:     0x8f8a51,
-    heath:        0x6b6a52,
-    scree:        0x7d7a72,
-    lichen:       0x9aa088,
-    wrack:        0x3f3a20,
-    moss:         0x3d5a30,
-    pasture:      0x76803f,
-    streambed:    0x585f57,
-    peat:         0x342a20,
-    trodden:      0x6c6049,
-    track:        0x7d6a4f,
-    tilled:       0x6d5a44,
-    yard:         0x8a8560,
-    snow:         0xe6ecf0,
-    autumn:       0xb4762f,
-    ice:          0xa8bcc0,
-    glacier:      0xd8e6ee,
-    crevasse:     0x3f6f96,
-    rain:         0xc6d2d8,
-    star:         0xdce8ff,
-    moon:         0xe4e9e0,
-    smoke:        0xb7b1a6,
-    gull:         0xf2f4f1,
-    aurora:       0x6df2a8,
-    auroraCrown:  0x7a5bd6,
-  },
+  ...SCAPE_PALETTE,
 
   // Placeholders. `main.ts` overwrites all three from the resolved tier before
   // the settings store is built, so these are only ever what a test or a

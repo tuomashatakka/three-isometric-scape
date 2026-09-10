@@ -4,6 +4,8 @@ import { findBeaconSite } from './beacon.ts'
 import type { BeaconSite } from './beacon.ts'
 import { solveCauseway } from './causeway.ts'
 import type { Causeway } from './causeway.ts'
+import { solveCrag } from './crag.ts'
+import type { Crag } from './crag.ts'
 import { solveDunes } from './dunes.ts'
 import type { DuneBelt } from './dunes.ts'
 import { CHAPEL_FOOTING } from './chapel.ts'
@@ -82,6 +84,19 @@ export interface ScapeSurvey {
    */
   dunes: DuneBelt | null
 
+  /**
+   * The rock face on the steep shore, or `null` on an island whose coasts all
+   * shelve.
+   *
+   * Solved beside the belt and for the same reasons — it asks the survey for
+   * nothing but the beck's mouth, so it is settled first and every field built
+   * below it carries the same headland. What it is *not* is a second opinion
+   * about which shore is which: the belt takes the weather coast, and the crag
+   * is refused that coast outright, so an island has at most one of the two on
+   * any bearing.
+   */
+  crag: Crag | null
+
   /** The street plan: every place walked to, and every leg planned between them. */
   network: FarmNetwork
   paths:   Footpaths
@@ -116,6 +131,7 @@ function joinTheRock (
   ashore: HeightField,
   berths: readonly (Spot | null)[],
   dunes:  DuneBelt | null,
+  crag:   Crag | null,
 ): JoinedGround {
   const causeway = solveCauseway(
     {
@@ -134,7 +150,7 @@ function joinTheRock (
 
   return {
     causeway,
-    field: causeway ? createHeightField(config, layout, tarn, peat, causeway, dunes) : ashore,
+    field: causeway ? createHeightField(config, layout, tarn, peat, causeway, dunes, crag) : ashore,
   }
 }
 
@@ -203,24 +219,29 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
   // sand is the two-approximations bug this file exists to avoid.
   const dunes = solveDunes(config)
 
+  // Beside the belt, and told where the sand is so the two can never be sited
+  // on one shore — and where the beck runs out, so a headland is never thrown
+  // across an estuary the channel is already cut into.
+  const crag = solveCrag(config, dunes, layout.creek)
+
   // The pool has to be sited against a ground that has no pool in it, and every
   // reader downstream has to see the ground that does. So the field is built
   // twice around the one solve — see `createHeightField`'s own note on why that
   // is cheaper than the alternative.
-  const tarn = solveTarn(config, layout, createHeightField(config, layout, null, null, null, dunes).heightAt)
+  const tarn = solveTarn(config, layout, createHeightField(config, layout, null, null, null, dunes, crag).heightAt)
 
   // And the cutting against the ground the pool left, for the same reason again
   // — with the pool itself handed over as ground already spoken for. The middle
   // field is the one the tarn solve used to throw away, so this is one more
   // closure and one more pair of smoothed profiles rather than a third pass over
   // the island.
-  const peat    = solvePeatBank(config, layout, createHeightField(config, layout, tarn, null, null, dunes).heightAt, tarn)
-  const ashore  = createHeightField(config, layout, tarn, peat, null, dunes)
+  const peat    = solvePeatBank(config, layout, createHeightField(config, layout, tarn, null, null, dunes, crag).heightAt, tarn)
+  const ashore  = createHeightField(config, layout, tarn, peat, null, dunes, crag)
   const places  = steadingPlaces(layout.yard)
   const landing = findLanding(layout, ashore, config)
   const harbour = landing && findHarbourBank(layout, ashore, config, landing)
 
-  const { causeway, field } = joinTheRock(config, layout, tarn, peat, ashore, [ landing, harbour ], dunes)
+  const { causeway, field } = joinTheRock(config, layout, tarn, peat, ashore, [ landing, harbour ], dunes, crag)
 
   // Offshore, and answering to nothing else in the survey: the light is sited on
   // the ring of rocks rather than on the island, so it neither moves anything
@@ -344,6 +365,7 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     peat,
     causeway,
     dunes,
+    crag,
     network,
     paths,
   }

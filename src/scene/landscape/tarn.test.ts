@@ -20,9 +20,24 @@ const tarn   = home.survey.tarn!
  * carve in it. Built from `landmass.config` rather than from `SCAPE_CONFIG`,
  * because an island's spec overrides its terrain and a field built from the
  * archipelago's defaults would be a different island.
+ *
+ * The two coastal landforms go in, and they have to: the belt and the crag are
+ * both solved from the config *before* the pool is sited, so the ground
+ * `surveyScape` hands the search has sand and rock in it already. Leaving them
+ * out here was harmless while nothing coastal stood high enough to be a pool's
+ * rim, and stopped being harmless the moment a headland did — which is a
+ * different surface, not a tolerance.
  */
 const bareFieldOf = (landmass: typeof home): (x: number, z: number) => number =>
-  createHeightField(landmass.config, landmass.survey.layout).heightAt
+  createHeightField(
+    landmass.config,
+    landmass.survey.layout,
+    null,
+    null,
+    null,
+    landmass.survey.dunes,
+    landmass.survey.crag,
+  ).heightAt
 
 const bare = bareFieldOf(home)
 

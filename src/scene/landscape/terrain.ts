@@ -6,6 +6,8 @@ import type { ScapeConfig } from '../config.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
 import { dampBand, faceAmount, shadeDirection } from './aspect.ts'
 import { cartRutGeometry, trafficAt } from './cart-ruts.ts'
+import { cragFoot } from './crag.ts'
+import type { Crag } from './crag.ts'
 import { duneClaim } from './dunes.ts'
 import type { DuneBelt } from './dunes.ts'
 import type { Footpaths } from './footpath.ts'
@@ -72,6 +74,7 @@ export function createTerrainPainter (
   field:  HeightField,
   peat:   PeatBank | null = null,
   dunes:  DuneBelt | null = null,
+  crag:   Crag | null = null,
 ): TerrainPainter {
   const { palette }    = config
   const { waterLevel } = config.terrain
@@ -98,6 +101,7 @@ export function createTerrainPainter (
   const sunned    = new Color(palette.dryGrass)
   const cutPeat   = new Color(palette.peat)
   const blownSand = new Color(palette.dune)
+  const wetRock   = new Color(palette.seaRock)
 
   // Resolved to a function once rather than asked per vertex whether there is a
   // cutting at all. Two of the painter's branches for a question whose answer is
@@ -280,6 +284,20 @@ export function createTerrainPainter (
       // with it.
       target.lerp(blownSand, Math.min(1, duneClaim(dunes, x, z) * 2.6) * 0.92)
 
+      // The rock at the bottom of the crag, over the bands and under the sand
+      // for the same reason the sand is under the track: a shore platform is
+      // ground rather than a deposit, and nothing is ever laid on one anyway —
+      // the belt is refused this coast and no route reaches it.
+      //
+      // Keyed on the *foot* rather than on the whole headland, and that is the
+      // whole rule. The face pays for itself: it is seventy degrees of ground,
+      // and the scree lerp above has already taken it to bare rock without
+      // being told anything about a crag. What the slope cannot see is the
+      // platform, which is flat, low and wet, and which the altitude bands
+      // would otherwise paint as the pale shingle beach of a coast that has no
+      // beach on it at all.
+      target.lerp(wetRock, cragFoot(crag, x, z) * 0.86)
+
       // Last, and over the track: the beck cuts *under* the road rather than
       // stopping at it, so the channel keeps its gravel across the crossing and
       // the bridge reads as spanning something. The wash is strongest on the
@@ -370,13 +388,14 @@ function terrainGeometry (
   segments: number,
   peat:     PeatBank | null,
   dunes:    DuneBelt | null,
+  crag:     Crag | null,
 ): BufferGeometry {
   const geometry = new PlaneGeometry(config.terrain.size, config.terrain.size, segments, segments)
   geometry.rotateX(-Math.PI / 2)
 
   const positions = geometry.getAttribute('position')
   const colors    = new Float32Array(positions.count * 3)
-  const painter   = createTerrainPainter(config, layout, paths, field, peat, dunes)
+  const painter   = createTerrainPainter(config, layout, paths, field, peat, dunes, crag)
   const color     = new Color()
 
   for (let index = 0; index < positions.count; index += 1) {
@@ -408,8 +427,9 @@ function cartRutPatch (
   segments: number,
   peat:     PeatBank | null,
   dunes:    DuneBelt | null,
+  crag:     Crag | null,
 ): BufferGeometry | null {
-  const painter = createTerrainPainter(config, layout, paths, field, peat, dunes)
+  const painter = createTerrainPainter(config, layout, paths, field, peat, dunes, crag)
   const surface = drawnSurfaceOf(field, config.terrain.size, segments)
 
   return cartRutGeometry({
@@ -706,6 +726,7 @@ export function createArchipelagoTerrain (
       segments,
       landmass.survey.peat,
       landmass.survey.dunes,
+      landmass.survey.crag,
     )
 
     geometry.translate(landmass.origin.x, 0, landmass.origin.z)
@@ -722,6 +743,7 @@ export function createArchipelagoTerrain (
       segments,
       landmass.survey.peat,
       landmass.survey.dunes,
+      landmass.survey.crag,
     )
 
     if (ruts) {
