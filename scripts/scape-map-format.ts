@@ -352,6 +352,12 @@ export function formatStats (stats: MapStats): string {
       `${belt.refused}% refused  lowest ground ${belt.lowest}m` +
       (belt.lowest < 0 ? '  <- sand laid in the water' : '') +
       (belt.crest <= 0 ? '  <- the belt found no coast to build on' : '')),
+    ...stats.saltings.map(flat =>
+      `marsh ${flat.id}  mouth ${flat.bearing}°  runs ${flat.length}m of coast  ` +
+      `flat ${flat.tidal}m2 tidal / ${flat.turf}m2 turf  gutters ${flat.gutters}%  ` +
+      `the tide walks ${flat.walk}m across it  lowest turf ${flat.lowest}m` +
+      (flat.lowest <= 0 ? '  <- turf laid in the water' : '') +
+      (flat.walk <= 0 ? '  <- the tide crosses none of it' : '')),
     ...stats.crags.map(crag =>
       `crag ${crag.id}  headland ${crag.bearing}°  lip ${crag.lip}m  face ${crag.face}°  ` +
       `runs ${crag.length}m of coast  low ${crag.least}m  ${crag.clefts} clefts  ` +

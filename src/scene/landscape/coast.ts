@@ -39,6 +39,21 @@ const REFINE = 4
 
 
 /**
+ * Signed difference between two bearings, in radians, in −π..π.
+ *
+ * Here rather than in either of the landforms that site themselves by it, for
+ * the reason the waterline march is here: the crag keeps off the sand's shore
+ * and off the beck's mouth by this, and the saltings keep off the crag and the
+ * sand by it, and a second copy of it is a second chance to get the wrap wrong
+ * — which is a landform on the far side of the island from where it was sited.
+ */
+export function bearingGap (a: number, b: number): number {
+  const raw = (a - b) % (Math.PI * 2)
+
+  return raw > Math.PI ? raw - Math.PI * 2 : raw < -Math.PI ? raw + Math.PI * 2 : raw
+}
+
+/**
  * The ground a coastal landform is measured against: the falloff's, before
  * anything else.
  *

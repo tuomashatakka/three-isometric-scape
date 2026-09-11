@@ -270,6 +270,46 @@ export function buildMarram (rng: SeededRng, palette: NordicPalette): BufferGeom
   return mergeParts(parts, { grime: 0.3, grimeFloor: 0.62 })
 }
 
+/**
+ * A tussock of cordgrass — the one plant that holds a saltmarsh together.
+ *
+ * The third of the three tufts, and built from the same four parameters as the
+ * other two so that the family reads as a family: the meadow grass lies over,
+ * the marram stands up, and this one *spreads*. Cordgrass grows in salt mud by
+ * creeping — a rhizome running sideways through ground that is under water
+ * several times a month, throwing up short stiff blades as it goes — so the
+ * clump is low, wide and dense where the marram is tall, tight and open.
+ *
+ * Seven blades rather than the marram's five, and each of them barely half the
+ * height. That is not a detail: a saltmarsh reads as a *surface* rather than as
+ * a field of tussocks, and the way to draw a surface out of instanced clumps is
+ * to make each clump short and wide enough to close with its neighbours.
+ */
+export function buildCordgrass (rng: SeededRng, palette: NordicPalette): BufferGeometry {
+  const parts: BufferGeometry[] = []
+
+  for (let stem = 0; stem < 7; stem += 1) {
+    const height = 0.26 + rng.range(0, 0.18)
+    const curve  = deg(rng.range(18, 46)) * (rng.next() > 0.5 ? 1 : -1)
+    const twist  = deg(rng.range(-34, 34))
+
+    const leaf = applyTwist(applyBend(applyTaper(blade(0.05, height), 0.1, 'y'), curve, 'y'), twist, 'y')
+
+    parts.push(part(leaf, {
+      at:     [ rng.range(-0.16, 0.16), height * 0.5, rng.range(-0.16, 0.16) ],
+      rotate: [ deg(rng.range(-14, 14)), rng.range(0, TAU), deg(rng.range(-14, 14)) ],
+      color:  rng.next() > 0.7 ? palette.cordgrassDry : palette.cordgrass,
+      jitter: 0.14,
+      rng,
+    }))
+  }
+
+  // Grimed hardest of the three, and the ground it stands in is why: a tussock
+  // on a dune has bare sand under it and a tussock on the saltings has tidal mud
+  // under it, which is the darkest ground in the archipelago.
+  return mergeParts(parts, { grime: 0.7, grimeFloor: 0.3 })
+}
+
 /** A heather clump — low, purple, and slightly woody. */
 export function buildHeather (rng: SeededRng, palette: NordicPalette): BufferGeometry {
   const parts: BufferGeometry[] = []

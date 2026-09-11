@@ -49,23 +49,31 @@ export const NORDIC_PALETTE = {
   // a shore full of pale straw sticks standing on a pale beach. A bed is the
   // darkest thing on a shallow coast — that is what makes one readable from the
   // air at all — so it is well under the sand it grows beside.
-  kelp:      '#4a4420',
-  kelpDeep:  '#26230f',
+  kelp:         '#4a4420',
+  kelpDeep:     '#26230f',
   // Marram on the dune belt. Its own green rather than a reuse of `grass`,
   // because the one thing that grows in loose sand is not the sward that grows
   // in soil: marram is glaucous, nearly grey-blue against the pale ground it
   // holds together, and a tussock borrowed from the meadow would have read as a
   // lawn somebody had left on a beach.
-  marram:    '#7d8d6a',
-  marramDry: '#a9a878',
-  heather:   '#6b5f72',
-  grass:     '#5d6b3c',
-  grassDry:  '#8f8a51',
-  rye:       '#b9a25e',
-  hay:       '#c2a760',
-  hayDark:   '#9d8546',
-  sand:      '#a9977a',
-  soil:      '#6d5a44',
+  marram:       '#7d8d6a',
+  marramDry:    '#a9a878',
+  // Cordgrass on the saltings. Its own pair rather than a reuse of `marram`,
+  // for the reason the marram is not a reuse of `grass`: the plant that lives
+  // in salt mud is not the one that lives in blown sand. It is greener than the
+  // marram and much darker — a sward standing in water half the month has no
+  // bleached blades in it — and the dry tone is the seed head rather than a
+  // dead leaf, which is why the two are so much closer together than the dune's.
+  cordgrass:    '#5f7452',
+  cordgrassDry: '#79835a',
+  heather:      '#6b5f72',
+  grass:        '#5d6b3c',
+  grassDry:     '#8f8a51',
+  rye:          '#b9a25e',
+  hay:          '#c2a760',
+  hayDark:      '#9d8546',
+  sand:         '#a9977a',
+  soil:         '#6d5a44',
 
   // Cut turf, wet and a week dry. Nearly black rather than a dark `soil`,
   // because peat is not earth with the colour turned down — it is five thousand

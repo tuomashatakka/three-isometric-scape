@@ -15,8 +15,8 @@ import type { ScapeConfig } from '../src/scene/config.ts'
 import { formatStats } from './scape-map-format.ts'
 import { LEGEND, readLayers, renderGrid } from './scape-map-render.ts'
 import type { Window } from './scape-map-render.ts'
-import { cragStats, duneStats, fjordStats, forceStats, hauloutStats, icecapStats, kelpStats, skerryStats, strandStats, treelineStats } from './scape-map-landforms.ts'
-import type { CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, TreelineStats } from './scape-map-landforms.ts'
+import { cragStats, duneStats, fjordStats, forceStats, hauloutStats, icecapStats, kelpStats, saltingsStats, skerryStats, strandStats, treelineStats } from './scape-map-landforms.ts'
+import type { CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, SaltingsStats, TreelineStats } from './scape-map-landforms.ts'
 import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
 import { causewayOf, croftOf, dykeOf, peatOf, pierOf, smokehouseOf, tarnOf } from './scape-map-sites.ts'
@@ -232,6 +232,16 @@ export interface MapStats extends CompositionStats {
    * only knowable by walking it.
    */
   dunes: DuneStats[]
+
+  /**
+   * The tidal flats, one entry per island whose beck comes out on a free coast.
+   *
+   * Beside the belts for their reason, and it is the landform in this block
+   * with the least to show for itself in a still: a marsh is nearly level, so
+   * every number that says whether it *worked* is a number about the tide
+   * crossing it rather than about its shape.
+   */
+  saltings: SaltingsStats[]
 
   /**
    * The rock faces, one entry per island whose coast was steep enough for one.
@@ -711,6 +721,7 @@ export function surveyStats (
     fjords:   fjordStats(survey),
     icecaps:  icecapStats(survey),
     dunes:    duneStats(survey),
+    saltings: saltingsStats(survey),
     crags:    cragStats(survey),
     forces:   forceStats(survey),
     treeline: treelineStats(survey, config),

@@ -33,6 +33,8 @@ import { SMOKEHOUSE_FOOTING, findSmokehouseSite } from './smokehouse.ts'
 import type { SmokehouseSite } from './smokehouse.ts'
 import { STEADING_BUILDINGS, doorstepOf, steadingPlaces } from './steading.ts'
 import type { SteadingPlaces } from './steading.ts'
+import { solveSaltings } from './saltings.ts'
+import type { Saltings } from './saltings.ts'
 import { solveTarn } from './tarn.ts'
 import type { Tarn } from './tarn.ts'
 
@@ -100,6 +102,16 @@ export interface ScapeSurvey {
    */
   crag: Crag | null
 
+  /**
+   * The tidal flat at the beck's mouth, or `null` where the mouth is on a coast
+   * already spoken for.
+   *
+   * Solved beside the belt and the headland and for their reasons — it asks the
+   * survey for nothing but the beck's mouth and those two bearings, so it is
+   * settled first and every field built below it carries the same marsh.
+   */
+  saltings: Saltings | null
+
   /** The street plan: every place walked to, and every leg planned between them. */
   network: FarmNetwork
   paths:   Footpaths
@@ -143,6 +155,7 @@ function joinTheRock (
   berths: readonly (Spot | null)[],
   dunes:  DuneBelt | null,
   crag:   Crag | null,
+  marsh:  Saltings | null,
 ): JoinedGround {
   const causeway = solveCauseway(
     {
@@ -161,7 +174,45 @@ function joinTheRock (
 
   return {
     causeway,
-    field: causeway ? createHeightField(config, layout, tarn, peat, causeway, dunes, crag) : ashore,
+    field: causeway ? createHeightField(config, layout, tarn, peat, causeway, dunes, crag, marsh) : ashore,
+  }
+}
+
+/** The marsh, and the ground that has it in it. One record, for one decision. */
+type SiltedGround = { marsh: Saltings | null, field: HeightField }
+
+/**
+ * Lay the silt at the beck's mouth, and hand back the ground that has it in it.
+ *
+ * A function of its own rather than three lines in `surveyScape`, for the reason
+ * `joinTheRock` is one: that function is at the lint config's complexity ceiling
+ * and every null-able landform it gains pushes it over. What belongs in the
+ * survey is the *order*, not the argument lists.
+ *
+ * And the order here is the causeway's, for the causeway's reason. The flat is
+ * the one deposit in this scape that can take a *place* away — sand under a
+ * barley plot is still a barley plot, and silt in a harbour is a harbour with no
+ * water in it, which the first cut of this landform proved by silting the meadow
+ * island's until the trestle out of it could no longer find a berth. So the two
+ * banks are settled against the island as it is, the marsh is told to miss them,
+ * and the ground everything downstream reads is rebuilt with it — once, and only
+ * on an island that got one.
+ */
+function siltTheMouth (
+  config: ScapeConfig,
+  layout: ScapeLayout,
+  tarn:   Tarn | null,
+  peat:   PeatBank | null,
+  bare:   HeightField,
+  berths: readonly (Spot | null)[],
+  dunes:  DuneBelt | null,
+  crag:   Crag | null,
+): SiltedGround {
+  const marsh = solveSaltings(config, layout.creek, dunes, crag, berths)
+
+  return {
+    marsh,
+    field: marsh ? createHeightField(config, layout, tarn, peat, null, dunes, crag, marsh) : bare,
   }
 }
 
@@ -319,12 +370,22 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
   // closure and one more pair of smoothed profiles rather than a third pass over
   // the island.
   const peat    = solvePeatBank(config, layout, createHeightField(config, layout, tarn, null, null, dunes, crag).heightAt, tarn)
-  const ashore  = createHeightField(config, layout, tarn, peat, null, dunes, crag)
+  const bare    = createHeightField(config, layout, tarn, peat, null, dunes, crag)
   const places  = steadingPlaces(layout.yard)
-  const landing = findLanding(layout, ashore, config)
-  const harbour = landing && findHarbourBank(layout, ashore, config, landing)
+  const landing = findLanding(layout, bare, config)
+  const harbour = landing && findHarbourBank(layout, bare, config, landing)
 
-  const { causeway, field } = joinTheRock(config, layout, tarn, peat, ashore, [ landing, harbour ], dunes, crag)
+  // And the silt last of the three coastal landforms, told about the other two
+  // and about both banks — which is why it is settled *here* rather than beside
+  // them. See {@link siltTheMouth}. What it does *not* search for is a coast:
+  // the beck's mouth decides where it goes, and the sand, the rock and the two
+  // banks decide only whether it is allowed to be there.
+  const berths = [ landing, harbour ]
+
+  const { marsh, field: ashore } =
+    siltTheMouth(config, layout, tarn, peat, bare, berths, dunes, crag)
+
+  const { causeway, field } = joinTheRock(config, layout, tarn, peat, ashore, berths, dunes, crag, marsh)
 
   // Offshore, and answering to nothing else in the survey: the light is sited on
   // the ring of rocks rather than on the island, so it neither moves anything
@@ -449,8 +510,9 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     causeway,
     dunes,
     crag,
+    saltings: marsh,
     network,
     paths,
-    dyke: ringTheHill(config, layout, field, paths, avoid),
+    dyke:     ringTheHill(config, layout, field, paths, avoid),
   }
 }

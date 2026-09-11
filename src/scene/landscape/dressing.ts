@@ -129,6 +129,20 @@ const CUTTING_CLEARING = 1.5
 const SWARD_SMOTHERED = 0.34
 
 /**
+ * The share of the salt-marsh turf at which the ordinary sward drowns, 0..1.
+ *
+ * The same rule as {@link SWARD_SMOTHERED} written for the other deposit, and
+ * held lower than it because the two grounds refuse turf for opposite reasons.
+ * Sand refuses it *mechanically* — the grass can live on a dune and cannot hold
+ * in sand that is moving — so the line is drawn where the sand starts moving. A
+ * saltings refuses it outright: a meadow tuft standing in ground the sea covers
+ * on every spring tide is dead by the second month, whatever share of the flat
+ * it is on. So a quarter, which on the fade is the mud's own edge, and the
+ * cordgrass has everything above it.
+ */
+const SWARD_DROWNED = 0.25
+
+/**
  * A near-white tint. `scatterInstances` multiplies it into the baked vertex
  * colours, so staying close to white varies the shade of a prop rather than
  * repainting it.
@@ -218,8 +232,8 @@ export function createDressing (
 
   // ---- feature tests -------------------------------------------------------
 
-  const zones                                                                      = createZoneTests(archipelago)
-  const { onTrack, onPath, onPlot, onPasture, atTarnMargin, onIce, onDune, clear } = zones
+  const zones                                                                                  = createZoneTests(archipelago)
+  const { onTrack, onPath, onPlot, onPasture, atTarnMargin, onIce, onDune, onSaltings, clear } = zones
 
   // ---- hero props ----------------------------------------------------------
 
@@ -797,7 +811,8 @@ export function createDressing (
       const height = heightAt(x, z)
       return height > water + 0.2 && !onTrack(x, z) && !onPath(x, z) && !onIce(x, z) &&
         onDune(x, z) < SWARD_SMOTHERED &&
-        (onPlot(x, z) === 0 || rng.next() > 0.75)
+        (onPlot(x, z) === 0 || rng.next() > 0.75) &&
+        onSaltings(x, z) < SWARD_DROWNED
     }, 0.6, 1.5, 0, 16, true, sampleSpot, TILT.rooted)
 
     // The one plant that grows where the sward cannot. Its own scatter rather
@@ -885,6 +900,29 @@ export function createDressing (
       scatterCover('rockLichen', crust, (x, z) =>
         heightAt(x, z) > water + lichenBase, 0.75, 1.45, 0, 24, false, sampleSkerry, TILT.loose, 1)
     }
+
+    // The one plant that grows where both the sward and the marram fail. Its
+    // own scatter rather than a bias on either, for the marram's reason: salt
+    // mud is a ground a plant specialises in or fails on, and the roll rises
+    // with the flat's own turf share, so the clumps close over on the marsh top
+    // and give out into the bare mud below it.
+    //
+    // Stamped here rather than beside the marram it is modelled on, and for the
+    // reason the flock is stamped last: placement draws from one shared rng, so
+    // a scatter inserted in the middle of this function moves every tree, stone
+    // and tuft the batches after it place. A new cover goes on the end of the
+    // covers, where it disturbs nothing.
+    //
+    // The roll comes first and is therefore always drawn — see the marram.
+    //
+    // The spread is 1 rather than the island area, for the talus's reason: a
+    // saltings is a *place* and not an area of ground, and the three flats in
+    // this archipelago come to about a thousand square metres of turf between
+    // them.
+    scatterCover('cordgrass', config.dressing.cordgrass, (x, z) => {
+      const roll = rng.next()
+      return roll < onSaltings(x, z) && !onTrack(x, z) && !onPath(x, z)
+    }, 0.8, 1.5, 0, 16, true, sampleSpot, TILT.rooted, 1)
 
     // ---- the flock -----------------------------------------------------------
 

@@ -878,6 +878,46 @@ export const TOURS: Record<string, Pose[]> = {
   ],
 
   /**
+   * The tidal flat at the sound's beck mouth, at both ends of one spring tide.
+   *
+   * The `tide` set's argument, applied to the ground that argument is about.
+   * Those three frames are the harbour bank west of the home landing, where the
+   * shore shelves at about a metre in four and 0.4 m of rise walks the
+   * waterline a couple of metres up the beach — which is the most any coast in
+   * this scape could show until there was a marsh in it. On a flat whose whole
+   * surface stands inside the spring range the same water crosses seventeen
+   * metres, and that is a difference no single still can carry.
+   *
+   * So the hour is held and `tide.lag` is turned, exactly as `ebb` and `flood`
+   * do it: half a cycle of lag is the same instant of the same day at the
+   * opposite end of the swing, so the only thing that can have moved between
+   * `marsh-low` and `marsh-high` is the sea. `marsh-near` is the surface itself
+   * at a zoom where the drainage gutters, the bare mud and the cordgrass on the
+   * turf are three things rather than one brown patch.
+   *
+   * The sound's flat rather than the home island's, because the home island has
+   * none: its beck comes out through the dune belt, on the one coast the silt is
+   * refused. No pose in the tour is pointed at any of the three that do.
+   */
+  saltings: [
+    {
+      name: 'marsh-low',
+      zoom: 70,
+      set:  [ 'camera.focusX=-373', 'camera.focusZ=-551', 'tide.lag=0' ],
+    },
+    {
+      name: 'marsh-high',
+      zoom: 70,
+      set:  [ 'camera.focusX=-373', 'camera.focusZ=-551', 'tide.lag=6.21' ],
+    },
+    {
+      name: 'marsh-near',
+      zoom: 34,
+      set:  [ 'camera.focusX=-373', 'camera.focusZ=-551', 'tide.lag=0' ],
+    },
+  ],
+
+  /**
    * The crossing out to the nearest rock, at both ends of the swing.
    *
    * The eighteenth set, and the second whose subject is a *difference* — the
