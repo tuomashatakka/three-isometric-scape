@@ -1,7 +1,7 @@
 import { smoothstep } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 import { valueNoise } from '../noise.ts'
-import { COAST_BEARINGS, coastBedAt, solveCoastline } from './coast.ts'
+import { COAST_BEARINGS, bearingGap, coastBedAt, solveCoastline } from './coast.ts'
 import type { Vec2 } from './path.ts'
 
 
@@ -185,13 +185,6 @@ interface BeckMouth {
 
   /** Where the channel gives up and becomes sea, in the island's own frame. */
   mouth: Vec2
-}
-
-/** Signed difference between two bearings, in radians, in −π..π. */
-function bearingGap (a: number, b: number): number {
-  const raw = (a - b) % (Math.PI * 2)
-
-  return raw > Math.PI ? raw - Math.PI * 2 : raw < -Math.PI ? raw + Math.PI * 2 : raw
 }
 
 /**

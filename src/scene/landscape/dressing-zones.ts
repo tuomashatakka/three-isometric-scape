@@ -5,6 +5,7 @@ import type { HeightField } from './height.ts'
 import { BEACON_FOOTING } from './beacon.ts'
 import { cragFoot } from './crag.ts'
 import { duneClaim } from './dunes.ts'
+import { saltingsTurf } from './saltings.ts'
 import { iceClaim } from './icecap.ts'
 import { distanceToTrack, pastureInfluence, plotInfluence, ridgeInfluence } from './layout.ts'
 import { planTreeline, stuntedTo } from './treeline.ts'
@@ -62,6 +63,17 @@ export interface DressingZones {
    * and the ordinary sward gives out under it.
    */
   onDune(x: number, z: number): number
+
+  /**
+   * How much salt-marsh turf is at a point, 0..1 — the sward on the saltings.
+   *
+   * A share rather than a predicate, for the reason the sand is one: the marsh
+   * fades out downward into bare mud and upward into the bank behind it, and
+   * both readers want to know how much of it there is. The cordgrass thickens
+   * with it, and the ordinary sward gives out under it — a meadow tuft standing
+   * in ground the sea covers on every spring tide is a tuft that drowned.
+   */
+  onSaltings(x: number, z: number): number
 
   /**
    * How much broken rock stands at a point, 0..1 — the talus at a crag's foot.
@@ -242,6 +254,27 @@ export function createZoneTests (archipelago: ArchipelagoSurvey): DressingZones 
     return duneClaim(dunes, x - landmass.origin.x, z - landmass.origin.z)
   }
 
+  // The salt marsh. A share rather than a boundary for the sand's reason, and
+  // keyed on the *drawn* ground rather than on the flat's own level, because
+  // what decides whether anything roots is how much of the month a point spends
+  // under salt water — which is a height, and the beck's channel and the
+  // drainage gutters have both been cut into the flat since the silt was laid.
+  const onSaltings = (x: number, z: number): number => {
+    const landmass = archipelago.field.landmassAt(x, z)
+    const marsh    = landmass?.survey.saltings
+
+    if (!marsh)
+      return 0
+
+    return saltingsTurf(
+      landmass.config,
+      marsh,
+      x - landmass.origin.x,
+      z - landmass.origin.z,
+      archipelago.field.heightAt(x, z),
+    )
+  }
+
   // The bottom of a cliff. A share rather than a boundary, for the reason the
   // sand is one: the scree is thickest against the face and thins across the
   // platform, so what a scatter wants is how much talus is here rather than
@@ -285,6 +318,7 @@ export function createZoneTests (archipelago: ArchipelagoSurvey): DressingZones 
     onIce,
     onCauseway,
     onDune,
+    onSaltings,
     atCragFoot,
     clear,
   }

@@ -12,6 +12,8 @@ import { raiseIce } from './icecap.ts'
 import { baseAt, distanceToTrack, plotInfluence, remapRelief, sinkToIsland } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
 import { carvePeat } from './peat.ts'
+import { fillSaltings } from './saltings.ts'
+import type { Saltings } from './saltings.ts'
 import type { PeatBank } from './peat.ts'
 import { carveTarn } from './tarn.ts'
 import type { Tarn } from './tarn.ts'
@@ -226,6 +228,7 @@ export function createHeightField (
   causeway: Causeway | null = null,
   dunes:    DuneBelt | null = null,
   crag:     Crag | null = null,
+  saltings: Saltings | null = null,
 ): HeightField {
   const { waterLevel, shoreBand } = config.terrain
   const { yard, track }           = layout
@@ -330,6 +333,15 @@ export function createHeightField (
     height = raiseCrag(crag, x, z, height)
 
     height = raiseIce(config, x, z, height)
+
+    // The silt last of the four, and it is the only one of them that is not a
+    // thickness: a tidal flat is a *level* the sea fills toward, so it has to
+    // see everything the coast has already been given or it would fill toward
+    // one surface and be measured against another. It cannot meet the other
+    // three — the sand and the rock are refused its shore outright, and a cap
+    // is twenty metres of ice inland of a marsh that stands a third of a metre
+    // over mean water — and like all three it only ever raises ground.
+    height = fillSaltings(saltings, x, z, height)
 
     for (const plot of layout.plots) {
       const claim = plotInfluence(plot, x, z)

@@ -10,6 +10,8 @@ import { cragFoot } from './crag.ts'
 import type { Crag } from './crag.ts'
 import { duneClaim } from './dunes.ts'
 import type { DuneBelt } from './dunes.ts'
+import { saltingsFace, saltingsTurf } from './saltings.ts'
+import type { Saltings } from './saltings.ts'
 import type { Footpaths } from './footpath.ts'
 import { surfaceQueries } from './height.ts'
 import type { GroundNormal, HeightField } from './height.ts'
@@ -75,6 +77,7 @@ export function createTerrainPainter (
   peat:   PeatBank | null = null,
   dunes:  DuneBelt | null = null,
   crag:   Crag | null = null,
+  marsh:  Saltings | null = null,
 ): TerrainPainter {
   const { palette }    = config
   const { waterLevel } = config.terrain
@@ -101,6 +104,8 @@ export function createTerrainPainter (
   const sunned    = new Color(palette.dryGrass)
   const cutPeat   = new Color(palette.peat)
   const blownSand = new Color(palette.dune)
+  const tidalMud  = new Color(palette.slob)
+  const marshTurf = new Color(palette.saltings)
   const wetRock   = new Color(palette.seaRock)
 
   // Resolved to a function once rather than asked per vertex whether there is a
@@ -284,6 +289,28 @@ export function createTerrainPainter (
       // with it.
       target.lerp(blownSand, Math.min(1, duneClaim(dunes, x, z) * 2.6) * 0.92)
 
+      // The mud, and then the turf on the part of it that dries. Over the sand
+      // and under the rock for the same reason the sand is over the bands: a
+      // flat is a deposit, and what it lays down is the surface. The two never
+      // meet anyway — the marsh is refused the weather shore the belt is on.
+      //
+      // The share at face value rather than curved the way the sand's is, and
+      // that is the difference between the two landforms rather than an
+      // oversight: a dune's claim is its own *thickness*, so painting through
+      // it spreads a pale wash over the thin landward apron, while a flat's is
+      // the share of one level the ground is standing at — flat by
+      // construction, with the only edges it has at the seaward fade and at the
+      // bank behind.
+      //
+      // Under the beck for the reason the sand is: the channel cuts through the
+      // flat on its way out and keeps its own gravel across it.
+      const flat = saltingsFace(config, marsh, x, z, height)
+
+      if (flat > 0) {
+        target.lerp(tidalMud, flat * 0.94)
+        target.lerp(marshTurf, saltingsTurf(config, marsh, x, z, height) * 0.9)
+      }
+
       // The rock at the bottom of the crag, over the bands and under the sand
       // for the same reason the sand is under the track: a shore platform is
       // ground rather than a deposit, and nothing is ever laid on one anyway —
@@ -389,13 +416,14 @@ function terrainGeometry (
   peat:     PeatBank | null,
   dunes:    DuneBelt | null,
   crag:     Crag | null,
+  marsh:    Saltings | null,
 ): BufferGeometry {
   const geometry = new PlaneGeometry(config.terrain.size, config.terrain.size, segments, segments)
   geometry.rotateX(-Math.PI / 2)
 
   const positions = geometry.getAttribute('position')
   const colors    = new Float32Array(positions.count * 3)
-  const painter   = createTerrainPainter(config, layout, paths, field, peat, dunes, crag)
+  const painter   = createTerrainPainter(config, layout, paths, field, peat, dunes, crag, marsh)
   const color     = new Color()
 
   for (let index = 0; index < positions.count; index += 1) {
@@ -428,8 +456,9 @@ function cartRutPatch (
   peat:     PeatBank | null,
   dunes:    DuneBelt | null,
   crag:     Crag | null,
+  marsh:    Saltings | null,
 ): BufferGeometry | null {
-  const painter = createTerrainPainter(config, layout, paths, field, peat, dunes, crag)
+  const painter = createTerrainPainter(config, layout, paths, field, peat, dunes, crag, marsh)
   const surface = drawnSurfaceOf(field, config.terrain.size, segments)
 
   return cartRutGeometry({
@@ -727,6 +756,7 @@ export function createArchipelagoTerrain (
       landmass.survey.peat,
       landmass.survey.dunes,
       landmass.survey.crag,
+      landmass.survey.saltings,
     )
 
     geometry.translate(landmass.origin.x, 0, landmass.origin.z)
@@ -744,6 +774,7 @@ export function createArchipelagoTerrain (
       landmass.survey.peat,
       landmass.survey.dunes,
       landmass.survey.crag,
+      landmass.survey.saltings,
     )
 
     if (ruts) {

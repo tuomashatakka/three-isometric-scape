@@ -88,6 +88,29 @@ export interface ScapePalette {
   streambed: number
 
   /**
+   * Tidal mud — the bare half of the flat at the beck's mouth.
+   *
+   * Its own entry rather than a darker `silt`, and for the reason `wrack` has
+   * one: `silt` is what settles nine metres down in still water and is never
+   * seen out of it, and this is ground the sea uncovers twice a day. Warmer,
+   * browner and much lighter than the seabed, because mud out of the water
+   * dries at the top before the next tide covers it again.
+   */
+  slob: number
+
+  /**
+   * Salt-marsh turf — the vegetated half of the same flat.
+   *
+   * Its own entry rather than a greyer `meadow`, and for the reason `moss` has
+   * one: a sward that is flooded with salt water several times a month is a
+   * different set of plants from a hay field, glaucous and grey rather than
+   * green, and a second name for an existing tone is how two greens in one
+   * scape drift apart on the first retune. Deliberately close to
+   * `props.marram`, which is the other plant in this scape that lives on salt.
+   */
+  saltings: number
+
+  /**
    * Cut peat — the floor of the working, and the face standing over it.
    *
    * Its own entry rather than a darker `trodden`, and for the reason `wrack`
@@ -215,6 +238,13 @@ export const SCAPE_PALETTE: SCAPE_PALETTEType = {
     moss:         0x3d5a30,
     pasture:      0x76803f,
     streambed:    0x585f57,
+    // Measured against `silt` rather than chosen: the seabed is 0x565b4a, and
+    // tidal mud is the same deposit with the water off it — two and a half
+    // stops lighter and turned toward brown, which is what a drying flat does
+    // between one tide and the next. The turf is a fifth of the way from
+    // `meadow` toward `scree` and desaturated, which is a sward with salt in it.
+    slob:         0x7a6f55,
+    saltings:     0x66714a,
     peat:         0x342a20,
     trodden:      0x6c6049,
     track:        0x7d6a4f,

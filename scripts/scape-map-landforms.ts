@@ -2,6 +2,7 @@ import type { ScapeConfig } from '../src/scene/config.ts'
 import type { ArchipelagoSurvey } from '../src/scene/landscape/archipelago.ts'
 import { measureCrag } from '../src/scene/landscape/crag.ts'
 import { measureDunes } from '../src/scene/landscape/dunes.ts'
+import { measureSaltings } from '../src/scene/landscape/saltings.ts'
 import { surveyFjord } from '../src/scene/landscape/fjord.ts'
 import { findFall } from '../src/scene/landscape/force.ts'
 import { createHeightField } from '../src/scene/landscape/height.ts'
@@ -578,6 +579,72 @@ export function duneStats (survey: ArchipelagoSurvey): DuneStats[] {
       refused: round(report.refused),
       sampled: report.sampled,
       lowest:  round(report.lowest, 3),
+    }]
+  })
+}
+
+
+/** One island's tidal flat, measured. */
+export interface SaltingsStats {
+  id: string
+
+  /** The bearing the flat lies on, in degrees. */
+  bearing: number
+
+  /** Metres of coast it runs along, at the waterline the island had before it. */
+  length: number
+
+  /** Square metres of it standing between low and high water at springs. */
+  tidal: number
+
+  /** Square metres of it standing high enough to carry turf. */
+  turf: number
+
+  /** Share of the flat the drainage gutters have cut, as a percentage. */
+  gutters: number
+
+  /** Metres the waterline walks across it between low and high springs. */
+  walk: number
+
+  /** The least freeboard any turf was found on, in metres. */
+  lowest: number
+}
+
+/**
+ * Every saltings, walked along the coast it lies on.
+ *
+ * Seven numbers, and the important one is `walk` — how far the sea moves across
+ * the flat between low water and high. That is the whole reason the landform is
+ * in the scape, it takes two stills at two states of the tide to see, and a
+ * marsh whose surface came out over the top of the spring range or under the
+ * bottom of it reports it as nothing while still looking like a marsh in both
+ * of them.
+ *
+ * `lowest` is the invariant, the way the dune belt's is: turf on ground at or
+ * below mean water is a sward growing in the sea. It is measured against the
+ * *drawn* ground rather than against the level the silt filled toward, because
+ * the beck's channel and the gutters are both cut after the fill.
+ */
+export function saltingsStats (survey: ArchipelagoSurvey): SaltingsStats[] {
+  return survey.landmasses.flatMap(landmass => {
+    const report = measureSaltings(
+      landmass.config,
+      landmass.survey.saltings,
+      landmass.survey.field.heightAt,
+    )
+
+    if (!report)
+      return []
+
+    return [{
+      id:      landmass.id,
+      bearing: round(report.bearing, 1),
+      length:  round(report.length),
+      tidal:   round(report.tidal),
+      turf:    round(report.turf),
+      gutters: round(report.gutters, 1),
+      walk:    round(report.walk, 1),
+      lowest:  round(report.lowest, 2),
     }]
   })
 }

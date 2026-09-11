@@ -34,6 +34,7 @@ import {
 import { buildHayPole, buildMeadowBarn } from './upland.ts'
 import {
   buildBirch,
+  buildCordgrass,
   buildCropRow,
   buildDeadSpruce,
   buildGrassTuft,
@@ -103,6 +104,7 @@ export const PROPS = {
   juniper:    buildJuniper,
   grass:      buildGrassTuft,
   marram:     buildMarram,
+  cordgrass:  buildCordgrass,
   heather:    buildHeather,
   wildflower: buildWildflower,
   reeds:      buildReeds,
@@ -142,7 +144,7 @@ export const HERO_PROPS = [
 /** Stamped in quantity through a single `InstancedMesh` each. */
 export const SCATTER_PROPS = [
   'spruce', 'pine', 'birch', 'deadSpruce', 'sapling', 'stump', 'juniper',
-  'grass', 'marram', 'heather', 'wildflower', 'reeds', 'lilyPads', 'crop',
+  'grass', 'marram', 'cordgrass', 'heather', 'wildflower', 'reeds', 'lilyPads', 'crop',
   'erratic', 'talus', 'fieldStone', 'cobble', 'cairn',
   'bladderwrack', 'rockLichen', 'kelp',
   'hayBale', 'firewood', 'barrel', 'driftwood', 'mooringPost', 'hayPole', 'peatStack',
