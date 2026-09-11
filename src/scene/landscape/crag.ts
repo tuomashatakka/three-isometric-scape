@@ -3,6 +3,8 @@ import type { ScapeConfig } from '../config.ts'
 import { valueNoise } from '../noise.ts'
 import { COAST_BEARINGS, bearingGap, coastBedAt, solveCoastline } from './coast.ts'
 import type { Vec2 } from './path.ts'
+import { raiseStack, solveStack } from './stack.ts'
+import type { Stack } from './stack.ts'
 
 
 /**
@@ -70,6 +72,18 @@ export interface Crag {
 
   /** The gradient of the bare coast the siting search picked this bearing for. */
   steepness: number
+
+  /**
+   * The pillar the sea left out in front of it, or `null` where there is none.
+   *
+   * Held on the headland rather than beside it in the survey, and that is the
+   * one decision worth arguing. A stack is not a second landform that happens
+   * to be near a cliff — it is the same cliff, cut through — so everything that
+   * already reads a crag reads its stack for free, the height field composes
+   * the two in one call, and there is no way to end up with a pillar standing
+   * off a headland that moved. See `landscape/stack.ts`.
+   */
+  stack: Stack | null
 
   /**
    * Metres from the island's middle to the waterline on a bearing, or 0 where
@@ -430,7 +444,20 @@ export function solveCrag (
     return target
   }
 
-  return { bearing: site.bearing, arc, lip, steepness: site.steepness, shoreAt, formAt }
+  // The pillar, last and off the headland's own numbers. Solved here rather
+  // than in the survey so that nothing downstream can hold a crag whose stack
+  // was worked out against a different arc, a different lip or a different
+  // cleft field — see `Crag.stack`.
+  const stack = solveStack(config, {
+    bearing: site.bearing,
+    arc,
+    lip,
+    bench:   crag.bench,
+    shoreAt,
+    weakAt:  along => weaknessAt(config, along),
+  })
+
+  return { bearing: site.bearing, arc, lip, steepness: site.steepness, stack, shoreAt, formAt }
 }
 
 
@@ -467,7 +494,12 @@ export function raiseCrag (crag: Crag | null, x: number, z: number, height: numb
 
   const form = crag.formAt(x, z, scratch)
 
-  return height + Math.max(0, form.level - height) * form.claim
+  // And the pillar out in front of it, in the same call and after the face. The
+  // two cannot meet — a stack stands a platform's width and a gut of open water
+  // seaward of the waterline, and the crag's own claim is zero out there — and
+  // both only ever raise ground, so the order between them decides nothing. It
+  // reads landward-to-seaward.
+  return raiseStack(crag.stack, x, z, height + Math.max(0, form.level - height) * form.claim)
 }
 
 /**

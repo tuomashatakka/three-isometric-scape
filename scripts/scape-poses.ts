@@ -84,6 +84,16 @@ const HAUL_ROCK = [ 'camera.focusX=300', 'camera.focusZ=375' ]
  */
 const HAUL_EDGE = [ 'camera.focusX=305', 'camera.focusZ=366' ]
 
+/**
+ * The home island's sea stack, in world metres.
+ *
+ * Named rather than repeated for the crossing's reason — four frames aim at it
+ * — and rounded off the `stack` line `scape:map --stats` prints rather than
+ * typed from a screenshot. It is the one pillar in the archipelago on the same
+ * island as the camera's own home pose.
+ */
+const OVER_STACK = [ 'camera.focusX=58', 'camera.focusZ=-35' ]
+
 /** The middle of the causeway, which the three `causeway` poses all sit on. */
 const OVER_CROSSING = [ 'camera.focusX=52.4', 'camera.focusZ=32.5' ]
 
@@ -1142,6 +1152,44 @@ export const TOURS: Record<string, Pose[]> = {
       name: 'crag-bare',
       zoom: 110,
       set:  [ 'camera.focusX=39', 'camera.focusZ=-30', 'terrain.crag.height=0' ],
+    },
+  ],
+
+  /**
+   * The stack, and the water between it and the island.
+   *
+   * The crag's arrangement, one step further out to sea and for a sharper
+   * version of the same reason. A pillar eleven metres across, sixty-seven
+   * metres from the world origin, is four pixels at the tour's default zoom and
+   * nothing at all once it is behind the headland it came out of: the run that
+   * put it there moved every pose in `tour` by a hundredth of a per cent, and
+   * the one number that says it is a stack at all — the gut of open water
+   * behind it — is invisible from every pose this scape is ever drawn at.
+   * `scape:map` measures that one; these four are what shows the rest.
+   *
+   * The home island's pillar stands on the 329° bearing, which is world
+   * (58, −35), just outside the 322° headland's own platform. `stack` is both
+   * at 90 m, where the cliff, the gap and the rock are three things rather than
+   * one silhouette. `stack-near` is 26 m, the only frame in which the taper of
+   * the sides and the blocks heaped round the foot are surfaces. `stack-sea` is
+   * the same subject from the far quarter, where the pillar comes up against
+   * open water instead of against its own headland — the view that says whether
+   * it stands as its own thing or reads as a lump on the coast behind it.
+   * `stack-bare` is the control and carries the claim: the same frame with
+   * `terrain.stack.stature` at zero, which is the coast this archipelago had
+   * before the run.
+   *
+   * Nothing here is in {@link STILL}, for the crag's reason: rock does not
+   * move, and the sea round the foot of it is the water's own clock.
+   */
+  stack: [
+    { name: 'stack', zoom: 90, set: OVER_STACK },
+    { name: 'stack-near', zoom: 26, set: OVER_STACK },
+    { name: 'stack-sea', zoom: 90, rot: 135, set: OVER_STACK },
+    {
+      name: 'stack-bare',
+      zoom: 90,
+      set:  [ ...OVER_STACK, 'terrain.stack.stature=0' ],
     },
   ],
 
