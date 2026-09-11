@@ -364,6 +364,14 @@ export function formatStats (stats: MapStats): string {
       `stands ${crag.standing}m over the coast  plunge ${crag.plunge}m  coast ${crag.steep}` +
       (crag.cut > 0 ? `  <- the crag cut ${crag.cut}m out of the island` : '') +
       (crag.plunge <= 0 ? '  <- the platform has no water off the end of it' : '')),
+    ...stats.stacks.map(stack =>
+      `stack ${stack.id}  (${stack.x},${stack.z})  off the ${stack.bearing}° headland  ` +
+      `crown ${stack.crown}m of a ${stack.lip}m lip  ` +
+      `girth ${stack.girth}m  gut ${stack.gut}m of water ${stack.depth}m deep  ` +
+      `clear ${stack.freeboard}m at springs  rock ${stack.weakness}` +
+      (stack.gut <= 0 ? '  <- the platform has run out to meet it: a promontory, not a stack' : '') +
+      (stack.freeboard <= 0 ? '  <- the crown goes under at springs' : '') +
+      (stack.crown >= stack.lip ? '  <- the pillar overtops the cliff it came out of' : '')),
     ...stats.forces.map(fall =>
       `force ${fall.id}  lip (${fall.x},${fall.z}) ${fall.lip}m  drop ${fall.drop}m  ` +
       `over ${fall.run}m  sheet ${fall.width}m wide`),

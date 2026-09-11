@@ -3,6 +3,7 @@ import type { ArchipelagoSurvey } from '../src/scene/landscape/archipelago.ts'
 import { measureCrag } from '../src/scene/landscape/crag.ts'
 import { measureDunes } from '../src/scene/landscape/dunes.ts'
 import { measureSaltings } from '../src/scene/landscape/saltings.ts'
+import { measureStack } from '../src/scene/landscape/stack.ts'
 import { surveyFjord } from '../src/scene/landscape/fjord.ts'
 import { findFall } from '../src/scene/landscape/force.ts'
 import { createHeightField } from '../src/scene/landscape/height.ts'
@@ -718,6 +719,80 @@ export function cragStats (survey: ArchipelagoSurvey): CragStats[] {
       standing: round(report.standing, 2),
       cut:      round(report.cut, 3),
       plunge:   round(report.plunge, 2),
+    }]
+  })
+}
+
+
+/** One island's pillar, measured on the ground that has it in it. */
+export interface StackStats {
+  id: string
+
+  /** Where it stands, in world metres. */
+  x: number
+  z: number
+
+  /** The bearing it stands off, in degrees. */
+  bearing: number
+
+  /** Metres over mean water the drawn crown stands. */
+  crown: number
+
+  /** Metres over mean water the headland it came out of was authored to stand. */
+  lip: number
+
+  /** Mean plan radius at the foot, in metres. */
+  girth: number
+
+  /** Metres of submerged ground between the foot and the coast. The claim. */
+  gut: number
+
+  /** The deepest water in that gap, in metres. */
+  depth: number
+
+  /** Metres the crown stands clear of high water at springs. */
+  freeboard: number
+
+  /** How weak the rock was on the line the sea cut behind, 0..1. */
+  weakness: number
+}
+
+/**
+ * Every stack, measured against the ground the terrain is drawn from.
+ *
+ * The block exists for one number. `gut` is the whole landform — a pillar is
+ * only a pillar because there is water behind it — and it is the one fact about
+ * this scape that the tour is structurally unable to check: from every pose the
+ * scape is ever drawn at, a stack standing ten metres off a headland and a
+ * stack welded to the end of its own platform are the same dark shape against
+ * the same sea. Read here, they are 9.5 and 0.
+ *
+ * `freeboard` is the second one, and it is the tide's. A crown that stood five
+ * metres clear at mean water and went under at springs would be a landform that
+ * appears and disappears twice a month, which is a skerry — and this scape
+ * already has fifty-nine of those.
+ */
+export function stackStats (survey: ArchipelagoSurvey, config: ScapeConfig): StackStats[] {
+  const springs = tideAmplitudeAt(1, config.tide)
+
+  return survey.landmasses.flatMap(landmass => {
+    const stack = landmass.survey.crag?.stack
+
+    if (!stack)
+      return []
+
+    const report = measureStack(
+      stack,
+      landmass.survey.field.heightAt,
+      config.terrain.waterLevel,
+      springs,
+    )
+
+    return [{
+      id: landmass.id,
+      x:  round(landmass.origin.x + stack.x),
+      z:  round(landmass.origin.z + stack.z),
+      ...report,
     }]
   })
 }
