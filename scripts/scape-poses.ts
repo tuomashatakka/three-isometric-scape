@@ -627,6 +627,52 @@ export const TOURS: Record<string, Pose[]> = {
   ],
 
   /**
+   * The wreck, and the two ends of a spring tide over her.
+   *
+   * The lesson `croft` wrote down, at half the size again: the hull is 7.5 m
+   * long and she lies 82 m out from the island's middle, so at `default` she is
+   * three pixels of driftwood against open water and at `near` she is off the
+   * frame entirely. Nothing in the tour can see her, and a run that trusted the
+   * tour would have reported `same` at all six poses on a change that put a boat
+   * in the sea.
+   *
+   * `wreck` reads the hull — the row of broken frames, the strakes still on the
+   * bedded side, the two posts. The pair after it is the claim the siting makes,
+   * and it is a claim about the *rock* rather than about her: the search takes
+   * the lowest rock in the ring on the argument that a rock nobody can see is
+   * the rock that catches boats, and the only way to photograph that argument is
+   * to photograph the rock at both ends of the swing.
+   *
+   * So `wreck-low` and `wreck-high` are one frame twice. Same hour, same week,
+   * same camera; `tide.lag` turned half a cycle, which is exactly what that
+   * field is for. The week is the one the moon makes springs in — an unqualified
+   * year lands on neaps as often as not, and a pair taken at neaps differs by
+   * half a metre of nothing. At springs the water walks 0.8 m up her: at low she
+   * stands on a ledge with a hand's width of weed round it, and at high there is
+   * five centimetres of rock showing and the sea is up her garboard.
+   *
+   * `wreck-ring` is the one that holds the argument and the counter-argument in
+   * one frame — her low rock, and the croft's high one twenty metres away with a
+   * hut on it. Two rocks, one of which somebody chose.
+   */
+  wreck: [
+    { name: 'wreck', zoom: 24, set: [ 'camera.focusX=-60.1', 'camera.focusZ=-56.3' ]},
+    {
+      name:   'wreck-low',
+      zoom:   30,
+      season: 0.93,
+      set:    [ 'camera.focusX=-60.1', 'camera.focusZ=-56.3', 'tide.lag=4' ],
+    },
+    {
+      name:   'wreck-high',
+      zoom:   30,
+      season: 0.93,
+      set:    [ 'camera.focusX=-60.1', 'camera.focusZ=-56.3', 'tide.lag=10' ],
+    },
+    { name: 'wreck-ring', zoom: 96, set: [ 'camera.focusX=-63', 'camera.focusZ=-47' ]},
+  ],
+
+  /**
    * One farmhouse wall, from close enough to see a window as a window.
    *
    * The sixth set added for the reason the first five were, and the smallest

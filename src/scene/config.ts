@@ -22,6 +22,8 @@ import { SCAPE_STACK } from './config-stack.ts'
 import type { StackConfig } from './config-stack.ts'
 import { SCAPE_TREELINE } from './config-treeline.ts'
 import type { TreelineConfig } from './config-treeline.ts'
+import { SCAPE_WRECK } from './config-wreck.ts'
+import type { WreckConfig } from './config-wreck.ts'
 import type { QualityEffects } from './quality.ts'
 
 
@@ -254,7 +256,7 @@ export interface DressingBudget {
 }
 
 export interface ScapeConfig extends DykeConfig, ForceConfig, GuardConfig, KelpConfig,
-  ShielingConfig, TreelineConfig {
+  ShielingConfig, TreelineConfig, WreckConfig {
   seed:    number
   terrain: {
     size:       number
@@ -2661,6 +2663,7 @@ export const SCAPE_CONFIG = {
   ...SCAPE_KELP,
   ...SCAPE_SHIELING,
   ...SCAPE_TREELINE,
+  ...SCAPE_WRECK,
   footpath: {
     width:  1.5,
     verge:  0.7,

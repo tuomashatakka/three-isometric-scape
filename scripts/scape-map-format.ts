@@ -247,7 +247,28 @@ function sitedLines (stats: MapStats): string[] {
         `${Math.round(stats.causeway.neaps * 100)}% neaps`
       : 'causeway NONE  <- no rock close enough to the shore to walk to',
     shielingLine(stats.shieling),
+    wreckLine(stats.wreck),
   ]
+}
+
+/**
+ * The hull out on the rocks, as one line.
+ *
+ * Its own function for the reason `shielingLine` is one — {@link sitedLines} is
+ * at the lint config's complexity ceiling — and the reading is the interesting
+ * part rather than the position. `freeboard` is the search's whole argument: it
+ * is meant to be a small number, so a run that grew it has quietly moved her
+ * onto a rock the light would rather be on. `fall` says whether she is aground
+ * along her keel or balanced on a point, and `turn` says whether she is still
+ * lying on the course she was driven in on.
+ */
+function wreckLine (wreck: MapStats['wreck']): string {
+  if (!wreck)
+    return 'wreck NONE  <- every rock in the ring stands high enough to be seen coming'
+
+  return `wreck (${wreck.x},${wreck.z}) isle ${wreck.isle}  ` +
+    `freeboard ${wreck.freeboard}m  bed ${wreck.fall}m of fall  ` +
+    `turn ${wreck.turn}deg  reach ${wreck.reach}m`
 }
 
 /**

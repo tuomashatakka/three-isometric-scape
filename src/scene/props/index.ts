@@ -51,6 +51,7 @@ import {
   buildWildflower,
 } from './vegetation.ts'
 import { buildSeal } from './wildlife.ts'
+import { buildWreck } from './wreck.ts'
 
 
 /** Every prop builder is a pure geometry factory — no scene, no GL context. */
@@ -79,6 +80,7 @@ export const PROPS = {
   smokehouse:  buildSmokehouse,
   shieling:    buildShieling,
   croft:       buildCroft,
+  wreck:       buildWreck,
 
   jetty:     buildJetty,
   boathouse: buildBoathouse,
@@ -138,7 +140,7 @@ export type PropName = keyof typeof PROPS
 /** Placed once, by hand, then merged into the steading draw. */
 export const HERO_PROPS = [
   'barn', 'farmhouse', 'sauna', 'aitta', 'woodshed', 'meadowBarn', 'windmill', 'lighthouse',
-  'chapel', 'graveMarker', 'smokehouse', 'shieling', 'croft',
+  'chapel', 'graveMarker', 'smokehouse', 'shieling', 'croft', 'wreck',
   'jetty', 'boathouse', 'netRack', 'well', 'hayRack', 'logPile', 'flagpole',
   'bridge', 'cart', 'gate', 'rowboat', 'mailbox',
 ] as const satisfies readonly PropName[]

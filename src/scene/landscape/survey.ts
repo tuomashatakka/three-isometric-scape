@@ -40,6 +40,8 @@ import { solveSaltings } from './saltings.ts'
 import type { Saltings } from './saltings.ts'
 import { solveTarn } from './tarn.ts'
 import type { Tarn } from './tarn.ts'
+import { findWreckSite } from './wreck.ts'
+import type { WreckSite } from './wreck.ts'
 
 
 /**
@@ -75,6 +77,12 @@ export interface ScapeSurvey {
 
   /** The trestle out to deep water, or `null` when the shelf never drops away. */
   pier: Pier | null
+
+  /**
+   * The hull out on the low rock, or `null` when every rock in the ring stands
+   * high enough to be seen coming.
+   */
+  wreck: WreckSite | null
 
   /** The pool above the beck's spring, or `null` if no hollow up there holds one. */
   tarn: Tarn | null
@@ -362,6 +370,24 @@ function hillReach (layout: ScapeLayout): number {
 }
 
 /**
+ * The hull on the low rock, or the reason the ring has none.
+ *
+ * A function of its own for the reason {@link grazeTheHill} is one, and for one
+ * more: the two rocks it has to keep off are both optional, so inlining it put
+ * two `?.` into `surveyScape` and took that function past the lint config's
+ * complexity ceiling. The survey holds the order; the argument lists live out
+ * here.
+ */
+function strandAHull (
+  config: ScapeConfig,
+  field:  HeightField,
+  beacon: BeaconSite | null,
+  croft:  CroftSite | null,
+): WreckSite | null {
+  return findWreckSite(config, field, [ beacon?.isle ?? null, croft?.isle ?? null ])
+}
+
+/**
  * The hut on the summer grazing, or the reason there is none.
  *
  * A function of its own for the reason {@link ringTheHill} is one — the survey
@@ -547,6 +573,13 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
 
   const pier = reachDeepWater(config, field, harbour)
 
+  // The third thing out on the rocks, and the only site in the survey that is
+  // nobody's decision. Sited after the light and the croft because it is sited
+  // *against* them — those two take the rocks somebody chose, and this one takes
+  // the rock nobody could see. Nothing ashore is routed to it and nothing avoids
+  // it, for the reason nothing does either for the light.
+  const wreck = strandAHull(config, field, beacon, croft)
+
   // Out on the hill, and the only thing in the survey sited *away* from
   // everything: the grazing is the ground nothing else on the island wanted. Run
   // before the routes because the hut is walked to, and after everything ashore
@@ -605,6 +638,7 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     smokehouse,
     shieling,
     pier,
+    wreck,
     tarn,
     peat,
     causeway,
