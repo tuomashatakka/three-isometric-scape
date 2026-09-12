@@ -19,7 +19,7 @@ import { cragStats, duneStats, fjordStats, forceStats, hauloutStats, icecapStats
 import type { CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, SaltingsStats, StackStats, TreelineStats } from './scape-map-landforms.ts'
 import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
-import { causewayOf, croftOf, dykeOf, peatOf, pierOf, shielingOf, smokehouseOf, tarnOf } from './scape-map-sites.ts'
+import { causewayOf, croftOf, dykeOf, peatOf, pierOf, shielingOf, smokehouseOf, tarnOf, wreckOf } from './scape-map-sites.ts'
 import { rainbowStats, stormStats } from './scape-map-weather.ts'
 import { applyOverrides, parseArgs } from './args.ts'
 
@@ -154,8 +154,27 @@ export interface CompositionStats {
     encloses: number
   } | null
 
-  beacon:   { x: number, z: number, freeboard: number, reach: number, isle: number } | null
-  croft:    { x: number, z: number, freeboard: number, isle: number, fromHarbour: number } | null
+  beacon: { x: number, z: number, freeboard: number, reach: number, isle: number } | null
+  croft:  { x: number, z: number, freeboard: number, isle: number, fromHarbour: number } | null
+
+  /**
+   * The hull on the rock nobody could see, or `null` on a ring whose every rock
+   * stands proud enough to be seen coming.
+   *
+   * The one site in here whose reading runs the *other* way from the beacon's
+   * beside it: this freeboard is meant to be small, and a run that grew it has
+   * put her on a rock a helmsman would have kept off.
+   */
+  wreck:    {
+    x:         number
+    z:         number
+    freeboard: number
+    fall:      number
+    turn:      number
+    reach:     number
+    isle:      number
+  } | null
+
   plots:    number
   ridges:   number
   isles:    { total: number, surfacing: number }
@@ -638,6 +657,7 @@ function compositionStats (landmass: LandmassSurvey, w: number, h: number): Comp
     pier:       pierOf(survey.pier, worldX, worldZ),
     causeway:   causewayOf(survey.causeway, config, worldX, worldZ),
     croft:      croftOf(survey.croft, worldX, worldZ),
+    wreck:      wreckOf(survey.wreck, worldX, worldZ),
     beacon:     survey.beacon && {
       x:         round(worldX(survey.beacon.x)),
       z:         round(worldZ(survey.beacon.z)),

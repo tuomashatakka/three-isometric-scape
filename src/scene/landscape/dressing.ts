@@ -21,7 +21,7 @@ import { BEACON_FOOTING } from './beacon.ts'
 import { CROFT_FOOTING } from './croft.ts'
 import { BOATHOUSE_CLEARING, NET_RACK_CLEARING, boathouseSpot, netRackSpot } from './landing.ts'
 import type { Spot } from './landing.ts'
-import { createGroundContact, findCrossing, isFoliage, raiseShieling, trackPointNear } from './dressing-helpers.ts'
+import { createGroundContact, findCrossing, isFoliage, raiseShieling, raiseWreck, trackPointNear } from './dressing-helpers.ts'
 import { raiseEnclosures } from './dressing-enclosures.ts'
 import type { Walling } from './dressing-enclosures.ts'
 import { createDressingSampling } from './dressing-sampling.ts'
@@ -521,6 +521,18 @@ export function createDressing (
       placeHero('croft', croftX, croftZ, survey.croft.angle, CROFT_SINK)
       solver.reserve(croftX, croftZ, CROFT_FOOTING + 1)
     }
+
+    // The hull, on whichever rock the survey found low enough to have caught
+    // one. Out in `dressing-helpers.ts` for the reason the shieling is: this
+    // function is at the lint config's statement ceiling and the wreck had to
+    // cost it exactly one. Nothing is routed to her, because there is nothing
+    // out there to walk to.
+    raiseWreck(
+      survey.wreck,
+      landmass.origin,
+      placeHero,
+      (x, z, radius) => solver.reserve(x, z, radius),
+    )
 
     // A bridge only earns its place where the track has something to cross.
     const crossing = findCrossing(layout, survey.field, localConfig)

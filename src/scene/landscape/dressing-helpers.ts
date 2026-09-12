@@ -1,6 +1,7 @@
 import type { ScapeConfig } from '../config.ts'
 import type { FencePoint } from '../props/fence.ts'
 import type { PropName } from '../props/index.ts'
+import { WRECK_SINK } from '../props/wreck.ts'
 import { alignToSlope } from './align.ts'
 import type { TiltWeight } from './align.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
@@ -11,6 +12,8 @@ import { yawAlong } from './layout.ts'
 import type { Plot, ScapeLayout, Vec2 } from './layout.ts'
 import { SHIELING_FOOTING } from './shieling.ts'
 import type { ShielingSite } from './shieling.ts'
+import { WRECK_FOOTING } from './wreck.ts'
+import type { WreckSite } from './wreck.ts'
 import { drawnSurfaceOf, patchSegments } from './terrain.ts'
 
 
@@ -308,4 +311,41 @@ export function raiseShieling (
 
   place('shieling', site.x + origin.x, site.z + origin.z, site.angle)
   reserve(site.x + origin.x, site.z + origin.z, SHIELING_FOOTING + 0.8)
+}
+
+
+/**
+ * The hull out on the low rock, and the ground round her the scatter keeps off.
+ *
+ * Merged rather than plopped, like the light and the croft on the rocks beside
+ * her and for their reason: an islet is a dome a few metres across, and a cut
+ * foundation under a plopped hull would shave a shelf off most of it. Bedded
+ * deeper than either — `WRECK_SINK` — because she drove onto the rock rather
+ * than being set on it.
+ *
+ * Here rather than inside the dressing's closure for the reason `raiseShieling`
+ * is: `raiseOutlying` was four statements under the lint ceiling, so the wreck
+ * had to cost that function exactly one. Hence the same two collaborators as
+ * parameters. The bearing is turned into a yaw here rather than at the call
+ * site, because `yawAlong` is already imported in this file and a compass
+ * heading converted in two places is a hull pointing two ways.
+ *
+ * The reserve is the half that is not obvious. The solver has no idea she is
+ * there, and driftwood stamped inside her frames is driftwood growing through a
+ * hull.
+ */
+export function raiseWreck (
+  site:    WreckSite | null,
+  origin:  Vec2,
+  place:   (name: PropName, x: number, z: number, angle: number, sink: number) => void,
+  reserve: (x: number, z: number, radius: number) => void,
+): void {
+  if (!site)
+    return
+
+  const x = site.x + origin.x
+  const z = site.z + origin.z
+
+  place('wreck', x, z, yawAlong(site.bearing), WRECK_SINK)
+  reserve(x, z, WRECK_FOOTING + 0.8)
 }

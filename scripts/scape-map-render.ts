@@ -40,7 +40,7 @@ export const LEGEND =
   '~ deep  - shallow  . shore  : low  = mid  + upper  * high  # peak\n' +
   ', footpath  ≡ track  · waterway  b boat  s beck  ≈ tarn  T peat  ' +
   'F/B/A/W/S steading  o well  J jetty  H harbour  V smokehouse  P pier  ' +
-  'W mill  K chapel  L light  C croft  Y shieling  p plot  ^ ridge  x dyke  g gate'
+  'W mill  K chapel  L light  C croft  X wreck  Y shieling  p plot  ^ ridge  x dyke  g gate'
 
 export interface Layers {
   height:    boolean
@@ -266,7 +266,7 @@ export function renderGrid (
   if (layers.buildings)
     for (const landmass of archipelago.landmasses) {
       const { layout, places, landing, harbour, beacon, croft, dyke, pier } = landmass.survey
-      const { shieling, smokehouse }                                        = landmass.survey
+      const { shieling, smokehouse, wreck }                                 = landmass.survey
       const worldX                                                          = (x: number): number => x + landmass.origin.x
       const worldZ                                                          = (z: number): number => z + landmass.origin.z
 
@@ -299,6 +299,10 @@ export function renderGrid (
         [ shieling, 'Y' ],
         [ beacon, 'L' ],
         [ croft, 'C' ],
+        // Upper case, unlike the dyke's lower-case run, because this is a point
+        // rather than a line — and because the one thing worth finding on the
+        // grid here is how close the hull is to the light's own rock.
+        [ wreck, 'X' ],
         [ landing, 'J' ],
         [ harbour, 'H' ],
         // The *head*, not the root. The root sits a couple of metres along the

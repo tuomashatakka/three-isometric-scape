@@ -12,6 +12,7 @@ import type { ShielingSite } from '../src/scene/landscape/shieling.ts'
 import type { SmokehouseSite } from '../src/scene/landscape/smokehouse.ts'
 import { tarnWetted } from '../src/scene/landscape/tarn.ts'
 import type { Tarn } from '../src/scene/landscape/tarn.ts'
+import type { WreckSite } from '../src/scene/landscape/wreck.ts'
 import { tideAmplitudeAt } from '../src/scene/tide.ts'
 import type { CompositionStats } from './scape-map.ts'
 
@@ -214,5 +215,31 @@ export function causewayOf (
     crest:    round(freeboard, 2),
     springs:  round(causewayCover(freeboard, tideAmplitudeAt(1, config.tide)), 2),
     neaps:    round(causewayCover(freeboard, tideAmplitudeAt(0, config.tide)), 2),
+  }
+}
+
+/**
+ * The hull out on the low rock, and the two numbers that say which rock it is.
+ *
+ * `freeboard` is the reading worth watching, and it is the only one here that is
+ * a claim rather than a position: the search is written to take the *lowest*
+ * qualifying rock in the ring, so a freeboard that climbs is a search that has
+ * quietly started choosing the rocks a boat can see — the beacon's rocks. `fall`
+ * is the other half, and a fall that has grown is a hull bridging a hollow she
+ * was never meant to be balanced over.
+ */
+export function wreckOf (
+  site:   WreckSite | null,
+  worldX: Project,
+  worldZ: Project,
+): CompositionStats['wreck'] {
+  return site && {
+    x:         round(worldX(site.x)),
+    z:         round(worldZ(site.z)),
+    freeboard: round(site.freeboard, 2),
+    fall:      round(site.fall, 2),
+    turn:      site.turn,
+    reach:     round(site.reach),
+    isle:      site.isle,
   }
 }

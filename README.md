@@ -92,6 +92,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a lighthouse on the outermost rock of the ring, throwing beams that sweep the water from dusk until dawn
 - a shingle bar out to the nearest rock, thirteen metres of it, standing a hand's breadth over mean water — dry ground you walk to the light on, and ground the spring tides close over for a third of the cycle while the neaps never reach it at all
 - a croft out on the islets — a boarded, turf-roofed hut with a stone flue and a pair of oars against its blind gable, on the nearest free rock to the harbour it is worked from, glazed on two walls and smoking
+- **a wreck out on the rocks the light was built against**: seven metres of surviving hull lying over on her bilge, a row of broken frames with the planking gone from the side that is up and weed-grown strakes still fastened to the side that is bedded, driven onto the *lowest* rock the ring has rather than the tallest — a ledge that stands eleven inches out of mean water and has five centimetres of itself left showing at a spring high tide, which is why it caught her
 - sheep on the rough grazing outside every farm: two flocks to a farm, sited by a search out from the yard, feeding on the open ground between the crop plots and the moor — and outside the hay meadow's wall, which is what the wall is for
 - gull colonies wheeling over every harbour mouth and over the outer rock, banking into the turn, down at night and mostly down in a squall
 - wood smoke standing over every farmhouse chimney and sauna flue in the archipelago, leaning on the same one wind as the grass and banked harder the colder the week
@@ -207,6 +208,7 @@ src/
     ├── config-stack.ts             the pillar's own slice: the stature, the girth, and the gut behind it
     ├── config-dyke.ts              the head dyke's own slice: how far up the hill, and how wide a gate
     ├── config-shieling.ts          the summer hut's own slice: how far up, how far out, how near the burn
+    ├── config-wreck.ts             the wreck's own slice: how low a rock, how much of one, how flat a ledge
     ├── config-palette.ts           every colour in the scape, schema and values together
     ├── config-kelp.ts              the weed's own slice: the depth window, the canopy, the clearings
     ├── config-force.ts             the fall's own slice: the step in the profile, and the sheet over it
@@ -277,6 +279,7 @@ src/
     │   ├── shieling.ts             the patch of hill above the head dyke the summer hut is built on
     │   ├── pier.ts                 the line off the harbour a trestle is carried out on, bent by bent
     │   ├── croft.ts                the free islet the croft is built on, and the row home that picked it
+    │   ├── wreck.ts                the lowest rock in the ring, and the line a hull came to rest on it along
     │   ├── dyke.ts                 the contour the head dyke follows, where it stops, and where it is gated
     │   ├── mill.ts                 the exposed shoulder a windmill would stand on
     │   ├── mill-sails.ts           every mill's wheel, turning in one instanced draw
@@ -320,6 +323,7 @@ src/
         ├── shieling.ts             the shieling — drystone room, turf roof, and the fold on its back
         ├── pier.ts                 the pier — driven piles, a level deck, bollards and a ladder
         ├── croft.ts                the croft — boarded walls, turf roof, stone flue, oars at the gable
+        ├── wreck.ts                the wreck — keel, broken frames, the strakes the bedded side kept
         ├── objects.ts              rowboat, bales, firewood, peat rick, barrel, mailbox, driftwood
         ├── stone.ts                erratics, field stones, cobbles, cairns
         ├── littoral.ts             bladderwrack and rock lichen — the tidal band
@@ -1086,7 +1090,7 @@ alongside the boathouse in three of the six harbours, a trestle walks out into t
 
 **the deck is level and the piles are not.** that is the whole reading of a trestle: piles of one length following the bottom down would be a ramp into the sea, and a deck that followed the bed would be the same mistake seen from the other end. both look plausible in a still at the far zoom, which is why `props/pier.test.ts` states them as facts about the vertices. the deck is solved against *mean* water like the jetty, the freeboard and the littoral band, so it clears the spring high water the tide reaches rather than moving twice a day.
 
-## the light on the outer rock## the light on the outer rock
+## the light on the outer rock
 
 on the furthest skerry the ring has, there is a lighthouse: a battered stone tower with a painted band round its middle, a corbelled gallery with an iron rail, a glazed lantern room, and a cap with a vent finial on it. after dark the lamp comes up and the optic turns, sweeping two beams over the water on the desktop tier and three on ultra. the geometry is [`props/beacon.ts`](src/scene/props/beacon.ts), where it stands is [`landscape/beacon.ts`](src/scene/landscape/beacon.ts), and the light itself is [`scene/beacon.ts`](src/scene/beacon.ts).
 
@@ -1788,6 +1792,34 @@ the search is [`landscape/shieling.ts`](src/scene/landscape/shieling.ts), the st
 **the path is half the point.** the doorstep goes into the network as an outlying place the way the smokehouse's does, so the spanning tree runs a leg up to it and the tracer wears that leg into the ground — the meadow island went from 16 routes and 246.5 m to 19 and 293.4, the sound from 16/253 to 19/319.1, the fell from 15/265.6 to 16/315.2. the home island stayed at 19 routes and grew to 247.4 m, which is the spanning tree *rewiring* rather than merely adding — a new door thirty metres out is a cheaper leg than one of the shortcuts round the yard was. a building on a hill with no route to it is a building nobody goes to.
 
 `scape:map --stats` grew a `shieling` line carrying the site, the rise, the walk from the yard and the walk to the burn, and the per-island rows carry the rise as well — because every way this goes wrong is a *number* rather than a picture. a hut whose rise has collapsed toward zero has slid back down onto the farm, and at the tour's default frame that reads as a small grey building either way.
+
+## the wreck the rock kept
+
+out on the ring, on a ledge that stands eleven inches out of mean water, there is a hull. seven and a half metres of her, lying over on her bilge — a keel, a row of frames whose tops sweep up toward both ends, a stem raked forward and a stern post behind it, and a few of her own timbers down across the frames where they fell. the side of her that went down is in the water and under the weed, stubs of frames holding the last strakes on; the side that is up is open, and the frames standing on it are the whole silhouette. the search is [`landscape/wreck.ts`](src/scene/landscape/wreck.ts), the timber is [`props/wreck.ts`](src/scene/props/wreck.ts), and the three knobs are [`config-wreck.ts`](src/scene/config-wreck.ts).
+
+**it is the only site in the survey that is nobody's decision.** every other placement in this scape is somebody choosing: the farm for shelter, the mill for wind, the chapel for a knoll, the light for the last rock a boat passes on the way in. a hull is not *put* on a rock. so the search is written the other way round from the one beside it — the beacon takes the rock that is highest and broadest, and this takes the rock that is **lowest**: the one there is nothing of to see until it is under you. the two read the same ring of fifteen rocks through the same `beaconCrown`, and spend them in opposite directions. the light stands on the rock the wreck argues for.
+
+**the rock she is on all but covers.** its crown is 0.45 m above mean water and `tide.range` is 0.8 m at springs, so at high water there are five centimetres of it left showing and the sea is up her garboard. that is not a coincidence to be tuned around — it is the whole argument, and `wreck.awash` is set at 1.3 m for it: a hand over the 1.2 m of freeboard `beacon.freeboard` wants before a tower may be built on a rock, which makes the rocks this admits exactly the ones that are marginal for a seamark. the other thirteen in the ring crown between 1.6 and 6.4 m out of the water, and they are exactly the part of it a boat can see coming.
+
+**both gates decide *whether*, and neither decides *which*, which is the section's best property rather than a gap in it.** raising `awash` does not move her onto a better rock — the score takes the lowest rock that passes, and a higher ceiling only admits rocks that then lose, so she is on the same ledge at 4 m as at 1.3. what the numbers can do is take her out of the scape: below about 0.46 nothing in the ring is low enough, and above a `minRock` of about 3 nothing is both wide enough and low enough, because on these coasts the broad rocks are the high ones. a search that insists on width has quietly started asking for the rock the lighthouse is on.
+
+**she overhangs what she is on, and the siting says so.** `WRECK_BEARING` is 1.5 m either side of her middle — three metres of keel taking her weight out of seven and a half of hull — and `wreck.minRock` is 2.6 m, so a rock that passes the width gate is a rock the bearing fits on. both broken ends hang out over the fall, which is what a wreck looks like and what a boat sized to the rock would not. [`props/wreck.test.ts`](src/scene/props/wreck.test.ts) states the overhang as a fact about the vertices, because the day those two numbers meet is the day the drawing becomes a boat somebody parked.
+
+**she lies where she was going, not along the ledge.** the bed is probed along a sweep of bearings forty degrees either side of the line straight in off the open sea, and the score spends that arc as reluctantly as the pier's does: the least-turned bearing that keeps her whole length on rock wins, and the fall only breaks ties. the first cut scored on the fall instead and turned her thirty degrees off her own course to buy three centimetres of a ledge that is flat to within twelve — a wreck lying square along a skerry reads as a boat that was moored there.
+
+**what the `bed` gate is actually for is the pinnacle.** it never bites on the rock she took: that ledge is flat to within 0.12 m on every bearing in the sweep. what it refuses is a crown two metres across with eleven metres of open sound round it, which passes a centre test and would leave a hull balanced on a point with her whole length in the air. the skerries here are plateaux with a near-vertical edge, so `Infinity` on a wet probe is the branch that does the work — the same lesson the churchyard wall and the smokehouse sill both wrote down, at the one scale where the ground falls away vertically.
+
+**the heel is baked into the geometry, and it is the reason this builder measures its own base.** every other prop in the kit reaches `y = 0` by construction. this one is rolled about its own keel after it is built, which puts the bedded bilge under zero by however much the roll happens to cost — so the merged geometry is measured and dropped onto the ground rather than guessed at.
+
+**three things the camera decided, and all three went against the first guess.** the heel came *down* from 26° to 17°: what reads as fallen is the asymmetry — one gunwale in the water, the other standing — and that is there from about twelve, while a bigger roll across the beam foreshortens to nothing from broadside and only costs apparent width. the standing side and the bedded side swapped: the first cut broke the *exposed* frames short on the reasoning that the sea works that side hardest, which is true and photographed as a pontoon with sticks on it, because everything that stood up had been broken off. and the section grew a **sheer** — the frames are deeper at the ends than amidships, so the line joining their tops is a curve rising at both ends. that curve is the only feature of a hull that survives this camera: the flare in the section leans the frames *across* her, and across her is toward and away from an isometric camera looking at her side.
+
+**she costs nothing but vertices.** 948 triangles, merged into the island's one hero draw like the light and the croft beside her, and `WRECK_SINK` beds her 0.34 m into the ledge — deeper than either, because she drove onto the rock rather than being set on it, and because that is what puts her keel inside the tide's own swing. `dressing.ts` reserves `WRECK_FOOTING + 0.8` against the scatter, so nothing is seeded through her frames.
+
+**and the tour could not see any of it — the eighth time this has been written down.** a 7.5 m hull 82 m out from the island's middle is three pixels at the tour's default zoom and off the frame entirely at `near`. `--poses wreck` is four: `wreck` at 24 m reads the hull itself, `wreck-ring` at 96 m holds her low rock and the croft's high one twenty metres away in one frame — two rocks, one of which somebody chose — and `wreck-low` and `wreck-high` are the argument photographed. same hour, same week, same camera, `tide.lag` turned half a cycle, in the week the moon makes springs in: 0.8 m of water walks up her between the two. an unqualified year lands on neaps as often as not, and a pair taken at neaps differs by half a metre of nothing.
+
+**the rock under her does not read, and that is the honest consequence rather than a bug to fix.** a ledge 5.9 m across standing 0.45 m proud, under a 7.8 m hull, is covered by the hull: at `wreck-ring`'s frame there is no rock visible at all and she reads as floating. every way of fixing that is a way of losing the argument — a rock she does not cover is a rock a boat could see. what does say she is aground is the surf band the littoral draws round anything that breaks the surface, which is the white collar in `wreck` at 24 m, and the pair at the two ends of the spring tide, where the water climbs her while the shore behind her moves as well.
+
+`scape:map --stats` grew a `wreck` line carrying the site, the isle, the crown's freeboard, the fall under her bearing, the turn and the reach. `freeboard` is the one to read, and it is the only reading in that block that runs the *other* way from its neighbour's: it is meant to be a small number, and a run that grew it has quietly moved her onto a rock the light would rather be standing on.
 
 ## ground that casts
 
