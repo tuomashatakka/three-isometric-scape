@@ -21,7 +21,7 @@ import { BEACON_FOOTING } from './beacon.ts'
 import { CROFT_FOOTING } from './croft.ts'
 import { BOATHOUSE_CLEARING, NET_RACK_CLEARING, boathouseSpot, netRackSpot } from './landing.ts'
 import type { Spot } from './landing.ts'
-import { createGroundContact, findCrossing, isFoliage, trackPointNear } from './dressing-helpers.ts'
+import { createGroundContact, findCrossing, isFoliage, raiseShieling, trackPointNear } from './dressing-helpers.ts'
 import { raiseEnclosures } from './dressing-enclosures.ts'
 import type { Walling } from './dressing-enclosures.ts'
 import { createDressingSampling } from './dressing-sampling.ts'
@@ -471,6 +471,13 @@ export function createDressing (
 
       raiseBuilding('smokehouse', x + ox, z + oz, angle)
     }
+
+    raiseShieling(
+      survey.shieling,
+      landmass.origin,
+      placeHero,
+      (x, z, radius) => solver.reserve(x, z, radius),
+    )
 
     // The windmill, out on the shoulder the survey found for it. Merged rather
     // than plopped, unlike the five farmstead buildings: a mill stands on four

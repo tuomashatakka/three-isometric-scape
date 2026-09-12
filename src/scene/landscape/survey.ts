@@ -11,7 +11,7 @@ import type { DuneBelt } from './dunes.ts'
 import { CHAPEL_FOOTING } from './chapel.ts'
 import { findCroftSite } from './croft.ts'
 import type { CroftSite } from './croft.ts'
-import { solveHeadDyke } from './dyke.ts'
+import { solveHeadDyke, summitOf } from './dyke.ts'
 import type { HeadDyke } from './dyke.ts'
 import { iceClaim } from './icecap.ts'
 import { createFootpaths } from './footpath.ts'
@@ -24,11 +24,14 @@ import { solvePier } from './pier.ts'
 import type { Pier } from './pier.ts'
 import { createScapeLayout, distanceToTrack } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
+import type { Vec2 } from './path.ts'
 import { MILL_FOOTING } from './mill.ts'
 import { planFarmNetwork } from './network.ts'
 import type { FarmNetwork, OutlyingPlace } from './network.ts'
 import { solvePeatBank } from './peat.ts'
 import type { PeatBank } from './peat.ts'
+import { SHIELING_FOOTING, findShielingSite } from './shieling.ts'
+import type { ShielingSite } from './shieling.ts'
 import { SMOKEHOUSE_FOOTING, findSmokehouseSite } from './smokehouse.ts'
 import type { SmokehouseSite } from './smokehouse.ts'
 import { STEADING_BUILDINGS, doorstepOf, steadingPlaces } from './steading.ts'
@@ -66,6 +69,9 @@ export interface ScapeSurvey {
 
   /** The bank above the harbour the smokehouse stands on, or `null` if none is dry. */
   smokehouse: SmokehouseSite | null
+
+  /** The hut on the summer grazing, or `null` on an island with no hill to put one on. */
+  shieling: ShielingSite | null
 
   /** The trestle out to deep water, or `null` when the shelf never drops away. */
   pier: Pier | null
@@ -296,8 +302,8 @@ function ringTheHill (
       height:     config.dyke.height,
       // World-sized: the island's own land radius with the falloff's shoulder on
       // it, so a hill that reaches past the mean coastline is still walked to
-      // its end. See `DykeSearch.reach`.
-      reach:      layout.landRadius * 1.3,
+      // its end. See `DykeSearch.reach` and `hillReach`.
+      reach:      hillReach(layout),
       taken:      [
         ...avoid,
         // The graded shelf the farmstead stands on, whole. The buildings are
@@ -325,6 +331,88 @@ function ringTheHill (
       // island that a cart takes, and a wall across it with no gate in it would
       // be a wall somebody would have to lift a cart over.
       layout.track.points,
+    ],
+  )
+}
+
+/**
+ * A sited thing as ground already spoken for, or nothing at all where the search
+ * that looked for it came back with none.
+ *
+ * Four searches in this file are allowed to answer `null` and four spreads of
+ * `site ? [{ … }] : []` said so, one per line, which is what took `surveyScape`
+ * past the lint config's complexity ceiling when the fifth arrived. The ceiling
+ * is right: the branches were never the interesting part of that function, the
+ * *order* is.
+ */
+function claim (site: Vec2 | null, radius: number): Obstacle[] {
+  return site ? [{ x: site.x, z: site.z, radius }] : []
+}
+
+/**
+ * How far from the island's middle the hill is looked for, in metres.
+ *
+ * **World-sized**, and the *same* number the head dyke walks its contour over —
+ * because the summit both of them measure a share of is found inside it, and a
+ * hut sited against one summit and a wall drawn against another is how the hut
+ * ends up on the wrong side of the wall. See `summitOf`.
+ */
+function hillReach (layout: ScapeLayout): number {
+  return layout.landRadius * 1.3
+}
+
+/**
+ * The hut on the summer grazing, or the reason there is none.
+ *
+ * A function of its own for the reason {@link ringTheHill} is one — the survey
+ * holds the *order*, not the argument lists. Run before the routes rather than
+ * after them, unlike the wall: a shieling is walked to, so it has to exist
+ * before the network is planned, and the leg worn up to its door is the longest
+ * one on the island.
+ *
+ * What it may not be built on is handed over as the same two kinds of fact the
+ * dyke takes. `avoid` is ground something already stands on, and it carries two
+ * things beyond the buildings: the graded farmyard, because a hut at the top of
+ * the yard is an outbuilding, and the walled hay meadow, because a hain is the
+ * *other* way of keeping stock off grass. `barred` is ground nothing can be
+ * founded on at all — under the ice, in the beck's own channel, and on the cart
+ * track, which is the one thing here the wall is allowed to cross and a building
+ * is not.
+ */
+function grazeTheHill (
+  config:   ScapeConfig,
+  layout:   ScapeLayout,
+  field:    HeightField,
+  standing: readonly Obstacle[],
+): ShielingSite | null {
+  const { creek, pasture, yard } = layout
+  const reach                    = hillReach(layout)
+
+  return findShielingSite(
+    {
+      ground:   field.heightAt,
+      foot:     field.heightAt(layout.yard.x, layout.yard.z),
+      headroom: config.shieling.headroom,
+      setback:  config.shieling.setback,
+      reach,
+      water:    config.shieling.water,
+      burn:     creek?.points ?? null,
+      barred:   (x, z) =>
+        iceClaim(config, x, z, field.heightAt(x, z)) > 0 ||
+        (creek?.clearanceAt(x, z) ?? Infinity) < 0 ||
+        distanceToTrack(layout, x, z) < layout.track.width * 1.5,
+    },
+    yard,
+    summitOf(field.heightAt, reach).height,
+    [
+      ...standing,
+      // The graded shelf, whole. A hut on the top of the farmyard is a shed with
+      // a view, and the buildings' own footings leave the open middle of it free.
+      { x: yard.x, z: yard.z, radius: yard.radius },
+      // The walled hay meadow and the width of its wall. A hain and a shieling
+      // are the two ways of keeping stock off grass, and neither is built inside
+      // the other.
+      ...claim(pasture, (pasture?.radius ?? 0) + 1.5),
     ],
   )
 }
@@ -422,11 +510,11 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     ...STEADING_BUILDINGS.map(name => places[name]),
     // The trestle, so a route bends round the piers rather than through them.
     // The sail sweep is deliberately not in here — see `MILL_FOOTING`.
-    ...layout.mill ? [{ x: layout.mill.x, z: layout.mill.z, radius: MILL_FOOTING }] : [],
+    ...claim(layout.mill, MILL_FOOTING),
     // The whole chapel, unlike the mill: there is no walking under a nave, and
     // a leg that cut the corner off the churchyard would be a path through the
     // graves and out over the wall.
-    ...layout.chapel ? [{ x: layout.chapel.x, z: layout.chapel.z, radius: CHAPEL_FOOTING }] : [],
+    ...claim(layout.chapel, CHAPEL_FOOTING),
     // Standing water is a thing to walk round, and the only obstacle here that
     // is not a building. A leg that took the short line across the pool would be
     // a footpath along the bottom of it.
@@ -459,10 +547,20 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
 
   const pier = reachDeepWater(config, field, harbour)
 
+  // Out on the hill, and the only thing in the survey sited *away* from
+  // everything: the grazing is the ground nothing else on the island wanted. Run
+  // before the routes because the hut is walked to, and after everything ashore
+  // because the whole of that is ground it has to miss.
+  const shieling = grazeTheHill(config, layout, field, standing)
+
   const avoid: Obstacle[] = [
     ...standing,
     // The hut, for the same reason as the chapel and at a fifth of the size.
-    ...smokehouse ? [{ x: smokehouse.x, z: smokehouse.z, radius: SMOKEHOUSE_FOOTING }] : [],
+    ...claim(smokehouse, SMOKEHOUSE_FOOTING),
+    // The shieling with its fold, which is the largest claim on the island after
+    // the farmyard's own — a leg that cut the corner off it would be a path
+    // through a sheep pen.
+    ...claim(shieling, SHIELING_FOOTING),
   ]
 
   // The smokehouse is walked to at its *door*, like every other building. The
@@ -472,6 +570,7 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     landing && { x: landing.x, z: landing.z, name: 'landing', kind: 'shore' },
     harbour && { x: harbour.x, z: harbour.z, name: 'harbour', kind: 'shore' },
     smokehouse && { ...doorstepOf(smokehouse), name: 'smokehouse', kind: 'door' },
+    shieling && { ...doorstepOf(shieling), name: 'shieling', kind: 'door' },
   ]
 
   const network = planFarmNetwork(layout, places, outlying, avoid)
@@ -504,6 +603,7 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     beacon,
     croft,
     smokehouse,
+    shieling,
     pier,
     tarn,
     peat,

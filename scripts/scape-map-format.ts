@@ -246,7 +246,25 @@ function sitedLines (stats: MapStats): string[] {
         `covered ${Math.round(stats.causeway.springs * 100)}% springs / ` +
         `${Math.round(stats.causeway.neaps * 100)}% neaps`
       : 'causeway NONE  <- no rock close enough to the shore to walk to',
+    shielingLine(stats.shieling),
   ]
+}
+
+/**
+ * The hut on the grazing, as one line.
+ *
+ * Its own function rather than an eighth ternary in {@link sitedLines}, which is
+ * already at the lint config's complexity ceiling — and it wants one anyway: the
+ * water reading is itself conditional, because an island with no beck reports no
+ * distance to one rather than a distance of nothing.
+ */
+function shielingLine (shieling: MapStats['shieling']): string {
+  if (!shieling)
+    return 'shieling NONE  <- no hill, no burn by the grazing, or no level sill up there'
+
+  return `shieling (${shieling.x},${shieling.z}) rise ${shieling.rise}m  ` +
+    `${shieling.fromYard}m from the yard  ` +
+    (shieling.toWater === null ? 'no burn' : `${shieling.toWater}m from the burn`)
 }
 
 /**
@@ -321,7 +339,8 @@ export function formatStats (stats: MapStats): string {
       `mill ${landmass.mill ? `(${landmass.mill.x},${landmass.mill.z})` : 'NONE'}  ` +
       `peat ${landmass.peat ? `(${landmass.peat.x},${landmass.peat.z}) face ${landmass.peat.standing}m` : 'NONE'}  ` +
       `pier ${landmass.pier ? `${landmass.pier.length}m berth ${landmass.pier.depth}m` : 'NONE'}  ` +
-      `dyke ${landmass.dyke ? `${landmass.dyke.length}/${landmass.dyke.circuit}m ${landmass.dyke.gates}g` : 'NONE'}`),
+      `dyke ${landmass.dyke ? `${landmass.dyke.length}/${landmass.dyke.circuit}m ${landmass.dyke.gates}g` : 'NONE'}  ` +
+      `shieling ${landmass.shieling ? `rise ${landmass.shieling.rise}m` : 'NONE'}`),
     `waterways ${stats.waterways.legs} legs ${stats.waterways.length}m  ` +
       `connected ${stats.waterways.connected ? 'OK' : 'BROKEN'}  ` +
       `wet ${stats.waterways.wet ? 'OK' : 'DRY'}  ` +

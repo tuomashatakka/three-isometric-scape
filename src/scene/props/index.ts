@@ -19,6 +19,7 @@ import {
 } from './objects.ts'
 import type { NordicPalette } from './palette.ts'
 import { buildBoathouse, buildMooringPost, buildNetRack } from './shore.ts'
+import { buildShieling } from './shieling.ts'
 import { buildSmokehouse } from './smokehouse.ts'
 import { buildCairn, buildCobble, buildErratic, buildFieldStone, buildTalusBlock } from './stone.ts'
 import {
@@ -76,6 +77,7 @@ export const PROPS = {
   chapel:      buildChapel,
   graveMarker: buildGraveMarker,
   smokehouse:  buildSmokehouse,
+  shieling:    buildShieling,
   croft:       buildCroft,
 
   jetty:     buildJetty,
@@ -136,7 +138,7 @@ export type PropName = keyof typeof PROPS
 /** Placed once, by hand, then merged into the steading draw. */
 export const HERO_PROPS = [
   'barn', 'farmhouse', 'sauna', 'aitta', 'woodshed', 'meadowBarn', 'windmill', 'lighthouse',
-  'chapel', 'graveMarker', 'smokehouse', 'croft',
+  'chapel', 'graveMarker', 'smokehouse', 'shieling', 'croft',
   'jetty', 'boathouse', 'netRack', 'well', 'hayRack', 'logPile', 'flagpole',
   'bridge', 'cart', 'gate', 'rowboat', 'mailbox',
 ] as const satisfies readonly PropName[]

@@ -9,6 +9,8 @@ import type { HeightField } from './height.ts'
 import type { Spot } from './landing.ts'
 import { yawAlong } from './layout.ts'
 import type { Plot, ScapeLayout, Vec2 } from './layout.ts'
+import { SHIELING_FOOTING } from './shieling.ts'
+import type { ShielingSite } from './shieling.ts'
 import { drawnSurfaceOf, patchSegments } from './terrain.ts'
 
 
@@ -273,4 +275,37 @@ export function plotOutline (plot: Plot): FencePoint[] {
       z: plot.z + localX * sin + localZ * cos,
     }
   })
+}
+
+/**
+ * The hut on the summer grazing, and the fold the scatter has to stay out of.
+ *
+ * Merged rather than plopped, unlike the smokehouse it is otherwise built like:
+ * the site search refuses more than half a metre of fall across the room's four
+ * corners — the tightest sill gate in the scape — so the hut's own granite socle
+ * is the whole foundation it needs, and a `Ploppable` would have cost two draws
+ * for a skirt with nothing to bridge.
+ *
+ * Here rather than inside the dressing's closure, where everything else that
+ * raises a building lives, and the reason is arithmetic: `createDressing`,
+ * `raiseOutlying` and `dressing.ts` itself were each within a line or two of a
+ * lint ceiling, so the hut had to cost that file exactly one statement and one
+ * import. Hence the two collaborators as parameters — `placeHero` and the
+ * placement solver's `reserve`, which are the only things in the closure it
+ * wants.
+ *
+ * The reserve is the half that is not obvious. The solver has no idea the hut
+ * exists, and a spruce grown inside a sheep pen is a sheep pen nobody could use.
+ */
+export function raiseShieling (
+  site:    ShielingSite | null,
+  origin:  Vec2,
+  place:   (name: PropName, x: number, z: number, angle: number) => void,
+  reserve: (x: number, z: number, radius: number) => void,
+): void {
+  if (!site)
+    return
+
+  place('shieling', site.x + origin.x, site.z + origin.z, site.angle)
+  reserve(site.x + origin.x, site.z + origin.z, SHIELING_FOOTING + 0.8)
 }

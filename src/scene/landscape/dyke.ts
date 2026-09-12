@@ -210,15 +210,29 @@ const SUMMIT_PROBES = 48
 const TAU = Math.PI * 2
 
 
-/** The highest ground inside the reach, found on a coarse grid. */
-function summitOf (search: DykeSearch): Vec2 & { height: number } {
+/**
+ * The highest ground inside the reach, found on a coarse grid.
+ *
+ * Exported, and taking the ground and the reach rather than a whole
+ * {@link DykeSearch}, because a second thing on this island is sited against the
+ * top of it: the shieling stands a share of the way up the same rise the wall is
+ * drawn a share of the way up, and two searches each finding their own summit is
+ * how a hut ends up on the wrong side of a wall that was measured from somewhere
+ * else. One authority, and the coarse grid is part of the contract — the answer
+ * is a probe on a 48-square lattice rather than the true maximum, and a caller
+ * that resolved it any finer would get a different island.
+ */
+export function summitOf (
+  ground: (x: number, z: number) => number,
+  reach:  number,
+): Vec2 & { height: number } {
   let best = { x: 0, z: 0, height: -Infinity }
 
   for (let ix = 0; ix <= SUMMIT_PROBES; ix += 1)
     for (let iz = 0; iz <= SUMMIT_PROBES; iz += 1) {
-      const x      = -search.reach + 2 * search.reach * ix / SUMMIT_PROBES
-      const z      = -search.reach + 2 * search.reach * iz / SUMMIT_PROBES
-      const height = search.ground(x, z)
+      const x      = -reach + 2 * reach * ix / SUMMIT_PROBES
+      const z      = -reach + 2 * reach * iz / SUMMIT_PROBES
+      const height = ground(x, z)
 
       if (height > best.height)
         best = { x, z, height }
@@ -473,7 +487,7 @@ export function solveHeadDyke (
   if (search.height <= 0 || search.headroom <= 0 || search.headroom >= 1 || search.reach <= 0)
     return null
 
-  const summit = summitOf(search)
+  const summit = summitOf(search.ground, search.reach)
 
   if (summit.height - search.foot < HILL)
     return null
