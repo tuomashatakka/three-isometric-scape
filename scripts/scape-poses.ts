@@ -534,6 +534,34 @@ export const TOURS: Record<string, Pose[]> = {
   ],
 
   /**
+   * The hut on the summer grazing, and the walk that makes it one.
+   *
+   * The tour reports this run as `same` at five of its six poses and it is worth
+   * saying exactly why rather than tuning the threshold until it does not: the
+   * shieling is a three-metre room with a seven-metre fold on it, standing
+   * thirty-two metres from the farm on the far side of a hill. At the default
+   * 1400 m frame that is under a pixel, and `near`'s ten metres is down in the
+   * farmyard looking the other way — which is the one pose that did move, by
+   * four per cent, because the hut on the *meadow* island falls inside it.
+   *
+   * `shieling` reads the building: the drystone courses, the turf roof down
+   * almost to the wall head, the smoke hole, and the fold walled onto the back
+   * with its one gateway. `shieling-reach` pulls back to the claim the siting
+   * actually makes — the farmyard, the head dyke between, the hut above it and
+   * the footpath worn up to its door, all in one frame. `shieling-none` is the
+   * control, and it is the pier set's lesson applied again: the ridge island's
+   * farm and its summit in one frame at the same view, where the whole of the
+   * rise is inside the twenty-five-metre walk and the search rightly builds
+   * nothing. Half of what this search decided is which islands *cannot* carry a
+   * hut, and a set with no refusal in it cannot show that.
+   */
+  shieling: [
+    { name: 'shieling', zoom: 14, set: [ 'camera.focusX=5.5', 'camera.focusZ=21.7' ]},
+    { name: 'shieling-reach', zoom: 34, set: [ 'camera.focusX=-6', 'camera.focusZ=10.5' ]},
+    { name: 'shieling-none', zoom: 34, set: [ 'camera.focusX=-174', 'camera.focusZ=143' ]},
+  ],
+
+  /**
    * The pier, and the two coasts that answer differently about one.
    *
    * The tour cannot see this one and it is worth saying exactly why: a pier here

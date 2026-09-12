@@ -16,6 +16,8 @@ import { SCAPE_PALETTE } from './config-palette.ts'
 import type { ScapePalette } from './config-palette.ts'
 import { SCAPE_SALTINGS } from './config-saltings.ts'
 import type { SaltingsConfig } from './config-saltings.ts'
+import { SCAPE_SHIELING } from './config-shieling.ts'
+import type { ShielingConfig } from './config-shieling.ts'
 import { SCAPE_STACK } from './config-stack.ts'
 import type { StackConfig } from './config-stack.ts'
 import { SCAPE_TREELINE } from './config-treeline.ts'
@@ -251,7 +253,8 @@ export interface DressingBudget {
   lamb: number
 }
 
-export interface ScapeConfig extends DykeConfig, ForceConfig, GuardConfig, KelpConfig, TreelineConfig {
+export interface ScapeConfig extends DykeConfig, ForceConfig, GuardConfig, KelpConfig,
+  ShielingConfig, TreelineConfig {
   seed:    number
   terrain: {
     size:       number
@@ -2656,6 +2659,7 @@ export const SCAPE_CONFIG = {
   ...SCAPE_FORCE,
   ...SCAPE_GUARD,
   ...SCAPE_KELP,
+  ...SCAPE_SHIELING,
   ...SCAPE_TREELINE,
   footpath: {
     width:  1.5,

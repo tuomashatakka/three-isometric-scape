@@ -206,6 +206,7 @@ src/
     ├── config-saltings.ts          the marsh's own slice: the two levels, the arc, and the working gap
     ├── config-stack.ts             the pillar's own slice: the stature, the girth, and the gut behind it
     ├── config-dyke.ts              the head dyke's own slice: how far up the hill, and how wide a gate
+    ├── config-shieling.ts          the summer hut's own slice: how far up, how far out, how near the burn
     ├── config-palette.ts           every colour in the scape, schema and values together
     ├── config-kelp.ts              the weed's own slice: the depth window, the canopy, the clearings
     ├── config-force.ts             the fall's own slice: the step in the profile, and the sheet over it
@@ -273,6 +274,7 @@ src/
     │   ├── fixtures.ts            carrying a point out of a raised building's own frame
     │   ├── chapel.ts               the knoll a chapel would stand on, and the yaw its door is turned by
     │   ├── smokehouse.ts           the patch of bank above the harbour the smokehouse is built on
+    │   ├── shieling.ts             the patch of hill above the head dyke the summer hut is built on
     │   ├── pier.ts                 the line off the harbour a trestle is carried out on, bent by bent
     │   ├── croft.ts                the free islet the croft is built on, and the row home that picked it
     │   ├── dyke.ts                 the contour the head dyke follows, where it stops, and where it is gated
@@ -315,6 +317,7 @@ src/
         ├── beacon.ts               the lighthouse tower, and the optic that turns in it
         ├── shore.ts                boathouse and slipway, net rack, mooring stakes
         ├── smokehouse.ts           the smokehouse — log walls, turf roof, ridge cowl
+        ├── shieling.ts             the shieling — drystone room, turf roof, and the fold on its back
         ├── pier.ts                 the pier — driven piles, a level deck, bollards and a ladder
         ├── croft.ts                the croft — boarded walls, turf roof, stone flue, oars at the gable
         ├── objects.ts              rowboat, bales, firewood, peat rick, barrel, mailbox, driftwood
@@ -1761,6 +1764,30 @@ the crag gave this coast a cliff. a cliff is not the end of what a sea does to a
 **two other systems found it on their own, and both were right to.** the kelp bed walks out from the waterline until the water is too deep for light, and it now finds a second waterline round the pillar's skirt — 1078 plants in 41 beds against 1081 in 40, which is one new bed of weed round a rock that was not there before. and the archipelago's land share moved 18.9% → 19.1% on the home island, because a pillar standing six metres over the sea *is* land. neither needed a line of code.
 
 **and the tour could not see any of it — the seventh time this has been written down.** a pillar ten metres across, sixty-seven metres from the world origin, is four pixels at the tour's default zoom and nothing at all once the headland is between it and the camera: every pose in `tour` came back `same`, at 0.00% to 0.03% changed, on a run that put five new landforms in the archipelago. `--poses stack` is four frames on the home island's pillar at world (57, −35): `stack` at 90 m holds the cliff, the gap and the rock as three things; `stack-near` at 26 m is the only frame where the taper and the blocks round the foot are surfaces; `stack-sea` is the same subject from the far quarter, where the pillar comes up against open water instead of against its own headland; and `stack-bare` is the control at `terrain.stack.stature=0`, which is the coast this archipelago had before the run. the pair is the measurement, and the two frames differ by more than the rock: the camera's focus point is *on* the pillar, so the control — which finds ten metres of water there instead — sits its whole frame somewhere else. `scape:diff --poses stack` was tried first and hung after the head-side build, exactly as `--poses crag` did; the set was taken with `scape:shot`, which puts the landform and its own control in one run and needs no reference build at all.
+
+## the hut the summer grazing needed
+
+four of the six islands now carry a shieling: one room of drystone under a turf roof, out on the hill above the head dyke, with a half-circle fold walled onto the back of it and a footpath worn all the way up from the farm. it is the first building in this scape that stands where the *work* is not. the farm is on its levelled shelf, the smokehouse is at the boats, the mill is on its shoulder, the croft is on the rock somebody rows to — every one of them is where somebody already had a reason to be. hill ground this poor grows a bite of grass for about ten weeks a year and nothing else ever, so the stock go up to it in june and somebody goes with them, and the walk is too long to do twice a day.
+
+the search is [`landscape/shieling.ts`](src/scene/landscape/shieling.ts), the stones are [`props/shieling.ts`](src/scene/props/shieling.ts), and the three knobs are [`config-shieling.ts`](src/scene/config-shieling.ts).
+
+**it is the one search whose distance term has the wrong sign on it.** every other placement in the scape pays to be *near* something — the bank, the wind, the boats, the farm. this one pays to be up, and the walk is a mild penalty rather than the prize. a metre of rise is worth about two metres of walking, which is why a hut on the shoulder above the steading loses to one on the fell behind it.
+
+**it is sited against the same summit the head dyke is.** `summitOf` moved out of [`landscape/dyke.ts`](src/scene/landscape/dyke.ts)'s private half and took the ground and the reach as arguments instead of a whole `DykeSearch`, because two searches each finding their own idea of where the top of an island is, on two grids, is how a hut ends up on the wrong side of a wall. the wall is drawn 0.38 of the way from the farmyard's ground to that summit and the hut stands above 0.55 of it, so the ordering is a fact about the numbers rather than a hope — and [`shieling.test.ts`](src/scene/landscape/shieling.test.ts) states it as a fact about the data on every island that has both.
+
+**the burn decides whether, and the grazing decides where.** ten weeks of milking is ten weeks of scalding pails and nobody carries that up a hill, so a site has to be within fifty-five metres of the beck's centreline — and barred from the channel itself, which is the ice's rule and the dyke's applied to a building. it is the gate that actually bites: on the sound island it takes sixty-four stations of qualifying grazing down to seven, and at forty metres it takes them to one and the island loses its hut. an island whose ridge fed no beck drops the gate rather than being refused by it.
+
+**two islands get none, and both refusals are worth reading.** the shield is the one the head dyke also refuses — its high ground is under the ice cap, and a summer grazing under a glacier is not a grazing. the ridge island is refused by its own size: twenty-seven metres of land radius puts the whole of its hill inside the twenty-five-metre walk, so the only ground the sweep is allowed to look at is the ground falling away from the top. a place you can see from your own door is not somewhere you go for the summer.
+
+**the sweep had to be denser than it looked like it needed to be.** at 36 bearings by 14 rings the home island came back with nothing — not because it has nowhere to put a hut, but because its grazing is perhaps a fifteenth of the island and 504 stations never landed on any of it. at 48 by 20 it places one at 31.8 m from the yard, 7.19 m up, and 13.6 m from the burn. that is the failure mode this kind of search has, and it is silent: a ring sweep that finds nothing looks exactly like an island with nothing on it.
+
+**the fold is the other half of the building rather than a prop beside it.** a shieling without one is a hut, and the wall is what stops the stock walking through the door at night. it is a `D` struck from the middle of the back wall, closed on one side by a short wing running back to the hut's own corner and left open on the other — one gateway, because a fold with a gap at each end is a passage. it is also what makes `SHIELING_FOOTING` six metres, the largest claim any single building makes on these islands: the room is three by two and a half, and the pen reaches four and a half metres further.
+
+**merged rather than plopped**, unlike the smokehouse it is otherwise built like. the site search refuses more than 0.55 m of fall across the room's four corners — the tightest sill gate in the scape — so the hut's own granite socle is the whole foundation it needs, and a `Ploppable` would have cost two draw calls for a skirt with nothing to bridge. the whole building is therefore free: it merges into the steading's one geometry like the mill and the light, and the only cost is vertices.
+
+**the path is half the point.** the doorstep goes into the network as an outlying place the way the smokehouse's does, so the spanning tree runs a leg up to it and the tracer wears that leg into the ground — on the home island the footpath count went from 19 routes and 245.8 m to 20 and 257 m, and the new one climbs. a building on a hill with no route to it is a building nobody goes to.
+
+`scape:map --stats` grew a `shieling` line carrying the site, the rise, the walk from the yard and the walk to the burn, and the per-island rows carry the rise as well — because every way this goes wrong is a *number* rather than a picture. a hut whose rise has collapsed toward zero has slid back down onto the farm, and at the tour's default frame that reads as a small grey building either way.
 
 ## ground that casts
 

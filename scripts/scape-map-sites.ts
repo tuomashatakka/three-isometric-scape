@@ -8,6 +8,7 @@ import { peatFaceStanding } from '../src/scene/landscape/peat.ts'
 import { pierHead } from '../src/scene/landscape/pier.ts'
 import type { Pier } from '../src/scene/landscape/pier.ts'
 import type { PeatBank } from '../src/scene/landscape/peat.ts'
+import type { ShielingSite } from '../src/scene/landscape/shieling.ts'
 import type { SmokehouseSite } from '../src/scene/landscape/smokehouse.ts'
 import { tarnWetted } from '../src/scene/landscape/tarn.ts'
 import type { Tarn } from '../src/scene/landscape/tarn.ts'
@@ -48,6 +49,27 @@ export function smokehouseOf (
     x:        round(worldX(site.x)),
     z:        round(worldZ(site.z)),
     fromBank: round(site.fromBank, 1),
+  }
+}
+
+/**
+ * The hut on the grazing, the climb to it, and the walk to its water.
+ *
+ * `toWater` comes back as `null` rather than as `Infinity` on an island whose
+ * ridge fed no beck, because the stats block is read by a person and `Infinity`
+ * metres from a burn that does not exist says less than a blank does.
+ */
+export function shielingOf (
+  site:   ShielingSite | null,
+  worldX: Project,
+  worldZ: Project,
+): CompositionStats['shieling'] {
+  return site && {
+    x:        round(worldX(site.x)),
+    z:        round(worldZ(site.z)),
+    rise:     round(site.rise, 2),
+    fromYard: round(site.fromYard),
+    toWater:  Number.isFinite(site.toWater) ? round(site.toWater) : null,
   }
 }
 

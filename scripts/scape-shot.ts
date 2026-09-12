@@ -275,6 +275,7 @@ async function main (): Promise<void> {
       '                        guard (4, the rocks in the open sea)',
       '                        chapel (4, the church and its yard)',
       '                        smokehouse (3, the hut above the harbour)',
+      '                        shieling (3, the hut on the summer grazing, and an island without one)',
       '                        pier (3, the trestle out to deep water, and a coast without one)',
       '                        croft (3, the holding out on the islets)',
       '                        shallows (4, the light on the bottom)',

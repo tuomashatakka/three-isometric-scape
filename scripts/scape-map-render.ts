@@ -40,7 +40,7 @@ export const LEGEND =
   '~ deep  - shallow  . shore  : low  = mid  + upper  * high  # peak\n' +
   ', footpath  ≡ track  · waterway  b boat  s beck  ≈ tarn  T peat  ' +
   'F/B/A/W/S steading  o well  J jetty  H harbour  V smokehouse  P pier  ' +
-  'W mill  K chapel  L light  C croft  p plot  ^ ridge  x dyke  g gate'
+  'W mill  K chapel  L light  C croft  Y shieling  p plot  ^ ridge  x dyke  g gate'
 
 export interface Layers {
   height:    boolean
@@ -265,9 +265,10 @@ export function renderGrid (
 
   if (layers.buildings)
     for (const landmass of archipelago.landmasses) {
-      const { layout, places, landing, harbour, beacon, croft, dyke, pier, smokehouse } = landmass.survey
-      const worldX                                                                      = (x: number): number => x + landmass.origin.x
-      const worldZ                                                                      = (z: number): number => z + landmass.origin.z
+      const { layout, places, landing, harbour, beacon, croft, dyke, pier } = landmass.survey
+      const { shieling, smokehouse }                                        = landmass.survey
+      const worldX                                                          = (x: number): number => x + landmass.origin.x
+      const worldZ                                                          = (z: number): number => z + landmass.origin.z
 
       // First of everything on this island, so a byre or a plot marker laid over
       // it wins the cell. The dyke is the one thing here that is a *line* rather
@@ -295,6 +296,7 @@ export function renderGrid (
         [ layout.mill, 'W' ],
         [ layout.chapel, 'K' ],
         [ smokehouse, 'V' ],
+        [ shieling, 'Y' ],
         [ beacon, 'L' ],
         [ croft, 'C' ],
         [ landing, 'J' ],

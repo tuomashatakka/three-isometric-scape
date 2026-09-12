@@ -19,7 +19,7 @@ import { cragStats, duneStats, fjordStats, forceStats, hauloutStats, icecapStats
 import type { CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, SaltingsStats, StackStats, TreelineStats } from './scape-map-landforms.ts'
 import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
-import { causewayOf, croftOf, dykeOf, peatOf, pierOf, smokehouseOf, tarnOf } from './scape-map-sites.ts'
+import { causewayOf, croftOf, dykeOf, peatOf, pierOf, shielingOf, smokehouseOf, tarnOf } from './scape-map-sites.ts'
 import { rainbowStats, stormStats } from './scape-map-weather.ts'
 import { applyOverrides, parseArgs } from './args.ts'
 
@@ -83,6 +83,19 @@ export interface CompositionStats {
    * and a screenshot at the default pose never shows.
    */
   smokehouse: { x: number, z: number, fromBank: number } | null
+
+  /**
+   * The hut on the summer grazing, how far up the hill it is, and how far it
+   * had to be from the burn.
+   *
+   * The one line in this block that reports a *walk* as well as a place, and it
+   * is the reading that matters: a shieling whose rise collapses toward zero is
+   * a shieling that has slid back down onto the farm, which is the failure mode
+   * a still at any pose reads as a hut in a field. `NONE` means the island has
+   * no hill, no beck inside `shieling.water` of its grazing, or nothing level
+   * enough up there to lay a sill on.
+   */
+  shieling: { x: number, z: number, rise: number, fromYard: number, toWater: number | null } | null
 
   /**
    * The trestle out to deep water, at its head.
@@ -620,6 +633,7 @@ function compositionStats (landmass: LandmassSurvey, w: number, h: number): Comp
       fromYard:   round(layout.chapel.fromYard),
     },
     smokehouse: smokehouseOf(survey.smokehouse, worldX, worldZ),
+    shieling:   shielingOf(survey.shieling, worldX, worldZ),
     dyke:       dykeOf(survey.dyke, worldX, worldZ),
     pier:       pierOf(survey.pier, worldX, worldZ),
     causeway:   causewayOf(survey.causeway, config, worldX, worldZ),

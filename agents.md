@@ -285,6 +285,7 @@ bun run scape:shot --poses shallows                 # the light on the bottom, 4
 bun run scape:shot --poses beck                     # the water in the channel, 4 frames
 bun run scape:shot --poses force                    # the fall the beck goes over, 4 frames
 bun run scape:shot --poses smokehouse               # the hut above the harbour, 3 frames
+bun run scape:shot --poses shieling                 # the hut on the summer grazing, 3 frames
 bun run scape:shot --poses croft                    # the holding out on the islets, 3 frames
 bun run scape:shot --poses tide                     # the sea at both ends of its swing, 3 frames
 bun run scape:shot --poses fjord                    # the drowned valley in the sound, 4 frames
@@ -468,6 +469,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `structures.ts` | jetty, well, hay rack, gate, bridge, cart |
 | `shore.ts` | boathouse and slipway, net rack, mooring stakes |
 | `smokehouse.ts` | the smokehouse — log walls, turf roof, ridge cowl, and `SMOKEHOUSE_VENT` |
+| `shieling.ts` | the shieling — drystone room, turf roof, smoke hole, and the half-circle fold walled onto its back |
 | `croft.ts` | the croft — boarded walls, turf roof, stone flue, oars at the blind gable, and `CROFT_VENT` / `CROFT_WINDOWS` / `CROFT_SINK` |
 | `upland.ts` | meadow barn, hay drying poles |
 | `chapel.ts` | the chapel — nave, stepped chancel, open belfry, spire — and the grave markers. **fronted on `-x`, not `+z`** |
@@ -509,6 +511,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `fixtures.ts` | the transform both of those share: a point in a raised building's own frame, in world metres — plus the two floor rules, `floorUnder` for a plopped building and `mergedFloor` for a merged one |
 | `chapel.ts` | the knoll a chapel stands on, its doorstep, and `chapelYaw` — the one yaw `yawAlong` cannot give |
 | `smokehouse.ts` | the patch of bank above the harbour a smokehouse is built on |
+| `shieling.ts` | the patch of hill above the head dyke a summer hut is built on — scored on rise, level sill and nearness to the burn, and `SHIELING_FOOTING` |
 | `croft.ts` | the free islet a croft is built on — scored on the row home from the harbour, and never the rock the light is already on |
 | `mill.ts` | the exposed shoulder a windmill stands on, and the doorstep at the foot of its stair |
 | `mill-sails.ts` | every mill's wheel in one dynamic `InstancedMesh`, geared off `wind.strength` |
