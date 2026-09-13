@@ -22,6 +22,8 @@ import { SCAPE_STACK } from './config-stack.ts'
 import type { StackConfig } from './config-stack.ts'
 import { SCAPE_TREELINE } from './config-treeline.ts'
 import type { TreelineConfig } from './config-treeline.ts'
+import { SCAPE_WEIR } from './config-weir.ts'
+import type { WeirConfig } from './config-weir.ts'
 import { SCAPE_WRECK } from './config-wreck.ts'
 import type { WreckConfig } from './config-wreck.ts'
 import type { QualityEffects } from './quality.ts'
@@ -1227,6 +1229,14 @@ export interface ScapeConfig extends DykeConfig, ForceConfig, GuardConfig, KelpC
    * and then built, and a slider that needs a rebuild to be seen lies about what
    * a slider does. See `landscape/pier.ts`.
    */
+  /**
+   * The fish weir — the wall the tide fills and empties.
+   *
+   * The pier's complement, and kept whole in `config-weir.ts` for the reason the
+   * crag, the dyke and the stack are. See `landscape/weir.ts` for the solve.
+   */
+  weir: WeirConfig
+
   pier: {
 
     /**
@@ -2663,6 +2673,7 @@ export const SCAPE_CONFIG = {
   ...SCAPE_KELP,
   ...SCAPE_SHIELING,
   ...SCAPE_TREELINE,
+  ...SCAPE_WEIR,
   ...SCAPE_WRECK,
   footpath: {
     width:  1.5,

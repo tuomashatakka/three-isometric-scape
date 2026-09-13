@@ -227,6 +227,11 @@ function sitedLines (stats: MapStats): string[] {
       ? `pier (${stats.pier.x},${stats.pier.z}) ${stats.pier.length}m out  ` +
         `${stats.pier.bents} bents  berth ${stats.pier.depth}m  deck ${stats.pier.deck}m`
       : 'pier NONE  <- no bearing off the harbour found a berth with a way out of it',
+    stats.weir
+      ? `weir (${stats.weir.x},${stats.weir.z}) lead ${stats.weir.lead}m  ` +
+        `pound r${stats.weir.pound}m  turn ${stats.weir.turn}deg  ` +
+        `standing ${stats.weir.standing}m at low springs`
+      : 'weir NONE  <- no run of intertidal flat off the harbour was wide enough to trap',
     stats.beacon
       ? `beacon (${stats.beacon.x},${stats.beacon.z}) isle ${stats.beacon.isle} ` +
         `freeboard ${stats.beacon.freeboard}m  reach ${stats.beacon.reach}m`
@@ -360,6 +365,7 @@ export function formatStats (stats: MapStats): string {
       `mill ${landmass.mill ? `(${landmass.mill.x},${landmass.mill.z})` : 'NONE'}  ` +
       `peat ${landmass.peat ? `(${landmass.peat.x},${landmass.peat.z}) face ${landmass.peat.standing}m` : 'NONE'}  ` +
       `pier ${landmass.pier ? `${landmass.pier.length}m berth ${landmass.pier.depth}m` : 'NONE'}  ` +
+      `weir ${landmass.weir ? `lead ${landmass.weir.lead}m pound r${landmass.weir.pound}m` : 'NONE'}  ` +
       `dyke ${landmass.dyke ? `${landmass.dyke.length}/${landmass.dyke.circuit}m ${landmass.dyke.gates}g` : 'NONE'}  ` +
       `shieling ${landmass.shieling ? `rise ${landmass.shieling.rise}m` : 'NONE'}`),
     `waterways ${stats.waterways.legs} legs ${stats.waterways.length}m  ` +

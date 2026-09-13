@@ -212,6 +212,39 @@ export function pierSpot (bank: Spot): Vec2 {
   }
 }
 
+/**
+ * How far along the bank the fish weir is rooted from the boathouse's own line,
+ * in metres.
+ *
+ * The same offset the pier takes and on the *other* hand, which is the whole of
+ * the decision. Three things now run out from the harbour's one bank on its one
+ * bearing — the shed, the trestle and the wall — and the shed is in the middle
+ * of them because it is the one a boat has to reach. Rooting the weir on the
+ * trestle's side would lay a line of stone across the piles at whatever bearing
+ * the flat happened to want, and the two structures that read most clearly from
+ * above would be drawn on top of each other.
+ *
+ * A shade wider than {@link PIER_OFFSET} rather than its mirror, because the
+ * wall is the only one of the three that is *turned*: `weir.ts` sweeps eighty
+ * degrees either side looking for its flat, and a root on the shed's own gap
+ * would let the near end of a hard-turned leader swing back under the slipway.
+ *
+ * Always the same side, for the reason the pier's is: a side chosen by a roll is
+ * a waterfront that rearranges itself when an unrelated prop is added upstream
+ * of the seed.
+ */
+export const WEIR_OFFSET = BOATHOUSE_FOOTING + 2.2
+
+/** Where the fish weir leaves the bank, along the shore from the boathouse. */
+export function weirSpot (bank: Spot): Vec2 {
+  const across = bank.angle + Math.PI / 2
+
+  return {
+    x: bank.x - Math.cos(across) * WEIR_OFFSET,
+    z: bank.z - Math.sin(across) * WEIR_OFFSET,
+  }
+}
+
 /** Where the boathouse deck sits, out over the water from its bank. */
 export function boathouseSpot (bank: Spot): Vec2 {
   return {

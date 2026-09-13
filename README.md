@@ -85,6 +85,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a cobbled network of paths between every place the farm goes — planned as a graph, worn as desire lines, paved with stones sampled along the treads themselves
 - a working boat harbour: a boathouse on piles with a slipway, a net rack, and stakes in the shallows
 - **a pier walking out of three of the six harbours to water a keel can lie in**: driven piles cut one by one to the bed under them, a level deck of sawn boards over them, bollards and a ladder at the head — carried out to the last bent the bottom will still take a pile in, standing in about seven metres of water with open sea past the end of it, while the three most sheltered coves get none, because the cove with the best shelter is usually the one with no way out
+- **a fish weir on the one harbour flat the archipelago has**: fourteen metres of wrack-stained drystone wall running out across intertidal ground, ending in a staked ring four metres across with a quarter of its circle left open facing back down the wall — covered by the flood, standing three quarters of a metre clear of a drained flat at low springs, and laid on the home island's harbour precisely because that cove is the enclosed shallow bay the pier refuses to build out of
 - a walled upland hay meadow with a barn, a gate and drying poles
 - a limewashed chapel on a knoll above the farm — a bell tower with an open belfry and a spire, a stepped chancel, and a walled churchyard with twelve leaning markers in it
 - juniper bushes out on the dry upland heath — a low, spreading evergreen that reads apart from the conifers and answers to the same one wind
@@ -209,6 +210,7 @@ src/
     ├── config-dyke.ts              the head dyke's own slice: how far up the hill, and how wide a gate
     ├── config-shieling.ts          the summer hut's own slice: how far up, how far out, how near the burn
     ├── config-wreck.ts             the wreck's own slice: how low a rock, how much of one, how flat a ledge
+    ├── config-weir.ts              the fish trap's own slice: the reach, the pound, the mouth, the wall
     ├── config-palette.ts           every colour in the scape, schema and values together
     ├── config-kelp.ts              the weed's own slice: the depth window, the canopy, the clearings
     ├── config-force.ts             the fall's own slice: the step in the profile, and the sheet over it
@@ -278,6 +280,7 @@ src/
     │   ├── smokehouse.ts           the patch of bank above the harbour the smokehouse is built on
     │   ├── shieling.ts             the patch of hill above the head dyke the summer hut is built on
     │   ├── pier.ts                 the line off the harbour a trestle is carried out on, bent by bent
+    │   ├── weir.ts                 the intertidal flat off the harbour, and the leader and pound laid on it
     │   ├── croft.ts                the free islet the croft is built on, and the row home that picked it
     │   ├── wreck.ts                the lowest rock in the ring, and the line a hull came to rest on it along
     │   ├── dyke.ts                 the contour the head dyke follows, where it stops, and where it is gated
@@ -298,6 +301,7 @@ src/
     │   ├── dressing-zones.ts       what the composition already claims the ground for
     │   ├── dressing-helpers.ts     the placement questions that are pure geometry
     │   ├── dressing-enclosures.ts  the pasture wall, the churchyard wall, the plot fences, the head dyke
+    │   ├── dressing-harbour.ts     the waterfront: boathouse, net rack, the trestle and the fish trap
     │   ├── dressing.ts             placement, hero merge, instanced scatter
     │   └── index.ts                the scene module, and what raycasts
     ├── textures/
@@ -322,6 +326,7 @@ src/
         ├── smokehouse.ts           the smokehouse — log walls, turf roof, ridge cowl
         ├── shieling.ts             the shieling — drystone room, turf roof, and the fold on its back
         ├── pier.ts                 the pier — driven piles, a level deck, bollards and a ladder
+        ├── weir.ts                 the fish weir — a wrack-stained wall on the bed, and the wattle on its pound
         ├── croft.ts                the croft — boarded walls, turf roof, stone flue, oars at the gable
         ├── wreck.ts                the wreck — keel, broken frames, the strakes the bedded side kept
         ├── objects.ts              rowboat, bales, firewood, peat rick, barrel, mailbox, driftwood
@@ -1089,6 +1094,30 @@ alongside the boathouse in three of the six harbours, a trestle walks out into t
 **it is neither a prop nor a plop.** every builder in `props/index.ts` is a pure `(rng, palette)` factory whose result is a fixed shape standing on `y = 0`; a pier is a length the shelf chose, with every pile cut to the bed under its own bent, so it takes the shape `buildFenceRun` and `buildStoneWallRun` already took — a parametric run in world coordinates handed straight to the merged hero draw. **it costs no draw call on any tier.** what `quality.pierBoards` buys is the deck's board pitch, from 0.9 a metre on `minimal` to two on `ultra`; the piles, the stringers, the bollards and the ladder are the same on all four, because an island whose harbour changed shape with the hardware is worse than one planked coarsely.
 
 **the deck is level and the piles are not.** that is the whole reading of a trestle: piles of one length following the bottom down would be a ramp into the sea, and a deck that followed the bed would be the same mistake seen from the other end. both look plausible in a still at the far zoom, which is why `props/pier.test.ts` states them as facts about the vertices. the deck is solved against *mean* water like the jetty, the freeboard and the littoral band, so it clears the spring high water the tide reaches rather than moving twice a day.
+
+## the trap the ebb leaves full
+
+on the other hand of the home island's harbour from the boathouse, a low wall of wrack-stained stone runs fourteen metres out across the flat and ends in a ring four metres across with a gap in one side of it. at high water the sea is over the top of it. at low water the flat is drained, the wall is standing three quarters of a metre clear of it, and there is still water inside the ring. it is a fish weir, and it is the oldest thing anyone on this coast has built. the search is [`landscape/weir.ts`](src/scene/landscape/weir.ts), the stone is [`props/weir.ts`](src/scene/props/weir.ts), the knobs are [`config-weir.ts`](src/scene/config-weir.ts), and it is raised beside the trestle in [`landscape/dressing-harbour.ts`](src/scene/landscape/dressing-harbour.ts).
+
+**it is the first thing in the settlement that is built for the sea to take away and give back.** everything else on this waterfront answers one question — where does the ground break the surface — and answers it once. the jetty stops at the waterline; the boathouse hangs its floor over it; the pier walks out past it to a berth. a trap is built in the one band where that question has two answers, the ground that is dry at low water and under it at high, and the whole structure is a way of spending the difference. the flood covers the wall and the fish come in over it; the ebb takes the water back out from under them and leaves them in the pound.
+
+**`tide.range` is the switch, and there is no boolean beside it.** the band is half the spring range either side of mean water: above it the ground never covers and a wall there is a wall on a beach; below it the ground never drains and the pound behind the wall never empties. a tideless coast has a band of zero width, no bearing off any bank has a station in it, and every island comes back `null`. that is the correct answer for a sea that does not move rather than a degenerate case to guard against — a weir *is* a tide, built in stone.
+
+**it is the pier's complement, and on this seed that is literal.** the trestle needs the shelf to fall away to a berth with a way out of it, and three islands in six have one. the trap needs the exact opposite: water so shallow for so far that it dries. the one coast in the archipelago that has that is the home island's harbour — the enclosed shallow bay `landscape/pier.ts` refuses, in the passage above, on the grounds that a run across it would be an unfinished bridge. the cove with no way out of it is the cove worth trapping, and `weir.test.ts` states that as a fact rather than as a coincidence: the islands that lay one are the islands that build no pier.
+
+**the search asks three things and every one of them is about the band rather than about the depth.** where does the flat *start* — the root is seated at the first ground along the bearing that is in the band at all, because the wall is rooted a shed's footing along the bank and a bank is a point on a curve. how far does the flat *go* — the leader is carried out while the bed stays inside the band and stops the moment it leaves, in either direction, because water that never drains and ground that never covers are the same finding. will the flat *hold a pound* — the ring is set at the head and drawn in from `weir.pound` until the whole of it lies in the band too, and if it has to come in past `weir.least` the leader is pulled back a bay and the ring tried again.
+
+**the leader is carried as far out as it can be, which is the opposite of the pier's rule.** a trestle is turned as little as the coast allows, because it belongs to the harbour it serves and a deck turned sixty degrees off its own cove is a deck pointing down the shore. a weir belongs to the *flat*, so the sweep is allowed eighty degrees either side, the pound is set at the seaward end of whatever it finds, and the score is the pound rather than the leader — a trap is judged by what it holds, and the wall is only how the fish get there. on the home island that comes out at thirty degrees off the harbour's bearing, fourteen metres of leader and the full four-metre ring.
+
+**the gap is the mechanism and it is one number.** a closed ring is a tank: the flood fills it, the ebb empties it, and nothing that swam in is any worse off. `weir.mouth` leaves ninety degrees of the circle open, facing back down the leader, so a fish running off the wall on the ebb meets the opening side-on and then cannot find it again from the inside. at 0 the ring closes and the trap stops being one.
+
+**no picture of it at one hour is worth anything.** this is the only structure in the settlement that is not there all day, so the poses are a *pair* — `weir-low` and `weir-high` are the identical frame at the low and the high of one spring tide, using the two hours the haul-out already solved. a wall the tide never covers and a wall that never shows are both two identical pictures, and that is the failure this set is built to catch. `scape:map --stats` carries the other half: the leader, the pound, the turn, and `standing`, which is metres of crest over low springs and the one figure that is true at every state of the tide.
+
+**the stone is `buildStoneWallRun`, unchanged.** a weir is a drystone wall that happens to be underwater half the time — laid course on course on whatever the bed does, exactly the way the head dyke is laid on whatever the hill does — so the builder is shared and the only thing passed in is what grows on it: wrack and shingle rather than lichen and dry granite. what is new here is the wattle. a trap of loose stone alone leaks fish at every joint, so the pound is staked, and those stakes are the whole silhouette at any distance: a bare ring a third of a metre high reads as a stain on the water, and a ring with a fence standing out of it reads as something somebody built. `quality.weirStakes` is the only tier handle, and it is allowed to reach zero — a ring of stone with no stakes in it is a *ruin*, which is a graceful absence rather than a broken-looking cheap weir. the stonework itself follows `quality.dykeSpacing`, because the argument about station spacing against stone length is the same argument on the flat as it is on the hill.
+
+**it costs no draw call on any tier**, like the trestle beside it: both are parametric runs in world coordinates handed straight to the steading's one merged hero geometry. every station on both runs is reserved against the scatter, for a sharper version of the reason the boathouse is — the littoral band seeds wrack and driftwood along precisely the depth the weir stands in, so the one structure on this coast built *in* the wrack line would otherwise have bladderwrack growing out of its own crest.
+
+**the waterfront moved out of `dressing.ts`, and that was overdue rather than caused by this.** the shed, the rack, the trestle and now the trap are four things raised in a fixed order off one bank, with the two water runs rooted a fixed offset either side of the shed's own line, and they were four nested closures in a module already at the 666-line ceiling. [`dressing-harbour.ts`](src/scene/landscape/dressing-harbour.ts) is the same seam `dressing-enclosures.ts` cut for the walled ground: a subject, moved whole.
 
 ## the light on the outer rock
 

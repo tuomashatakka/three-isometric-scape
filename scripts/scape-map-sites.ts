@@ -12,6 +12,8 @@ import type { ShielingSite } from '../src/scene/landscape/shieling.ts'
 import type { SmokehouseSite } from '../src/scene/landscape/smokehouse.ts'
 import { tarnWetted } from '../src/scene/landscape/tarn.ts'
 import type { Tarn } from '../src/scene/landscape/tarn.ts'
+import { weirStanding } from '../src/scene/landscape/weir.ts'
+import type { Weir } from '../src/scene/landscape/weir.ts'
 import type { WreckSite } from '../src/scene/landscape/wreck.ts'
 import { tideAmplitudeAt } from '../src/scene/tide.ts'
 import type { CompositionStats } from './scape-map.ts'
@@ -168,6 +170,44 @@ export function pierOf (
     depth:  round(pier.depth, 2),
     deck:   round(pier.deck, 2),
     bents:  pier.bents.length,
+  }
+}
+
+/**
+ * The trap, and the number that says whether the sea ever shows it.
+ *
+ * `standing` is the measurement no still can give you, and it is the weir's
+ * equivalent of the pier's `depth`. A trap is built in the band between the two
+ * tides, so what it looks like depends entirely on when you look: the same wall
+ * is a ring of stone on a drained flat at low springs and nothing at all at high
+ * water. Metres of crest over low springs is the one figure that is true at
+ * every state of the tide, and a retune that quietly drowned the pound would
+ * show up here and in no capture.
+ *
+ * `turn` is the second half of the same question. A weir turned hard off its
+ * harbour is a trap that found its flat somewhere along the coast rather than in
+ * the cove — a real answer on a shore like this one, and worth seeing in a
+ * number rather than discovering in a still.
+ */
+export function weirOf (
+  weir:   Weir | null,
+  config: ScapeConfig,
+  worldX: Project,
+  worldZ: Project,
+): CompositionStats['weir'] {
+  if (!weir)
+    return null
+
+  return {
+    x:        round(worldX(weir.head.x)),
+    z:        round(worldZ(weir.head.z)),
+    lead:     round(weir.lead, 1),
+    pound:    round(weir.pound, 2),
+    turn:     Math.round(weir.turn),
+    standing: round(
+      weirStanding(weir, config.terrain.waterLevel, config.tide.range, config.weir.height),
+      2,
+    ),
   }
 }
 
