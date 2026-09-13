@@ -39,7 +39,7 @@ const SHALLOW = 0.45
 export const LEGEND =
   '~ deep  - shallow  . shore  : low  = mid  + upper  * high  # peak\n' +
   ', footpath  ≡ track  · waterway  b boat  s beck  ≈ tarn  T peat  ' +
-  'F/B/A/W/S steading  o well  J jetty  H harbour  V smokehouse  P pier  ' +
+  'F/B/A/W/S steading  o well  J jetty  H harbour  V smokehouse  P pier  Q weir  ' +
   'W mill  K chapel  L light  C croft  X wreck  Y shieling  p plot  ^ ridge  x dyke  g gate'
 
 export interface Layers {
@@ -265,10 +265,10 @@ export function renderGrid (
 
   if (layers.buildings)
     for (const landmass of archipelago.landmasses) {
-      const { layout, places, landing, harbour, beacon, croft, dyke, pier } = landmass.survey
-      const { shieling, smokehouse, wreck }                                 = landmass.survey
-      const worldX                                                          = (x: number): number => x + landmass.origin.x
-      const worldZ                                                          = (z: number): number => z + landmass.origin.z
+      const { layout, places, landing, harbour, beacon, croft, dyke, pier, weir } = landmass.survey
+      const { shieling, smokehouse, wreck }                                       = landmass.survey
+      const worldX                                                                = (x: number): number => x + landmass.origin.x
+      const worldZ                                                                = (z: number): number => z + landmass.origin.z
 
       // First of everything on this island, so a byre or a plot marker laid over
       // it wins the cell. The dyke is the one thing here that is a *line* rather
@@ -310,6 +310,10 @@ export function renderGrid (
         // the head is the thing worth finding on the grid, because it is the one
         // point in the settlement that is out over deep water.
         [ pier && pierHead(pier), 'P' ],
+        // The pound, not the root, for the pier's reason — and the pound is the
+        // trap. A leader is a line of stone anybody could mistake for a wall
+        // that ran out of island; the ring at the end of it is the structure.
+        [ weir?.head ?? null, 'Q' ],
       ]
 
       for (const [ place, glyph ] of sited)

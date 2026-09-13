@@ -22,6 +22,8 @@ import { BOATHOUSE_FOOTING, NET_RACK_FOOTING, boathouseSpot, findHarbourBank, fi
 import type { Spot } from './landing.ts'
 import { solvePier } from './pier.ts'
 import type { Pier } from './pier.ts'
+import { solveWeir } from './weir.ts'
+import type { Weir } from './weir.ts'
 import { createScapeLayout, distanceToTrack } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
 import type { Vec2 } from './path.ts'
@@ -77,6 +79,15 @@ export interface ScapeSurvey {
 
   /** The trestle out to deep water, or `null` when the shelf never drops away. */
   pier: Pier | null
+
+  /**
+   * The fish trap on the flat, or `null` when the coast is too steep to dry.
+   *
+   * The pier's opposite, and on this archipelago its complement: a trestle needs
+   * the shelf to fall away and a weir needs it not to, so the islands that get
+   * one are largely the islands that do not get the other.
+   */
+  weir: Weir | null
 
   /**
    * The hull out on the low rock, or `null` when every rock in the ring stands
@@ -266,6 +277,38 @@ function reachDeepWater (
       clearance:  config.boats.clearance,
       bay:        config.pier.bay,
       freeboard:  config.pier.freeboard,
+    },
+    harbour,
+  )
+}
+
+/**
+ * The trap on the flat, or the reason there is none.
+ *
+ * A function of its own for the reason {@link reachDeepWater} is one — the
+ * survey holds the *order*, not the argument lists — and it is run immediately
+ * after it, against the same field and the same bank, because the two searches
+ * are the same question asked in opposite directions and reading them apart is
+ * how a reviewer ends up believing one of them is the other.
+ *
+ * The tide's own range is handed in rather than restated. The band a trap can
+ * be laid in is the band the sea walks across twice a day, and a second opinion
+ * about how far that is would be a weir built for a tide the water never runs.
+ */
+function trapTheFlat (
+  config:  ScapeConfig,
+  field:   HeightField,
+  harbour: Spot | null,
+): Weir | null {
+  return harbour && solveWeir(
+    {
+      ground:     field.heightAt,
+      waterLevel: config.terrain.waterLevel,
+      tidal:      config.tide.range,
+      reach:      config.weir.reach,
+      pound:      config.weir.pound,
+      least:      config.weir.least,
+      mouth:      config.weir.mouth * Math.PI / 180,
     },
     harbour,
   )
@@ -572,6 +615,7 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
   )
 
   const pier = reachDeepWater(config, field, harbour)
+  const weir = trapTheFlat(config, field, harbour)
 
   // The third thing out on the rocks, and the only site in the survey that is
   // nobody's decision. Sited after the light and the croft because it is sited
@@ -638,6 +682,7 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     smokehouse,
     shieling,
     pier,
+    weir,
     wreck,
     tarn,
     peat,

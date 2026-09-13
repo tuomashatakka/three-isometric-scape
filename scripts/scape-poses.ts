@@ -587,6 +587,64 @@ export const TOURS: Record<string, Pose[]> = {
   ],
 
   /**
+   * The fish trap on the home island's flat, at both ends of one tide.
+   *
+   * The tour cannot see this one either, and for the pier's reason doubled. A
+   * weir is twenty metres of wall standing a third of a metre over the bed, so
+   * at the tour's 1400 m frame it is a hairline; and unlike every other
+   * structure in the settlement *it is not there all day*. The whole claim of
+   * the landform is the difference between two states of the sea, and no single
+   * frame at any zoom can carry it.
+   *
+   * So the set is a pair before it is anything else, and it is the same
+   * instrument `haulout` uses with the same two hours solved the same way: week
+   * 0.687 is where the spring reaches full with the sun still up, and 0.35 and
+   * 0.6 of that day are its low and its high. `weir-low` is the trap doing its
+   * job — the flat drained, the leader and the ring standing clear of it with
+   * the pound still holding water. `weir-high` is the identical frame with the
+   * sea over the top of it, which is what the fish come in across. A run that
+   * built a wall the tide never covered, or one that never showed at all, is two
+   * identical pictures.
+   *
+   * `weir-reach` pulls back to the siting claim — the boathouse, the bank and
+   * the whole course out across the cove in one frame, at low water where the
+   * flat it is laid on is legible as a flat. `weir-none` is the control, at that
+   * same view over the ridge island's harbour: the coast that gets a pier
+   * instead, where the shelf falls away too fast to lay a stone on. Half of what
+   * this run decided is which coasts *cannot* have one.
+   */
+  weir: [
+    {
+      name:   'weir-low',
+      zoom:   17,
+      time:   0.35,
+      season: 0.687,
+      set:    [ 'camera.focusX=-11', 'camera.focusZ=-38' ],
+    },
+    {
+      name:   'weir-high',
+      zoom:   17,
+      time:   0.6,
+      season: 0.687,
+      set:    [ 'camera.focusX=-11', 'camera.focusZ=-38' ],
+    },
+    {
+      name:   'weir-reach',
+      zoom:   46,
+      time:   0.35,
+      season: 0.687,
+      set:    [ 'camera.focusX=-13', 'camera.focusZ=-34' ],
+    },
+    {
+      name:   'weir-none',
+      zoom:   46,
+      time:   0.35,
+      season: 0.687,
+      set:    [ 'camera.focusX=-145', 'camera.focusZ=126' ],
+    },
+  ],
+
+  /**
    * The croft, and the water it is cut off by.
    *
    * The lesson `smokehouse` and `chapel` both wrote down, applied before the

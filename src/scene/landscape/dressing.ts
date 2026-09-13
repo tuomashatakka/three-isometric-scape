@@ -13,15 +13,13 @@ import type { Footprint } from '../props/ploppable.ts'
 import { BEACON_SINK } from '../props/beacon.ts'
 import { CROFT_SINK } from '../props/croft.ts'
 import { MILL_SINK } from '../props/mill.ts'
-import { PIER_WIDTH, buildPierRun } from '../props/pier.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import type { TiltWeight } from './align.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from './archipelago.ts'
 import { BEACON_FOOTING } from './beacon.ts'
 import { CROFT_FOOTING } from './croft.ts'
-import { BOATHOUSE_CLEARING, NET_RACK_CLEARING, boathouseSpot, netRackSpot } from './landing.ts'
-import type { Spot } from './landing.ts'
 import { createGroundContact, findCrossing, isFoliage, raiseShieling, raiseWreck, trackPointNear } from './dressing-helpers.ts'
+import { raiseHarbour } from './dressing-harbour.ts'
 import { raiseEnclosures } from './dressing-enclosures.ts'
 import type { Walling } from './dressing-enclosures.ts'
 import { createDressingSampling } from './dressing-sampling.ts'
@@ -459,7 +457,22 @@ export function createDressing (
     }
 
     if (survey.harbour)
-      raiseHarbour(survey.harbour)
+      raiseHarbour({
+        bank:    survey.harbour,
+        origin:  landmass.origin,
+        survey,
+        config:  localConfig,
+        quality,
+        rng,
+        palette,
+        water,
+        heightAt,
+        placeHero,
+        placeHeroAt,
+        reserve: (x, z, radius) => solver.reserve(x, z, radius),
+        heroes,
+        anchors: harbourAnchors,
+      })
 
     // The smokehouse, up the bank from the boats. Plopped rather than merged
     // into the steading draw, for the reason the five farmstead buildings are:
@@ -545,66 +558,6 @@ export function createDressing (
         crossing.angle,
       )
       solver.reserve(crossing.x + ox, crossing.z + oz, 4)
-    }
-
-    /**
-     * The boat harbour, in the next cove along from the landing.
-     *
-     * The boathouse is anchored to the *water* level rather than plopped onto
-     * the terrain the way the five farmstead buildings are: its floor is a deck
-     * on piles and its slipway runs out under the surface, so a foundation cut
-     * into the bank would bury exactly the part that has to be open to the lake.
-     */
-    function raiseHarbour (bank: Spot): void {
-      const bearing = bank.angle
-      const bankX   = bank.x + ox
-      const bankZ   = bank.z + oz
-      const house   = boathouseSpot(bank)
-      const rack    = netRackSpot(bank)
-
-      harbourAnchors.push({ x: bankX, z: bankZ })
-      placeHeroAt('boathouse', house.x + ox, water + 0.05, house.z + oz, yawAlong(bearing))
-      solver.reserve(house.x + ox, house.z + oz, BOATHOUSE_CLEARING)
-
-      // The rack dries nets on dry ground behind the shed, never in the shallows.
-      if (heightAt(rack.x + ox, rack.z + oz) > water + 0.5) {
-        placeHero('netRack', rack.x + ox, rack.z + oz, yawAlong(bearing))
-        solver.reserve(rack.x + ox, rack.z + oz, NET_RACK_CLEARING)
-      }
-
-      raisePier()
-    }
-
-    /**
-     * The trestle out to deep water, alongside the boathouse.
-     *
-     * Built rather than plopped, and world-space rather than local: its length
-     * came from the shelf and every pile was cut to the bed under its own bent,
-     * so there is no fixed shape to stamp — see `props/pier.ts`. The bents are
-     * carried into world metres here because that is where the offsets live; the
-     * survey solved the whole thing in the island's own frame.
-     *
-     * Each bent is reserved against the scatter for the reason the boathouse is:
-     * the littoral band seeds wrack and driftwood along exactly this depth, and a
-     * clump of bladderwrack growing out of a deck is the one place on this coast
-     * where the shallows and the settlement are drawn on top of each other.
-     */
-    function raisePier (): void {
-      if (!survey.pier)
-        return
-
-      heroes.push(buildPierRun({
-        bents:  survey.pier.bents.map(bent => ({ x: bent.x + ox, z: bent.z + oz, bed: bent.bed })),
-        deck:   survey.pier.deck,
-        angle:  survey.pier.angle,
-        width:  PIER_WIDTH,
-        boards: quality.pierBoards,
-        rng:    rng.fork('pier'),
-        palette,
-      }))
-
-      for (const bent of survey.pier.bents)
-        solver.reserve(bent.x + ox, bent.z + oz, PIER_WIDTH)
     }
   }
 

@@ -331,6 +331,25 @@ export interface AtmosphereQuality {
    */
   dykeSpacing: number
 
+  /**
+   * Metres between stakes on the fish weir's pound. 0 leaves it unwoven.
+   *
+   * The one handle in this file for a structure that is otherwise the same on
+   * every tier, and unlike {@link AtmosphereQuality.pierBoards} and
+   * {@link AtmosphereQuality.dykeSpacing} it *is* allowed to reach zero. The
+   * stone is the weir; the wattle is what a trap looked like when somebody was
+   * still working it, and a ring of stone with no stakes in it is a ruin rather
+   * than a broken-looking cheap version of a weir — which is exactly the
+   * graceful absence the brief asks for, rather than an island that lost its
+   * trap on a phone.
+   *
+   * The stonework itself follows `dykeSpacing`, because a weir is a drystone
+   * wall laid on a seabed and the argument about station spacing against stone
+   * length is the same argument on the flat as it is on the hill. A second
+   * number here would be that one, restated, free to drift.
+   */
+  weirStakes: number
+
   /** Lake plane subdivisions per side. */
   waterSegments: number
 
@@ -401,6 +420,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     tarnSectors:     20,
     pierBoards:      0.9,
     dykeSpacing:     0.98,
+    weirStakes:      0,
     waterSegments:   24,
     waterSpan:       2.2,
     shoreMask:       384,
@@ -453,6 +473,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     tarnSectors:   28,
     pierBoards:    1.2,
     dykeSpacing:   0.92,
+    weirStakes:    1.1,
     waterSegments: 48,
     waterSpan:     3,
     shoreMask:     768,
@@ -503,6 +524,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     tarnSectors:     44,
     pierBoards:      1.6,
     dykeSpacing:     0.76,
+    weirStakes:      0.8,
     waterSegments:   96,
     waterSpan:       8,
     shoreMask:       1_024,
@@ -546,6 +568,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     tarnSectors:     56,
     pierBoards:      2,
     dykeSpacing:     0.64,
+    weirStakes:      0.55,
     waterSegments:   128,
     waterSpan:       8,
     shoreMask:       1_536,

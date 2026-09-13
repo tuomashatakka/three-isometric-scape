@@ -19,7 +19,7 @@ import { cragStats, duneStats, fjordStats, forceStats, hauloutStats, icecapStats
 import type { CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, SaltingsStats, StackStats, TreelineStats } from './scape-map-landforms.ts'
 import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
-import { causewayOf, croftOf, dykeOf, peatOf, pierOf, shielingOf, smokehouseOf, tarnOf, wreckOf } from './scape-map-sites.ts'
+import { causewayOf, croftOf, dykeOf, peatOf, pierOf, shielingOf, smokehouseOf, tarnOf, weirOf, wreckOf } from './scape-map-sites.ts'
 import { rainbowStats, stormStats } from './scape-map-weather.ts'
 import { applyOverrides, parseArgs } from './args.ts'
 
@@ -112,6 +112,28 @@ export interface CompositionStats {
     depth:  number
     deck:   number
     bents:  number
+  } | null
+
+  /**
+   * The fish trap on the flat, at its pound.
+   *
+   * `null` on an island whose harbour bank had no run of intertidal ground wide
+   * enough to lay one on — which at the default seed is five islands in six, and
+   * is the same measurement the pier's refusal is, read the other way up.
+   *
+   * `standing` is the number that says whether the thing is visible at all.
+   * A weir lives in the window between the tides, and a wall whose crest never
+   * clears low water is a structure that only ever draws as a stain on the
+   * water. It is metres of stone over low springs, and it cannot be read off a
+   * still taken at any one state of the tide.
+   */
+  weir: {
+    x:        number
+    z:        number
+    lead:     number
+    pound:    number
+    turn:     number
+    standing: number
   } | null
 
   /**
@@ -655,6 +677,7 @@ function compositionStats (landmass: LandmassSurvey, w: number, h: number): Comp
     shieling:   shielingOf(survey.shieling, worldX, worldZ),
     dyke:       dykeOf(survey.dyke, worldX, worldZ),
     pier:       pierOf(survey.pier, worldX, worldZ),
+    weir:       weirOf(survey.weir, config, worldX, worldZ),
     causeway:   causewayOf(survey.causeway, config, worldX, worldZ),
     croft:      croftOf(survey.croft, worldX, worldZ),
     wreck:      wreckOf(survey.wreck, worldX, worldZ),
