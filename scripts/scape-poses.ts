@@ -685,6 +685,52 @@ export const TOURS: Record<string, Pose[]> = {
   ],
 
   /**
+   * The banks, and the two ends of a spring tide over them.
+   *
+   * The tour cannot see this one, and for a reason none of the others have: a
+   * bank is not small, it is *submerged*. The home island's spit is 165 m long
+   * and 68 m across the tip — bigger in plan than the farm — and at the tour's
+   * 1400 m frame it changed 0.07 % of the pixels, because what it does to a
+   * still is shift the water tint over two per cent of the sea by a few points
+   * of blue. The thing is there; the frame is wrong.
+   *
+   * `shoal` is the frame that is right: the whole spit and the coast it leaves,
+   * at a zoom where 68 m of bank is a third of the width rather than a hairline.
+   *
+   * The pair after it is the claim the section actually makes. A bank is a depth
+   * and every consumer of a depth in this scape takes the tide first, so 0.8 m
+   * of spring range is 0.6 m of water over the crest at the bottom and 1.4 m at
+   * the top — which walks the tint, the caustics and the surf line all together
+   * over ground that has not moved. Same hour, same week, same camera; `tide.lag`
+   * turned half a cycle, the way `wreck-low` and `wreck-high` do it.
+   *
+   * `shoal-none` is the control and the switch at once: `shoals.reach=0` at the
+   * same frame is the sea this scape had before the banks, so a diff between it
+   * and `shoal` is the whole of what they are worth, and a `same` there would
+   * mean the off switch is not one.
+   */
+  shoal: [
+    { name: 'shoal', zoom: 230, set: [ 'camera.focusX=103', 'camera.focusZ=-77' ]},
+    {
+      name:   'shoal-low',
+      zoom:   230,
+      season: 0.93,
+      set:    [ 'camera.focusX=103', 'camera.focusZ=-77', 'tide.lag=4' ],
+    },
+    {
+      name:   'shoal-high',
+      zoom:   230,
+      season: 0.93,
+      set:    [ 'camera.focusX=103', 'camera.focusZ=-77', 'tide.lag=10' ],
+    },
+    {
+      name: 'shoal-none',
+      zoom: 230,
+      set:  [ 'camera.focusX=103', 'camera.focusZ=-77', 'shoals.reach=0' ],
+    },
+  ],
+
+  /**
    * The wreck, and the two ends of a spring tide over her.
    *
    * The lesson `croft` wrote down, at half the size again: the hull is 7.5 m

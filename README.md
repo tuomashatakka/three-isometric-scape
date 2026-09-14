@@ -102,6 +102,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a tarn on the high ground of every island whose spare upland is flat enough to hold one — sited by a search for the least tilted acre the farm has not already claimed, standing at the lowest point of its own rim, edged with reeds, and locking into ice weeks before the sound below it does
 - **an ice cap on a sixth island in the north**: a permanent dome twenty-two metres of ice thick, standing over the summit it buried, with rock peaks left standing through it as nunataks, fractures opening in arcs where the ice is steep, and a front ending in the sea rather than on a hillside — the one white thing in the archipelago that midsummer does not take back
 - **a dune belt on the weather shore of every island**: 2.4 m of blown sand standing over the beach it came off, running from three metres inland of the waterline to twenty-four, ridged near the seaward end and thinning to a sand sheet behind it, cut through by blowouts and held together by marram — on the shore the wind arrives at and on no other, because sand goes where the weather puts it
+- **a submerged bank trailing off the downdrift flank of five of the six islands**: 240 m of drowned sand leaving the waterline a quarter turn round from the weather shore and hooked 34° downwind of it, 48 m across where it leaves the coast and 82 m at the tip, with nine tenths of a metre of water standing over its crest at mean tide and half a metre at the bottom of a spring — never dry, never drawn, and visible only because everything in this scape that reads a depth now reads a shallow one out in open water: the sound goes pale over it, the caustics reach the bottom of it, and the swell trips on its weather flank and stands up in sets with nothing showing that made it
 - **a crag on the steepest coast of five of the six islands**: seven metres of rock standing over the water on a headland a seventh of the coast wide, with a face at about seventy degrees, a wave-cut platform awash at its foot, blocks piled where the face has shed them, and clefts cut back into the line where the rock is weakest — on the coast that climbs fastest out of the sea and never on the shore the sand is on, because a sea that meets ground which shelves makes a beach out of what it takes and a sea that meets ground which stands up takes the foot out from under it instead
 - **a tidal flat at the beck's mouth on half the islands**: silt carried down the channel and dropped where the water is too sheltered to take it back out, settling until it stands at about the height the tide floods to — bare mud below, salt-marsh turf above, drainage gutters cut through the whole of it, and a surface so nearly level that the same 0.8 m of spring tide which walks the waterline two metres up a beach walks it seventeen across this — while the shores whose beck comes out through the dune belt or under the crag get none, because sand goes where the weather puts it, rock stands where the sea cut it, and silt settles only on the coast that is doing neither
 - a peat bank cut into the wet moor of every island that has any: an eleven-metre face standing across the fall, a stripped floor worked back seven metres behind it, ricks of cut turf drying on the bank, and a clearing round the whole of it — because blanket peat and a spruce wood are two things the same ground cannot be doing at once
@@ -210,6 +211,7 @@ src/
     ├── config-dyke.ts              the head dyke's own slice: how far up the hill, and how wide a gate
     ├── config-shieling.ts          the summer hut's own slice: how far up, how far out, how near the burn
     ├── config-wreck.ts             the wreck's own slice: how low a rock, how much of one, how flat a ledge
+    ├── config-shoal.ts             the bank's own slice: the reach, the crest, and the room the sound leaves
     ├── config-weir.ts              the fish trap's own slice: the reach, the pound, the mouth, the wall
     ├── config-palette.ts           every colour in the scape, schema and values together
     ├── config-kelp.ts              the weed's own slice: the depth window, the canopy, the clearings
@@ -259,6 +261,7 @@ src/
     │   ├── peat.ts                 the turf cutting on the moor: where it is dug, and the step it leaves
     │   ├── causeway.ts             the bar out to the nearest rock, and the tide that takes it back
     │   ├── skerry.ts               the bare rocks standing in the water between the islands
+    │   ├── shoal.ts                the drowned banks trailing off the islands' downdrift flanks
     │   ├── fjord.ts                the drowned valley cut through one island's coast
     │   ├── icecap.ts               the ice standing on the northern island, and what it buries
     │   ├── coast.ts                the waterline on every bearing, solved once for both coastal landforms
@@ -1849,6 +1852,28 @@ out on the ring, on a ledge that stands eleven inches out of mean water, there i
 **the rock under her does not read, and that is the honest consequence rather than a bug to fix.** a ledge 5.9 m across standing 0.45 m proud, under a 7.8 m hull, is covered by the hull: at `wreck-ring`'s frame there is no rock visible at all and she reads as floating. every way of fixing that is a way of losing the argument — a rock she does not cover is a rock a boat could see. what does say she is aground is the surf band the littoral draws round anything that breaks the surface, which is the white collar in `wreck` at 24 m, and the pair at the two ends of the spring tide, where the water climbs her while the shore behind her moves as well.
 
 `scape:map --stats` grew a `wreck` line carrying the site, the isle, the crown's freeboard, the fall under her bearing, the turn and the reach. `freeboard` is the one to read, and it is the only reading in that block that runs the *other* way from its neighbour's: it is meant to be a small number, and a run that grew it has quietly moved her onto a rock the light would rather be standing on.
+
+## the bank the swell trips on
+
+the dune belt is where the sand this coast moves stops *on land*. this is where the rest of it stops. [`landscape/shoal.ts`](src/scene/landscape/shoal.ts) trails one submerged spit off every island the archipelago leaves room for — 240 m of drowned bank leaving the waterline a quarter turn round from the weather bearing and hooked 34° downwind of it, because a spit is not built by waves running *up* a coast but by drift running *along* one, and where the coast turns out of the swell the drift keeps going.
+
+**nothing draws it, and that is the whole design.** the bar is geometry and the guard is geometry; a bank is a term in a seabed that is one flat quad nine metres down, folded into the composite field as a maximum after those two — see [`landscape/archipelago.ts`](src/scene/landscape/archipelago.ts) — and drawn by nothing at all. every single thing it does downstream, it does by *being a depth*, and not one line of shader was written for any of it:
+
+- the bathymetry mask bakes off the field and saturates at `MAX_DEPTH`, 3.2 m. a sound is past that and paints flat blue; a crest at nine tenths of a metre is a quarter of the way up the range and paints pale. that is the ribbon
+- the surf reads that mask's seaward bearing, which is the **gradient** of the same depth. a bank has flanks, so it has a gradient, so the swell running onto it breaks over it — in sets, on the weather side only, exactly as it does on a coast
+- the caustics are drawn over every shallow, and this is now a shallow two hundred metres from any land
+- the tide is added to every depth the mask is read at, so all three of those walk up and down together twice a day
+- the ferry grid is baked from the field, so the lanes were tested against the banks by the clearance rule they were already running, and the fleet still has its 0.54 m
+
+**the crest is the one number, and the window it has to fit through is narrow at both ends.** under about 0.65 m the bank dries at low springs — and a bank that dries is an *islet*, which is a thing the terrain would have to draw, so the survey refuses it rather than clamping it. over about 2.9 m it is under the mask's saturation and under `water.surfDepth` at once, which is a landform that is in the field, in the ferry grid and in `scape:map` while being invisible. 0.9 m is the middle of that, and `shoals.dry` is the floor written down.
+
+**the first profile was a dome, and the report is what caught it.** `(1 - u²)²` across and `1 - t²` along reads fine written down and spends most of its footprint on the way down to a seabed nine metres under: 1,052 m² of a 5,700 m² bank stood in water the mask could still resolve and the rest of it was a shape nothing could see. a real bank is not a dome either — sand is moved until the water can no longer move it, which leaves a **flat top** at the depth the swell stops working and steep flanks where it is still working. the crest is a plateau now, and `shelf` in `scape:map --stats` is the number that says so: 6,452 m² of the home island's bank against the same footprint.
+
+**the flanks stay smooth, and that is not a detail.** the surf reads the depth channel's gradient, so a bank with a step in it wears a hard white line round its whole outline. what the plateau buys is *where* that gradient is: nothing breaks over the flat middle and the swell trips on the two long edges, which is what broken water over a bank actually looks like.
+
+**one island in six sheds nothing**, and it is a refusal rather than a stub. `shoals.margin` keeps a tip out of the next island's terrain patch, the ridge island's flank points straight down a sound twenty-odd metres wide, and what is left after the margin takes its cut is shorter than the bank is wide. `scape:map` says `shoal ridge NONE` and says why.
+
+**and the tour cannot see it, for a reason none of the others had.** a bank is not small — the home island's is longer in plan than the farm is wide — it is *submerged*, and what it does to a still is shift the water tint over a couple of per cent of the sea by a few points of blue under the haze the 1400 m frame already carries. five of the six tour poses come back `same`. `--poses shoal` is the frame that is right, and it carries the switch with it: `shoal-none` at `shoals.reach=0` is the sea this scape had before the banks, and it diffs `same` against `origin/main` to the pixel.
 
 ## ground that casts
 

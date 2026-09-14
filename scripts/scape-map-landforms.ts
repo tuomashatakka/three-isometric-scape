@@ -10,6 +10,7 @@ import { createHeightField } from '../src/scene/landscape/height.ts'
 import { countAshore, hauledSeals, planHaulouts } from '../src/scene/landscape/haulout.ts'
 import { iceCapOf, measureIce } from '../src/scene/landscape/icecap.ts'
 import { kelpDepth, kelpLean, kelpPlants, planKelp } from '../src/scene/landscape/kelpbed.ts'
+import { MAX_DEPTH } from '../src/scene/landscape/shore-mask.ts'
 import { planTreeline } from '../src/scene/landscape/treeline.ts'
 import { tideAmplitudeAt } from '../src/scene/tide.ts'
 import type { MapStats } from './scape-map.ts'
@@ -866,4 +867,101 @@ export function forceStats (survey: ArchipelagoSurvey): ForceStats[] {
       width: round(fall.half * 2 * config.force.breadth, 2),
     }]
   })
+}
+
+
+/** One island's submerged spit, measured. */
+export interface ShoalStats {
+  id: string
+
+  /** Where it leaves the waterline, in world metres. */
+  x: number
+  z: number
+
+  /** The bearing it runs on, in degrees. */
+  bearing: number
+
+  /** Metres from the root to the tip. */
+  length: number
+
+  /** Metres of water over the crest at mean water, and at the bottom of springs. */
+  crest: number
+  low:   number
+
+  /** Metres across at the tip. */
+  wide: number
+
+  /**
+   * Square metres of the bank standing in water the mask can still resolve.
+   *
+   * The one number that says whether a bank can be *seen*, and it has to be
+   * measured rather than derived: the depth channel saturates at `MAX_DEPTH`,
+   * so the part of a spit under that much water is in the field, in the ferry
+   * grid and in this report while being the same flat blue as the sound beside
+   * it. A bank whose shelf is a fraction of its footprint is a bank that was
+   * built too deep.
+   */
+  shelf: number
+
+  /** Whether the island opposite cut the reach short. */
+  crowded: boolean
+}
+
+/**
+ * The banks, measured off the composite field for the reason the guard is.
+ *
+ * `shelf` walks the bank's own footprint at a metre a step and asks the field,
+ * not the profile — which is what makes it a check rather than a restatement:
+ * anything else that has raised the same ground, a rock standing on the bank
+ * among them, is in this number too.
+ */
+export function shoalStats (survey: ArchipelagoSurvey, config: ScapeConfig): ShoalStats[] {
+  const { waterLevel } = config.terrain
+  const spring         = config.tide.range * 0.5
+  const shed           = new Set(survey.shoals.shoals.map(shoal => shoal.island))
+
+  const refused: ShoalStats[] = survey.landmasses
+    .filter(landmass => !shed.has(landmass.id))
+    .map(landmass => ({
+      id:      landmass.id,
+      x:       round(landmass.origin.x),
+      z:       round(landmass.origin.z),
+      bearing: 0,
+      length:  0,
+      crest:   0,
+      low:     0,
+      wide:    0,
+      shelf:   0,
+      crowded: true,
+    }))
+
+  const measured = survey.shoals.shoals.map(shoal => {
+    const wide = shoal.halfWidth * (1 + shoal.spread) * 2
+
+    let shelf = 0
+
+    for (let along = 0; along <= shoal.length; along += 1)
+      for (let across = -wide * 0.5; across <= wide * 0.5; across += 1) {
+        const x = shoal.root.x + Math.cos(shoal.bearing) * along - Math.sin(shoal.bearing) * across
+        const z = shoal.root.z + Math.sin(shoal.bearing) * along + Math.cos(shoal.bearing) * across
+
+        if (waterLevel - survey.field.heightAt(x, z) < MAX_DEPTH)
+          shelf += 1
+      }
+
+    return {
+      id:      shoal.island,
+      x:       round(shoal.root.x),
+      z:       round(shoal.root.z),
+      bearing: round((shoal.bearing * 180 / Math.PI % 360 + 360) % 360),
+      length:  round(shoal.length),
+      crest:   round(shoal.crest, 2),
+      low:     round(shoal.crest - spring, 2),
+      wide:    round(wide),
+      shelf:   round(shelf),
+      crowded: shoal.crowded,
+    }
+  })
+
+  return [ ...measured, ...refused ]
 }

@@ -398,6 +398,14 @@ export function formatStats (stats: MapStats): string {
       `${belt.refused}% refused  lowest ground ${belt.lowest}m` +
       (belt.lowest < 0 ? '  <- sand laid in the water' : '') +
       (belt.crest <= 0 ? '  <- the belt found no coast to build on' : '')),
+    ...stats.shoals.map(bank => bank.length <= 0
+      ? `shoal ${bank.id} NONE  <- the sound leaves less room than the bank is wide`
+      : `shoal ${bank.id}  (${bank.x},${bank.z}) runs ${bank.bearing}° for ${bank.length}m  ` +
+      `crest ${bank.crest}m  ${bank.low}m at low springs  ${bank.wide}m across the tip  ` +
+      `shelf ${bank.shelf}m2` +
+      (bank.crowded ? '  cut short by the sound' : '') +
+      (bank.low <= 0 ? '  <- the bank dries: that is an islet, and nothing draws it' : '') +
+      (bank.shelf <= 0 ? '  <- built under the mask: in the field and invisible' : '')),
     ...stats.saltings.map(flat =>
       `marsh ${flat.id}  mouth ${flat.bearing}°  runs ${flat.length}m of coast  ` +
       `flat ${flat.tidal}m2 tidal / ${flat.turf}m2 turf  gutters ${flat.gutters}%  ` +
