@@ -15,8 +15,8 @@ import type { ScapeConfig } from '../src/scene/config.ts'
 import { formatStats } from './scape-map-format.ts'
 import { LEGEND, readLayers, renderGrid } from './scape-map-render.ts'
 import type { Window } from './scape-map-render.ts'
-import { cragStats, duneStats, fjordStats, forceStats, hauloutStats, icecapStats, kelpStats, saltingsStats, skerryStats, stackStats, strandStats, treelineStats } from './scape-map-landforms.ts'
-import type { CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, SaltingsStats, StackStats, TreelineStats } from './scape-map-landforms.ts'
+import { cragStats, duneStats, fjordStats, forceStats, hauloutStats, icecapStats, kelpStats, saltingsStats, shoalStats, skerryStats, stackStats, strandStats, treelineStats } from './scape-map-landforms.ts'
+import type { CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, SaltingsStats, ShoalStats, StackStats, TreelineStats } from './scape-map-landforms.ts'
 import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
 import { causewayOf, croftOf, dykeOf, peatOf, pierOf, shielingOf, smokehouseOf, tarnOf, weirOf, wreckOf } from './scape-map-sites.ts'
@@ -286,6 +286,17 @@ export interface MapStats extends CompositionStats {
    * only knowable by walking it.
    */
   dunes: DuneStats[]
+
+  /**
+   * The submerged banks, one entry per island with room in the sound for one.
+   *
+   * Beside the belts because it is the other half of the same sentence: sand
+   * that the weather puts on a shore is the belt, and sand the drift carries
+   * off the flank is this. It is the one landform in the block that cannot be
+   * checked in a still at all — nothing draws it — so `shelf` and `low` are
+   * the whole of the evidence that it is there and that it can be seen.
+   */
+  shoals: ShoalStats[]
 
   /**
    * The tidal flats, one entry per island whose beck comes out on a free coast.
@@ -788,6 +799,7 @@ export function surveyStats (
     fjords:   fjordStats(survey),
     icecaps:  icecapStats(survey),
     dunes:    duneStats(survey),
+    shoals:   shoalStats(survey, config),
     saltings: saltingsStats(survey),
     crags:    cragStats(survey),
     stacks:   stackStats(survey, config),

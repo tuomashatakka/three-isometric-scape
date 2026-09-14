@@ -6,6 +6,8 @@ import type { HeightField } from './height.ts'
 import type { Vec2 } from './path.ts'
 import { surveySkerries } from './skerry.ts'
 import type { SkerryGuard } from './skerry.ts'
+import { surveyShoals } from './shoal.ts'
+import type { ShoalBanks } from './shoal.ts'
 import { surveyScape } from './survey.ts'
 import type { ScapeSurvey } from './survey.ts'
 import { surveyStrand } from './strand.ts'
@@ -65,7 +67,16 @@ export interface ArchipelagoSurvey {
    * because the patches stop at their own edges and between them is one seabed
    * quad nine metres down. See `landscape/skerry.ts`.
    */
-  skerries:   SkerryGuard
+  skerries: SkerryGuard
+
+  /**
+   * The banks out in the sounds, always present and sometimes empty.
+   *
+   * Published for the report rather than for the terrain, which is the one
+   * thing that separates it from the bar and the guard: a bank is never drawn.
+   * See `landscape/shoal.ts`.
+   */
+  shoals:     ShoalBanks
   field:      ArchipelagoField
   paths:      Footpaths
   ports:      readonly WorldPort[]
@@ -114,6 +125,7 @@ function createCompositeField (
   landmasses: readonly LandmassSurvey[],
   strand:     Strand | null,
   skerries:   SkerryGuard,
+  shoals:     ShoalBanks,
 ): ArchipelagoField {
   const seabed = config.terrain.waterLevel - config.terrain.seabedDrop
 
@@ -148,7 +160,11 @@ function createCompositeField (
     // dispatched, and a rock is not allowed to cut into anything either.
     const raised = strand ? Math.max(ground, strand.heightAt(x, z)) : ground
 
-    return Math.max(raised, skerries.heightAt(x, z))
+    // The banks fold in last and on the same terms again. Last because they are
+    // the only one of the three that is never drawn: a bar and a rock both have
+    // geometry which has to agree with the field, and a bank has none, so
+    // nothing downstream can be surprised by it arriving after them.
+    return Math.max(Math.max(raised, skerries.heightAt(x, z)), shoals.heightAt(x, z))
   }
 
   return { landmassAt, heightAt, ...surfaceQueries(heightAt) }
@@ -278,7 +294,8 @@ export function surveyArchipelago (config: ScapeConfig): ArchipelagoSurvey {
   // second rule written for skerries.
   const strand    = surveyStrand(config, landmasses)
   const skerries  = surveySkerries(config, landmasses, strand)
-  const field     = createCompositeField(config, landmasses, strand, skerries)
+  const shoals    = surveyShoals(config, landmasses)
+  const field     = createCompositeField(config, landmasses, strand, skerries, shoals)
   const paths     = createWorldPaths(landmasses)
   const ports     = projectPorts(config, field, landmasses)
   const waterways = createWaterways(config, field, ports)
@@ -288,6 +305,7 @@ export function surveyArchipelago (config: ScapeConfig): ArchipelagoSurvey {
     home,
     strand,
     skerries,
+    shoals,
     field,
     paths,
     ports,
