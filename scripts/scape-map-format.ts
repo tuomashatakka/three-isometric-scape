@@ -332,6 +332,25 @@ function rainbowLine (bow: MapStats['rainbow']): string {
       : bow.now <= 0 ? '  <- the parked phase has no bow, only the front does' : '')
 }
 
+/**
+ * The moon line, and the two silences it separates.
+ *
+ * A night frame with no moonlight in it has two quite different causes and one
+ * appearance: the knob is at zero, or the moon is simply under the sea at that
+ * hour of that week. The second is not a fault — it is half of every month —
+ * but a run that cannot tell them apart will go looking for a bug in the first
+ * case and find nothing, or declare the system working in the second.
+ */
+function moonLine (moon: MapStats['moon']): string {
+  return `moon  phase ${moon.phase}  lit ${moon.lit}  up ${moon.up}°  ` +
+    `lights ${moon.lights}  key share ${moon.share}` +
+    (moon.up <= 0
+      ? '  <- under the sea at this hour: the night is the sun\'s, dimmed'
+      : moon.lights > 0 && moon.share <= 0
+        ? '  <- the moon is up and lighting nothing: moonStrength is at zero'
+        : '')
+}
+
 /** The stats block, as the run reads it. */
 export function formatStats (stats: MapStats): string {
   const steading = Object.entries(stats.steading)
@@ -434,6 +453,7 @@ export function formatStats (stats: MapStats): string {
     windowLine(stats.windows),
     stormLine(stats.storm),
     rainbowLine(stats.rainbow),
+    moonLine(stats.moon),
     treelineLine(stats.treeline),
     ...stats.drift.map(driftLine),
     grazingLine(stats.grazing),

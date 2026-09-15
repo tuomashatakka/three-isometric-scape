@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import type { FrameContext, SceneContext } from 'threejs-scene'
 import { SCAPE_CONFIG } from './config.ts'
 import type { ScapeConfig } from './config.ts'
-import { LUNATIONS, moonPhase } from './nightsky.ts'
+import { LUNATIONS, moonPhase } from './daylight.ts'
 import { createTide, springAmount, tideAmplitude, tideLevel, tidePhase } from './tide.ts'
 
 

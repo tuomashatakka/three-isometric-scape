@@ -446,7 +446,11 @@ export function createAtmosphereLayer ({
     // through golden hour and goes cold at night instead of staying a fixed
     // green fill that no longer belongs to any of the skies above it.
     bounce.color.copy(bounceBase).lerp(sky.sun, 0.3)
-    bounce.intensity = config().atmosphere.sunStrength * 0.25 * (0.12 + 0.88 * sky.day)
+    // The moon's share is in it for the same reason: the bounce is the key
+    // light coming back off the ground, and on a clear night the key light is
+    // the moon rather than a floor.
+    bounce.intensity = config().atmosphere.sunStrength * 0.25 *
+      (0.12 + 0.88 * (sky.day + sky.moon))
     bounce.position.copy(target).addScaledVector(direction, -SUN_DISTANCE)
     bounce.position.y = target.y + SUN_DISTANCE * 0.28
     bounce.target.position.copy(target)

@@ -1,6 +1,7 @@
 import { Color, Vector3 } from 'three'
 import { smoothstep } from 'threejs-scene'
 import type { LiveConfig } from './config.ts'
+import type { SkyPlace } from './sky-deck.ts'
 
 
 /** Everything the lighting rig, the sky and the haze need for one instant of the day. */
@@ -23,6 +24,17 @@ export interface DaylightState {
 
   /** 1 in full daylight, 0 in full night. Drives everything else here. */
   day: number
+
+  /**
+   * How much light the moon is putting on the coast, in the same share-of-the-
+   * noon-sun units {@link day} is in.
+   *
+   * 0 through every daylight hour, and through any night the moon is down, new
+   * or switched off at `daylight.moonStrength`. It is what weighs against
+   * {@link day} for the key light's *place*, so a night with anything in this
+   * is a night whose shadows have swung off the bearing the sun set on.
+   */
+  moon: number
 
   /**
    * How dark the sky above the scape is, 0..1. 1 once the sun is far enough
@@ -65,6 +77,25 @@ const DEGREES = Math.PI / 180
 const FLOOR_Y = 0.16
 
 /**
+ * What the key light keeps on a night with no moon in it, as a share of the
+ * noon sun.
+ *
+ * Not a fudge to stop the frame going black — `daylight.nightLift` is what
+ * holds the *ambient* floor up, and it is a slider. This is the other thing a
+ * moonless northern night actually has: a sky full of stars over snow, which
+ * is a real if barely directional light, and it is what keeps a shadow under
+ * the eaves at new moon rather than a shape cut out of flat grey.
+ *
+ * It replaces a flat 0.05 that used to be added at every hour of the day,
+ * midsummer noon included. Gated on astronomical twilight instead, so the
+ * daylight half of the cycle is exactly the light it always was.
+ */
+const STARLIGHT = 0.03
+
+/** How far the key light's colour is pulled to the moon's own face at full moon. */
+const MOON_TINT = 0.7
+
+/**
  * Sine of the sun's declination at a phase of the year, in radians of arc.
  *
  * The whole of the seasonal coupling, in one line: 0 is midwinter and the sun
@@ -89,9 +120,9 @@ export function declination (year: number, axialTilt: number): number {
  *
  * Written against a declination rather than against the year because the sun is
  * not the only thing this coast has in its sky. The moon runs the same arc a
- * lunation further along the ecliptic — see `nightsky.ts` — and the alternative
- * to sharing the solution is a second copy of it that can drift out of step
- * with this one.
+ * lunation further along the ecliptic — see {@link moonPlace} — and the
+ * alternative to sharing the solution is a second copy of it that can drift out
+ * of step with this one.
  */
 export function bodyHeight (time: number, dec: number, latitude: number): number {
   const phase = time - Math.floor(time)
@@ -159,6 +190,174 @@ export function bodySwing (time: number, dec: number, latitude: number): number 
 /** How far round from its noon bearing the sun has travelled, in radians. */
 export function sunSwing (time: number, year: number, latitude: number, axialTilt: number): number {
   return bodySwing(time, declination(year, axialTilt), latitude)
+}
+
+/**
+ * Synodic months in one turn of the year clock.
+ *
+ * The moon is not a fourth clock. It is the two the scape already has, read
+ * against each other: this is the only number the month costs, and it is a
+ * count of lunations in a year rather than a phase and a speed of its own. Turn
+ * `season.speed` down and the month slows with the year; stop it and the moon
+ * holds its phase, which is what a capture needs and why there is nothing to
+ * add to `STILL` for it.
+ */
+export const LUNATIONS = 12.368
+
+/** Phase of the month at a phase of the year, 0..1. 0 is new, 0.5 is full. */
+export function moonPhase (year: number): number {
+  const turns = year * LUNATIONS
+
+  return turns - Math.floor(turns)
+}
+
+/**
+ * Lit fraction of the disc at a phase of the month, 0..1.
+ *
+ * The projected width of a lit hemisphere, which is the same cosine the
+ * terminator in the fragment shader is drawn from — one expression, so the
+ * brightness of the moon and the shape of it can never disagree.
+ */
+export function moonIllumination (phase: number): number {
+  const wrapped = phase - Math.floor(phase)
+
+  return (1 - Math.cos(wrapped * TAU)) / 2
+}
+
+/**
+ * Where the moon stands.
+ *
+ * The moon is modelled as a body on the sun's own arc, displaced by the month
+ * in the two ways a month displaces it: a phase *behind* in hour angle, so a
+ * full moon transits at midnight and a first quarter at dusk, and a lunation
+ * *ahead* along the ecliptic, so its declination is the sun's a month later.
+ *
+ * That second term is the one worth having. Share the sun's declination and the
+ * midwinter full moon skims the horizon the midwinter sun does, which is the
+ * opposite of what a northern winter actually looks like — the low sun and the
+ * high full moon are the same tilt seen from opposite ends of the ecliptic, and
+ * this is where that falls out instead of being drawn on.
+ *
+ * Here rather than in `nightsky.ts`, where it was written: this file is where
+ * every body on this coast's sky is *solved*, and the sky deck is where two of
+ * them are drawn. The disc needed only its own place; the key light needs it
+ * too — see {@link keyPlace} — and a module that draws a sky is the wrong thing
+ * for a lighting rig to depend on.
+ *
+ * `into` is the same bargain `DaylightState` makes: the answer is a record, and
+ * a record built fresh twice a frame is a record the lighting rig allocates for
+ * nothing. Callers that want a value simply leave it out.
+ */
+export function moonPlace (
+  time: number,
+  year: number,
+  latitude: number,
+  axialTilt: number,
+  into: SkyPlace = { height: 0, swing: 0 },
+): SkyPlace {
+  const phase = moonPhase(year)
+  const dec   = declination(year + phase, axialTilt)
+  const hour  = time - phase
+
+  into.height = bodyHeight(hour, dec, latitude)
+  into.swing  = bodySwing(hour, dec, latitude)
+
+  return into
+}
+
+/**
+ * Sine of the elevation the moon has to clear before it lights anything.
+ *
+ * About five degrees. Not an atmospheric extinction curve — it is the same
+ * thing a horizon does to a low moon, which is that a hill, a wood or a bank of
+ * cloud is in front of it long before it actually sets, and a key light that
+ * rakes the scape from a moon sitting on the sea is a lighting bug rather than
+ * a night.
+ */
+const MOON_RISE = 0.09
+
+/**
+ * How much of the key light the moon holds, 0..1.
+ *
+ * Three facts about one instant, multiplied, in the shape {@link goldenAmount}
+ * and `rainbow.bowLight` are both written in:
+ *
+ * - **the moon has to be up.** Its own arc, solved a lunation along the
+ *   ecliptic, which is why a bright moon is not the same thing as a lit ground:
+ *   half of every month the full moon is under the sea at the hour a capture
+ *   asks for.
+ * - **it has to be lit.** The same illumination the disc is drawn from, so the
+ *   shape in the sky and the light on the ground can never disagree — a new
+ *   moon is a black night whatever height it stands at.
+ * - **the sun has to be out of the way.** Astronomical twilight, the gate the
+ *   stars and the aurora already open on, rather than a second curve of its
+ *   own: a midsummer midnight at this latitude has no dark in it, so it has no
+ *   moonlight in it either, and that falls out of the geometry.
+ *
+ * There is deliberately no strength in it: this is how much of the moon's light
+ * is reaching the ground this hour, and `daylight.moonStrength` is how much
+ * light that is. Multiply the two and you have the moon's own contribution to
+ * the key, in the units the sun's `dayAmount` is already in — which is what
+ * {@link keyShare} then weighs it against.
+ */
+export function moonAmount (height: number, phase: number, dark: number): number {
+  const up = smoothstep(0, MOON_RISE, height)
+
+  return up * moonIllumination(phase) * Math.min(1, Math.max(0, dark))
+}
+
+/**
+ * How much of the key light's *place* the moon holds, 0..1.
+ *
+ * The two bodies weighed against each other rather than a curve of the clock:
+ * whichever is actually putting more light on the coast is where the shadows
+ * fall from, and a dusk with both up is somewhere between the two. Both terms
+ * are shares of the noon sun, so the comparison is in one unit.
+ *
+ * The `total` guard is what makes `daylight.moonStrength: 0` a real off switch
+ * rather than a dimmer. With no moonlight in the sum there is nothing to pull
+ * the key round, so it stays exactly where the sun left it — which is the night
+ * this scape had before the moon was a light — and with no light of any kind in
+ * the sum the answer is the same, rather than a nought over nought.
+ */
+export function keyShare (day: number, lunar: number): number {
+  const sun   = Math.max(0, day)
+  const moon  = Math.max(0, lunar)
+  const total = sun + moon
+
+  return total > 0 ? moon / total : 0
+}
+
+/**
+ * Where the key light stands, between the sun's place and the moon's.
+ *
+ * The scape has **one** shadow-casting light and two bodies that can be up at
+ * once, so dusk is a crossfade rather than a second rig — and the crossfade is
+ * done here, in the sky, rather than on the two direction vectors. Lerping
+ * vectors is the obvious version and it is wrong: two bodies on opposite
+ * bearings cancel halfway through, and the key light swings up to the zenith
+ * and back down for a few frames of every moonrise.
+ *
+ * An elevation and a bearing have no such hole in them. The light walks from
+ * the one body to the other along the sky, the short way round, which is also
+ * what it looks like it should do.
+ *
+ * `into` is there for the reason {@link moonPlace} has one.
+ */
+export function keyPlace (
+  sun: SkyPlace,
+  moon: SkyPlace,
+  share: number,
+  into: SkyPlace = { height: 0, swing: 0 },
+): SkyPlace {
+  const amount = Math.min(1, Math.max(0, share))
+  const turn   = moon.swing - sun.swing
+  const short  = turn - Math.round(turn / TAU) * TAU
+
+  into.height = sun.height + (moon.height - sun.height) * amount
+  into.swing  = sun.swing + short * amount
+
+  return into
 }
 
 /** Sine of eighteen degrees under the horizon — the end of astronomical twilight. */
@@ -229,6 +428,11 @@ export function createDaylight (config: LiveConfig): Daylight {
   const dusk       = new Color(authored.daylight.dusk)
   const night      = new Color(authored.daylight.night)
   const deepNight  = new Color(authored.daylight.night).multiplyScalar(0.32)
+  // The key light's colour once the moon has it, and it is deliberately the
+  // *disc's* own colour rather than a ninth entry beside the eight above: the
+  // face in the sky and the light it throws on the snow are one thing, and a
+  // scape that could tune them apart is a scape where they can disagree.
+  const moonFace   = new Color(authored.palette.moon)
 
   const state: DaylightState = {
     direction:    new Vector3(),
@@ -241,8 +445,16 @@ export function createDaylight (config: LiveConfig): Daylight {
     hemiStrength: authored.atmosphere.hemiStrength,
     environment:  0.34,
     day:          1,
+    moon:         0,
     dark:         0,
   }
+
+  // The three sky places the crossfade walks between. `sample` is called twice a
+  // frame — once by the atmosphere and once by the water — so they are held
+  // rather than built, which is what keeps the promise above.
+  const sunAt  = { height: 0, swing: 0 }
+  const moonAt = { height: 0, swing: 0 }
+  const keyAt  = { height: 0, swing: 0 }
 
   return {
     state,
@@ -255,21 +467,37 @@ export function createDaylight (config: LiveConfig): Daylight {
       const { latitude, axialTilt }  = daylight
       const phase                    = time - Math.floor(time)
       const height                   = sunHeight(phase, year, latitude, axialTilt)
-      const bearing                  = daylight.azimuth * DEGREES +
-        sunSwing(phase, year, latitude, axialTilt)
-      const flat                    = Math.sqrt(Math.max(0, 1 - height * height))
 
-      state.direction
-        .set(Math.sin(bearing) * flat, Math.max(height, FLOOR_Y), Math.cos(bearing) * flat)
-        .normalize()
+      sunAt.height = height
+      sunAt.swing  = sunSwing(phase, year, latitude, axialTilt)
+      moonPlace(phase, year, latitude, axialTilt, moonAt)
 
       const day    = dayAmount(height)
       const golden = goldenAmount(height)
       const dark   = 1 - day
       const lift   = daylight.nightLift * dark
+      // Astronomical twilight, which is the gate the moon opens on and a
+      // different depth of the same night from `dark` above — see `darkAmount`.
+      const astro = darkAmount(height)
+      const lunar = moonAmount(moonAt.height, moonPhase(year), astro) * daylight.moonStrength
+      const share = keyShare(day, lunar)
+
+      keyPlace(sunAt, moonAt, share, keyAt)
+
+      const bearing = daylight.azimuth * DEGREES + keyAt.swing
+      const flat    = Math.sqrt(Math.max(0, 1 - keyAt.height * keyAt.height))
+
+      state.direction
+        .set(
+          Math.sin(bearing) * flat,
+          Math.max(keyAt.height, FLOOR_Y),
+          Math.cos(bearing) * flat,
+        )
+        .normalize()
 
       state.sun.copy(noonSun).lerp(dusk, golden * 0.85)
         .lerp(night, dark)
+        .lerp(moonFace, share * MOON_TINT)
       state.horizon.copy(noonSky).lerp(dusk, golden * 0.7)
         .lerp(night, dark * 0.92)
       state.skyTop.copy(noonTop).lerp(dusk, golden * 0.3)
@@ -278,11 +506,17 @@ export function createDaylight (config: LiveConfig): Daylight {
         .lerp(night, dark)
       state.hemiGround.copy(noonGround).lerp(deepNight, dark * 0.8)
 
-      state.sunStrength  = atmosphere.sunStrength * (0.05 + 0.95 * day) + lift * 0.4
+      // The key light's own budget, and the term that used to be a flat 0.05
+      // floor standing in for a moon nobody had solved. It is three sources now
+      // and each of them can reach zero: the sun, the moon that is actually up
+      // this week, and the starlight a moonless night still has in it.
+      state.sunStrength = atmosphere.sunStrength *
+        (day + lunar + STARLIGHT * astro) + lift * 0.4
       state.hemiStrength = atmosphere.hemiStrength * (0.3 + 0.7 * day) + lift
       state.environment  = 0.34 * (0.18 + 0.82 * day) + lift * 0.25
       state.day          = day
-      state.dark         = darkAmount(height)
+      state.moon         = lunar
+      state.dark         = astro
 
       return state
     },

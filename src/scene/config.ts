@@ -1825,7 +1825,7 @@ export interface ScapeConfig extends DykeConfig, ForceConfig, GuardConfig, KelpC
    * The tide.
    *
    * Not a clock of its own: the hour and the week already make a month between
-   * them (see `nightsky.moonPhase`), and the tide is that month read from
+   * them (see `daylight.moonPhase`), and the tide is that month read from
    * underneath. Everything here is metres and hours — a tide is a real-world
    * quantity, so none of it scales with `archipelago.worldSize`.
    *
@@ -2021,8 +2021,34 @@ export interface ScapeConfig extends DykeConfig, ForceConfig, GuardConfig, KelpC
     /** Night tint, pulled toward once the sun is under it. */
     night: number
 
-    /** Ambient floor at night, so midnight reads as moonlit rather than as black. */
+    /** Ambient floor at night, so midnight reads as lit rather than as black. */
     nightLift: number
+
+    /**
+     * How much light the moon gives back to the ground, as a share of the noon
+     * sun.
+     *
+     * The switch for moonlight, and the only one: 0 is a night lit by nothing
+     * but {@link nightLift} and the stars, which is the night this scape had
+     * when the key light was the set sun held just over the horizon. Anything
+     * above it hands the key light to the moon once the sun is properly down —
+     * its own bearing, its own elevation, its own pale colour — so the shadows
+     * swing round to the body that is actually up and the sound gets a moon
+     * track instead of a sun's ghost.
+     *
+     * Deliberately not `nightsky.moonlight`, which is how brightly the *disc*
+     * burns in the sky. A disc is a thing you look at and this is a thing you
+     * see by: one is killed by the cloud the other shines through, and a scape
+     * that tuned them together could never have a bright moon over a dark
+     * ground. What they do share is the arc and the phase, so neither can be
+     * lighting the coast from somewhere the other is not.
+     *
+     * What is *on* on any given night is not here. The share of the key light
+     * the moon has taken is solved from how high it stands and how much of it
+     * is lit — see `daylight.moonAmount` — so a new moon and a moon under the
+     * sea are both dark without a second knob saying so.
+     */
+    moonStrength: number
   }
 
   /**
@@ -3059,14 +3085,21 @@ export const SCAPE_CONFIG = {
   // enough to the fixed 52° arc this replaced that the frame the scape was
   // graded on is still the frame it opens with.
   daylight: {
-    time:      0.42,
-    speed:     0.4,
-    azimuth:   -106,
-    latitude:  68,
-    axialTilt: 23.44,
-    dusk:      0xff9c56,
-    night:     0x2b3d5e,
-    nightLift: 0.4,
+    time:         0.42,
+    speed:        0.4,
+    azimuth:      -106,
+    latitude:     68,
+    axialTilt:    23.44,
+    dusk:         0xff9c56,
+    night:        0x2b3d5e,
+    nightLift:    0.4,
+    // A sixth of the noon sun at full moon, which is nothing like the
+    // four-hundred-thousandth the real one manages and is the number this
+    // scape's night wants: the ambient floor is already up at 0.4, so a key
+    // light much under this reads as a flat grey rather than as a direction,
+    // and much over it is a second daylight. Scaled by the phase and the
+    // altitude on top, so a quarter moon low over the sound gets a tenth of it.
+    moonStrength: 0.16,
   },
   // Opens at midsummer, which is the season the scape was graded in — at
   // `time: 0.5` the year contributes exactly nothing and the first frame is the

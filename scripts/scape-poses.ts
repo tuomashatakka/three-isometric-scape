@@ -311,6 +311,75 @@ export const TOURS: Record<string, Pose[]> = {
   ],
 
   /**
+   * The night the moon lights, and the two nights it does not.
+   *
+   * The tour cannot see this system, and the reason is the frame rather than
+   * the hour: `night` is already pinned at an autumn midnight, but it is pinned
+   * at the tour's 1400 m view, where the archipelago is a handful of dark
+   * thumbprints under a sky full of cloud, aurora and stars. The moonlight
+   * lands on *ground*, and there are barely a hundred pixels of ground in that
+   * picture. It reports 0.11 % changed, which is true and says nothing.
+   *
+   * So these are the steading's own frame at the same instant, and they are
+   * three answers rather than one, because a night with no moonlight in it has
+   * two quite different causes and one appearance:
+   *
+   * - `moon` is the yard with a waning gibbous 35° up and 80 % lit, which is
+   *   what the tour's night clock actually has over it
+   * - `moon-none` is the identical frame at `daylight.moonStrength: 0` — the
+   *   night this scape had, with the key light left where the sun set — and it
+   *   is the control every claim here is read against
+   * - `moon-new` is the same yard three weeks later at a **new** moon, where
+   *   the disc is with the sun and thirty degrees under the sea with it. It
+   *   should look like `moon-none` and it must do so for a reason in the sky
+   *   rather than a reason in the config, which is the one thing a picture of
+   *   `moon-none` on its own cannot tell you
+   *
+   * `moon-reach` is the wider frame, and it is here to show what the moonlight
+   * does *not* reach as much as what it does: the ground out to the coast is
+   * lit and the sound beyond it is as black as it ever was, because the lake's
+   * specular lobe is gated on `uDay` in `WATER_GLSL` and the moon is not the
+   * sun. The lobe is pointed at the moon; the term in front of it is zero.
+   *
+   * Reach for it whenever the change touches `daylight.moonStrength`, the arcs
+   * in [`daylight.ts`](src/scene/daylight.ts), the night half of the sky
+   * palette, or anything that reads `DaylightState.direction`.
+   */
+  moon: [
+    {
+      name:   'moon',
+      zoom:   48,
+      time:   0.02,
+      season: 0.78,
+      set:    [ 'camera.focusX=-13', 'camera.focusZ=5' ],
+    },
+    {
+      name:   'moon-none',
+      zoom:   48,
+      time:   0.02,
+      season: 0.78,
+      set:    [ 'camera.focusX=-13', 'camera.focusZ=5', 'daylight.moonStrength=0' ],
+    },
+    // Ten lunations into the year clock, which is a new moon to three decimal
+    // places — solved from `LUNATIONS` rather than hunted for, so it stays a new
+    // moon if the month is ever retuned.
+    {
+      name:   'moon-new',
+      zoom:   48,
+      time:   0.02,
+      season: 10 / 12.368,
+      set:    [ 'camera.focusX=-13', 'camera.focusZ=5' ],
+    },
+    {
+      name:   'moon-reach',
+      zoom:   90,
+      time:   0.02,
+      season: 0.78,
+      set:    [ 'camera.focusX=-30', 'camera.focusZ=-24' ],
+    },
+  ],
+
+  /**
    * The rocks in the open sea, from close enough to be measured.
    *
    * Added for the reason `beacon`, `coast` and `steading` were, and it is the

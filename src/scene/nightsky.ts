@@ -12,11 +12,10 @@ import type { OrthographicCamera } from 'three'
 import { createSeededRng, defineModule } from 'threejs-scene'
 import type { SeededRng } from 'threejs-scene'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
-import { bodyHeight, bodySwing, declination } from './daylight.ts'
+import { moonIllumination, moonPhase, moonPlace } from './daylight.ts'
 import type { DaylightState } from './daylight.ts'
 import type { AtmosphereQuality } from './quality.ts'
 import { deckFocus, deckReveal, deckViewSize } from './sky-deck.ts'
-import type { SkyPlace } from './sky-deck.ts'
 import { LAYER } from './layers.ts'
 
 
@@ -31,65 +30,6 @@ export interface NightSkyOptions {
 
 const TAU     = Math.PI * 2
 const DEGREES = Math.PI / 180
-
-/**
- * Synodic months in one turn of the year clock.
- *
- * The moon is not a fourth clock. It is the two the scape already has, read
- * against each other: this is the only number the month costs, and it is a
- * count of lunations in a year rather than a phase and a speed of its own. Turn
- * `season.speed` down and the month slows with the year; stop it and the moon
- * holds its phase, which is what a capture needs and why there is nothing to
- * add to `STILL` for it.
- */
-export const LUNATIONS = 12.368
-
-/** Phase of the month at a phase of the year, 0..1. 0 is new, 0.5 is full. */
-export function moonPhase (year: number): number {
-  const turns = year * LUNATIONS
-
-  return turns - Math.floor(turns)
-}
-
-/**
- * Lit fraction of the disc at a phase of the month, 0..1.
- *
- * The projected width of a lit hemisphere, which is the same cosine the
- * terminator in the fragment shader is drawn from — one expression, so the
- * brightness of the moon and the shape of it can never disagree.
- */
-export function moonIllumination (phase: number): number {
-  const wrapped = phase - Math.floor(phase)
-
-  return (1 - Math.cos(wrapped * TAU)) / 2
-}
-
-/**
- * Where the moon stands.
- *
- * The moon is modelled as a body on the sun's own arc, displaced by the month
- * in the two ways a month displaces it: a phase *behind* in hour angle, so a
- * full moon transits at midnight and a first quarter at dusk, and a lunation
- * *ahead* along the ecliptic, so its declination is the sun's a month later.
- *
- * That second term is the one worth having. Share the sun's declination and the
- * midwinter full moon skims the horizon the midwinter sun does, which is the
- * opposite of what a northern winter actually looks like — the low sun and the
- * high full moon are the same tilt seen from opposite ends of the ecliptic, and
- * this is where that falls out instead of being drawn on.
- */
-export function moonPlace (
-  time: number,
-  year: number,
-  latitude: number,
-  axialTilt: number,
-): SkyPlace {
-  const phase = moonPhase(year)
-  const dec   = declination(year + phase, axialTilt)
-  const hour  = time - phase
-
-  return { height: bodyHeight(hour, dec, latitude), swing: bodySwing(hour, dec, latitude) }
-}
 
 /**
  * How bright the star field is, for a sky of a given darkness.

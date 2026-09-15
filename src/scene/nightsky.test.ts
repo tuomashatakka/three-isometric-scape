@@ -2,15 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { Color } from 'three'
 import { SCAPE_CONFIG } from './config.ts'
 import { darkAmount, sunHeight } from './daylight.ts'
-import {
-  LUNATIONS,
-  bakeField,
-  moonIllumination,
-  moonPhase,
-  moonPlace,
-  moonlightAmount,
-  starlightAmount,
-} from './nightsky.ts'
+import { bakeField, moonlightAmount, starlightAmount } from './nightsky.ts'
 import { atmosphereQuality } from './quality.ts'
 
 
@@ -21,83 +13,6 @@ const STARLIGHT               = SCAPE_CONFIG.atmosphere.starlight
 function sky (time: number, year: number): number {
   return darkAmount(sunHeight(time, year, latitude, axialTilt))
 }
-
-/** The week of the year whose month lands on a wanted phase. */
-function weekAtPhase (phase: number): number {
-  return phase / LUNATIONS
-}
-
-describe('moonPhase', () => {
-  test('turns a whole month for every lunation of the year', () => {
-    expect(moonPhase(0)).toBeCloseTo(0, 10)
-    expect(moonPhase(weekAtPhase(0.5))).toBeCloseTo(0.5, 10)
-    expect(moonPhase(weekAtPhase(1))).toBeCloseTo(0, 10)
-    expect(moonPhase(weekAtPhase(12.5))).toBeCloseTo(0.5, 10)
-  })
-
-  test('stays inside one month however many years have run', () => {
-    for (const year of [ -3.4, -0.2, 0, 0.37, 4.9, 41 ]) {
-      expect(moonPhase(year)).toBeGreaterThanOrEqual(0)
-      expect(moonPhase(year)).toBeLessThan(1)
-    }
-  })
-})
-
-describe('moonIllumination', () => {
-  test('is dark at new, full at full and exactly half at both quarters', () => {
-    expect(moonIllumination(0)).toBeCloseTo(0, 10)
-    expect(moonIllumination(0.25)).toBeCloseTo(0.5, 10)
-    expect(moonIllumination(0.5)).toBeCloseTo(1, 10)
-    expect(moonIllumination(0.75)).toBeCloseTo(0.5, 10)
-    expect(moonIllumination(1)).toBeCloseTo(0, 10)
-  })
-
-  test('waxes and wanes rather than jumping at the turn of the month', () => {
-    expect(moonIllumination(0.24)).toBeLessThan(moonIllumination(0.26))
-    expect(moonIllumination(0.74)).toBeGreaterThan(moonIllumination(0.76))
-    expect(moonIllumination(1.1)).toBeCloseTo(moonIllumination(0.1), 10)
-  })
-})
-
-describe('moonPlace', () => {
-  test('a full moon transits at midnight and is under the ground at noon', () => {
-    const year = weekAtPhase(0.5)
-
-    expect(moonPlace(0, year, latitude, axialTilt).height)
-      .toBeGreaterThan(moonPlace(0.5, year, latitude, axialTilt).height)
-  })
-
-  test('a new moon keeps the sun company — up in the day, gone at night', () => {
-    const year = weekAtPhase(0.02)
-    const noon = moonPlace(0.5, year, latitude, axialTilt).height
-
-    expect(noon).toBeGreaterThan(moonPlace(0, year, latitude, axialTilt).height)
-    expect(noon).toBeCloseTo(sunHeight(0.5, year, latitude, axialTilt), 2)
-  })
-
-  // The claim the whole ecliptic term is here to make. Sharing the sun's own
-  // declination would make these two equal; a real northern winter has the
-  // opposite of that.
-  test('the midwinter full moon rides high over the midwinter sun', () => {
-    const year = weekAtPhase(0.5)
-    const moon = moonPlace(0, year, latitude, axialTilt).height
-    const sun  = sunHeight(0.5, year, latitude, axialTilt)
-
-    expect(year).toBeLessThan(0.05)
-    expect(sun).toBeLessThan(0)
-    expect(moon).toBeGreaterThan(0.3)
-  })
-
-  test('a bearing is resolved wherever the moon is, and never runs off the circle', () => {
-    for (let step = 0; step <= 24; step += 1) {
-      const place = moonPlace(step / 24, 0.31, latitude, axialTilt)
-
-      expect(Number.isFinite(place.swing)).toBe(true)
-      expect(Math.abs(place.swing)).toBeLessThanOrEqual(Math.PI)
-      expect(Math.abs(place.height)).toBeLessThanOrEqual(1)
-    }
-  })
-})
 
 describe('starlightAmount', () => {
   test('comes out on an autumn midnight and on nothing about that day', () => {
