@@ -186,6 +186,10 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         range('daylight.axialTilt', 'axial tilt', 0, 40, 0.1),
         range('daylight.azimuth', 'noon bearing', -180, 180, 1),
         range('daylight.nightLift', 'night lift', 0, 1, 0.01),
+        // Live like the rest of them, and the one to drag at `time: 0.02`: it
+        // moves the shadows as well as the brightness, because what it turns up
+        // is a body standing somewhere the sun is not.
+        range('daylight.moonStrength', 'moonlight', 0, 0.6, 0.01),
       ],
     },
     {

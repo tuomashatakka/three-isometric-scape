@@ -1,4 +1,13 @@
-import { sunHeight } from '../src/scene/daylight.ts'
+import {
+  darkAmount,
+  dayAmount,
+  keyShare,
+  moonAmount,
+  moonIllumination,
+  moonPhase,
+  moonPlace,
+  sunHeight,
+} from '../src/scene/daylight.ts'
 import { bowLight, bowPeak, bowPlace } from '../src/scene/rainbow.ts'
 import { stormLive, stormPeak, stormSchedule, stormSites } from '../src/scene/storm.ts'
 import { snowAmount } from '../src/scene/season.ts'
@@ -106,5 +115,37 @@ export function rainbowStats (config: ScapeConfig): MapStats['rainbow'] {
     now:   round(light(config.weather.time), 3),
     best:  round(light(peak), 3),
     at:    round(peak, 3),
+  }
+}
+
+/**
+ * The moon, as a light rather than as a disc.
+ *
+ * The one instrument this system has, and it needs one badly: every way
+ * moonlight goes quiet is a fact about an arc and invisible in a still. A night
+ * pose with no moon up photographs exactly like a night pose with the knob at
+ * zero, and a run reading the second picture concludes the first is broken.
+ *
+ * `up` is where the moon actually stands at the hour the config is parked on,
+ * `lit` is how much of the disc the month has left, `lights` is the two of them
+ * through the twilight gate — and `share` is the finding: how much of the key
+ * light the moon has taken, which is how far the shadows have swung off the
+ * bearing the sun set on. A `share` of 0 on a dark night is a coast lit by a sun
+ * that is under the sea.
+ */
+export function moonStats (config: ScapeConfig): MapStats['moon'] {
+  const { latitude, axialTilt, time, moonStrength } = config.daylight
+  const year                                        = config.season.time
+  const phase                                       = moonPhase(year)
+  const place                                       = moonPlace(time, year, latitude, axialTilt)
+  const sun                                         = sunHeight(time, year, latitude, axialTilt)
+  const lights                                      = moonAmount(place.height, phase, darkAmount(sun))
+
+  return {
+    phase:  round(phase, 3),
+    lit:    round(moonIllumination(phase), 2),
+    up:     round(elevation(place.height)),
+    lights: round(lights, 3),
+    share:  round(keyShare(dayAmount(sun), lights * moonStrength), 2),
   }
 }

@@ -1,18 +1,31 @@
 import { describe, expect, test } from 'bun:test'
+import { Color } from 'three'
 import { SCAPE_CONFIG } from './config.ts'
 import {
+  LUNATIONS,
   createDaylight,
   darkAmount,
   dayAmount,
   dayLength,
   declination,
   goldenAmount,
+  keyPlace,
+  keyShare,
+  moonAmount,
+  moonIllumination,
+  moonPhase,
+  moonPlace,
   sunHeight,
   sunSwing,
 } from './daylight.ts'
 
 
 const { latitude, axialTilt } = SCAPE_CONFIG.daylight
+
+/** The week of the year whose month lands on a wanted phase. */
+function weekAtPhase (phase: number): number {
+  return phase / LUNATIONS
+}
 
 const MIDWINTER = 0
 const SPRING    = 0.25
@@ -265,5 +278,209 @@ describe('createDaylight', () => {
     expect(twice.day).toBe(once.day)
     expect(twice.dark).toBe(once.dark)
     expect(twice.direction.x).toBe(once.direction.x)
+  })
+})
+
+describe('moonPhase', () => {
+  test('turns a whole month for every lunation of the year', () => {
+    expect(moonPhase(0)).toBeCloseTo(0, 10)
+    expect(moonPhase(weekAtPhase(0.5))).toBeCloseTo(0.5, 10)
+    expect(moonPhase(weekAtPhase(1))).toBeCloseTo(0, 10)
+    expect(moonPhase(weekAtPhase(12.5))).toBeCloseTo(0.5, 10)
+  })
+
+  test('stays inside one month however many years have run', () => {
+    for (const year of [ -3.4, -0.2, 0, 0.37, 4.9, 41 ]) {
+      expect(moonPhase(year)).toBeGreaterThanOrEqual(0)
+      expect(moonPhase(year)).toBeLessThan(1)
+    }
+  })
+})
+
+describe('moonIllumination', () => {
+  test('is dark at new, full at full and exactly half at both quarters', () => {
+    expect(moonIllumination(0)).toBeCloseTo(0, 10)
+    expect(moonIllumination(0.25)).toBeCloseTo(0.5, 10)
+    expect(moonIllumination(0.5)).toBeCloseTo(1, 10)
+    expect(moonIllumination(0.75)).toBeCloseTo(0.5, 10)
+    expect(moonIllumination(1)).toBeCloseTo(0, 10)
+  })
+
+  test('waxes and wanes rather than jumping at the turn of the month', () => {
+    expect(moonIllumination(0.24)).toBeLessThan(moonIllumination(0.26))
+    expect(moonIllumination(0.74)).toBeGreaterThan(moonIllumination(0.76))
+    expect(moonIllumination(1.1)).toBeCloseTo(moonIllumination(0.1), 10)
+  })
+})
+
+describe('moonPlace', () => {
+  test('a full moon transits at midnight and is under the ground at noon', () => {
+    const year = weekAtPhase(0.5)
+
+    expect(moonPlace(0, year, latitude, axialTilt).height)
+      .toBeGreaterThan(moonPlace(0.5, year, latitude, axialTilt).height)
+  })
+
+  test('a new moon keeps the sun company — up in the day, gone at night', () => {
+    const year = weekAtPhase(0.02)
+    const noon = moonPlace(0.5, year, latitude, axialTilt).height
+
+    expect(noon).toBeGreaterThan(moonPlace(0, year, latitude, axialTilt).height)
+    expect(noon).toBeCloseTo(sunHeight(0.5, year, latitude, axialTilt), 2)
+  })
+
+  // The claim the whole ecliptic term is here to make. Sharing the sun's own
+  // declination would make these two equal; a real northern winter has the
+  // opposite of that.
+  test('the midwinter full moon rides high over the midwinter sun', () => {
+    const year = weekAtPhase(0.5)
+    const moon = moonPlace(0, year, latitude, axialTilt).height
+    const sun  = sunHeight(0.5, year, latitude, axialTilt)
+
+    expect(year).toBeLessThan(0.05)
+    expect(sun).toBeLessThan(0)
+    expect(moon).toBeGreaterThan(0.3)
+  })
+
+  test('a bearing is resolved wherever the moon is, and never runs off the circle', () => {
+    for (let step = 0; step <= 24; step += 1) {
+      const place = moonPlace(step / 24, 0.31, latitude, axialTilt)
+
+      expect(Number.isFinite(place.swing)).toBe(true)
+      expect(Math.abs(place.swing)).toBeLessThanOrEqual(Math.PI)
+      expect(Math.abs(place.height)).toBeLessThanOrEqual(1)
+    }
+  })
+})
+
+describe('moonAmount', () => {
+  test('is the lit share of the disc with the moon up and the sky properly dark', () => {
+    expect(moonAmount(0.5, 0.5, 1)).toBeCloseTo(1, 6)
+    expect(moonAmount(0.5, 0.25, 1)).toBeCloseTo(0.5, 6)
+  })
+
+  test('a new moon lights nothing however high it stands', () => {
+    expect(moonAmount(0.9, 0, 1)).toBeCloseTo(0, 10)
+  })
+
+  test('a moon under the sea lights nothing however full it is', () => {
+    expect(moonAmount(-0.01, 0.5, 1)).toBe(0)
+    expect(moonAmount(-0.6, 0.5, 1)).toBe(0)
+  })
+
+  // The gate the stars and the aurora already open on, and the reason there is
+  // no curve of the year here: a midsummer midnight at this latitude never gets
+  // dark, so it never gets a moonlit hillside either.
+  test('a sky the sun has not left keeps its moonlight off the ground', () => {
+    const summer = darkAmount(sunHeight(0, MIDSUMMER, latitude, axialTilt))
+    const autumn = darkAmount(sunHeight(0.02, 0.78, latitude, axialTilt))
+
+    expect(moonAmount(0.5, 0.5, summer)).toBe(0)
+    expect(moonAmount(0.5, 0.5, autumn)).toBeGreaterThan(0.9)
+  })
+})
+
+describe('keyShare', () => {
+  test('is the brighter of the two bodies, weighed in one unit', () => {
+    expect(keyShare(1, 0)).toBe(0)
+    expect(keyShare(0, 0.1)).toBe(1)
+    expect(keyShare(0.1, 0.1)).toBeCloseTo(0.5, 12)
+  })
+
+  // The house rule, as a fact about the numbers: an effect is off when its
+  // strength is zero, and a moon worth no light must not move a shadow either.
+  test('no moonlight leaves the key exactly where the sun left it', () => {
+    expect(keyShare(0, 0)).toBe(0)
+    expect(keyShare(0.4, 0)).toBe(0)
+    expect(keyShare(-1, -1)).toBe(0)
+  })
+})
+
+describe('keyPlace', () => {
+  const sun  = { height: -0.4, swing: 2.9 }
+  const moon = { height: 0.58, swing: -2.9 }
+
+  /** A bearing is a direction rather than a number: one turn round is the same one. */
+  const bearing = (swing: number): number => Math.atan2(Math.sin(swing), Math.cos(swing))
+
+  test('is one body or the other at the ends of the crossfade', () => {
+    expect(bearing(keyPlace(sun, moon, 0).swing)).toBeCloseTo(sun.swing, 12)
+    expect(keyPlace(sun, moon, 0).height).toBeCloseTo(sun.height, 12)
+    expect(bearing(keyPlace(sun, moon, 1).swing)).toBeCloseTo(moon.swing, 12)
+    expect(keyPlace(sun, moon, 1).height).toBeCloseTo(moon.height, 12)
+  })
+
+  // The reason the crossfade is done in the sky rather than on two vectors.
+  // Halfway between two bodies a quarter turn either side of due north is due
+  // north — not the zenith, which is where lerping the vectors would put it.
+  test('walks the short way round the compass rather than back through noon', () => {
+    const half = keyPlace(sun, moon, 0.5)
+
+    expect(Math.abs(half.swing)).toBeGreaterThan(Math.PI - 1e-9)
+    expect(half.height).toBeCloseTo((sun.height + moon.height) / 2, 12)
+  })
+
+  test('holds a share outside the crossfade at its ends', () => {
+    expect(bearing(keyPlace(sun, moon, -3).swing)).toBeCloseTo(sun.swing, 12)
+    expect(bearing(keyPlace(sun, moon, 4).swing)).toBeCloseTo(moon.swing, 12)
+  })
+})
+
+describe('the key light, through a night that has a moon in it', () => {
+  // The tour's own night frame: an autumn midnight with the sun 26° under and a
+  // waning gibbous moon a third of the way up the sky.
+  const NIGHT = { time: 0.02, year: 0.78 }
+
+  const lit = (moonStrength: number) => createDaylight(() => ({
+    ...SCAPE_CONFIG,
+    daylight: { ...SCAPE_CONFIG.daylight, moonStrength },
+  })).sample(NIGHT.time, NIGHT.year)
+
+  test('stands on the moon rather than on a sun that set hours ago', () => {
+    const place   = moonPlace(NIGHT.time, NIGHT.year, latitude, axialTilt)
+    const bearing = SCAPE_CONFIG.daylight.azimuth * Math.PI / 180 + place.swing
+    const sky     = lit(SCAPE_CONFIG.daylight.moonStrength)
+
+    expect(sky.moon).toBeGreaterThan(0.1)
+    expect(sky.direction.x).toBeCloseTo(Math.sin(bearing) * Math.sqrt(1 - place.height ** 2), 2)
+    expect(sky.direction.y).toBeCloseTo(place.height, 2)
+  })
+
+  test('lights the ground harder than the floor it replaced, and pales with it', () => {
+    const dark  = lit(0)
+    const moon  = lit(SCAPE_CONFIG.daylight.moonStrength)
+    const white = new Color(SCAPE_CONFIG.palette.moon)
+
+    expect(moon.sunStrength).toBeGreaterThan(dark.sunStrength * 2)
+    expect(moon.sun.r).toBeGreaterThan(dark.sun.r)
+    expect(Math.abs(moon.sun.b - white.b)).toBeLessThan(Math.abs(dark.sun.b - white.b))
+  })
+
+  test('the knob at zero is the night this scape had, shadows included', () => {
+    const dark    = lit(0)
+    const bearing = SCAPE_CONFIG.daylight.azimuth * Math.PI / 180 +
+      sunSwing(NIGHT.time, NIGHT.year, latitude, axialTilt)
+
+    const height = sunHeight(NIGHT.time, NIGHT.year, latitude, axialTilt)
+    const flat   = Math.sqrt(1 - height ** 2)
+
+    expect(dark.moon).toBe(0)
+    expect(dark.direction.y).toBeCloseTo(0.16 / Math.hypot(flat, 0.16), 6)
+    expect(Math.atan2(dark.direction.x, dark.direction.z)).toBeCloseTo(
+      Math.atan2(Math.sin(bearing), Math.cos(bearing)), 6,
+    )
+  })
+
+  test('noon is the light it always was, whatever the moon is doing', () => {
+    const on  = createDaylight(() => SCAPE_CONFIG).sample(0.5, MIDSUMMER)
+    const off = createDaylight(() => ({
+      ...SCAPE_CONFIG,
+      daylight: { ...SCAPE_CONFIG.daylight, moonStrength: 0 },
+    })).sample(0.5, MIDSUMMER)
+
+    expect(on.moon).toBe(0)
+    expect(on.sunStrength).toBeCloseTo(SCAPE_CONFIG.atmosphere.sunStrength, 12)
+    expect(on.sunStrength).toBe(off.sunStrength)
+    expect(on.direction.x).toBeCloseTo(off.direction.x, 12)
   })
 })

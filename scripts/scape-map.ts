@@ -20,7 +20,7 @@ import type { CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, Salting
 import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
 import { causewayOf, croftOf, dykeOf, peatOf, pierOf, shielingOf, smokehouseOf, tarnOf, weirOf, wreckOf } from './scape-map-sites.ts'
-import { rainbowStats, stormStats } from './scape-map-weather.ts'
+import { moonStats, rainbowStats, stormStats } from './scape-map-weather.ts'
 import { applyOverrides, parseArgs } from './args.ts'
 
 
@@ -460,6 +460,24 @@ export interface MapStats extends CompositionStats {
   }
 
   /**
+   * The moon, read as a light rather than as a disc.
+   *
+   * Here for the reason the bow is, and it catches the same class of silence:
+   * the moon is a body on an arc, so half of every month it is under the sea at
+   * the hour a pose asks for, and a night with no moon up photographs exactly
+   * like a night with the light switched off. `share` is how much of the key
+   * light it has taken — which is to say how far round the shadows have swung
+   * from the bearing the sun set on, and the one number a still cannot give.
+   */
+  moon: {
+    phase:  number
+    lit:    number
+    up:     number
+    lights: number
+    share:  number
+  }
+
+  /**
    * The rough grazing, and the flocks turned out on it.
    *
    * Here for the reason the colonies are, and rather more so: a sheep is a
@@ -825,6 +843,7 @@ export function surveyStats (
     },
     storm:    stormStats(config, survey),
     rainbow:  rainbowStats(config),
+    moon:     moonStats(config),
     hearths:  hearthStats(survey),
     windows:  windowStats(survey),
     colonies: {

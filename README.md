@@ -112,6 +112,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a solar arc solved from a latitude — a polar night at midwinter, a midnight sun at midsummer — with dusk and night palettes derived from it, plus seasonal growth, leaf turn, lying snow, sea ice, sea smoke, and rain that leaves the ground wet
 - an aurora over the dark half of the year, gated on the night and on how much night the week has
 - a star field that turns one whole revolution a day, with a galactic band across it, and a moon that keeps its own month — full at midnight, new at noon, and riding high over the midwinter sun
+- **and that moon lights the coast it is standing over**: once the sun is properly down the one key light crosses over to the body that is actually up — its own bearing, its own elevation, its own pale face — so the farm at midnight is a hillside with a shape on it rather than a row of silhouettes, while a new moon, or a moon under the sea, leaves the same night lit by starlight and nothing else
 - a semidiurnal tide raised by the moon the night sky already keeps: high water a couple of hours behind its transit, springs on the new moon and the full one, neaps at the quarters, walking the waterline up and down through the wrack band on every rock in the guard
 - sunlight focused into a moving net on the bottom of every shallow in the archipelago — brightest with the sun overhead, gone under the horizon, gone under the ice, and hidden rather than aliased at a zoom that cannot resolve a cell
 - view-reactive fog, a gradient sky, deterministic drifting ground mist, and a sky cloud deck
@@ -194,7 +195,7 @@ src/
     ├── alpha-field.ts               the DataTexture the three sheet layers share
     ├── aurora.ts                   auroral veils over the dark half of the year
     ├── layers.ts                    the order the transparent half is painted in
-    ├── nightsky.ts                 the star field, the wheel it turns on, and the moon's month
+    ├── nightsky.ts                 the star field, the wheel it turns on, and the disc of the moon
     ├── sky-deck.ts                 what every hung sheet shares: the zoom reveal, the frame it follows
     ├── camera-controls.ts          pointer, touch, keyboard, focus, orbit
     ├── camera-follow.ts            riding a moving fleet instance instead of the map
@@ -219,7 +220,7 @@ src/
     ├── config-access.ts            who owns the config, before and after the mount
     ├── state-path.ts               writePath with structural sharing
     ├── create-isometric-scape.ts   app/module composition root
-    ├── daylight.ts                 clock one: the solar arc, its year, and the derived sky palette
+    ├── daylight.ts                 clock one: the arcs the sun and the moon run, and the sky and key light they make
     ├── season.ts                   clock two: growth, turn, snow, ice, sea smoke
     ├── weather.ts                  clock three: the front, what falls, how long it stays wet
     ├── wind.ts                     clock four: one bearing, one gust, one travel every scroll shares
@@ -1874,6 +1875,43 @@ the dune belt is where the sand this coast moves stops *on land*. this is where 
 **one island in six sheds nothing**, and it is a refusal rather than a stub. `shoals.margin` keeps a tip out of the next island's terrain patch, the ridge island's flank points straight down a sound twenty-odd metres wide, and what is left after the margin takes its cut is shorter than the bank is wide. `scape:map` says `shoal ridge NONE` and says why.
 
 **and the tour cannot see it, for a reason none of the others had.** a bank is not small — the home island's is longer in plan than the farm is wide — it is *submerged*, and what it does to a still is shift the water tint over a couple of per cent of the sea by a few points of blue under the haze the 1400 m frame already carries. five of the six tour poses come back `same`. `--poses shoal` is the frame that is right, and it carries the switch with it: `shoal-none` at `shoals.reach=0` is the sea this scape had before the banks, and it diffs `same` against `origin/main` to the pixel.
+
+## the light the moon gives back
+
+the scape has drawn a moon for several runs now — its own month, its own arc a lunation along the ecliptic, its own terminator — and raised a tide with it. what the moon did not do was **light anything**. the key light at night was the *sun*, held at `FLOOR_Y` just over the horizon on the bearing it had set on, coloured blue and turned down to a flat five per cent. that floor is where "moonlight" lived, and it was a word in a doc comment rather than a body in the sky.
+
+**there is one shadow-casting light and two bodies that can be up at once, so night is a crossfade rather than a second rig.** `daylight.moonStrength` is what the moon is worth as a light, in shares of the noon sun; `moonAmount` is how much of that is actually reaching the ground this hour — three facts multiplied, each of which can zero it:
+
+- **the moon has to be up.** its own arc, so half of every month it is under the sea at the hour a pose asks for
+- **it has to be lit.** the same `moonIllumination` the disc's terminator is drawn from, so the shape in the sky and the light on the ground can never disagree
+- **the sun has to be out of the way.** `darkAmount` — astronomical twilight, the gate the stars and the aurora already open on — rather than a second curve of the year. a midsummer midnight at 68° north has no dark in it, so it has no moonlit hillside in it either
+
+`keyShare` then weighs that against `dayAmount` **in the same unit**, and whichever body is putting more light on the coast is where the shadows fall from. that quotient is also what makes the knob a real switch: with no moonlight in the sum there is nothing to pull the key round, so at `moonStrength: 0` the light stays exactly where the sun left it and the night is the night this scape had.
+
+**the crossfade is done in the sky, not on two vectors, and that is the bug it avoids.** lerping the sun's direction toward the moon's is the obvious version: two unit vectors, one `lerp`, one `normalize`. it is also wrong, and visibly so — two bodies on opposite bearings cancel halfway through, and the key light swings up through the zenith and back down over a few frames of every moonrise. an elevation and a bearing have no such hole in them, so `keyPlace` walks the light from the one body to the other along the sky, the short way round the compass. `keyPlace.test.ts` states that as the fact it is: halfway between two bodies a quarter turn either side of due north is *due north*.
+
+**the moon's arc moved out of `nightsky.ts` and into `daylight.ts`.** it had been living beside the thing that draws it, which was right while the disc was its only consumer. it is not right now: `daylight.ts` is where every body on this coast's sky is *solved* — it already owned `bodyHeight`, `bodySwing` and `declination`, and `moonPlace` was three lines on top of them — and a lighting rig that has to import the module which draws a sky to find out where the moon is has the dependency upside down. `nightsky.ts` and `tide.ts` import the month from the arcs now, which is also the direction the import already ran.
+
+**what replaced the flat 0.05 is three terms, and each of them can reach zero.** the sun, the moon that is actually up this week, and `STARLIGHT` — three per cent, gated on astronomical twilight, which is the sky-over-snow a moonless northern night really does have and what keeps a shadow under the eaves at new moon. the old floor was added at *every* hour, midsummer noon included; this one is not, so the daylight half of the cycle is exactly the light it always was, to the bit. `noon` in the tour diffs `same`.
+
+**the colour is the disc's own.** `palette.moon` was already in the palette as the face of the moon, and the key light is pulled 70 % toward it at full crossfade rather than gaining a ninth entry beside the eight the arc lerps between. a face in the sky and the light it throws on snow are one thing, and a scape that could tune them apart is a scape where they can disagree.
+
+**everything downstream came along without being asked**, which is the payment for there being one authority. the shadow frustum is fitted to the same vector, so the shadows swing with the light rather than being re-solved. the ground bounce carries the key's colour and now its moon term too. the sun shafts take their virtual sun off the rig, so a moon low over the sound throws them. nothing in `post.ts` or `atmosphere.ts` needed a moon written into it.
+
+**the sound stayed black, and that is the one thing this run pointed at and did not move.** the lake's specular lobe is the obvious place a moon should show — a glitter path standing under whichever body is up — and it does not, because `WATER_GLSL` gates the whole term on `uDay`: `if (sunElev > 0.01 && uDay > 0.01)`. the lobe is aimed at the moon already, since it reads `DaylightState.direction`; the factor in front of it is zero at night. `moon-reach` is the frame that says so — the ground out to the waterline lit and the water past it exactly as dark as it was — and a moon track is the follow-up rather than a line quietly added to a shader in a run about the lighting rig.
+
+**and it needed an instrument, because every way this goes quiet looks the same in a still.** a night frame with no moonlight in it has two causes and one appearance: the knob is at zero, or the moon is simply under the sea that hour of that week. `moon` in `scape:map --stats` separates them — `phase`, `lit`, `up`, `lights` and `key share` — and says which:
+
+```
+moon  phase 0.647  lit 0.8  up 35.2°  lights 0.801  key share 1        # the tour's night clock
+moon  phase 0.247  lit 0.49  up -7.7°  lights 0  key share 0  <- under the sea at this hour
+```
+
+**what it is worth, measured on the one frame that can see it.** the steading at half past midnight in late autumn goes from a mean luminance of **20.25 to 27.73** — up a little over a third — and that is not an exposure lift: `moon-none`, the identical frame with the knob at zero, comes back 20.23, which is the reference build to within the capture's own noise. the pair that matters is the other one. `moon-new` is the same yard three weeks later, at a new moon thirty degrees under the sea with the sun, and it reads **20.34** and diffs `0.00% same` against `moon-none`. the scape is dark on those two nights for two entirely different reasons, and only the stats block can tell them apart.
+
+that second line is the tour's `winter` frame, and it is why that pose did **not** move: at 68° north a midwinter afternoon is a twilight with a quarter of a day still in it, the moon is 7.7° under the sea at that hour, and all the frame lost was the fake floor — 1.1 % of its mean luminance, which is under the diff's tolerance and reads `same`. without the block above, a run would have no way to tell that from moonlight that failed to arrive.
+
+**and the tour is the wrong instrument for this, which took a capture to learn.** `night` is already pinned at an autumn midnight, and it reports **0.11 % changed**. the hour is right and the *frame* is wrong: at 1400 m the archipelago is a handful of dark thumbprints under a sky of cloud, aurora and stars, and moonlight lands on ground. `--poses moon` is the set that answers — the steading's own 48 m frame at the same instant, with two controls rather than one, because a night with no moonlight in it has two causes and one appearance.
 
 ## ground that casts
 

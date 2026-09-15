@@ -1,6 +1,6 @@
 import { defineModule } from 'threejs-scene'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
-import { moonPhase } from './nightsky.ts'
+import { moonPhase } from './daylight.ts'
 
 
 /**
@@ -14,7 +14,7 @@ import { moonPhase } from './nightsky.ts'
  * its mean level twice a cycle.
  *
  * This is the second half, and it is not a fourth clock either. The moon is
- * already in the sky here — `nightsky.moonPhase` reads the day against the year
+ * already in the sky here — `daylight.moonPhase` reads the day against the year
  * and gets a month out of the two — and the tide is that same moon seen from
  * underneath. So it inherits the property the moon has: turn `daylight.speed`
  * down and the water slows; stop it and the water holds, which is what a
@@ -68,7 +68,7 @@ const TAU = Math.PI * 2
  *
  * A day is a turn of `daylight.time` and the moon slips one lunation back
  * through the year, so the hour angle the tide runs on is `time - moonPhase` —
- * exactly the one `nightsky.moonPlace` puts the moon at. The lunar day falls
+ * exactly the one `daylight.moonPlace` puts the moon at. The lunar day falls
  * out of that subtraction rather than being a constant here, which is why this
  * file has no 24.84 in it: the two clocks already say what it is.
  *
