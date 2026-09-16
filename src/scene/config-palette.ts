@@ -27,8 +27,21 @@ export interface ScapePalette {
   deepWater:    number
   shallowWater: number
   foam:         number
-  silt:         number
-  shore:        number
+
+  /**
+   * The light in torn water, and the one entry here that is not a surface.
+   *
+   * Its own colour rather than a cold {@link foam}, because it is not the same
+   * kind of thing: foam is white water lit by the sky, and this is plankton
+   * lighting *itself* — a narrow emission line a long way off anything the
+   * northern palette has in it, which is exactly why a sea fire reads as
+   * unearthly rather than as a brighter surf. It goes into the lake's
+   * `outgoingLight` and never into an albedo.
+   */
+  phosphor: number
+
+  silt:  number
+  shore: number
 
   /**
    * Blown shell sand — the belt on the weather shore, and nothing else.
@@ -225,6 +238,7 @@ export const SCAPE_PALETTE: SCAPE_PALETTEType = {
     deepWater:    0x263a3d,
     shallowWater: 0x44605a,
     foam:         0xd9e2da,
+    phosphor:     0x3fdba6,
     silt:         0x565b4a,
     shore:        0xa9977a,
     dune:         0xd8d0b2,

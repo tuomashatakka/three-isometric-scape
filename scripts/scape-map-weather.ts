@@ -11,6 +11,7 @@ import {
 import { bowLight, bowPeak, bowPlace } from '../src/scene/rainbow.ts'
 import { stormLive, stormPeak, stormSchedule, stormSites } from '../src/scene/storm.ts'
 import { snowAmount } from '../src/scene/season.ts'
+import { phosphorAmount, trackAmount } from '../src/scene/landscape/water-gleam.ts'
 import { showerAmount } from '../src/scene/weather.ts'
 import type { ScapeConfig } from '../src/scene/config.ts'
 import type { ArchipelagoSurvey } from '../src/scene/landscape/archipelago.ts'
@@ -132,6 +133,14 @@ export function rainbowStats (config: ScapeConfig): MapStats['rainbow'] {
  * light the moon has taken, which is how far the shadows have swung off the
  * bearing the sun set on. A `share` of 0 on a dark night is a coast lit by a sun
  * that is under the sea.
+ *
+ * `track` and `fire` are the same question asked of the *water*, and they are
+ * the only reading either half of the night sea has. Both are black rectangles
+ * in a capture and both have several ways of being zero, so a run that moved
+ * `daylight.moonStrength`, the arcs, `water.moonTrack` or `water.phosphor` and
+ * saw nothing has to come here to find out which. They also carry the coupling:
+ * a night with a bright track in it is a night with no fire in it, and the two
+ * columns sum to less than one at every hour of every month.
  */
 export function moonStats (config: ScapeConfig): MapStats['moon'] {
   const { latitude, axialTilt, time, moonStrength } = config.daylight
@@ -141,11 +150,15 @@ export function moonStats (config: ScapeConfig): MapStats['moon'] {
   const sun                                         = sunHeight(time, year, latitude, axialTilt)
   const lights                                      = moonAmount(place.height, phase, darkAmount(sun))
 
+  const lunar = lights * moonStrength
+
   return {
     phase:  round(phase, 3),
     lit:    round(moonIllumination(phase), 2),
     up:     round(elevation(place.height)),
     lights: round(lights, 3),
-    share:  round(keyShare(dayAmount(sun), lights * moonStrength), 2),
+    share:  round(keyShare(dayAmount(sun), lunar), 2),
+    track:  round(trackAmount(dayAmount(sun), lunar, config.water.moonTrack), 2),
+    fire:   round(phosphorAmount(darkAmount(sun), lunar, config.water.phosphor), 2),
   }
 }

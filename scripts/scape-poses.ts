@@ -335,11 +335,11 @@ export const TOURS: Record<string, Pose[]> = {
    *   rather than a reason in the config, which is the one thing a picture of
    *   `moon-none` on its own cannot tell you
    *
-   * `moon-reach` is the wider frame, and it is here to show what the moonlight
-   * does *not* reach as much as what it does: the ground out to the coast is
-   * lit and the sound beyond it is as black as it ever was, because the lake's
-   * specular lobe is gated on `uDay` in `WATER_GLSL` and the moon is not the
-   * sun. The lobe is pointed at the moon; the term in front of it is zero.
+   * `moon-reach` is the wider frame, and it is here to show how far the
+   * moonlight carries: the ground out to the coast, and the sound beyond it.
+   * The sound used to be the failure in this frame — the lake's specular lobe
+   * was pointed at the moon and multiplied by a term that was zero at night —
+   * and `--poses nightsea` is the set that owns it now.
    *
    * Reach for it whenever the change touches `daylight.moonStrength`, the arcs
    * in [`daylight.ts`](src/scene/daylight.ts), the night half of the sky
@@ -376,6 +376,78 @@ export const TOURS: Record<string, Pose[]> = {
       time:   0.02,
       season: 0.78,
       set:    [ 'camera.focusX=-30', 'camera.focusZ=-24' ],
+    },
+  ],
+
+  /**
+   * The sea at night, and the two quite different things it does.
+   *
+   * The sound is the largest thing in any night frame this scape takes — the
+   * archipelago is 19 % land — and until the moon was allowed to lay a track on
+   * it, all of it was one flat dark tint. Every pose here is the same 110 m
+   * frame over the home island's harbour and the open water beyond it, because
+   * the claim is about *water with a coast in it*: a track needs the sound and
+   * the fire needs the surf, and a frame holding only one of them can only ever
+   * test half of this.
+   *
+   * Five frames, and four of them are controls, because a night sea has more
+   * ways of being black than any other subject in this scape:
+   *
+   * - `nightsea` is the tour's own night clock — a waning gibbous 35° up and
+   *   80 % lit — which is the moon that lays the track
+   * - `nightsea-none` is the identical frame at `water.moonTrack: 0`, the sea
+   *   this scape had, and the control the track is read against
+   * - `nightsea-fire` is the same water three weeks on at a **new** moon, where
+   *   the track has nothing to reflect and the fire is no longer quenched. It
+   *   is the other half of the system and it must be *brighter* along the surf
+   *   than `nightsea` is, not darker
+   * - `nightsea-dead` is that new-moon frame at `water.phosphor: 0` — the
+   *   control for the fire, and the picture of a night with neither
+   * - `nightsea-noon` is the same frame at midday. It is the claim that none of
+   *   this touched daylight, and it must come back `same` against any
+   *   reference, at any setting of either knob
+   *
+   * Reach for it whenever the change touches `water.moonTrack`,
+   * `water.phosphor`, `palette.phosphor`, the surf, the wakes, or anything that
+   * reads `DaylightState.moon` or `DaylightState.dark`.
+   */
+  nightsea: [
+    {
+      name:   'nightsea',
+      zoom:   110,
+      time:   0.02,
+      season: 0.78,
+      set:    [ 'camera.focusX=-34', 'camera.focusZ=-44' ],
+    },
+    {
+      name:   'nightsea-none',
+      zoom:   110,
+      time:   0.02,
+      season: 0.78,
+      set:    [ 'camera.focusX=-34', 'camera.focusZ=-44', 'water.moonTrack=0' ],
+    },
+    // The same ten lunations `moon-new` is parked on, and a new moon for the
+    // same solved reason rather than a hunted-for one.
+    {
+      name:   'nightsea-fire',
+      zoom:   110,
+      time:   0.02,
+      season: 10 / 12.368,
+      set:    [ 'camera.focusX=-34', 'camera.focusZ=-44' ],
+    },
+    {
+      name:   'nightsea-dead',
+      zoom:   110,
+      time:   0.02,
+      season: 10 / 12.368,
+      set:    [ 'camera.focusX=-34', 'camera.focusZ=-44', 'water.phosphor=0' ],
+    },
+    {
+      name:   'nightsea-noon',
+      zoom:   110,
+      time:   0.5,
+      season: 0.78,
+      set:    [ 'camera.focusX=-34', 'camera.focusZ=-44' ],
     },
   ],
 
