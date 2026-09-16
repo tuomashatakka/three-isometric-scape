@@ -9,7 +9,7 @@ import {
 } from 'three'
 import type { IUniform, Texture, WebGLProgramParametersWithUniforms } from 'three'
 import type { LiveConfig } from '../config.ts'
-import { createDaylight, sunHeight } from '../daylight.ts'
+import { createDaylight, keyShare, sunHeight } from '../daylight.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import type { SeasonState } from '../season.ts'
 import type { TextureCatalogue } from '../textures/catalogue.ts'
@@ -26,6 +26,11 @@ import {
   WATER_CAUSTIC_GLSL,
   causticStrength,
 } from './water-caustics.ts'
+import {
+  WATER_REFLECTION_FRAGMENT,
+  phosphorAmount,
+  trackAmount,
+} from './water-gleam.ts'
 
 
 /**
@@ -356,8 +361,24 @@ const WATER_PARS_FRAGMENT = /* glsl */`
   uniform float uSparkleScale;
   uniform float uSparkle;
   uniform vec3 uSunDir;
+
+  // The light the sun is putting on the water, which is what the net on the
+  // bottom is drawn in — see \`water-caustics.ts\`.
   uniform vec3 uSunColor;
-  uniform float uDay;
+
+  // The face of whatever is at the far end of the specular lobe, and
+  // deliberately not the light that body delivers. See the crossfade in
+  // \`update\`.
+  uniform vec3 uTrackColor;
+
+  // How much of a specular track the key light lays on the water, whichever
+  // body it is coming from — see \`trackAmount\` in \`water-gleam.ts\`. It was
+  // \`uDay\`, which is why the sound stayed black under a moon that was already
+  // being aimed at.
+  uniform float uTrack;
+
+  uniform float uPhosphor;
+  uniform vec3 uPhosphorColor;
   varying vec2 vWaterGround;
 ${WAVE_GLSL}
 ${ICE_GLSL}
@@ -514,160 +535,6 @@ const WATER_NORMAL_FRAGMENT_LITE = /* glsl */`
   ) * (1.0 - iceCover));
 `
 
-/**
- * Fresnel, and the sky the water borrows off it.
- *
- * The one term that decides whether a surface reads as water or as coloured
- * paint, and it is nearly free. Water reflects almost nothing when you look
- * straight down it — about two per cent — and almost everything at a grazing
- * angle, and an isometric camera spends its whole life at grazing angles, so
- * this is doing real work across most of the frame rather than at the edges.
- * Schlick's approximation is the standard cheap form of it and it is exact
- * enough that nobody has ever been able to tell.
- *
- * Injected before `opaque_fragment` rather than into the albedo, because a
- * reflection is light arriving at the eye and not a property of the surface:
- * folded into `diffuseColor` it would be shaded by the sun a second time and go
- * dark on the side of a wave facing away. `outgoingLight` already exists by
- * this point in three's chain, and so do the locals the water body declared —
- * chunks are inlined into one `main`, so `waterDepth` is still in scope here.
- *
- * The sky it reflects is the sky the atmosphere is actually drawing, handed
- * down as two colours per frame rather than sampled a second time, so the sea
- * can never mirror a sky the reader is not looking at.
- */
-/**
- * How hard the sun's own reflection is laid over the sea.
- *
- * Above one deliberately: every factor in the glitter term is a fraction, and
- * six of them multiplied together land well under what the eye reads as a sun
- * on water, even once the lobe is wide enough to exist at all.
- */
-const SUN_GLITTER = 2.6
-
-
-const WATER_REFLECTION_FRAGMENT = /* glsl */`
-  {
-    vec3 viewDir    = normalize(vViewPosition);
-    float facing    = clamp(dot(normalize(normal), viewDir), 0.0, 1.0);
-    float fresnel   = 0.02 + 0.98 * pow(1.0 - facing, 5.0);
-
-    // Toward the horizon at grazing angles and toward the zenith looking down,
-    // which is what the reflected ray would have found anyway. Cheaper than
-    // reflecting the vector and sampling, and at this camera's range of angles
-    // the two are within a shade of each other.
-    vec3 sky = mix(uSkyHorizon, uSkyTop, facing);
-
-    // Only over water deep enough to have a surface, and never over ice, which
-    // is rough and scatters rather than mirrors.
-    float mirror = fresnel * uReflectionStrength *
-      smoothstep(0.0, 0.35, waterDepth);
-
-    outgoingLight = mix(outgoingLight, sky, clamp(mirror, 0.0, 0.82));
-
-    // Sun glitter path. A low sun over water lays a bright, wind-stretched
-    // highlight from the horizon toward the viewer — the single most
-    // recognisable thing about water at golden hour. The perturbed ripple
-    // normal from WATER_NORMAL_FRAGMENT is already in scope, and so are
-    // waterDepth, iceCover and openWater from the colour fragments.
-    //
-    // The lobe is Blinn-Phong: reflect the view about the ripple normal and
-    // test against the sun. The exponent tracks sun elevation inversely — low
-    // sun widens the lobe into a long streak, high sun tightens it to a disc.
-    // The two-noise-field glint from the albedo is recomputed at the same UV
-    // scale so the sun catches the same facets the ambient sparkle already
-    // lights, and the product of lobe × noise is near zero almost everywhere:
-    // only a scatter of isolated facets fires, which is how a glitter path
-    // actually reads from any orbit angle.
-    float sunElev = uSunDir.y;
-    if (sunElev > 0.01 && uDay > 0.01) {
-      // The sun has to be brought into the space the normal is already in.
-      // normal and vViewPosition in a standard-material fragment are VIEW
-      // space; uSunDir is copied straight off the daylight sample and is
-      // WORLD space. Building a half-vector out of one of each compares two
-      // directions that do not live in the same room, so the lobe was tested
-      // against a bearing that meant nothing and never fired — which is why the
-      // fresnel half of this chunk worked and the sun half did not: that half
-      // is view-space throughout and never had to cross.
-      //
-      // A direction transforms by the rotation alone, so the upper 3x3 of
-      // viewMatrix is the whole conversion. Elevation stays read off the
-      // world vector, because "how high is the sun" is a fact about the sky
-      // rather than about where the reader happens to be standing.
-      vec3 sunView = normalize(mat3(viewMatrix) * uSunDir);
-      vec3 halfVec = normalize(viewDir + sunView);
-      float NdotH  = max(dot(normal, halfVec), 0.0);
-
-      // Tight highlight. Low sun → lower exponent → wider lobe → longer
-      // glitter path. High sun → higher exponent → small bright disc. The
-      // 128/512 range keeps the path visible from golden hour through noon.
-      // A rippled sea is not polished metal. 128 to 512 is a mirror exponent —
-      // it holds the whole lobe within a couple of degrees of the exact mirror
-      // direction, which a surface this broken almost never presents. The ripple
-      // normal already supplies the variation, so the lobe wants to be wide
-      // enough that a patch of sea can actually hold it.
-      float exponent = mix(24.0, 120.0, smoothstep(0.0, 0.5, sunElev));
-      float spec = pow(NdotH, exponent);
-
-      // Stretch the lobe along the sun's horizontal azimuth when the sun is
-      // low. The glitter path is narrow cross-path but long along-path,
-      // because the angle of incidence varies slowly along the sun's bearing
-      // and rapidly across it. Projecting the half-vector onto the water
-      // surface and measuring its alignment with the sun's horizontal
-      // direction gives this stretch for free.
-      vec2 sunHoriz = sunView.xz;
-      float sunLen  = length(sunHoriz);
-      if (sunLen > 0.001) {
-        vec2 sunAz  = sunHoriz / sunLen;
-        float align = abs(dot(normalize(halfVec.xz + 0.0001), sunAz));
-        // At the horizon the stretch is full; overhead it vanishes and the
-        // lobe is round — which is exactly the difference between a path and
-        // a spot.
-        spec *= mix(1.0, mix(0.35, 1.0, align), smoothstep(0.35, 0.0, sunElev));
-      }
-
-      // Same two-noise-field glint the albedo uses: the product is near zero
-      // almost everywhere and spikes where both crests coincide, which is how
-      // glints are actually distributed on water — isolated, and never a
-      // pattern you can read. The UV scale matches the albedo sparkle so the
-      // sun catches the same facets.
-      vec2 sparkUv = vWaterGround * uSparkleScale;
-      float gA = texture2D(uRippleMap, sparkUv + uRippleOffset * 2.1).r;
-      float gB = texture2D(uRippleMap, sparkUv * 1.37 - uRippleOffset * 1.63).r;
-      float facet = pow(clamp(gA * gB * 1.42, 0.0, 1.0), 5.0);
-
-      // Elevation envelope: the path is brightest near the horizon where the
-      // geometry stretches the reflection across a long band of water, and
-      // fades to a small bright disc when the sun is overhead. The 0.1 floor
-      // keeps a visible spot at zenith. uDay kills the whole term at night.
-      // The facet field BREAKS THE HIGHLIGHT UP — it does not gate it. Multiplying
-      // directly is what made this invisible: the glitter field is near zero
-      // almost everywhere by construction (that is what makes the ambient glint
-      // read as isolated sparks rather than a sheet), and a 512-exponent lobe is
-      // near zero everywhere but the exact mirror. Two sparse masks multiplied
-      // together essentially never coincide, so the product was zero across the
-      // whole sea. Mixed instead, it does the job it was wanted for: the path stays
-      // continuous and the facets modulate it into scales rather than a smear.
-      float broken = mix(0.35, 1.0, facet);
-
-      // A low sun lays a long path and an overhead sun a small bright spot, so
-      // this favours the low end — but it never reaches zero, because a midday
-      // sun on water still has a highlight, and killing it outright was the
-      // second reason nothing showed.
-      float elevScale = mix(0.45, 1.0, smoothstep(0.45, 0.02, sunElev));
-
-      // Additive: the sun's own specular reflection is light arriving at the
-      // eye, separate from the ambient sky the fresnel already mixed in.
-      // Fresnel makes it stronger at grazing angles, which is correct — the
-      // glitter path is brightest where the sea is most mirror-like. openWater
-      // keeps it off dry land; ice scatters rather than mirrors.
-      outgoingLight += uSunColor * spec * broken * fresnel * elevScale * ${SUN_GLITTER.toFixed(2)} *
-        uDay * openWater * (1.0 - iceCover);
-    }
-  }
-`
-
-
 const WATER_NORMAL_FRAGMENT = /* glsl */`
   #include <normal_fragment_begin>
 
@@ -758,10 +625,22 @@ export function createWater (
   )
   const trailCounts = new Float32Array(MAX_BOAT_WAKES)
 
-  const daylight                             = createDaylight(config)
-  const sunDir: IUniform<Vector3>            = { value: new Vector3() }
-  const sunColor: IUniform<Color>            = { value: new Color() }
-  const dayAmount: IUniform<number>          = { value: 1 }
+  const daylight                  = createDaylight(config)
+  const sunDir: IUniform<Vector3> = { value: new Vector3() }
+  const sunColor: IUniform<Color> = { value: new Color() }
+
+  // The night half of the lake, in one record: the two strengths it hands the
+  // fragment, the colour the specular lobe is drawn in, and the face of the
+  // moon that colour is crossfaded toward — build-time, because the palette is,
+  // and at the brightness a disc has rather than at the brightness of the light
+  // it sheds.
+  const gleam = {
+    track:    { value: 1 },
+    phosphor: { value: 0 },
+    color:    { value: new Color() },
+    moonFace: new Color(config().palette.moon),
+  }
+
   const skyHorizon: IUniform<Color>          = { value: new Color() }
   const skyTop: IUniform<Color>              = { value: new Color() }
   const reflectionStrength: IUniform<number> = { value: 1 }
@@ -797,7 +676,10 @@ export function createWater (
     uTrailCount2:        { value: 0 },
     uSunDir:             sunDir,
     uSunColor:           sunColor,
-    uDay:                dayAmount,
+    uTrackColor:         gleam.color,
+    uTrack:              gleam.track,
+    uPhosphor:           gleam.phosphor,
+    uPhosphorColor:      { value: new Color(config().palette.phosphor) },
     uSkyHorizon:         skyHorizon,
     uSkyTop:             skyTop,
     uReflectionStrength: reflectionStrength,
@@ -1009,7 +891,23 @@ export function createWater (
       const now = daylight.sample(config().daylight.time, config().season.time)
       sunDir.value.copy(now.direction)
       sunColor.value.copy(now.sun)
-      dayAmount.value = now.day
+
+      // The lobe is the reflection of a *body*, so what colours it is that
+      // body's own face and not the light the body is putting on the coast.
+      // `state.sun` is the latter and is deliberately almost black at night —
+      // that is what a night looks like on the ground — so the first cut of the
+      // track was arithmetically present and visually absent: a bright path
+      // multiplied by the colour of a dark night. The crossfade rides the same
+      // `keyShare` the lighting rig swings the shadows on, which is what keeps
+      // every daylight hour bit-identical: with no moonlight in the sum the
+      // share is zero and this is exactly `state.sun`.
+      gleam.color.value.copy(now.sun).lerp(gleam.moonFace, keyShare(now.day, now.moon))
+
+      // Both halves of the night are solved on this side rather than in the
+      // fragment: they are two numbers a whole frame shares, and the shader's
+      // early-outs are what keep the cost of either off the hours it has none.
+      gleam.track.value    = trackAmount(now.day, now.moon, config().water.moonTrack)
+      gleam.phosphor.value = phosphorAmount(now.dark, now.moon, config().water.phosphor)
       skyHorizon.value.copy(now.horizon)
       skyTop.value.copy(now.skyTop)
       reflectionStrength.value = config().water.roughness < 0.4 ? 0.6 : 1

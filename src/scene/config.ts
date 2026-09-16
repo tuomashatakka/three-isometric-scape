@@ -1713,6 +1713,45 @@ export interface ScapeConfig extends DykeConfig, ForceConfig, GuardConfig, KelpC
     /** Sun-glitter strength, 0 disables the speckle. */
     sparkle: number
 
+    /**
+     * What the moon's own reflection is worth against the sun's.
+     *
+     * The switch for the moon track, and the only one: 0 is the sea this scape
+     * had before it, whose specular lobe was pointed at whichever body the key
+     * light was coming from and multiplied by a term that went to zero the
+     * moment the sun set. Nothing here touches daylight — the moonlight it
+     * scales is zero at every hour the sun is up — and `daylight.moonStrength`
+     * at 0 still takes the track away with the light, because what this
+     * multiplies is the light the moon is actually putting on the coast.
+     *
+     * Well above one, and that is not a fudge. `DaylightState.moon` is light
+     * *falling on the ground*, in shares of a noon sun, and a reflected disc is
+     * not in those units at all: the track is as bright as the moon's face,
+     * which is the same face at midnight as at noon. There is no adaptation
+     * anywhere in this pipeline to stand in for a pupil that has been open for
+     * an hour, so the eye's half of it is spent here — and the glitter term it
+     * scales is worth nineteen levels of 255 at its own ceiling, so a budget
+     * held at a full sun's would hold the moon at a sheen. See `trackAmount`.
+     */
+    moonTrack: number
+
+    /**
+     * How brightly the broken water burns on a dark night, 0..1.
+     *
+     * The switch for the sea fire, and the only one. What is *alight* on any
+     * given night is not here: the glow is gated on astronomical twilight and
+     * quenched by whatever moonlight is on the water, so a midsummer midnight
+     * at this latitude has none of it and a full moon near transit has none of
+     * it, without a second knob saying so. See `phosphorAmount` in
+     * `landscape/water-night.ts`.
+     *
+     * It is deliberately not a share of {@link surf}. The surf decides how much
+     * water is torn and this decides how hard what is torn glows, they are lit
+     * by nothing and by the sky respectively, and a scape that tuned them
+     * together could never have a quiet sea burning under a black sky.
+     */
+    phosphor: number
+
     /** Swell amplitude in metres. */
     waveHeight: number
 
@@ -3011,6 +3050,14 @@ export const SCAPE_CONFIG = {
   // poses and small enough that one bay carries several dozen of them.
   water: {
     sparkle:        0.5,
+    // 10 against the 0.128 of a noon sun a waning gibbous 35° up actually puts
+    // on this coast is 1.28 — half again a full sun's own path, which is what
+    // it takes for the water to gleam rather than to lighten. Read it off the
+    // `track` field of `scape:map --stats`, which is where that figure comes
+    // from, and against `nightsea-none` in `--poses nightsea`, which is the
+    // same sea with the term switched off.
+    moonTrack:      10,
+    phosphor:       0.5,
     waveHeight:     0.075,
     rippleStrength: 0.2,
     wakeStrength:   0.78,

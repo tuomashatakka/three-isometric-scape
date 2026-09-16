@@ -340,10 +340,17 @@ function rainbowLine (bow: MapStats['rainbow']): string {
  * hour of that week. The second is not a fault — it is half of every month —
  * but a run that cannot tell them apart will go looking for a bug in the first
  * case and find nothing, or declare the system working in the second.
+ *
+ * `track` and `fire` are the same pair of silences out on the water, where they
+ * are worse: the sound is the largest thing in a night frame and every way it
+ * can be black looks identical. They are also each other's complement, so a
+ * `track` that has climbed at the expense of a `fire` is the coupling working
+ * rather than a regression in either.
  */
 function moonLine (moon: MapStats['moon']): string {
   return `moon  phase ${moon.phase}  lit ${moon.lit}  up ${moon.up}°  ` +
-    `lights ${moon.lights}  key share ${moon.share}` +
+    `lights ${moon.lights}  key share ${moon.share}  ` +
+    `track ${moon.track}  fire ${moon.fire}` +
     (moon.up <= 0
       ? '  <- under the sea at this hour: the night is the sun\'s, dimmed'
       : moon.lights > 0 && moon.share <= 0

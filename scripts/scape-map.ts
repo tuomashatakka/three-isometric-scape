@@ -475,6 +475,12 @@ export interface MapStats extends CompositionStats {
     up:     number
     lights: number
     share:  number
+
+    /** The specular budget the key light has on the water — the moon track. */
+    track: number
+
+    /** How hard the broken water burns tonight — the sea fire. */
+    fire: number
   }
 
   /**

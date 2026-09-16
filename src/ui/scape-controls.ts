@@ -346,6 +346,16 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       title:    'water',
       controls: [
         toggled('sun glitter', range('water.sparkle', 'strength', 0, 1.5, 0.01), 0.5),
+
+        // The night half of the sea, and the two knobs hand it back and forth:
+        // whatever moonlight lays a track also washes the fire out of the water
+        // under it, so pulling one down is how you see the other.
+        toggled(
+          'the night sea',
+          range('water.moonTrack', 'moon track', 0, 8, 0.05),
+          3.2,
+          [ range('water.phosphor', 'sea fire', 0, 1, 0.01) ],
+        ),
         range('water.waveHeight', 'swell', 0, 0.4, 0.005),
         range('water.rippleStrength', 'ripple', 0, 0.6, 0.01),
 
