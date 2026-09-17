@@ -370,6 +370,22 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
             range('water.surfExposure', 'weather side', 0, 1, 0.01),
           ],
         ),
+
+        // The other half of the same sentence, and it is deliberately its own
+        // group rather than a third slider under `surf`: the surf is what the
+        // shelf does to a swell and this is what the wind does to water that
+        // never feels a shelf at all. The onset is the one worth pulling — it
+        // is what decides whether a gust front is something you can watch cross
+        // the sound or merely a number in the wind.
+        toggled(
+          'whitecaps',
+          range('water.whitecap', 'coverage', 0, 1, 0.01),
+          0.34,
+          [
+            range('water.whitecapOnset', 'onset (wind)', 0, 3, 0.01),
+            range('water.whitecapLee', 'lee spared', 0, 1, 0.01),
+          ],
+        ),
         // How much of it is up on any given hour is the sun's, the same way the
         // surf's heading is the wind's. What is here is how bright, how far
         // down it reaches, and how big the cells of the net are.

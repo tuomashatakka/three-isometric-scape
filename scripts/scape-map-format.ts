@@ -358,6 +358,32 @@ function moonLine (moon: MapStats['moon']): string {
         : '')
 }
 
+/**
+ * The whitecap line, and the silence no capture can break.
+ *
+ * `still` is the only column a picture of this scape can report, because
+ * `STILL` zeroes `wind.strength` and every still is therefore taken in a dead
+ * calm. The other two are the system's whole point: `rest` is the sound at the
+ * authored wind and `gust` is the same sound with the front over it, and the
+ * gap between them is how much of the effect a viewer ever gets to watch
+ * happen.
+ *
+ * The note is the failure that has no other symptom. With the onset at or under
+ * the authored wind the sea is saturated before the gust arrives, so the front
+ * crosses water that cannot answer it — and every frame of every capture still
+ * looks entirely correct, because a fully capped sound is a perfectly
+ * reasonable picture of a blow.
+ */
+function capsLine (caps: MapStats['caps']): string {
+  return `caps  still ${caps.still}  rest ${caps.rest}  gust ${caps.gust}  ` +
+    `onset ${caps.onset} vs wind ${caps.wind}  lee ${caps.lee}` +
+    (caps.rest <= 0
+      ? '  <- the sound never breaks: whitecap is at zero'
+      : caps.gust <= caps.rest + 0.001
+        ? '  <- saturated at rest: the gust front crosses a sea that cannot answer it'
+        : '')
+}
+
 /** The stats block, as the run reads it. */
 export function formatStats (stats: MapStats): string {
   const steading = Object.entries(stats.steading)
@@ -461,6 +487,7 @@ export function formatStats (stats: MapStats): string {
     stormLine(stats.storm),
     rainbowLine(stats.rainbow),
     moonLine(stats.moon),
+    capsLine(stats.caps),
     treelineLine(stats.treeline),
     ...stats.drift.map(driftLine),
     grazingLine(stats.grazing),

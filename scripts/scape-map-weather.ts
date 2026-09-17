@@ -11,6 +11,7 @@ import {
 import { bowLight, bowPeak, bowPlace } from '../src/scene/rainbow.ts'
 import { stormLive, stormPeak, stormSchedule, stormSites } from '../src/scene/storm.ts'
 import { snowAmount } from '../src/scene/season.ts'
+import { capsAmount } from '../src/scene/landscape/water-caps.ts'
 import { phosphorAmount, trackAmount } from '../src/scene/landscape/water-gleam.ts'
 import { showerAmount } from '../src/scene/weather.ts'
 import type { ScapeConfig } from '../src/scene/config.ts'
@@ -160,5 +161,37 @@ export function moonStats (config: ScapeConfig): MapStats['moon'] {
     share:  round(keyShare(dayAmount(sun), lunar), 2),
     track:  round(trackAmount(dayAmount(sun), lunar, config.water.moonTrack), 2),
     fire:   round(phosphorAmount(darkAmount(sun), lunar, config.water.phosphor), 2),
+  }
+}
+
+/**
+ * The white out in the sound, at the three winds that decide whether it is
+ * there.
+ *
+ * Here because every single way this system goes quiet is invisible in a
+ * capture, and for once that is not about the subject being small — the sound
+ * is the largest thing in most frames of this scape. It is about the
+ * instrument: `STILL` zeroes `wind.strength`, so every still ever taken of this
+ * archipelago was taken in a dead calm, and the only coverage a capture can
+ * report is `still` below. The other two columns are the half of the effect a
+ * picture cannot reach without a pose that names a wind.
+ *
+ * `rest` against `gust` is the finding, and the failure it catches has no other
+ * symptom: if `whitecapOnset` is set at or under the authored `wind.strength`,
+ * the sound is already saturated when nothing is gusting, the front crosses
+ * water that cannot answer it, and every frame of every capture still looks
+ * entirely correct.
+ */
+export function capsStats (config: ScapeConfig): MapStats['caps'] {
+  const { whitecap, whitecapOnset, whitecapLee } = config.water
+  const { strength, gust }                       = config.wind
+
+  return {
+    still: round(capsAmount(whitecap, whitecapOnset, 0), 3),
+    rest:  round(capsAmount(whitecap, whitecapOnset, strength), 3),
+    gust:  round(capsAmount(whitecap, whitecapOnset, strength * (1 + gust)), 3),
+    onset: round(whitecapOnset, 2),
+    wind:  round(strength, 2),
+    lee:   round(whitecapLee, 2),
   }
 }

@@ -20,6 +20,7 @@ import type { BoatWakeEmitter } from './boats.ts'
 import type { HeightField } from './height.ts'
 import { LAYER } from '../layers.ts'
 import { MAX_DEPTH, bakeShoreMask } from './shore-mask.ts'
+import { WATER_CAPS_GLSL, capsAmount } from './water-caps.ts'
 import {
   CAUSTIC_RATE,
   WATER_CAUSTIC_FRAGMENT,
@@ -383,6 +384,7 @@ const WATER_PARS_FRAGMENT = /* glsl */`
 ${WAVE_GLSL}
 ${ICE_GLSL}
 ${WATER_SURF_GLSL}
+${WATER_CAPS_GLSL}
 ${WATER_CAUSTIC_GLSL}
 ${BOAT_WAKE_GLSL}
 `
@@ -422,7 +424,7 @@ const WATER_ROUGHNESS_FRAGMENT = /* glsl */`
   // Broken water is air in water, and air in water is matte. Without this the
   // surf takes the same specular lobe the open sea does and the white band
   // gleams — which reads as wet paint laid on the shore rather than as foam.
-  roughnessFactor = mix(roughnessFactor, 0.94, breakers);
+  roughnessFactor = mix(roughnessFactor, 0.94, max(breakers, caps));
   roughnessFactor = mix(roughnessFactor, 0.88, iceCover);
 `
 
@@ -446,6 +448,10 @@ const WATER_COLOR_FRAGMENT = /* glsl */`
   // over the shelf, which only the coast the sea is running at gets.
   float breakers = scapeSurf(vWaterGround, shore, waterDepth) * (1.0 - iceCover);
 
+  // The white out in the sound, off the mask fetch already made and one read of
+  // the fractal map. See water-caps.ts.
+  float caps = scapeCaps(vWaterGround, shore, openWater) * (1.0 - iceCover);
+
   diffuseColor.rgb = mix(uShallow, uDeep, smoothstep(0.0, 0.5, waterDepth));
 
 ${WATER_CAUSTIC_FRAGMENT}
@@ -453,7 +459,7 @@ ${WATER_CAUSTIC_FRAGMENT}
   diffuseColor.rgb = mix(
     diffuseColor.rgb,
     uFoam,
-    clamp(max(foam, breakers) + boatWake * 0.72, 0.0, 0.86)
+    clamp(max(max(foam, breakers), caps) + boatWake * 0.72, 0.0, 0.86)
   );
 
   // Texture the albedo, not just the normal. A normal-only ripple is invisible
@@ -513,7 +519,19 @@ ${WATER_CAUSTIC_FRAGMENT}
 
   float sheen = texture2D(uRippleMap, vWaterGround * uRippleScale + uRippleOffset).r;
   diffuseColor.rgb *= 0.93 + 0.15 * sheen;
-  diffuseColor.rgb = mix(diffuseColor.rgb, uFoam, clamp(breakers + boatWake * 0.62, 0.0, 0.86));
+
+  // The one thing the cheap lake gains twice over. The caps are the same chunk
+  // the full program runs, verbatim, and they have to be: the capture harness
+  // pins --tier mobile, so a sea this program could not draw is a sea no still
+  // in this repository could show. One read, which takes this lake from two to
+  // three.
+  float caps = scapeCaps(vWaterGround, shore, openWater) * (1.0 - iceCover);
+
+  diffuseColor.rgb = mix(
+    diffuseColor.rgb,
+    uFoam,
+    clamp(max(breakers, caps) + boatWake * 0.62, 0.0, 0.86)
+  );
 
 ${WATER_ICE_FRAGMENT}
 
@@ -697,6 +715,13 @@ export function createWater (
     uSurfExposure: { value: config().water.surfExposure },
     uSurgePhase:   { value: 0 },
 
+    // How much of the open sound is breaking, and how much of that the lee of a
+    // coast is spared. The first is resolved on the cpu because it is a curve of
+    // the wind every fragment would otherwise re-derive; the second is the
+    // authored share, straight through. See `water-caps.ts`.
+    uCaps:    { value: 0 },
+    uCapsLee: { value: config().water.whitecapLee },
+
     // The state of the sea, in the same fractions of `MAX_DEPTH` the mask's own
     // channel is in, converted here for the reason `uSurfDepth` is.
     uTide: { value: 0 },
@@ -857,6 +882,17 @@ export function createWater (
       uniforms.uSurf.value         = config().water.surf * (0.75 + 0.25 * Math.min(1.6, wind.strength))
       uniforms.uSurfDepth.value    = config().water.surfDepth / MAX_DEPTH
       uniforms.uSurfExposure.value = config().water.surfExposure
+
+      // The white out in the sound. It reads the same wind the surf above it
+      // does and the same baked bearing, so a coast cannot be breaking on one
+      // side and sheltered on the same side — and none of it can be seen through
+      // ice, which the fragment takes off.
+      uniforms.uCaps.value    = capsAmount(
+        config().water.whitecap,
+        config().water.whitecapOnset,
+        wind.strength,
+      )
+      uniforms.uCapsLee.value = config().water.whitecapLee
 
       iceColor.value.copy(season.iceColor)
 
