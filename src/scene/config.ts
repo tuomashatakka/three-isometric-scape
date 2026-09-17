@@ -1795,6 +1795,65 @@ export interface ScapeConfig extends DykeConfig, ForceConfig, GuardConfig, KelpC
     surfExposure: number
 
     /**
+     * How much white the open sound carries when it is blowing, 0..1.
+     *
+     * The switch for the whitecaps, and the only one: 0 is the unbroken sheet
+     * of blue this scape had between its islands in a flat calm and in a near
+     * gale alike, which was the one thing the wind never touched. It is a
+     * *coverage* rather than a brightness — the white itself is `palette.foam`,
+     * the same white the surf and the wakes are drawn in, because a whitecap
+     * and a breaker are the same substance and a second white would be a second
+     * answer to a settled question.
+     *
+     * Deliberately not a share of {@link surf}. The surf says how hard the
+     * swell trips when it feels the bottom, and this says how much of the sea
+     * that never feels it is torn — one is a fact about the shelf and the other
+     * a fact about the wind, and a scape that tuned them together could never
+     * have a sheltered coast under a hard blow.
+     */
+    whitecap: number
+
+    /**
+     * The wind strength at which the whole open sound is breaking.
+     *
+     * Dimensionless, in `wind.strength`'s own units, and it is what makes a
+     * gust visible on the water. A sea does not whiten evenly from a calm — it
+     * holds, starts breaking somewhere around force four, and then whitens
+     * fast — so the curve below this number is where every gust in the scape
+     * lives and above it a harder wind adds nothing.
+     *
+     * **It is measured against the *gusted* strength, not the authored one**,
+     * and that is the trap this number fell into once already. `wind.strength`
+     * in the config is the wind at rest; what reaches `capsAmount` is
+     * `WindState.strength`, which is that times the front — up to
+     * `1 + wind.gust`. At 1.25 against an authored 0.9 the arithmetic looked
+     * right and the sea was saturated before the front arrived: `--poses blow`
+     * came out **identical to the byte** at 0.9 and at 2.4. It has to clear
+     * `wind.strength * (1 + wind.gust)` with room left over, which 2.2 against
+     * 1.31 does.
+     *
+     * At 0 the sea is fully capped at every wind, which is the honest reading
+     * of "there is no threshold" rather than a special case.
+     */
+    whitecapOnset: number
+
+    /**
+     * How much the water under a shore the wind is blowing off is spared, 0..1.
+     *
+     * The same shape as {@link surfExposure} and read off the same baked
+     * seaward bearing, because it is the same fact used the other way up: the
+     * surf asks which coast the swell is running *into*, and this asks which
+     * water has had no run at all. 0 breaks the same all round an island, which
+     * is the sound this scape had; 1 leaves the lee of every headland dead flat.
+     *
+     * Dimensionless and therefore neither world-sized nor frame-sized — how
+     * sheltered water is, rather than how far the shelter reaches. How far it
+     * reaches is the bathymetry mask's own gradient and is not authored
+     * anywhere. See `landscape/water-caps.ts`.
+     */
+    whitecapLee: number
+
+    /**
      * Specular spread. Low values concentrate the sun into a lobe narrow
      * enough to flare the whole lake white at the angle that catches it.
      */
@@ -3067,9 +3126,36 @@ export const SCAPE_CONFIG = {
     surf:           1,
     surfDepth:      2.4,
     surfExposure:   0.72,
-    caustics:       1,
-    causticDepth:   2.8,
-    causticScale:   2.6,
+
+    // 0.28 of coverage is a sound that reads as broken rather than as washed,
+    // and it was read off the picture rather than derived: `scapeCaps` cuts a
+    // threshold into a sum of rotated sine octaves, which is a distribution
+    // nobody can integrate in their head, so the knob is a dial and the only
+    // honest reading of it is `--poses blow`. At 0.28 the sea at the authored
+    // wind carries white in torn streaks with dark water between them; by about
+    // 0.45 the streaks join up and the sound reads as shoal water rather than
+    // as a blow.
+    //
+    // The onset is set *above* the authored `wind.strength` of 0.9 on purpose,
+    // and that ordering is the section's argument rather than a coincidence of
+    // two numbers: at 1.25 the resting sea is four fifths of the way up the
+    // curve with room left in it, so the gust front — which lifts the strength
+    // by up to `wind.gust` — has somewhere to go and can be *seen* crossing the
+    // water. Set it under 0.9 and the sound is saturated at rest and the front
+    // passes over a sea that cannot answer it.
+    //
+    // The lee is set harder than the surf's 0.72 exposure, and the asymmetry is
+    // the point rather than an oversight: a swell refracting round a headland
+    // still breaks a little in its lee, and a wind that has just crossed a hill
+    // has raised no sea at all behind it. 0.85 leaves sheltered water about a
+    // seventh of the open sound's white, which reads as a slick rather than as
+    // a hole cut in the water.
+    whitecap:      0.28,
+    whitecapOnset: 2.2,
+    whitecapLee:   0.85,
+    caustics:      1,
+    causticDepth:  2.8,
+    causticScale:  2.6,
   },
   // The metre class, and it stays metres at any world size. The range is set
   // against `boats.clearance` at 0.42: half of 0.8 is 0.4, so the lowest spring

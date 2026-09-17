@@ -20,7 +20,7 @@ import type { CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, Salting
 import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
 import { causewayOf, croftOf, dykeOf, peatOf, pierOf, shielingOf, smokehouseOf, tarnOf, weirOf, wreckOf } from './scape-map-sites.ts'
-import { moonStats, rainbowStats, stormStats } from './scape-map-weather.ts'
+import { capsStats, moonStats, rainbowStats, stormStats } from './scape-map-weather.ts'
 import { applyOverrides, parseArgs } from './args.ts'
 
 
@@ -484,6 +484,25 @@ export interface MapStats extends CompositionStats {
   }
 
   /**
+   * The whitecaps out in the sound, at the three winds that matter.
+   *
+   * Here because the capture harness cannot reach two of the three: `STILL`
+   * zeroes `wind.strength`, so a still is taken in a dead calm and `still` is
+   * the only column a picture can report. `rest` against `gust` is the reading
+   * that says whether a gust front is something the water can answer.
+   */
+  caps: {
+    still: number
+    rest:  number
+    gust:  number
+    onset: number
+    wind:  number
+
+    /** How much of the white the lee of a coast is spared, 0..1. */
+    lee: number
+  }
+
+  /**
    * The rough grazing, and the flocks turned out on it.
    *
    * Here for the reason the colonies are, and rather more so: a sheep is a
@@ -850,6 +869,7 @@ export function surveyStats (
     storm:    stormStats(config, survey),
     rainbow:  rainbowStats(config),
     moon:     moonStats(config),
+    caps:     capsStats(config),
     hearths:  hearthStats(survey),
     windows:  windowStats(survey),
     colonies: {

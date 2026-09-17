@@ -315,6 +315,7 @@ bun run scape:shot --poses drift                    # where the wind put the win
 bun run scape:shot --poses dyke                     # the wall between the farm and the hill, 4 frames, with the wall and without
 bun run scape:shot --poses moon                     # the farm by moonlight, 4 frames, with the moon, without it, and at a new one
 bun run scape:shot --poses nightsea                 # the sound after dark, 5 frames, the moon track and the fire in the surf
+bun run scape:shot --poses blow                     # the sea getting up, 4 frames, at rest, in a gust, in a lee, and switched off
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain
@@ -546,6 +547,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `drift.ts` | the snow line's second swing — scoured off the weather face, banked in the lee — and the cover measured with it and without |
 | `water.ts` | baked bathymetry, swell, foam, glitter, winter ice and shader boat wakes |
 | `water-caustics.ts` | the net the sun draws on the bottom of the shallows, and how bright it is today |
+| `water-caps.ts` | the white the open sound puts on when it blows, the wind curve under it, and the lee that is spared |
 | `beck.ts` | the sheet of water standing in every island's channel, its fall, its white water and the week it locks |
 | `tarn.ts` | the search for upland flat enough to hold standing water, the basin carved into it, and the reach it holds |
 | `tarn-water.ts` | every island's pool in one still draw, its depth tint, and the winter it gets weeks before the sea |
