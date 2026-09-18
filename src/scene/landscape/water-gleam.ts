@@ -188,7 +188,16 @@ export const WATER_REFLECTION_FRAGMENT = /* glsl */`
     // which is what the reflected ray would have found anyway. Cheaper than
     // reflecting the vector and sampling, and at this camera's range of angles
     // the two are within a shade of each other.
-    vec3 sky = mix(uSkyHorizon, uSkyTop, facing);
+    //
+    // Shaded by the cloud standing over this fragment, and that is the term
+    // that decides whether a cloud shadow on water is visible at all. The
+    // mirror takes over better than four fifths of the lake's colour at these
+    // angles, so a shadow that only multiplies the albedo is arguing with the
+    // one term that is not listening: the first cut moved 74 % of a 520 m
+    // frame by at most ten levels. It is also the physics — the sky a sea
+    // mirrors under a cloud *is* the underside of that cloud. cloudShade is
+    // declared in the colour fragment above, in both programs.
+    vec3 sky = mix(uSkyHorizon, uSkyTop, facing) * cloudShade;
 
     // Only over water deep enough to have a surface, and never over ice, which
     // is rough and scatters rather than mirrors.
@@ -297,8 +306,13 @@ export const WATER_REFLECTION_FRAGMENT = /* glsl */`
       // Fresnel makes it stronger at grazing angles, which is correct — the
       // glitter path is brightest where the sea is most mirror-like. openWater
       // keeps it off dry land; ice scatters rather than mirrors.
+      //
+      // And cloudShade, which is where a cloud shadow on water is most obvious
+      // rather than least: this term is the brightest thing in the frame, and
+      // a glitter path that went on burning through the shadow crossing it
+      // would be the sea reflecting a sun that is not shining on it.
       outgoingLight += uTrackColor * spec * broken * fresnel * elevScale * ${KEY_GLITTER.toFixed(2)} *
-        uTrack * openWater * (1.0 - iceCover);
+        uTrack * openWater * (1.0 - iceCover) * cloudShade;
     }
 
 ${WATER_PHOSPHOR_FRAGMENT}

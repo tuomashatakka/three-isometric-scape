@@ -8,6 +8,8 @@ import {
   Vector4,
 } from 'three'
 import type { IUniform, Texture, WebGLProgramParametersWithUniforms } from 'three'
+import { CLOUD_SHADOW_GLSL } from '../cloud-shadow.ts'
+import type { CloudShadow } from '../cloud-shadow.ts'
 import type { LiveConfig } from '../config.ts'
 import { createDaylight, keyShare, sunHeight } from '../daylight.ts'
 import type { AtmosphereQuality } from '../quality.ts'
@@ -347,6 +349,7 @@ const WATER_SURF_ALPHA = /* glsl */`
 `
 
 const WATER_PARS_FRAGMENT = /* glsl */`
+${CLOUD_SHADOW_GLSL}
   uniform vec3 uSkyHorizon;
   uniform vec3 uSkyTop;
   uniform float uReflectionStrength;
@@ -483,6 +486,16 @@ ${WATER_CAUSTIC_FRAGMENT}
 
 ${WATER_ICE_FRAGMENT}
 
+  // The weather between the sun and the sea, and the half of this scape the
+  // shadow never used to reach: the same fetch, the same cut, the same drift
+  // and the same throw the ground takes, at the lake's own world position.
+  // Laid over the ice as well as the water, because a shadow crossing a frozen
+  // bay is the one place in the archipelago where it has something white to
+  // cross. Held in a local because the reflection reads it again — see
+  // water-gleam.ts, where the larger half of this happens.
+  float cloudShade = scapeCloudShade(vWaterGround);
+  diffuseColor.rgb *= cloudShade;
+
   // The plane spans the whole map, so it has to vanish wherever there is no
   // water under it — otherwise dry land gets painted lake.
   diffuseColor.a *= smoothstep(0.0, 0.03, waterDepth) * clamp(0.5 + waterDepth * 1.7, 0.0, 1.0);
@@ -535,6 +548,16 @@ ${WATER_CAUSTIC_FRAGMENT}
 
 ${WATER_ICE_FRAGMENT}
 
+  // The weather between the sun and the sea, and the half of this scape the
+  // shadow never used to reach: the same fetch, the same cut, the same drift
+  // and the same throw the ground takes, at the lake's own world position.
+  // Laid over the ice as well as the water, because a shadow crossing a frozen
+  // bay is the one place in the archipelago where it has something white to
+  // cross. Held in a local because the reflection reads it again — see
+  // water-gleam.ts, where the larger half of this happens.
+  float cloudShade = scapeCloudShade(vWaterGround);
+  diffuseColor.rgb *= cloudShade;
+
   diffuseColor.a *= smoothstep(0.0, 0.03, waterDepth) * clamp(0.5 + waterDepth * 1.7, 0.0, 1.0);
 
 ${WATER_SURF_ALPHA}
@@ -586,6 +609,11 @@ export function createWater (
   field:    HeightField,
   quality:  AtmosphereQuality,
   textures: TextureCatalogue,
+
+  // The four uniforms the ground and the grass are already reading. Shared
+  // instances rather than a copy, so the sound cannot be shadowed by a cloud
+  // the hillside beside it does not have.
+  shadow:   CloudShadow,
 ): Water {
   // Seven dependent texture reads is what the full lake costs, and a tile-based
   // gpu pays for those in stalls rather than in bandwidth. Below the full tap
@@ -734,6 +762,7 @@ export function createWater (
     uCausticDepth: { value: config().water.causticDepth / MAX_DEPTH },
     uCausticCells: { value: Math.PI * 2 / config().water.causticScale },
     uCausticPhase: { value: 0 },
+    ...shadow.uniforms,
   }
 
   // Opaque at the material level, and let the shader's alpha ramp do the

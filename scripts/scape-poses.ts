@@ -411,6 +411,38 @@ export const TOURS: Record<string, Pose[]> = {
    * `water.phosphor`, `palette.phosphor`, the surf, the wakes, or anything that
    * reads `DaylightState.moon` or `DaylightState.dark`.
    */
+  /**
+   * The shadow the deck lays, and the four ways of having none.
+   *
+   * A 520 m frame over the home island and the sound around it, which is the
+   * only framing that can hold the claim: the archipelago is 19 % land, so the
+   * water is better than four fifths of what a wide frame of this scape is
+   * made of, and it is the part the shadow never used to reach. A closer pose
+   * would be a picture of a hillside, which is the half that already worked.
+   *
+   * `shade-none` is the switch and the control — `atmosphere.cloudShadow=0`,
+   * the flat sea and the flat ground this scape had. `shade-clear` is the
+   * *second* control and the more interesting one: a sky with no cloud in it at
+   * the authored darkness, which used to dapple the whole archipelago anyway
+   * and must now be identical to `shade-none` rather than merely close to it.
+   *
+   * `shade-low` is the projection. The same frame with the sun down at the
+   * bottom of its arc, where a 34 m deck throws its shadow the better part of
+   * two hundred metres downsun — so the dapple is somewhere else entirely, and
+   * `shade` against `shade-low` is the difference between a shadow and a noise
+   * texture read off world `xz`.
+   *
+   * `shade-night` is a moonless midnight: the cover is up and the darkness is
+   * authored, and there is no light for a cloud to take away.
+   */
+  shade: [
+    { name: 'shade', zoom: 520 },
+    { name: 'shade-none', zoom: 520, set: [ 'atmosphere.cloudShadow=0' ]},
+    { name: 'shade-clear', zoom: 520, set: [ 'atmosphere.cloudCover=0' ]},
+    { name: 'shade-low', zoom: 520, time: 0.78 },
+    { name: 'shade-night', zoom: 520, time: 0.02, season: 10 / 12.368 },
+  ],
+
   nightsea: [
     {
       name:   'nightsea',

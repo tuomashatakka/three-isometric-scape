@@ -3,6 +3,7 @@ import type { Object3D } from 'three'
 import { defineModule } from 'threejs-scene'
 import { NOTHING_SKIPPED } from '../audit.ts'
 import type { ScapeSkips } from '../audit.ts'
+import { createCloudShadow } from '../cloud-shadow.ts'
 import type { LiveConfig, ScapeConfig, ScapeModule } from '../config.ts'
 import { BEACON_SINK, LANTERN_HEIGHT } from '../props/beacon.ts'
 import type { HearthStack } from '../hearth.ts'
@@ -170,6 +171,13 @@ export function createLandscape (
   // custom surface, and they are freed together in `dispose`.
   const textures = createTextureCatalogue(config().seed)
 
+  // One shadow for the whole landscape, built here because it is the one thing
+  // the two materials and the lake all read and none of them owns. It carries
+  // no geometry and nothing to free — the map under it belongs to the
+  // catalogue above — so it is built beside the survey rather than in `build`,
+  // and survives a rebuild the way the season and the weather do.
+  const shadow = createCloudShadow(config, textures)
+
   let root: Group | null               = null
   let materials: ScapeMaterials | null = null
   let dressing: Dressing | null        = null
@@ -283,6 +291,7 @@ export function createLandscape (
         quality.detailTaps,
         textures,
         quality.reliefSteps,
+        shadow,
       )
 
       const terrain = createArchipelagoTerrain(
@@ -302,7 +311,7 @@ export function createLandscape (
       // at a time, which is how the audit's accusation gets confirmed on the
       // device rather than argued about here.
       if (!skip.has('water')) {
-        water = createWater(config, field, quality, textures)
+        water = createWater(config, field, quality, textures, shadow)
         surfaces.push(water.mesh)
         root.add(water.mesh)
       }
@@ -385,6 +394,11 @@ export function createLandscape (
       // snow is this week's snow, so the weather has to be resolved against an
       // instant of the season that has already been resolved.
       const front = weather.sample(sky.time, now)
+
+      // Before anything that draws with it. The ground, the grass and the lake
+      // read the same four uniforms, so the shadow is placed once and then
+      // three programs are handed the answer.
+      shadow.update(wind)
 
       fleet?.update(frame.delta)
       sails?.update(frame.delta, wind.strength)

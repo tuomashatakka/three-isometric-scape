@@ -295,13 +295,23 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       controls: [
         range('atmosphere.fogDensity', 'fog density', 0, 0.9, 0.01),
         range('atmosphere.fogBreath', 'fog breath', 0, 0.4, 0.01),
-        range('atmosphere.cloudShadow', 'cloud shadow', 0, 1, 0.01),
         range('atmosphere.cloudDrag', 'cloud drift', 0, 3, 0.01),
+
+        // The shadow moved in under the deck, and that is the coupling rather
+        // than a tidy-up: the cover is what says whether there is any cloud up
+        // there, so it is in the shadow's own product and switching the deck
+        // off takes the dapple with it. The ceiling is in here for a second
+        // reason now — it is the height the shadow is projected from, so
+        // raising it walks the dapple downsun as well as lifting the sky.
         toggled(
           'sky clouds',
           range('atmosphere.cloudCover', 'cover', 0, 1, 0.01),
           0.62,
-          [ range('atmosphere.cloudHeight', 'ceiling', 10, 90, 1) ],
+          [
+            range('atmosphere.cloudHeight', 'ceiling', 10, 90, 1),
+            range('atmosphere.cloudShadow', 'shadow', 0, 1, 0.01),
+            range('atmosphere.cloudScale', 'shadow size', 20, 260, 1),
+          ],
         ),
         // Under the sky rather than under the year, even though the year is half
         // of what drives it. The aurora is a thing in the sky the way the deck

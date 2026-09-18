@@ -74,7 +74,7 @@ const DEGREES = Math.PI / 180
  * while the direction is held just above ground and the whole thing reads as
  * moonlight instead of as a rendering bug.
  */
-const FLOOR_Y = 0.16
+export const KEY_FLOOR = 0.16
 
 /**
  * What the key light keeps on a night with no moon in it, as a share of the
@@ -490,7 +490,7 @@ export function createDaylight (config: LiveConfig): Daylight {
       state.direction
         .set(
           Math.sin(bearing) * flat,
-          Math.max(keyAt.height, FLOOR_Y),
+          Math.max(keyAt.height, KEY_FLOOR),
           Math.cos(bearing) * flat,
         )
         .normalize()
