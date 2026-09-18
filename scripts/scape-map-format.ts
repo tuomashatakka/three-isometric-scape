@@ -359,6 +359,27 @@ function moonLine (moon: MapStats['moon']): string {
 }
 
 /**
+ * The cloud-shadow line, and the three ways it says nothing is happening.
+ *
+ * A frame with no dapple on it has three possible causes and looks the same
+ * under all of them, so the line carries the product the shader receives and
+ * then the terms behind it. `reach` is the other half: a shadow thrown two
+ * hundred metres downsun of the cloud that casts it is the difference between a
+ * projection and a texture read off world `xz`, and no still can measure it.
+ */
+function shadeLine (shade: MapStats['shade']): string {
+  return `shade ${shade.shade}  dark ${shade.dark}  cover ${shade.cover}  ` +
+    `light ${shade.light}  throw ${shade.reach}m @ ${shade.bearing}°` +
+    (shade.cover <= 0
+      ? '  <- a clear sky: there is no cloud up there to cast one'
+      : shade.light <= 0
+        ? '  <- nothing is up: a shadow needs a light to subtract'
+        : shade.dark <= 0
+          ? '  <- cloudShadow is at zero'
+          : '')
+}
+
+/**
  * The whitecap line, and the silence no capture can break.
  *
  * `still` is the only column a picture of this scape can report, because
@@ -487,6 +508,7 @@ export function formatStats (stats: MapStats): string {
     stormLine(stats.storm),
     rainbowLine(stats.rainbow),
     moonLine(stats.moon),
+    shadeLine(stats.shade),
     capsLine(stats.caps),
     treelineLine(stats.treeline),
     ...stats.drift.map(driftLine),

@@ -2011,10 +2011,31 @@ export interface ScapeConfig extends DykeConfig, ForceConfig, GuardConfig, KelpC
     hemiGround:   number
     hemiStrength: number
 
-    /** Drifting cloud-shadow darkness, 0..1. */
+    /**
+     * Drifting cloud-shadow darkness, 0..1.
+     *
+     * The authored end of it, and one of three terms — see `cloud-shadow.ts`.
+     * What actually reaches the shader is this times {@link cloudCover}, which
+     * says whether there is any cloud up there, times the light there is to
+     * block. So a clear sky lays no shadow and a moonless midnight lays no
+     * shadow, and neither needed a flag: this stays the switch, at zero.
+     *
+     * It is nearly twice what it used to be, and the scape is no darker for
+     * it. The old number was the whole answer; this one is halved again by the
+     * default cover of 0.5, and 0.84 × 0.5 is the 0.42 the ground has always
+     * had at noon.
+     */
     cloudShadow: number
 
-    /** World units per cloud-map tile. */
+    /**
+     * World units per cloud-map tile.
+     *
+     * The size of the shadows, not of the deck overhead — the deck sizes its
+     * own tile against the widest authored frame, because cloud density read
+     * from underneath is a screen composition. See `cloudTileSize` in
+     * `clouds.ts`, and the follow-up in the changelog: the two are still two
+     * bakes of two different noises.
+     */
     cloudScale: number
 
     /**
@@ -2027,7 +2048,16 @@ export interface ScapeConfig extends DykeConfig, ForceConfig, GuardConfig, KelpC
      */
     cloudDrag: number
 
-    /** Sky-deck opacity when fully zoomed out, 0 disables the deck. */
+    /**
+     * Sky-deck opacity when fully zoomed out, 0 disables the deck.
+     *
+     * And with it the shadow, which is the coupling this section was missing:
+     * it is the only number in the scape that says how much cloud there is, so
+     * {@link cloudShadow} is weighed by it. The deck's *own* fade with the zoom
+     * is not shared — the camera climbing past the deck is a fact about the
+     * frame, and a cloud goes on shading the ground you are standing in whether
+     * or not the frame is wide enough to show it.
+     */
     cloudCover: number
 
     /** Height of the sky deck above the waterline, in metres. */
@@ -3193,7 +3223,7 @@ export const SCAPE_CONFIG = {
     hemiSky:      0xc2cfd2,
     hemiGround:   0x3d4433,
     hemiStrength: 0.72,
-    cloudShadow:  0.42,
+    cloudShadow:  0.84,
     cloudScale:   92,
     cloudDrag:    0.9,
     cloudCover:   0.5,

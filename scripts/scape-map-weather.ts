@@ -1,12 +1,16 @@
+import { shadeAmount, shadowThrow } from '../src/scene/cloud-shadow.ts'
 import {
+  KEY_FLOOR,
   darkAmount,
   dayAmount,
+  keyPlace,
   keyShare,
   moonAmount,
   moonIllumination,
   moonPhase,
   moonPlace,
   sunHeight,
+  sunSwing,
 } from '../src/scene/daylight.ts'
 import { bowLight, bowPeak, bowPlace } from '../src/scene/rainbow.ts'
 import { stormLive, stormPeak, stormSchedule, stormSites } from '../src/scene/storm.ts'
@@ -161,6 +165,60 @@ export function moonStats (config: ScapeConfig): MapStats['moon'] {
     share:  round(keyShare(dayAmount(sun), lunar), 2),
     track:  round(trackAmount(dayAmount(sun), lunar, config.water.moonTrack), 2),
     fire:   round(phosphorAmount(darkAmount(sun), lunar, config.water.phosphor), 2),
+  }
+}
+
+/** Degrees per radian, for a bearing a person is meant to read. */
+const COMPASS = 180 / Math.PI
+
+/**
+ * The shadow the deck lays on the archipelago, and the three ways it goes out.
+ *
+ * Here because every one of those ways is the same picture. A frame with no
+ * dapple on it is a frame with a clear sky, or a frame at an hour with no light
+ * to block, or a frame whose authored darkness is at zero — and a still cannot
+ * tell you which. `shade` is the product the shader actually receives, so a
+ * zero there with `cover` and `light` both up is the authored switch and
+ * nothing else.
+ *
+ * `reach` is the finding the projection exists to produce: how far downsun of
+ * the cloud the shadow lands, in metres, which at this latitude is most of a
+ * home island. The key direction is built here rather than sampled, because a
+ * `DaylightState` carries a `Vector3` and this file draws with nothing but bun
+ * — and it does not need to be normalised, because {@link shadowThrow} reads
+ * only the ratio.
+ */
+export function shadeStats (config: ScapeConfig): MapStats['shade'] {
+  const { latitude, axialTilt, time, moonStrength, azimuth } = config.daylight
+  const { cloudShadow, cloudCover, cloudHeight }             = config.atmosphere
+  const year                                                 = config.season.time
+  const sun                                                  = sunHeight(time, year, latitude, axialTilt)
+  const place                                                = moonPlace(time, year, latitude, axialTilt)
+  const day                                                  = dayAmount(sun)
+  const lunar                                                = moonAmount(place.height, moonPhase(year), darkAmount(sun)) *
+    moonStrength
+
+  const key     = keyPlace(
+    { height: sun, swing: sunSwing(time, year, latitude, axialTilt) },
+    place,
+    keyShare(day, lunar),
+  )
+  const bearing = azimuth / COMPASS + key.swing
+  const flat    = Math.sqrt(Math.max(0, 1 - key.height * key.height))
+  const at      = shadowThrow(
+    Math.sin(bearing) * flat,
+    Math.max(key.height, KEY_FLOOR),
+    Math.cos(bearing) * flat,
+    cloudHeight,
+  )
+
+  return {
+    shade:   round(shadeAmount(cloudShadow, cloudCover, day, lunar), 3),
+    dark:    round(cloudShadow, 2),
+    cover:   round(cloudCover, 2),
+    light:   round(Math.min(1, day + lunar), 3),
+    reach:   round(Math.hypot(at.x, at.z)),
+    bearing: round((Math.atan2(at.x, at.z) * COMPASS % 360 + 360) % 360),
   }
 }
 

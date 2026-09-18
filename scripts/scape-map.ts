@@ -20,7 +20,7 @@ import type { CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, Salting
 import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
 import { causewayOf, croftOf, dykeOf, peatOf, pierOf, shielingOf, smokehouseOf, tarnOf, weirOf, wreckOf } from './scape-map-sites.ts'
-import { capsStats, moonStats, rainbowStats, stormStats } from './scape-map-weather.ts'
+import { capsStats, moonStats, rainbowStats, shadeStats, stormStats } from './scape-map-weather.ts'
 import { applyOverrides, parseArgs } from './args.ts'
 
 
@@ -484,6 +484,33 @@ export interface MapStats extends CompositionStats {
   }
 
   /**
+   * The shadow the cloud deck lays on the ground and on the sound.
+   *
+   * Here because the three ways it goes quiet are the same picture: a clear
+   * sky, an hour with no light to block, and the authored darkness at zero all
+   * produce a frame with no dapple on it. `shade` is the product the shader is
+   * handed, and the three columns behind it say which of them took it there.
+   */
+  shade: {
+    shade: number
+
+    /** `atmosphere.cloudShadow` — the authored end, and the switch. */
+    dark: number
+
+    /** `atmosphere.cloudCover` — whether there is any cloud up there at all. */
+    cover: number
+
+    /** `day + moon`: how much light there is for a cloud to take away. */
+    light: number
+
+    /** Metres downsun the shadow lands from the cloud casting it. */
+    reach: number
+
+    /** Which way it is thrown, in degrees. */
+    bearing: number
+  }
+
+  /**
    * The whitecaps out in the sound, at the three winds that matter.
    *
    * Here because the capture harness cannot reach two of the three: `STILL`
@@ -869,6 +896,7 @@ export function surveyStats (
     storm:    stormStats(config, survey),
     rainbow:  rainbowStats(config),
     moon:     moonStats(config),
+    shade:    shadeStats(config),
     caps:     capsStats(config),
     hearths:  hearthStats(survey),
     windows:  windowStats(survey),

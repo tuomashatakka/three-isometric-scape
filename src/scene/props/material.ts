@@ -3,6 +3,8 @@ import type { IUniform, MeshStandardMaterial, WebGLProgramParametersWithUniforms
 import { kitMaterial, markShared } from 'threejs-scene/modules/assets'
 import { NOTHING_SKIPPED } from '../audit.ts'
 import type { ScapeSkips } from '../audit.ts'
+import { CLOUD_SHADOW_GLSL, createCloudShadow } from '../cloud-shadow.ts'
+import type { CloudShadow } from '../cloud-shadow.ts'
 import type { LiveConfig } from '../config.ts'
 import { shadeDirection } from '../landscape/aspect.ts'
 import { SNOW_BAND, SNOW_WANDER, WANDER_ACROSS, WANDER_ALONG, driftDirection } from '../landscape/drift.ts'
@@ -23,17 +25,22 @@ export interface ScapeMaterials {
   /** Instanced vegetation — same look, plus a vertex sway. */
   foliage: MeshStandardMaterial
 
-  /** Advance cloud drift, the wind, the year and the weather. Allocation-free. */
+  /**
+   * Advance the wind, the year and the weather. Allocation-free.
+   *
+   * Not the cloud shadow: that one is shared with the lake and advanced by
+   * whoever owns both. See `cloud-shadow.ts`.
+   */
   update(wind: WindState, season: SeasonState, weather: WeatherState): void
   dispose(): void
 }
 
 /**
- * World-space cloud shadow, injected into a stock `MeshStandardMaterial`.
+ * The world position the cloud shadow is read at, and nothing else.
  *
- * Darkening the albedo before lighting is not physically a shadow, but at this
- * scale it reads as one for the cost of a single texture fetch — and unlike a
- * real shadow caster it costs nothing per light and never aliases.
+ * The lookup itself is `cloud-shadow.ts`; this is only the varying that carries
+ * a fragment's place on the ground to it, which the lake supplies for itself
+ * under another name.
  *
  * Two floats, not three, because the fragment side never reads `y` — and that
  * is the whole reason, which is worth saying plainly because this comment used
@@ -71,17 +78,13 @@ const CLOUD_WORLD_VERTEX = /* glsl */`
 `
 
 const CLOUD_PARS_FRAGMENT = /* glsl */`
-  uniform sampler2D uCloudMap;
-  uniform vec2 uCloudOffset;
-  uniform float uCloudScale;
-  uniform float uCloudStrength;
   varying vec2 vScapeGround;
+${CLOUD_SHADOW_GLSL}
 `
 
 const CLOUD_FRAGMENT = /* glsl */`
   #include <color_fragment>
-  float scapeCloud = texture2D(uCloudMap, vScapeGround * uCloudScale + uCloudOffset).r;
-  diffuseColor.rgb *= mix(1.0, 0.52 + 0.48 * scapeCloud, uCloudStrength);
+  diffuseColor.rgb *= scapeCloudShade(vScapeGround);
 `
 
 /**
@@ -556,21 +559,18 @@ const GROUND_DRIFT = 'vScapeFace.z'
  */
 const FOLIAGE_ASPECT = '0.0'
 
-/**
- * Cloud-map UV travelled per unit of wind travel.
- *
- * Measured rather than chosen: the deck used to scroll at `elapsed *
- * cloudSpeed * 0.06`, and the default wind travels at `speed * strength` =
- * 1.215 per second, so 0.05 lands the shadow at the rate it has always had.
- */
-const CLOUD_DRIFT = 0.05
-
 export function createScapeMaterials (
   config: LiveConfig,
   skip: ScapeSkips = NOTHING_SKIPPED,
   detailTaps = 6,
   textures: TextureCatalogue = createTextureCatalogue(config().seed),
   reliefSteps = 0,
+
+  // Handed in rather than built here, because the lake reads the same four
+  // uniforms and two records written from one config are two answers on any
+  // frame where only one of them is written. A default for the tests and the
+  // prop viewer, which have no lake to disagree with.
+  shadow: CloudShadow = createCloudShadow(config, textures),
 ): ScapeMaterials {
   // The lite path has one fetch to spend and no relief to march through, so a
   // tier below the full tap budget is a tier with flat soil whatever its relief
@@ -581,7 +581,6 @@ export function createScapeMaterials (
   // Asked for by name rather than built here. Every map in the scape is in
   // `textures/catalogue.ts`, which is also what makes the lake's ripple and this
   // ground's grain provably two different noises rather than two names for one.
-  const cloudMap  = textures.get('sky.cloudShadow')
   const detailMap = textures.get('ground.grain')
   const wearMap   = textures.get('ground.wear')
 
@@ -591,8 +590,6 @@ export function createScapeMaterials (
   // program does not reach.
   const normalMap = detailTaps >= 6 ? textures.get('ground.normal') : detailMap
   const barkMap   = textures.get('prop.bark')
-
-  const cloudOffset: IUniform<Vector2>   = { value: new Vector2() }
 
   // The compass, and the one uniform the vertex stage reads. Shared rather than
   // filed with the year, because it is the same bearing for anything that emits
@@ -607,12 +604,9 @@ export function createScapeMaterials (
   const driftDir: IUniform<Vector2>      = { value: new Vector2() }
   const driftScratch: Vec2               = { x: 0, z: 0 }
   const shared: Record<string, IUniform> = {
-    uCloudMap:      { value: cloudMap },
-    uCloudOffset:   cloudOffset,
-    uCloudScale:    { value: 1 / Math.max(1, config().atmosphere.cloudScale) },
-    uCloudStrength: { value: config().atmosphere.cloudShadow },
-    uShadeDir:      shadeDir,
-    uDriftDir:      driftDir,
+    ...shadow.uniforms,
+    uShadeDir: shadeDir,
+    uDriftDir: driftDir,
   }
   const windDir: IUniform<Vector2>     = { value: new Vector2(1, 0) }
   const wind: Record<string, IUniform> = {
@@ -765,17 +759,13 @@ export function createScapeMaterials (
     // at build. The scape's tuning surface is the config object, and a knob
     // that only takes effect on reload is not a knob.
     update (breeze, year, sky) {
-      // One travel, one bearing. The deck overhead scrolls off the same two
-      // numbers in `clouds.ts`, which is what finally puts a cloud and the
-      // shadow it casts on the same heading.
-      const drift = config().atmosphere.cloudDrag * breeze.travel * CLOUD_DRIFT
-
-      cloudOffset.value.set(breeze.dirX * drift, breeze.dirZ * drift)
+      // The cloud shadow is not written here. `cloud-shadow.ts` owns the four
+      // uniforms these materials share with the lake, and the landscape
+      // advances it once a frame — one shadow for the ground, the grass and
+      // the sound, rather than three that agree most of the time.
       windDir.value.set(breeze.dirX, breeze.dirZ)
       wind.uWindPhase.value        = breeze.travel
       wind.uWindStrength.value     = breeze.strength
-      shared.uCloudStrength.value  = config().atmosphere.cloudShadow
-      shared.uCloudScale.value     = 1 / Math.max(1, config().atmosphere.cloudScale)
       detail.uDetailStrength.value = config().terrain.detailGrain
       detail.uDetailScale.value    = 1 / Math.max(0.5, config().terrain.detailScale)
       detail.uDetailMacro.value    = config().terrain.detailMacro
