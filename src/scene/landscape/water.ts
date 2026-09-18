@@ -487,11 +487,14 @@ ${WATER_CAUSTIC_FRAGMENT}
 ${WATER_ICE_FRAGMENT}
 
   // The weather between the sun and the sea, and the half of this scape the
-  // shadow never used to reach: the same fetch, the same drift and the same
-  // throw the ground takes, at the lake's own world position. Laid over the
-  // ice as well as the water, because a shadow crossing a frozen bay is the
-  // one place in the archipelago where it has something white to cross.
-  diffuseColor.rgb *= scapeCloudShade(vWaterGround);
+  // shadow never used to reach: the same fetch, the same cut, the same drift
+  // and the same throw the ground takes, at the lake's own world position.
+  // Laid over the ice as well as the water, because a shadow crossing a frozen
+  // bay is the one place in the archipelago where it has something white to
+  // cross. Held in a local because the reflection reads it again — see
+  // water-gleam.ts, where the larger half of this happens.
+  float cloudShade = scapeCloudShade(vWaterGround);
+  diffuseColor.rgb *= cloudShade;
 
   // The plane spans the whole map, so it has to vanish wherever there is no
   // water under it — otherwise dry land gets painted lake.
@@ -546,11 +549,14 @@ ${WATER_CAUSTIC_FRAGMENT}
 ${WATER_ICE_FRAGMENT}
 
   // The weather between the sun and the sea, and the half of this scape the
-  // shadow never used to reach: the same fetch, the same drift and the same
-  // throw the ground takes, at the lake's own world position. Laid over the
-  // ice as well as the water, because a shadow crossing a frozen bay is the
-  // one place in the archipelago where it has something white to cross.
-  diffuseColor.rgb *= scapeCloudShade(vWaterGround);
+  // shadow never used to reach: the same fetch, the same cut, the same drift
+  // and the same throw the ground takes, at the lake's own world position.
+  // Laid over the ice as well as the water, because a shadow crossing a frozen
+  // bay is the one place in the archipelago where it has something white to
+  // cross. Held in a local because the reflection reads it again — see
+  // water-gleam.ts, where the larger half of this happens.
+  float cloudShade = scapeCloudShade(vWaterGround);
+  diffuseColor.rgb *= cloudShade;
 
   diffuseColor.a *= smoothstep(0.0, 0.03, waterDepth) * clamp(0.5 + waterDepth * 1.7, 0.0, 1.0);
 

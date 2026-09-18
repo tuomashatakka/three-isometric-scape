@@ -82,16 +82,50 @@ export interface CloudShadowState {
 const DRIFT = 0.05
 
 /**
- * How much light a full cloud takes away, as a share of the albedo.
+ * How much light a full cloud takes away, as a share of what is under it.
  *
- * The other end of the `mix` in {@link CLOUD_SHADOW_GLSL}, and unchanged from
- * the constant that sat inline in the ground material: under a solid cloud a
- * surface keeps 52 % of what it had. Darkening the albedo before lighting is
- * not physically a shadow, but at this scale it reads as one for the cost of a
- * single texture fetch — and unlike a real shadow caster it costs nothing per
- * light and never aliases.
+ * The other end of the `mix` in {@link CLOUD_SHADOW_GLSL}. Darkening before
+ * lighting is not physically a shadow, but at this scale it reads as one for
+ * the cost of a single texture fetch — and unlike a real shadow caster it costs
+ * nothing per light and never aliases.
+ *
+ * It was 48 %, and it went up with {@link CLOUD_CUT} rather than on its own:
+ * a *haze* laid over everything cannot carry much contrast, because whatever it
+ * takes it takes from the whole frame and the eye reads that as the scene
+ * simply being darker. A cut field has gaps, and ground in a gap is fully lit,
+ * so the contrast has somewhere to be measured against. 70 % is still short of
+ * what a real cumulus does — the direct beam is most of a sunny day's light —
+ * and it is as far as an albedo multiply can honestly go before the shadowed
+ * half stops reading as ground.
  */
-const KEPT = 0.52
+const TAKEN = 0.7
+
+/**
+ * Where the noise field stops being sky and starts being cloud.
+ *
+ * The deck overhead has always thresholded its field — `bakeClouds` cuts here
+ * and fades over {@link CLOUD_EDGE} — and the reason is written down beside it:
+ * a cloud read from underneath has to have **gaps**, or it is a grey filter
+ * over the frame rather than weather. The shadow never applied that cut. It
+ * multiplied the raw field, which is four octaves of noise spanning about two
+ * thirds of nought-to-one around a mean of a half, so what it laid on the
+ * archipelago was an even haze that went slightly darker in places: 74 % of a
+ * 520 m frame moved by it, and by no more than **ten levels of 255** at the
+ * worst pixel in the frame.
+ *
+ * Cutting it is what turns that into a shadow with an edge, and it costs one
+ * `smoothstep` on a fetch already being made. It also settles the polarity: the
+ * deck draws cloud *above* the cut, so above the cut is now where the ground
+ * goes dark, and a deck and its shadow finally agree about which part of the
+ * sky is cloud.
+ *
+ * The two constants live here rather than in `clouds.ts` because this is the
+ * module both readers can import — `scape:map` reads this file and draws with
+ * nothing but bun, and `clouds.ts` bakes a texture. See the changelog's
+ * follow-up: they are one cut over two bakes, not yet one sky.
+ */
+export const CLOUD_CUT  = 0.55
+export const CLOUD_EDGE = 0.22
 
 /** Below this the throw is a divide by nothing. The key light never reaches it. */
 const MIN_LIFT = 1e-3
@@ -168,8 +202,9 @@ export const CLOUD_SHADOW_GLSL = /* glsl */`
   uniform float uCloudStrength;
 
   float scapeCloudShade (vec2 ground) {
-    float cloud = texture2D(uCloudMap, ground * uCloudScale + uCloudOffset).r;
-    return mix(1.0, ${KEPT.toFixed(2)} + ${(1 - KEPT).toFixed(2)} * cloud, uCloudStrength);
+    float field = texture2D(uCloudMap, ground * uCloudScale + uCloudOffset).r;
+    float cloud = smoothstep(${CLOUD_CUT.toFixed(2)}, ${(CLOUD_CUT + CLOUD_EDGE).toFixed(2)}, field);
+    return mix(1.0, 1.0 - ${TAKEN.toFixed(2)} * cloud, uCloudStrength);
   }
 `
 

@@ -8,6 +8,7 @@ import {
 } from 'three'
 import type { OrthographicCamera, Texture } from 'three'
 import { defineModule, smoothstep } from 'threejs-scene'
+import { CLOUD_CUT, CLOUD_EDGE } from './cloud-shadow.ts'
 import { bakeAlphaField } from 'threejs-scene/modules/assets'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import type { DaylightState } from './daylight.ts'
@@ -76,9 +77,6 @@ export function cloudTileSize (maxViewSize: number): number {
 const REACH_IN  = 0.2
 const REACH_OUT = 0.47
 
-/** Noise level the cloud edge is cut at — below it is clear sky, and it stays clear. */
-const CUT = 0.55
-
 const WHITE = new Color('#ffffff')
 
 /**
@@ -89,6 +87,11 @@ const WHITE = new Color('#ffffff')
  * underneath has to have *gaps*, or it is just a grey filter over the frame, so
  * the field is thresholded instead: below the cut there is no cloud at all, and
  * the sky above the island stays a sky.
+ *
+ * The cut itself is `cloud-shadow.ts`'s, because the shadow needs the same one
+ * and cannot import this file: it is read by `scape:map`, which draws nothing.
+ * One number, two bakes — see the changelog's follow-up, which is the third
+ * step neither of them has taken.
  */
 function bakeClouds (data: Uint8Array, seed: number): void {
   for (let y = 0; y < TEXTURE_SIZE; y += 1)
@@ -99,7 +102,7 @@ function bakeClouds (data: Uint8Array, seed: number): void {
       data[offset]     = 255
       data[offset + 1] = 255
       data[offset + 2] = 255
-      data[offset + 3] = Math.round(smoothstep(CUT, CUT + 0.22, sample) * 255)
+      data[offset + 3] = Math.round(smoothstep(CLOUD_CUT, CLOUD_CUT + CLOUD_EDGE, sample) * 255)
     }
 }
 

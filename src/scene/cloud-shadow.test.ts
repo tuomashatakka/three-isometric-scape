@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, test } from 'bun:test'
-import { CLOUD_SHADOW_GLSL, shadeAmount, shadowThrow } from './cloud-shadow.ts'
+import { CLOUD_CUT, CLOUD_EDGE, CLOUD_SHADOW_GLSL, shadeAmount, shadowThrow } from './cloud-shadow.ts'
 import { SCAPE_CONFIG } from './config.ts'
 import { KEY_FLOOR } from './daylight.ts'
 
@@ -127,6 +127,22 @@ describe('the lookup itself', () => {
   })
 
   /**
+   * The deck and the shadow have to agree about which part of the sky is
+   * cloud, and this is the half of that agreement a test can hold: one cut,
+   * read by the bake in `clouds.ts` and by the lookup here. Two bakes still,
+   * which is the follow-up — but not two opinions about where cloud starts.
+   */
+  test('it cuts at the level the deck overhead is cut at', () => {
+    const deck = readFileSync(new URL('clouds.ts', import.meta.url).pathname, 'utf8')
+
+    expect(CLOUD_SHADOW_GLSL).toContain(
+      `smoothstep(${CLOUD_CUT.toFixed(2)}, ${(CLOUD_CUT + CLOUD_EDGE).toFixed(2)}, field)`,
+    )
+    expect(deck).toContain('smoothstep(CLOUD_CUT, CLOUD_CUT + CLOUD_EDGE, sample)')
+    expect(deck).not.toContain('const CUT =')
+  })
+
+  /**
    * The chunk is written once and compiled into four programs, and the reason
    * it is a function rather than a statement is that its two callers name the
    * world position differently. A chunk that named either varying could not be
@@ -153,7 +169,7 @@ describe('and which lakes take it', () => {
   const lake = readFileSync(new URL('landscape/water.ts', import.meta.url).pathname, 'utf8')
 
   test('both water programs read the shadow, and read the same one', () => {
-    const applied = lake.match(/diffuseColor\.rgb \*= scapeCloudShade\(vWaterGround\);/g)
+    const applied = lake.match(/diffuseColor\.rgb \*= cloudShade;/g)
 
     expect(applied).toHaveLength(2)
   })
@@ -161,5 +177,23 @@ describe('and which lakes take it', () => {
   test('the lake declares the chunk once, and does not write its own', () => {
     expect(lake).toContain('${CLOUD_SHADOW_GLSL}')
     expect(lake).not.toContain('uniform sampler2D uCloudMap')
+  })
+
+  /**
+   * The reflection is the term that makes the difference on water — the mirror
+   * takes over most of the lake's colour at this camera's angles — so the
+   * shadow has to reach it, and it can only do that through a local both
+   * colour fragments declare. A program that shaded the albedo and not the sky
+   * it reflects is the first cut of this run, and it was very nearly invisible.
+   */
+  test('both programs hold the shade for the reflection to read', () => {
+    const held  = lake.match(/float cloudShade = scapeCloudShade\(vWaterGround\);/g)
+    const gleam = readFileSync(
+      new URL('landscape/water-gleam.ts', import.meta.url).pathname,
+      'utf8',
+    )
+
+    expect(held).toHaveLength(2)
+    expect(gleam).toContain('mix(uSkyHorizon, uSkyTop, facing) * cloudShade')
   })
 })
