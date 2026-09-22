@@ -3,6 +3,8 @@ import type { ScapeConfig } from '../config.ts'
 import { valueNoise } from '../noise.ts'
 import { COAST_BEARINGS, bearingGap, coastBedAt, solveCoastline } from './coast.ts'
 import type { Vec2 } from './path.ts'
+import { solveArch } from './arch.ts'
+import type { Arch } from './arch.ts'
 import { raiseStack, solveStack } from './stack.ts'
 import type { Stack } from './stack.ts'
 
@@ -84,6 +86,22 @@ export interface Crag {
    * off a headland that moved. See `landscape/stack.ts`.
    */
   stack: Stack | null
+
+  /**
+   * The hole the sea cut through it and has not yet dropped, or `null`.
+   *
+   * Held here for the stack's reason and one more. An arch is the same cliff
+   * cut through on the same weakness field, so it belongs to the headland — and
+   * it has to be solved *after* the pillar, because the two are the same
+   * landform at two ages and would otherwise site on the same line, which would
+   * stand the stack in the portal. See `landscape/arch.ts`.
+   *
+   * Unlike the stack it changes no ground at all: `raiseCrag` does not compose
+   * it, because a height field cannot put rock over water. The dressing draws
+   * it. That is the whole reason it is the one landform in this scape made of
+   * geometry.
+   */
+  arch: Arch | null
 
   /**
    * Metres from the island's middle to the waterline on a bearing, or 0 where
@@ -457,7 +475,22 @@ export function solveCrag (
     weakAt:  along => weaknessAt(config, along),
   })
 
-  return { bearing: site.bearing, arc, lip, steepness: site.steepness, stack, shoreAt, formAt }
+  // And the hole, last of the three, off the pillar's own line. An arch is a
+  // spur the sea has cut through and not yet dropped, so it is the *earlier*
+  // stage of the landform standing beside it and it has to be cut somewhere
+  // else: the stack takes the weakest rock on the headland and the arch takes
+  // the best line left outside `arch.apart` of it.
+  const arch = solveArch(config, {
+    bearing:    site.bearing,
+    arc,
+    lip,
+    bench:      crag.bench,
+    shoreAt,
+    weakAt:     along => weaknessAt(config, along),
+    stackAlong: stack ? stack.z * Math.cos(site.bearing) - stack.x * Math.sin(site.bearing) : null,
+  })
+
+  return { bearing: site.bearing, arc, lip, steepness: site.steepness, stack, arch, shoreAt, formAt }
 }
 
 

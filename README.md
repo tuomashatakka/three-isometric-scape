@@ -212,6 +212,7 @@ src/
     ├── config-crag.ts              the cliff's own slice: the profile, the siting gradient, the clefts
     ├── config-saltings.ts          the marsh's own slice: the two levels, the arc, and the working gap
     ├── config-stack.ts             the pillar's own slice: the stature, the girth, and the gut behind it
+    ├── config-arch.ts              the arch's own slice: the span, the headroom, and the three refusals
     ├── config-dyke.ts              the head dyke's own slice: how far up the hill, and how wide a gate
     ├── config-shieling.ts          the summer hut's own slice: how far up, how far out, how near the burn
     ├── config-wreck.ts             the wreck's own slice: how low a rock, how much of one, how flat a ledge
@@ -273,6 +274,7 @@ src/
     │   ├── crag.ts                 the cliff on the steep shore, its platform, and the talus under it
     │   ├── saltings.ts             the tidal flat at the beck's mouth, and the gutters cut through it
     │   ├── stack.ts                the pillar the sea left standing off the headland's weakest line
+    │   ├── arch.ts                 the hole cut through the headland and not yet dropped — surveyed, not raised
     │   ├── beacon.ts               the outer rock a light would stand on
     │   ├── haulout.ts              which rocks seals use, and where on each one every animal lies
     │   ├── seals.ts                the colony, in one instanced draw the tide takes back
@@ -334,6 +336,7 @@ src/
         ├── shore.ts                boathouse and slipway, net rack, mooring stakes
         ├── smokehouse.ts           the smokehouse — log walls, turf roof, ridge cowl
         ├── shieling.ts             the shieling — drystone room, turf roof, and the fold on its back
+        ├── arch.ts                 the sea arch — two legs cut to their beds, and the rock over the hole
         ├── pier.ts                 the pier — driven piles, a level deck, bollards and a ladder
         ├── weir.ts                 the fish weir — a wrack-stained wall on the bed, and the wattle on its pound
         ├── croft.ts                the croft — boarded walls, turf roof, stone flue, oars at the gable
@@ -359,6 +362,7 @@ scripts/
 ├── scape-map-sites.ts              the sited features of one island, projected and measured
 ├── scape-map-weather.ts            the storm the front carries, and where its strikes land
 ├── scape-poses.ts                  every named pose set, and the clocks a capture stops
+├── scape-poses-coast.ts            the hard shore's three ages: crag, arch, stack, folded back into TOURS
 ├── scape-shot.ts                   headless stills, posed and pinned
 ├── scape-diff.ts                   what a change did to the picture, in numbers
 └── setup.ts                        what a run has before it starts thinking
@@ -1992,6 +1996,28 @@ the tour at the default tolerance reads `same` at all six poses, and **that is t
 
 `--poses shade` is the set that owns it, and the control worth reading is `shade-clear`: a sky at `cloudCover: 0` is now **byte-identical** to `shade-none` at `cloudShadow: 0`, where before it dappled the whole archipelago. `scape:map --stats` gains a `shade` line, because three frames with no dapple on them look the same and the line says which: `shade 0.42  dark 0.84  cover 0.5  light 1  throw 37.7m @ 37.5°`, with `<- a clear sky: there is no cloud up there to cast one` when the cover is what took it.
 
+
+## the hole the sea cut and has not yet dropped
+
+the crag gave this coast a cliff and the stack gave it the pillar left over when the sea has finished with one. the stack's own section, three headings up, names what was between them and did not exist: *a weak line worked long enough becomes a geo, then a cave, then an arch; and when the arch falls, the seaward end of it is left standing in open water*. the archipelago had the beginning of that sequence and the end of it and nothing in the middle. [`landscape/arch.ts`](src/scene/landscape/arch.ts) is the middle — a span of granite over two legs, one rooted on the wave-cut platform and one standing in five metres of water, with a portal under it the sea runs through at every state of the tide.
+
+**it is the one landform in this scape that cannot be a height field, and that is the whole reason it is here rather than in `crag.ts`.** every other landform in this repository is a level the ground is raised to: the dune belt, the headland, the pillar, the bar, the bank, the cap. a height field has one surface per column of air. it can stand a pillar up and it can cut a cleft down, and there is no arrangement of it at all that puts rock *over* water with sky over the rock — which is the entire subject. so this one is surveyed here, **drawn as geometry** in [`props/arch.ts`](src/scene/props/arch.ts), and merged into the steading's single hero draw the way the pier and the weir already are. the three knobs and the three refusals are [`config-arch.ts`](src/scene/config-arch.ts).
+
+**it changes no ground by a millimetre, and that is the invariant the whole thing rests on.** `raiseCrag` composes the cliff and its pillar into the terrain in one call; it does not compose this, because there is nothing to compose. the harbour, the fairway, the farm, the footpaths and the five waterways therefore see exactly the coast they have always seen — an arch is drawn *over* the water rather than folded into the bed under it. the test beside the survey states that rather than trusting it: it builds the height field with the landform in and with it out and requires `toBe`, not `toBeCloseTo`, at every sample across the portal and at a girth either side of it. `scape:diff`'s structural line is the same claim from the other end, and it reads `no structural change` on the run that added four of them.
+
+**the length of every arch came off the bottom rather than out of the config.** the first cut wrote a nine-metre span into the section, and it produced three arches, none of them on the home island — because the coast every near pose in this repository is aimed at plunges to nine metres of water inside a bay, so a leg placed a fixed distance out was a leg standing in open sound. that is the *pier's* problem wearing different clothes, and it takes the pier's answer: the outer leg is carried out to the last of the shelf the bottom will still take, and stopped there. `arch.reach` is a ceiling on that and `arch.least` is a floor under it, and what the archipelago came back with is the pier's own spread — `opening 2.6m` on the home island's steep shore, `7.6m` on the sound's shallow one, `6.6m` and `3.85m` between. the ridge island has no crag, so it has no arch; the meadow's shelf is shorter than `least` and it gets none either.
+
+**the pillar and the hole are cut on different lines, and the config says how far apart.** both are worked out of `weaknessAt` — the same field that wanders the lip and punches the clefts — so left to themselves they site on the same line and the stack stands in the portal. `solveArch` is handed the pillar's own offset along the shore, one number rather than a landform, and takes the best line outside `arch.apart` of it. the arch is therefore always the *second* weakest rock on its headland, which is exactly right: the weakest is the one that already fell. the test states that as a fact about the pair, along with the other half of the sequence — the crown of the arch has to come out under the crown of the pillar, because the pillar is the later stage of the same rock and the weather has had longer at the top of it.
+
+**the refusals are what make the block worth printing.** `founded` is four metres of bare seabed under the outer leg: a shelf already deeper than that is a shelf a spur never reached across, and whatever stands out there is stack country. `drowned` is 0.6 m of water under the middle of the portal, which is the difference between an arch and a bridge — this scape already has a bridge, where the track crosses the beck. and the span has to carry at least 0.8 m of rock over its own opening or it is refused outright rather than drawn as a lintel, which is a landform that has already fallen. the crown is a *share* of the headland's lip for the stack's reason, so the fell's taller cliff carries a taller arch without a word being written about it.
+
+**`scape:map` prints two numbers no capture can reach.** `headroom` is the daylight under the middle of the span at high water *springs* — 3.66 m at the defaults — and at or under zero the rock is sitting on the sea, which from every pose this scape is ever drawn at is the same dark shape as a boulder. `floor ... wet` is the same question asked downward: the solve refuses a dry portal against the *bare* seabed, and the shore shelving runs after that, so an arch whose hole the drawn terrain filled in is a bridge that passed its own audit. the line says both in words when they break.
+
+**the span floated a metre clear of its own legs, and an ascii elevation is what found it.** `createRockGeometry` defaults to `scale: [1, 0.72, 1]` — right for a boulder lying on the ground, and wrong for every part in `props/arch.ts`, because here the caller is *dictating* an extent: a leg reaches from its bed to the springing, a voussoir reaches from the soffit to the crown. a hidden 0.72 in the middle of that turns each of them into two thirds of itself, two shortfalls stack at the springing, and what gets drawn is an arc of rock hovering over a boulder. it is invisible in a still from forty metres and unmistakable in `rasterizeAscii`'s `front` view with the run rotated onto the x axis — a mesh instrument catching a mesh bug, in a fortieth of the time a screenshot took to not show it. the fix is an explicit unit scale plus a 0.9 m overlap buried inside the haunch, where the span is deepest and nothing about the drawn shape changes.
+
+**it costs no draw call.** the span is merged into the steading's one hero geometry, the way the pier, the weir and the dyke are, so an arch costs exactly the rock in it and nothing else: **700 triangles on the minimal tier and 1 260 on ultra**, which is 2 800 to 5 040 across the four islands that carry one, against a scene that draws 3.01 M. `quality.archBlocks` is the handle and it is a density rather than a gate for `pierBoards`' reason — the cheap tier gets a coarser arch rather than a coast that loses its landform on a phone — and its floor of five is set by the soffit curve rather than by taste, because a hole drawn with fewer blocks than that is a lintel with a chamfer on it.
+
+**and the tour could not see it — the eighth time this has been written down.** eleven metres of rock fifty metres from the world origin moved every pose in `tour` by between 0.00 % and 0.01 %. `--poses arch` is four frames on the home island's span at world (35, −40): `arch` at 40 m, where the legs, the hole and the cliff behind are three things; `arch-near` at 15 m, the only frame in which the soffit curve and the courses of the legs are surfaces; `arch-reach` at 70 m, which is the frame the run was for, because it holds the headland, the hole cut through its spur and the pillar left where an older hole already fell in one picture; and `arch-none` at `terrain.arch.stature=0`, which is the coast this archipelago had before the run. nothing in the set is turned off the default heading, and that is deliberate rather than an omission: `rot` does not carry `camera.focusX`/`focusZ` with it, so a rotated frame on a subject fifty metres off the origin photographs the farmyard instead — which is what the first cut of the set did.
 
 ## ground that casts
 

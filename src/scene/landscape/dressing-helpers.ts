@@ -1,8 +1,14 @@
+import type { BufferGeometry } from 'three'
+import type { SeededRng } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
+import { buildArchSpan } from '../props/arch.ts'
+import type { ArchFooting } from '../props/arch.ts'
 import type { FencePoint } from '../props/fence.ts'
 import type { PropName } from '../props/index.ts'
+import type { NordicPalette } from '../props/palette.ts'
 import { WRECK_SINK } from '../props/wreck.ts'
 import { alignToSlope } from './align.ts'
+import type { Arch } from './arch.ts'
 import type { TiltWeight } from './align.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
 import type { Creek } from './creek.ts'
@@ -348,4 +354,72 @@ export function raiseWreck (
 
   place('wreck', x, z, yawAlong(site.bearing), WRECK_SINK)
   reserve(x, z, WRECK_FOOTING + 0.8)
+}
+
+
+/**
+ * The sea arch, stood over the portal the headland's survey solved.
+ *
+ * The one landform in this scape that arrives as geometry rather than as a
+ * height, and that is the whole reason it is dressed at all — `raiseCrag`
+ * composes the cliff and the pillar into the ground in one call, and it cannot
+ * compose this, because a height field has one surface per column of air and an
+ * arch needs two. See `landscape/arch.ts`.
+ *
+ * Here rather than inside the dressing's closure for `raiseWreck`'s reason:
+ * `raiseOutlying` is at the lint config's statement ceiling, so the arch had to
+ * cost that function exactly one.
+ *
+ * The legs are footed on the **drawn** terrain rather than on the bare bed the
+ * solve refused against, which is the same seam the pier's bents are cut on: an
+ * arch is metres of granite standing in a few metres of water, and a foot set
+ * from the falloff would hang the whole landform a hand's width off a shelved
+ * shore. The reserve is the other half — the solver has no idea the span is
+ * there, and the littoral band seeds wrack at exactly this depth.
+ */
+type OptionsType = {
+  water:   number
+  blocks:  number
+  rng:     SeededRng
+  palette: NordicPalette
+  heightAt(x: number, z: number): number
+  reserve(x: number, z: number, radius: number): void
+  heroes:  BufferGeometry[]
+}
+
+export function raiseArch (
+  arch:    Arch | null,
+  origin:  Vec2,
+  options: OptionsType,
+): void {
+  if (!arch)
+    return
+
+  const { water, blocks, rng, palette, heightAt, reserve, heroes } = options
+
+  const footing = (leg: Vec2): ArchFooting => {
+    const x = leg.x + origin.x
+    const z = leg.z + origin.z
+
+    return { x, z, bed: heightAt(x, z) }
+  }
+
+  const inner = footing(arch.inner)
+  const outer = footing(arch.outer)
+
+  heroes.push(buildArchSpan({
+    inner,
+    outer,
+    girth:     arch.girth,
+    springing: arch.springing,
+    crown:     arch.crown,
+    soffitAt:  arch.soffitAt,
+    blocks,
+    water,
+    rng:       rng.fork('arch'),
+    palette,
+  }))
+
+  for (const leg of [ inner, outer ])
+    reserve(leg.x, leg.z, arch.girth + 0.6)
 }
