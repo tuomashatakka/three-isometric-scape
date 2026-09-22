@@ -18,7 +18,7 @@ import type { TiltWeight } from './align.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from './archipelago.ts'
 import { BEACON_FOOTING } from './beacon.ts'
 import { CROFT_FOOTING } from './croft.ts'
-import { createGroundContact, findCrossing, isFoliage, raiseShieling, raiseWreck, trackPointNear } from './dressing-helpers.ts'
+import { createGroundContact, findCrossing, isFoliage, raiseArch, raiseShieling, raiseWreck, trackPointNear } from './dressing-helpers.ts'
 import { raiseHarbour } from './dressing-harbour.ts'
 import { raiseEnclosures } from './dressing-enclosures.ts'
 import type { Walling } from './dressing-enclosures.ts'
@@ -546,6 +546,19 @@ export function createDressing (
       placeHero,
       (x, z, radius) => solver.reserve(x, z, radius),
     )
+
+    // The hole in the headland, which is geometry rather than ground and so is
+    // the one landform the dressing has to draw. Out in `dressing-helpers.ts`
+    // for the wreck's reason, and costing this function the same one statement.
+    raiseArch(survey.crag?.arch ?? null, landmass.origin, {
+      water,
+      blocks:  quality.archBlocks,
+      rng,
+      palette,
+      heightAt,
+      reserve: (x, z, radius) => solver.reserve(x, z, radius),
+      heroes,
+    })
 
     // A bridge only earns its place where the track has something to cross.
     const crossing = findCrossing(layout, survey.field, localConfig)

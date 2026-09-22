@@ -350,6 +350,24 @@ export interface AtmosphereQuality {
    */
   weirStakes: number
 
+  /**
+   * Blocks in a sea arch's span — see `props/arch.ts`.
+   *
+   * A count rather than a switch, and not a gate, for the reason
+   * {@link AtmosphereQuality.pierBoards} is not one: the span is merged into
+   * the steading's one hero draw, so an arch costs no draw call on any tier and
+   * there is nothing here to turn off. What scales is the vertex count of the
+   * rock over the opening, which is most of the geometry in the landform.
+   *
+   * The floor is set by the hole rather than by taste. The soffit is a curve,
+   * and a curve drawn with fewer than about five blocks over a four-and-a-half
+   * metre opening is a lintel with a chamfer on it — which is the one reading
+   * the landform cannot afford, because a flat-bottomed arch is a bridge. The
+   * cheapest tier gets a coarse arch rather than a coast that loses its
+   * landform on a phone.
+   */
+  archBlocks: number
+
   /** Lake plane subdivisions per side. */
   waterSegments: number
 
@@ -419,6 +437,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     rainbowArcs:     0,
     tarnSectors:     20,
     pierBoards:      0.9,
+    archBlocks:      5,
     dykeSpacing:     0.98,
     weirStakes:      0,
     waterSegments:   24,
@@ -472,6 +491,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     rainbowArcs:   2,
     tarnSectors:   28,
     pierBoards:    1.2,
+    archBlocks:    6,
     dykeSpacing:   0.92,
     weirStakes:    1.1,
     waterSegments: 48,
@@ -523,6 +543,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     rainbowArcs:     2,
     tarnSectors:     44,
     pierBoards:      1.6,
+    archBlocks:      9,
     dykeSpacing:     0.76,
     weirStakes:      0.8,
     waterSegments:   96,
@@ -567,6 +588,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     rainbowArcs:     2,
     tarnSectors:     56,
     pierBoards:      2,
+    archBlocks:      12,
     dykeSpacing:     0.64,
     weirStakes:      0.55,
     waterSegments:   128,

@@ -499,6 +499,14 @@ export function formatStats (stats: MapStats): string {
       (stack.gut <= 0 ? '  <- the platform has run out to meet it: a promontory, not a stack' : '') +
       (stack.freeboard <= 0 ? '  <- the crown goes under at springs' : '') +
       (stack.crown >= stack.lip ? '  <- the pillar overtops the cliff it came out of' : '')),
+    ...stats.arches.map(arch =>
+      `arch ${arch.id}  (${arch.x},${arch.z})  faces ${arch.bearing}°  ` +
+      `opening ${arch.opening}m  headroom ${arch.headroom}m at springs  ` +
+      `crown ${arch.crown}m of a ${arch.lip}m lip  ${arch.thickness}m of rock over it  ` +
+      `floor ${arch.wetted}m wet, ${arch.depth}m deep  leg stands in ${arch.founded}m  rock ${arch.weakness}` +
+      (arch.headroom <= 0 ? '  <- the span closes on the sea at springs: a boulder, not an arch' : '') +
+      (arch.wetted <= 0 ? '  <- the portal is dry: a bridge, not an arch' : '') +
+      (arch.crown >= arch.lip ? '  <- the span overtops the cliff it was cut through' : '')),
     ...stats.forces.map(fall =>
       `force ${fall.id}  lip (${fall.x},${fall.z}) ${fall.lip}m  drop ${fall.drop}m  ` +
       `over ${fall.run}m  sheet ${fall.width}m wide`),

@@ -1,6 +1,7 @@
 import { SCAPE_CONFIG } from '../src/scene/config.ts'
 import { bowPeak } from '../src/scene/rainbow.ts'
 import { stormPeak } from '../src/scene/storm.ts'
+import { COAST_TOURS } from './scape-poses-coast.ts'
 
 
 /**
@@ -84,16 +85,6 @@ const HAUL_ROCK = [ 'camera.focusX=300', 'camera.focusZ=375' ]
  */
 const HAUL_EDGE = [ 'camera.focusX=305', 'camera.focusZ=366' ]
 
-/**
- * The home island's sea stack, in world metres.
- *
- * Named rather than repeated for the crossing's reason — four frames aim at it
- * — and rounded off the `stack` line `scape:map --stats` prints rather than
- * typed from a screenshot. It is the one pillar in the archipelago on the same
- * island as the camera's own home pose.
- */
-const OVER_STACK = [ 'camera.focusX=58', 'camera.focusZ=-35' ]
-
 /** The middle of the causeway, which the three `causeway` poses all sit on. */
 const OVER_CROSSING = [ 'camera.focusX=52.4', 'camera.focusZ=32.5' ]
 
@@ -125,6 +116,11 @@ export interface Pose {
  * command, one browser launch, six answers.
  */
 export const TOURS: Record<string, Pose[]> = {
+  // The hard shore's three ages, out in `scape-poses-coast.ts`: this file was
+  // at the lint config's line ceiling and the crag, the stack and the arch are
+  // one subject at three stages, so they moved together.
+  ...COAST_TOURS,
+
   tour: [
     { name: 'default' },
     { name: 'near', zoom: 10 },
@@ -1507,86 +1503,6 @@ export const TOURS: Record<string, Pose[]> = {
       zoom:   110,
       season: 0.02,
       set:    [ 'camera.focusX=12', 'camera.focusZ=42' ],
-    },
-  ],
-
-  /**
-   * The crag, from the water it stands over.
-   *
-   * The belt's arrangement and for its reason: a headland is a *coast*-scaled
-   * subject — 45 m of the home island's shore and fifteen metres deep — and
-   * every pose in `tour` is aimed at the middle of the archipelago, where that
-   * is a dark notch a few pixels across.
-   *
-   * The home island's crag stands on the 322° bearing, which is world
-   * (39, −30) — the far side of the island from the yard, and the opposite
-   * shore from the sand. `crag` is that headland at 110 m, which holds the
-   * face, the platform at the bottom of it and the ordinary shelving coast
-   * either side; the contrast between the three *is* the landform. `crag-near`
-   * is 38 m, the only frame where a talus block is more than a pixel and the
-   * one that shows the platform as a surface rather than as a line. `crag-sea`
-   * looks along the cliff line rather than at it, at the rotation that puts the
-   * face side-on, because a cliff seen square is a dark band and a cliff seen
-   * along is a profile — which is the view that says whether the lip wanders or
-   * runs like masonry. `crag-bare` is the control and the one that carries the
-   * claim: the *same* frame with `terrain.crag.height` at zero, which is the
-   * coast this island had before the run — so the pair is the landform, and a
-   * pair that came out alike would mean there is no landform.
-   *
-   * Nothing here is in {@link STILL}: rock does not move, and the sea against
-   * the foot of it is the water's own clock.
-   */
-  crag: [
-    { name: 'crag', zoom: 110, set: [ 'camera.focusX=39', 'camera.focusZ=-30' ]},
-    { name: 'crag-near', zoom: 38, set: [ 'camera.focusX=39', 'camera.focusZ=-30' ]},
-    {
-      name: 'crag-sea',
-      zoom: 70,
-      rot:  135,
-      set:  [ 'camera.focusX=39', 'camera.focusZ=-30' ],
-    },
-    {
-      name: 'crag-bare',
-      zoom: 110,
-      set:  [ 'camera.focusX=39', 'camera.focusZ=-30', 'terrain.crag.height=0' ],
-    },
-  ],
-
-  /**
-   * The stack, and the water between it and the island.
-   *
-   * The crag's arrangement, one step further out to sea and for a sharper
-   * version of the same reason. A pillar eleven metres across, sixty-seven
-   * metres from the world origin, is four pixels at the tour's default zoom and
-   * nothing at all once it is behind the headland it came out of: the run that
-   * put it there moved every pose in `tour` by a hundredth of a per cent, and
-   * the one number that says it is a stack at all — the gut of open water
-   * behind it — is invisible from every pose this scape is ever drawn at.
-   * `scape:map` measures that one; these four are what shows the rest.
-   *
-   * The home island's pillar stands on the 329° bearing, which is world
-   * (58, −35), just outside the 322° headland's own platform. `stack` is both
-   * at 90 m, where the cliff, the gap and the rock are three things rather than
-   * one silhouette. `stack-near` is 26 m, the only frame in which the taper of
-   * the sides and the blocks heaped round the foot are surfaces. `stack-sea` is
-   * the same subject from the far quarter, where the pillar comes up against
-   * open water instead of against its own headland — the view that says whether
-   * it stands as its own thing or reads as a lump on the coast behind it.
-   * `stack-bare` is the control and carries the claim: the same frame with
-   * `terrain.stack.stature` at zero, which is the coast this archipelago had
-   * before the run.
-   *
-   * Nothing here is in {@link STILL}, for the crag's reason: rock does not
-   * move, and the sea round the foot of it is the water's own clock.
-   */
-  stack: [
-    { name: 'stack', zoom: 90, set: OVER_STACK },
-    { name: 'stack-near', zoom: 26, set: OVER_STACK },
-    { name: 'stack-sea', zoom: 90, rot: 135, set: OVER_STACK },
-    {
-      name: 'stack-bare',
-      zoom: 90,
-      set:  [ ...OVER_STACK, 'terrain.stack.stature=0' ],
     },
   ],
 

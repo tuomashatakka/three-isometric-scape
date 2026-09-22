@@ -1,5 +1,6 @@
 import type { ScapeConfig } from '../src/scene/config.ts'
 import type { ArchipelagoSurvey } from '../src/scene/landscape/archipelago.ts'
+import { measureArch } from '../src/scene/landscape/arch.ts'
 import { measureCrag } from '../src/scene/landscape/crag.ts'
 import { measureDunes } from '../src/scene/landscape/dunes.ts'
 import { measureSaltings } from '../src/scene/landscape/saltings.ts'
@@ -964,4 +965,89 @@ export function shoalStats (survey: ArchipelagoSurvey, config: ScapeConfig): Sho
   })
 
   return [ ...measured, ...refused ]
+}
+
+
+/** One island's sea arch, measured. */
+export interface ArchStats {
+  id: string
+
+  /** Where the middle of the portal is, in world metres. */
+  x: number
+  z: number
+
+  /** The bearing the portal faces, in degrees. */
+  bearing: number
+
+  /** Metres over mean water the crown of the span stands. */
+  crown: number
+
+  /** Metres over mean water the clifftop it was cut through stands. */
+  lip: number
+
+  /** Metres of clear water between the legs. */
+  opening: number
+
+  /** Metres of rock over the middle of the hole. */
+  thickness: number
+
+  /** Metres of daylight under the middle of the span at high water springs. */
+  headroom: number
+
+  /** Metres of the opening whose floor is under mean water, as drawn. */
+  wetted: number
+
+  /** The deepest water under the opening, in metres. */
+  depth: number
+
+  /** Metres of water the outer leg stands in, as drawn. */
+  founded: number
+
+  /** How weak the rock was on the line the sea cut through, 0..1. */
+  weakness: number
+}
+
+/**
+ * Every sea arch, measured against the ground it stands over.
+ *
+ * The block exists for two numbers, and both of them are things a still cannot
+ * tell you. `headroom` is whether the landform is an arch at all: drawn from
+ * forty metres up under a colour grade, rock with two metres of daylight under
+ * it and rock sitting on the sea read as the same dark shape, and the second
+ * one is a boulder. `wetted` is the other half of the same question asked of
+ * the floor — the solve refuses a dry portal against the *bare* seabed, and the
+ * shore shelving runs after that, so an arch whose hole the drawn terrain
+ * filled in is a bridge that passed its own audit.
+ *
+ * Both are read off the height field the terrain is drawn from, which is the
+ * seam `stackStats` and the peat face's `standing` are cut on.
+ */
+export function archStats (survey: ArchipelagoSurvey, config: ScapeConfig): ArchStats[] {
+  const springs = tideAmplitudeAt(1, config.tide)
+
+  return survey.landmasses.flatMap(landmass => {
+    const arch = landmass.survey.crag?.arch
+
+    if (!arch)
+      return []
+
+    const report = measureArch(
+      arch,
+      landmass.survey.field.heightAt,
+      config.terrain.waterLevel,
+      springs,
+    )
+
+    const middle = {
+      x: (arch.inner.x + arch.outer.x) / 2,
+      z: (arch.inner.z + arch.outer.z) / 2,
+    }
+
+    return [{
+      id: landmass.id,
+      x:  round(landmass.origin.x + middle.x),
+      z:  round(landmass.origin.z + middle.z),
+      ...report,
+    }]
+  })
 }

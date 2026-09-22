@@ -15,8 +15,8 @@ import type { ScapeConfig } from '../src/scene/config.ts'
 import { formatStats } from './scape-map-format.ts'
 import { LEGEND, readLayers, renderGrid } from './scape-map-render.ts'
 import type { Window } from './scape-map-render.ts'
-import { cragStats, duneStats, fjordStats, forceStats, hauloutStats, icecapStats, kelpStats, saltingsStats, shoalStats, skerryStats, stackStats, strandStats, treelineStats } from './scape-map-landforms.ts'
-import type { CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, SaltingsStats, ShoalStats, StackStats, TreelineStats } from './scape-map-landforms.ts'
+import { archStats, cragStats, duneStats, fjordStats, forceStats, hauloutStats, icecapStats, kelpStats, saltingsStats, shoalStats, skerryStats, stackStats, strandStats, treelineStats } from './scape-map-landforms.ts'
+import type { ArchStats, CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, SaltingsStats, ShoalStats, StackStats, TreelineStats } from './scape-map-landforms.ts'
 import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
 import { causewayOf, croftOf, dykeOf, peatOf, pierOf, shielingOf, smokehouseOf, tarnOf, weirOf, wreckOf } from './scape-map-sites.ts'
@@ -327,6 +327,20 @@ export interface MapStats extends CompositionStats {
    * standing off a beach.
    */
   stacks: StackStats[]
+
+  /**
+   * The sea arches, one entry per headland the sea has cut through and not yet
+   * dropped.
+   *
+   * Beside the stacks because it is the same landform one stage earlier, and
+   * because the two are each other's control in the way the crags and the dunes
+   * are: an arch and a pillar on one headland have to be on *different* lines,
+   * and two entries here and there sharing a bearing is a stack standing in a
+   * portal. It is also the one block in this file reporting geometry rather
+   * than ground — see `landscape/arch.ts` for why the landform cannot be a
+   * height.
+   */
+  arches: ArchStats[]
 
   /**
    * The falls, one entry per island whose beck goes over a step.
@@ -873,6 +887,7 @@ export function surveyStats (
     saltings: saltingsStats(survey),
     crags:    cragStats(survey),
     stacks:   stackStats(survey, config),
+    arches:   archStats(survey, config),
     forces:   forceStats(survey),
     treeline: treelineStats(survey, config),
     drift:    measureDrift(survey.field, config, survey.landmasses, config.archipelago.worldSize),
