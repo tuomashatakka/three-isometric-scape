@@ -2,8 +2,8 @@ import { createSeededRng, smoothstep } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 import { toWorld } from './archipelago.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from './archipelago.ts'
-import { cragClaim, cragFoot } from './crag.ts'
-import type { Crag } from './crag.ts'
+import { cragClaim } from './crag.ts'
+import type { Crag, CragForm } from './crag.ts'
 import type { HeightField } from './height.ts'
 
 
@@ -357,11 +357,12 @@ export function guanoClaim (
   if (stain <= 0 || !isBirdCliff(crag, config))
     return 0
 
-  const rock = cragClaim(crag, x, z)
-
-  if (rock <= 0)
-    return 0
-
+  // The two gates that cost arithmetic come first, and the one that costs a
+  // survey comes last. `formAt` is the expensive call on this object — an arc
+  // gate, a coastline lookup and a cleft field — and this runs per terrain
+  // vertex on five islands, so asking it before the height band has had its say
+  // pays for a headland lookup at every vertex of every island that has one.
+  // The band refuses all but a few per cent of them for the price of a divide.
   const up = (height - config.terrain.waterLevel) / faceHeight(crag, config)
 
   if (up >= brow + 0.14 || up <= foot * 0.2)
@@ -377,6 +378,13 @@ export function guanoClaim (
   if (along <= 0)
     return 0
 
+  // One survey for both readings. `cragClaim` and `cragFoot` are two calls into
+  // the same `formAt`, and the record it fills carries the answers to both.
+  const form = crag.formAt(x, z, scratch)
+
+  if (form.claim <= 0)
+    return 0
+
   // Full through the band, gone just over the brow, and trailing out below the
   // lowest ledge in streaks a bearing wide — which is how far a run of it gets
   // before the next rain takes it off.
@@ -388,10 +396,13 @@ export function guanoClaim (
   // And off the wash. The platform and the talus ramp at the bottom of the face
   // are the one part of a headland the sea reaches, and a stain that ran down
   // onto them would be paint rather than guano.
-  const dry = 1 - Math.max(0, Math.min(1, cragFoot(crag, x, z)))
+  const dry = 1 - Math.max(0, Math.min(1, form.foot))
 
-  return rock * along * band * drip * dry * stain
+  return form.claim * along * band * drip * dry * stain
 }
+
+/** The painter's own record, so a per-vertex stain allocates nothing. */
+const scratch: CragForm = { claim: 0, level: 0, foot: 0 }
 
 /**
  * A stripe down the face, 0..1, stable with height and varying with bearing.
