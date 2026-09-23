@@ -34,6 +34,8 @@ import type { Force } from './force.ts'
 import { surveyHearths } from './hearths.ts'
 import { surveyWindows } from './windows.ts'
 import type { Dressing } from './dressing.ts'
+import { planCliffColonies } from './ledges.ts'
+import type { CliffColony } from './ledges.ts'
 import { planHaulouts } from './haulout.ts'
 import type { Haulout } from './haulout.ts'
 import { createKelpForest } from './kelp.ts'
@@ -44,6 +46,8 @@ import { yawAlong } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
 import { createMillSails } from './mill-sails.ts'
 import type { MillHub, MillSails } from './mill-sails.ts'
+import { createSeabirdCliffs } from './seabirds.ts'
+import type { SeabirdCliffs } from './seabirds.ts'
 import { createSealColony } from './seals.ts'
 import type { SealColony } from './seals.ts'
 import { createTarnWater } from './tarn-water.ts'
@@ -81,6 +85,17 @@ export interface Landscape {
    * is the tide's.
    */
   haulouts: readonly Haulout[]
+
+  /**
+   * Every headland with a bird colony on it, and where each bird stands.
+   *
+   * Published for the reason the haul-outs are: which cliff carries birds is an
+   * answer about the rock and the water under it, and it is the one thing
+   * `scape:map` can measure about a colony without a browser. What is drawn from
+   * it is `landscape/seabirds.ts`, and how many of them are ashore in any week
+   * is the year's.
+   */
+  cliffs: readonly CliffColony[]
 
   /**
    * Every island's kelp skirt, and every plant in it.
@@ -184,6 +199,7 @@ export function createLandscape (
   let fleet: BoatFleet | null          = null
   let sails: MillSails | null          = null
   let seals: SealColony | null         = null
+  let cliffs: SeabirdCliffs | null     = null
   let kelp: KelpForest | null          = null
   let water: Water | null              = null
   let beck: Beck | null                = null
@@ -278,6 +294,16 @@ export function createLandscape (
    */
   const skirts = planKelp(archipelago, config(), quality.kelpCount)
 
+  /**
+   * Every bird on the headlands, sited once against the rock.
+   *
+   * Surveyed here beside the haul-outs and the weed, and for their reason —
+   * where a bird can stand is a fact about the cliff rather than about geometry.
+   * The tier is asked here rather than inside the search because how many birds
+   * a headland carries is a budget and which headlands carry any is not.
+   */
+  const cliffColonies = planCliffColonies(archipelago, config(), quality.cliffBirds)
+
   const module = defineModule<ScapeConfig>({
     name: 'nordic-landscape',
 
@@ -359,6 +385,7 @@ export function createLandscape (
         sails = createMillSails({ config, hubs: millHubs, material: materials.ground })
         seals = createSealColony({ config, haulouts, material: materials.ground, tide })
         kelp = createKelpForest({ config, skirts, material: materials.ground, tide })
+        cliffs = createSeabirdCliffs({ config, colonies: cliffColonies, material: materials.ground })
         root.add(dressing.object, fleet.mesh)
 
         if (sails)
@@ -369,6 +396,9 @@ export function createLandscape (
 
         if (kelp)
           root.add(kelp.mesh)
+
+        if (cliffs)
+          root.add(cliffs.mesh)
       }
 
       ctx.scene.add(root)
@@ -404,6 +434,7 @@ export function createLandscape (
       sails?.update(frame.delta, wind.strength)
       seals?.update(frame.delta)
       kelp?.update(frame.delta)
+      cliffs?.update(year.time)
       materials?.update(wind, now, front)
       beck?.update(frame.delta, now)
       force?.update(frame.delta, now)
@@ -417,6 +448,7 @@ export function createLandscape (
       sails?.dispose()
       seals?.dispose()
       kelp?.dispose()
+      cliffs?.dispose()
       water?.dispose()
       beck?.dispose()
       force?.dispose()
@@ -440,6 +472,7 @@ export function createLandscape (
       fleet     = null
       sails     = null
       seals     = null
+      cliffs    = null
       kelp      = null
       water     = null
       beck      = null
@@ -458,6 +491,7 @@ export function createLandscape (
     boatFleet: () => fleet,
     colonies,
     haulouts,
+    cliffs:    cliffColonies,
     kelp:      skirts,
     lanternHubs,
     hearths,

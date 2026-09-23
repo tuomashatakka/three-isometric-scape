@@ -7,6 +7,7 @@ import type { ArchipelagoSurvey } from './archipelago.ts'
 import { dampBand, faceAmount, shadeDirection } from './aspect.ts'
 import { cartRutGeometry, trafficAt } from './cart-ruts.ts'
 import { cragFoot } from './crag.ts'
+import { guanoClaim, isBirdCliff } from './ledges.ts'
 import type { Crag } from './crag.ts'
 import { duneClaim } from './dunes.ts'
 import type { DuneBelt } from './dunes.ts'
@@ -107,6 +108,20 @@ export function createTerrainPainter (
   const tidalMud  = new Color(palette.slob)
   const marshTurf = new Color(palette.saltings)
   const wetRock   = new Color(palette.seaRock)
+  const whitewash = new Color(palette.guano)
+
+  /**
+   * The birds' mark on the rock, resolved to a function once.
+   *
+   * For the reason `cutAt` is: whether this island has a headland birds would
+   * take is settled at build, and `paint` is the whole ground-colour rule
+   * sitting at the complexity ceiling the lint config sets. On the five islands
+   * that have one this is two trigonometric calls a vertex; on the sixth it is
+   * a return.
+   */
+  const stainAt = isBirdCliff(crag, config)
+    ? (x: number, z: number, height: number): number => guanoClaim(crag, config, x, z, height)
+    : (): number => 0
 
   // Resolved to a function once rather than asked per vertex whether there is a
   // cutting at all. Two of the painter's branches for a question whose answer is
@@ -324,6 +339,18 @@ export function createTerrainPainter (
       // would otherwise paint as the pale shingle beach of a coast that has no
       // beach on it at all.
       target.lerp(wetRock, cragFoot(crag, x, z) * 0.86)
+
+      // The whitewash, over the rock and under everything else. Over, because
+      // guano lies *on* a cliff rather than being what the cliff is made of —
+      // the scree lerp and the platform have already decided what stone this is
+      // and this is the layer the birds put on top of it. Under the beck and the
+      // cutting below for the same reason they are last: a channel running over
+      // a headland is still a channel.
+      //
+      // Never guarded, the way the platform above it is not: off the colony's
+      // arc the claim is zero and the lerp is already the no-op a branch would
+      // have been.
+      target.lerp(whitewash, stainAt(x, z, height) * 0.9)
 
       // Last, and over the track: the beck cuts *under* the road rather than
       // stopping at it, so the channel keeps its gravel across the crossing and

@@ -18,6 +18,8 @@ import { SCAPE_PALETTE } from './config-palette.ts'
 import type { ScapePalette } from './config-palette.ts'
 import { SCAPE_SALTINGS } from './config-saltings.ts'
 import type { SaltingsConfig } from './config-saltings.ts'
+import { SCAPE_LEDGES } from './config-ledges.ts'
+import type { LedgeConfig } from './config-ledges.ts'
 import { SCAPE_SHIELING } from './config-shieling.ts'
 import type { ShielingConfig } from './config-shieling.ts'
 import { SCAPE_SHOAL } from './config-shoal.ts'
@@ -262,7 +264,7 @@ export interface DressingBudget {
 }
 
 export interface ScapeConfig extends DykeConfig, ForceConfig, GuardConfig, KelpConfig,
-  ShielingConfig, ShoalConfig, TreelineConfig, WreckConfig {
+  LedgeConfig, ShielingConfig, ShoalConfig, TreelineConfig, WreckConfig {
   seed:    number
   terrain: {
     size:       number
@@ -2841,6 +2843,7 @@ export const SCAPE_CONFIG = {
   ...SCAPE_FORCE,
   ...SCAPE_GUARD,
   ...SCAPE_KELP,
+  ...SCAPE_LEDGES,
   ...SCAPE_SHIELING,
   ...SCAPE_SHOAL,
   ...SCAPE_TREELINE,

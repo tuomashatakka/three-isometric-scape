@@ -104,6 +104,17 @@ export const NORDIC_PALETTE = {
   pelt:     '#413f3c',
   peltPale: '#6a6459',
 
+  // The auk on the cliff ledge, and the one animal in the roster whose whole
+  // read is the *contrast* rather than the colour. A guillemot is a dark back
+  // over a white front and nothing else at this size; drawn in one tone it is a
+  // pebble, and drawn in two that are near each other it is a smaller pebble.
+  // `auk` therefore stays under `pelt` — darker than any rock this scape paints
+  // — and `aukBreast` stays under `trimWhite`, so a row of them never out-burns
+  // the limewash on the chapel.
+  auk:       '#2b2926',
+  aukBreast: '#ded9cc',
+  aukBill:   '#3c3833',
+
   /** A burning wick behind glass — the lamp in the lantern room, and its beams. */
   lampWarm: '#ffdca8',
   flagBlue: '#2f5d8f',

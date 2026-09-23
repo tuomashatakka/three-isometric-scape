@@ -151,6 +151,23 @@ function hauloutLine (haulout: MapStats['haulout']): string {
  * own water that a spring tide no longer changes how it lies, which leaves a bed
  * that is decoration rather than a system.
  */
+/**
+ * The bird cliffs, in one line.
+ *
+ * Its own function for `hauloutLine`'s reason, and it carries the same two
+ * relations: the search's yield, and the clock the colony answers to.
+ */
+function ledgeLine (ledges: MapStats['ledges']): string {
+  if (!ledges.cliffs)
+    return `ledges NONE  <- none of ${ledges.offered} headlands stands high enough over the water`
+
+  return `ledges ${ledges.birds} birds on ${ledges.cliffs}/${ledges.offered} headlands  ` +
+    `${ledges.tiers} tiers of a ${ledges.face}m face  ` +
+    `band ${ledges.lowest}..${ledges.highest}m over mean  ` +
+    `ashore ${ledges.summer} midsummer / ${ledges.winter} midwinter` +
+    (ledges.summer === ledges.winter ? '  <- the year never empties the cliff' : '')
+}
+
 function kelpLine (kelp: MapStats['kelp']): string {
   if (!kelp.offered)
     return `kelp NONE  <- no water on any coast is between the sill and the reach`
@@ -456,6 +473,7 @@ export function formatStats (stats: MapStats): string {
     skerryLine(stats.skerries),
     hauloutLine(stats.haulout),
     kelpLine(stats.kelp),
+    ledgeLine(stats.ledges),
     ...stats.fjords.map(fjord =>
       `fjord ${fjord.id}  len ${fjord.length}m  sea ${fjord.sea}m  ` +
       `sill ${fjord.sill}m  basin ${fjord.basin}m  head +${fjord.head}m  ` +

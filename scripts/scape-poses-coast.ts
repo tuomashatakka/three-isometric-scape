@@ -35,6 +35,12 @@ const OVER_STACK = [ 'camera.focusX=58', 'camera.focusZ=-35' ]
  */
 const OVER_ARCH = [ 'camera.focusX=35', 'camera.focusZ=-40' ]
 
+/** The middle of the home island's bird ledges, which is the middle of its crag. */
+const ON_LEDGES = [ 'camera.focusX=37', 'camera.focusZ=-28' ]
+
+/** The quarter the 322.5° headland's face is turned toward: off the water. */
+const SEAWARD = 315
+
 
 export const COAST_TOURS: Record<string, Pose[]> = {
 
@@ -77,6 +83,43 @@ export const COAST_TOURS: Record<string, Pose[]> = {
       name: 'crag-bare',
       zoom: 110,
       set:  [ 'camera.focusX=39', 'camera.focusZ=-30', 'terrain.crag.height=0' ],
+    },
+  ],
+
+  /**
+   * The bird cliff, in the two halves of the year it has.
+   *
+   * On the crag's own headland at world (37, -28), and **off the default
+   * heading**, which is the one decision in the set worth reading. the home
+   * island's crag stands on the 322.5° bearing: at the camera's authored
+   * rotation of 45 the face is the *far* side of the island, so the terrain
+   * occludes it and a hundred and forty of the hundred and forty-eight birds on
+   * it are behind the hill. measured rather than assumed — at rot 45 the whole
+   * colony is 0.03 % of the frame and eight birds along the skyline, and from
+   * the seaward quarter it is 7.3 %. a cliff is a thing you see from the water.
+   *
+   * `ledge` is the face at 28 m at midsummer, which is the frame the run was
+   * for: four rows of birds on the rock and the whitewash they have left under
+   * them. `ledge-near` is 12 m, the only frame in which a single bird is a
+   * shape rather than a white mark. `ledge-winter` is the same 28 m at
+   * midwinter and carries half the claim: the birds are at sea, the stain is
+   * still on the rock, and the pair is what says the colony is an occupation
+   * rather than a decoration. `ledge-bare` is the other half and the control —
+   * the same frame with `ledges.stain` and `ledges.ashore` both at zero, which
+   * is the headland this island had before the run.
+   *
+   * Nothing here is in {@link STILL} that is not already: the colony integrates
+   * nothing and the birds stand still, so `season.speed=0` is the whole of it.
+   */
+  ledge: [
+    { name: 'ledge', zoom: 28, rot: SEAWARD, set: ON_LEDGES },
+    { name: 'ledge-near', zoom: 12, rot: SEAWARD, set: ON_LEDGES },
+    { name: 'ledge-winter', zoom: 28, rot: SEAWARD, season: 0.02, set: ON_LEDGES },
+    {
+      name: 'ledge-bare',
+      zoom: 28,
+      rot:  SEAWARD,
+      set:  [ ...ON_LEDGES, 'ledges.stain=0', 'ledges.ashore=0' ],
     },
   ],
 

@@ -11,6 +11,8 @@ import { createHeightField } from '../src/scene/landscape/height.ts'
 import { countAshore, hauledSeals, planHaulouts } from '../src/scene/landscape/haulout.ts'
 import { iceCapOf, measureIce } from '../src/scene/landscape/icecap.ts'
 import { kelpDepth, kelpLean, kelpPlants, planKelp } from '../src/scene/landscape/kelpbed.ts'
+import { colonyAshore, ledgeBirds, planCliffColonies } from '../src/scene/landscape/ledges.ts'
+import { birdAshore } from '../src/scene/landscape/seabirds.ts'
 import { MAX_DEPTH } from '../src/scene/landscape/shore-mask.ts'
 import { planTreeline } from '../src/scene/landscape/treeline.ts'
 import { tideAmplitudeAt } from '../src/scene/tide.ts'
@@ -167,6 +169,50 @@ export function hauloutStats (survey: ArchipelagoSurvey, config: ScapeConfig): M
     lowest:  seals.length ? round(Math.min(...seals.map(seal => seal.ledge - waterLevel)), 2) : 0,
     highest: seals.length ? round(Math.max(...seals.map(seal => seal.ledge - waterLevel)), 2) : 0,
     springs: round(springs, 2),
+  }
+}
+
+/**
+ * How many birds a headland is dealt when the map asks, whatever tier is
+ * running. The desktop budget, for the reason {@link MAP_TIER_HEADS} is.
+ */
+const MAP_TIER_BIRDS = 30
+
+/**
+ * The bird cliffs, and the two things about one no still can hold.
+ *
+ * Here rather than in a screenshot for the reason the haul-out is, and for one
+ * more. `cliffs` against `offered` is the search — how many of the archipelago's
+ * headlands stand high enough over the water for the gate to let a colony onto
+ * them — and that is invisible in a frame, because a bare cliff and a cliff the
+ * search never looked at photograph identically.
+ *
+ * `ashore` at midsummer against `ashore` at midwinter is the other, and it is
+ * the claim the whole system rests on: the colony is a *seasonal* occupation,
+ * and `summer === winter` is the finding that the year has stopped mattering to
+ * it. `band` is where up the rock the ledges ended up, which is the one number
+ * that says whether the birds are on the face or standing in the sea.
+ */
+export function ledgeStats (survey: ArchipelagoSurvey, config: ScapeConfig): MapStats['ledges'] {
+  const colonies       = planCliffColonies(survey, config, MAP_TIER_BIRDS)
+  const birds          = ledgeBirds(colonies)
+  const { waterLevel } = config.terrain
+  const offered        = survey.landmasses.filter(land => land.survey.crag).length
+  const over           = birds.map(bird => bird.y - waterLevel)
+  const ashore         = (time: number): number => birds
+    .filter(bird => birdAshore(colonyAshore(time, config.ledges.ashore), bird.keen) > 0)
+    .length
+
+  return {
+    cliffs:  colonies.length,
+    offered,
+    birds:   birds.length,
+    tiers:   colonies[0]?.tiers.length ?? 0,
+    lowest:  over.length ? round(Math.min(...over), 2) : 0,
+    highest: over.length ? round(Math.max(...over), 2) : 0,
+    face:    round(colonies[0]?.face ?? 0, 2),
+    summer:  ashore(0.5),
+    winter:  ashore(0),
   }
 }
 
