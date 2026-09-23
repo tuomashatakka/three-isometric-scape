@@ -321,6 +321,7 @@ bun run scape:shot --poses moon                     # the farm by moonlight, 4 f
 bun run scape:shot --poses nightsea                 # the sound after dark, 5 frames, the moon track and the fire in the surf
 bun run scape:shot --poses blow                     # the sea getting up, 4 frames, at rest, in a gust, in a lee, and switched off
 bun run scape:shot --poses shade                    # the cloud shadow, 5 frames, with it, without it, under a clear sky, low sun and at night
+bun run scape:shot --poses ledge                    # the birds on the headland, 4 frames, midsummer, midwinter and a bare cliff
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain

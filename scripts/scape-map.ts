@@ -15,7 +15,7 @@ import type { ScapeConfig } from '../src/scene/config.ts'
 import { formatStats } from './scape-map-format.ts'
 import { LEGEND, readLayers, renderGrid } from './scape-map-render.ts'
 import type { Window } from './scape-map-render.ts'
-import { archStats, cragStats, duneStats, fjordStats, forceStats, hauloutStats, icecapStats, kelpStats, saltingsStats, shoalStats, skerryStats, stackStats, strandStats, treelineStats } from './scape-map-landforms.ts'
+import { archStats, cragStats, duneStats, fjordStats, forceStats, hauloutStats, icecapStats, ledgeStats, kelpStats, saltingsStats, shoalStats, skerryStats, stackStats, strandStats, treelineStats } from './scape-map-landforms.ts'
 import type { ArchStats, CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, SaltingsStats, ShoalStats, StackStats, TreelineStats } from './scape-map-landforms.ts'
 import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
@@ -396,6 +396,28 @@ export interface MapStats extends CompositionStats {
    * one frame. `rocks` against `offered` is the search: how much of the guard
    * the three rules let through. `low` against `high` is the tide.
    */
+  /**
+   * The birds on the headlands, at both ends of the year.
+   *
+   * Here rather than in a screenshot for the reason the haul-out is: a
+   * guillemot is a third of a metre tall on a cliff the tour only ever sees
+   * from four hundred metres up, so at every pose in `tour` it is under a
+   * pixel — and what is worth knowing is not the bird but how many of them the
+   * *season* has put ashore, which is a difference between two weeks of the
+   * year and cannot be in one frame.
+   */
+  ledges: {
+    cliffs:  number
+    offered: number
+    birds:   number
+    tiers:   number
+    lowest:  number
+    highest: number
+    face:    number
+    summer:  number
+    winter:  number
+  }
+
   haulout: {
     rocks:   number
     offered: number
@@ -879,6 +901,7 @@ export function surveyStats (
     strand,
     skerries: skerryStats(survey, config),
     haulout:  hauloutStats(survey, config),
+    ledges:   ledgeStats(survey, config),
     kelp:     kelpStats(survey, config),
     fjords:   fjordStats(survey),
     icecaps:  icecapStats(survey),

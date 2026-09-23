@@ -126,6 +126,27 @@ export interface AtmosphereQuality {
   kelpCount: number
 
   /**
+   * Birds one headland's colony may carry. 0 is a coast whose cliffs are bare.
+   *
+   * A count per *cliff* rather than for the archipelago, for the reason
+   * `sealCount` is per rock: five headlands of four different heights dealt one
+   * number between them would put a handful of birds on each and photograph as
+   * nothing. It is capped again per headland by how much ledge the arc actually
+   * offers, so a wide crag takes the budget and a narrow one takes what it can
+   * fit.
+   *
+   * Zero is a graceful absence rather than a cheap version, and it is a cheaper
+   * absence than most: the whitewash the colony has left on the rock is terrain
+   * vertex colour and stays at every tier, so a mobile cliff with no birds on it
+   * still reads as a bird cliff from the zoom a phone is usually at.
+   *
+   * The cost is instances in one shared draw, not draws: an eight-part bird of
+   * about 165 triangles, stamped once per bird, with one scale and one position
+   * per bird per frame.
+   */
+  cliffBirds: number
+
+  /**
    * Puffs in one chimney's plume. 0 is a tier whose hearths do not smoke.
    *
    * A count and not a density, and — like `birdCount` and unlike `starCount` —
@@ -417,6 +438,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     birdCount:       0,
     sealCount:       0,
     kelpCount:       0,
+    cliffBirds:      0,
     beaconBlades:    0,
     lampSpill:       0,
     cursorLight:     false,
@@ -462,6 +484,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     birdCount:       90,
     sealCount:       5,
     kelpCount:       100,
+    cliffBirds:      14,
     beaconBlades:    1,
     lampSpill:       2,
     cursorLight:     false,
@@ -523,6 +546,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     birdCount:       260,
     sealCount:       11,
     kelpCount:       250,
+    cliffBirds:      30,
     beaconBlades:    2,
     lampSpill:       3,
     cursorLight:     true,
@@ -568,6 +592,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     birdCount:       420,
     sealCount:       16,
     kelpCount:       340,
+    cliffBirds:      44,
     beaconBlades:    3,
     lampSpill:       4,
     cursorLight:     true,
@@ -630,6 +655,7 @@ const UNLOCKED_FLOOR = {
   birdCount:      90,
   sealCount:      5,
   kelpCount:      100,
+  cliffBirds:     30,
   beaconBlades:   1,
   lampSpill:      2,
   cursorLight:    true,
@@ -677,6 +703,7 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
     birdCount:      Math.max(quality.birdCount, UNLOCKED_FLOOR.birdCount),
     sealCount:      Math.max(quality.sealCount, UNLOCKED_FLOOR.sealCount),
     kelpCount:      Math.max(quality.kelpCount, UNLOCKED_FLOOR.kelpCount),
+    cliffBirds:     Math.max(quality.cliffBirds, UNLOCKED_FLOOR.cliffBirds),
     beaconBlades:   Math.max(quality.beaconBlades, UNLOCKED_FLOOR.beaconBlades),
     lampSpill:      Math.max(quality.lampSpill, UNLOCKED_FLOOR.lampSpill),
     cursorLight:    true,

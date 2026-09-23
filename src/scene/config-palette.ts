@@ -83,6 +83,19 @@ export interface ScapePalette {
   seaRock: number
 
   /**
+   * The whitewash under a seabird ledge — decades of guano on bare rock.
+   *
+   * Its own entry rather than a colder `snow`, and not for `wrack`'s reason but
+   * for the opposite one: snow is the colour this has to stay *distinguishable
+   * from*, because the two sit on the same rock at opposite ends of the year
+   * and a stain that read as lying snow would turn every winter still into a
+   * cliff that had already thawed. So it is warm where snow is blue, chalk with
+   * a little sulphur in it, and it does not brighten toward white — a bird
+   * cliff at noon is pale, not luminous.
+   */
+  guano: number
+
+  /**
    * Moss on the shaded side — the ground that never dries out.
    *
    * Its own entry rather than a darker `meadow`, and for the reason `wrack`
@@ -249,6 +262,7 @@ export const SCAPE_PALETTE: SCAPE_PALETTEType = {
     lichen:       0x9aa088,
     wrack:        0x3f3a20,
     seaRock:      0x4b5150,
+    guano:        0xd9d2bc,
     moss:         0x3d5a30,
     pasture:      0x76803f,
     streambed:    0x585f57,

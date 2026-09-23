@@ -50,6 +50,7 @@ import {
   buildStump,
   buildWildflower,
 } from './vegetation.ts'
+import { buildGuillemot } from './seabird.ts'
 import { buildSeal } from './wildlife.ts'
 import { buildWreck } from './wreck.ts'
 
@@ -129,9 +130,10 @@ export const PROPS = {
   hayPole:     buildHayPole,
   peatStack:   buildPeatStack,
 
-  sheep: buildSheep,
-  lamb:  buildLamb,
-  seal:  buildSeal,
+  sheep:     buildSheep,
+  lamb:      buildLamb,
+  seal:      buildSeal,
+  guillemot: buildGuillemot,
 } as const satisfies Record<string, PropBuilder>
 
 /** Name of a prop in {@link PROPS}. */
@@ -152,7 +154,7 @@ export const SCATTER_PROPS = [
   'erratic', 'talus', 'fieldStone', 'cobble', 'cairn',
   'bladderwrack', 'rockLichen', 'kelp',
   'hayBale', 'firewood', 'barrel', 'driftwood', 'mooringPost', 'hayPole', 'peatStack',
-  'sheep', 'lamb', 'seal',
+  'sheep', 'lamb', 'seal', 'guillemot',
 ] as const satisfies readonly PropName[]
 
 /** Build one prop's geometry. The caller owns and disposes the result. */
