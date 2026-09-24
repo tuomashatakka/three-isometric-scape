@@ -36,11 +36,15 @@ import { surveyWindows } from './windows.ts'
 import type { Dressing } from './dressing.ts'
 import { planCliffColonies } from './ledges.ts'
 import type { CliffColony } from './ledges.ts'
+import { createPackIce } from './floes.ts'
+import type { PackIce } from './floes.ts'
 import { planHaulouts } from './haulout.ts'
 import type { Haulout } from './haulout.ts'
 import { createKelpForest } from './kelp.ts'
 import type { KelpForest } from './kelp.ts'
 import { planKelp } from './kelpbed.ts'
+import { planPackIce } from './packice.ts'
+import type { IceFloe } from './packice.ts'
 import type { KelpSkirt } from './kelpbed.ts'
 import { yawAlong } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
@@ -107,6 +111,18 @@ export interface Landscape {
    * tide's.
    */
   kelp: readonly KelpSkirt[]
+
+  /**
+   * Every plate of ice the winter can stand on the sound, and the week each
+   * arrives.
+   *
+   * Published for the reason the haul-outs and the weed are: which water carries
+   * a floe is an answer about the depth and the ice front over it rather than
+   * about geometry, and it is the one thing `scape:map` can measure about a pack
+   * without a browser. What is drawn from it is `landscape/floes.ts`, and how
+   * much of it is standing in any week is the year's.
+   */
+  pack: readonly IceFloe[]
 
   /** Live fleet accessor; null until the landscape module has built. */
   boatFleet(): BoatFleet | null
@@ -201,6 +217,7 @@ export function createLandscape (
   let seals: SealColony | null         = null
   let cliffs: SeabirdCliffs | null     = null
   let kelp: KelpForest | null          = null
+  let pack: PackIce | null             = null
   let water: Water | null              = null
   let beck: Beck | null                = null
   let force: Force | null              = null
@@ -304,6 +321,18 @@ export function createLandscape (
    */
   const cliffColonies = planCliffColonies(archipelago, config(), quality.cliffBirds)
 
+  /**
+   * Every plate of ice on the sea between the islands, sited once against mean
+   * water.
+   *
+   * Surveyed here beside the weed and the birds, and for their reason — where a
+   * floe can float is a fact about the depth and the ice front over it rather
+   * than about geometry. The tier is asked here rather than inside the search
+   * because how many plates the world carries is a budget and which water
+   * carries any is not.
+   */
+  const packIce = planPackIce(archipelago, config(), quality.floeCount)
+
   const module = defineModule<ScapeConfig>({
     name: 'nordic-landscape',
 
@@ -386,6 +415,7 @@ export function createLandscape (
         seals = createSealColony({ config, haulouts, material: materials.ground, tide })
         kelp = createKelpForest({ config, skirts, material: materials.ground, tide })
         cliffs = createSeabirdCliffs({ config, colonies: cliffColonies, material: materials.ground })
+        pack = createPackIce({ config, floes: packIce, material: materials.ground, tide })
         root.add(dressing.object, fleet.mesh)
 
         if (sails)
@@ -399,6 +429,9 @@ export function createLandscape (
 
         if (cliffs)
           root.add(cliffs.mesh)
+
+        if (pack)
+          root.add(pack.mesh)
       }
 
       ctx.scene.add(root)
@@ -435,6 +468,7 @@ export function createLandscape (
       seals?.update(frame.delta)
       kelp?.update(frame.delta)
       cliffs?.update(year.time)
+      pack?.update(now, wind)
       materials?.update(wind, now, front)
       beck?.update(frame.delta, now)
       force?.update(frame.delta, now)
@@ -449,6 +483,7 @@ export function createLandscape (
       seals?.dispose()
       kelp?.dispose()
       cliffs?.dispose()
+      pack?.dispose()
       water?.dispose()
       beck?.dispose()
       force?.dispose()
@@ -474,6 +509,7 @@ export function createLandscape (
       seals     = null
       cliffs    = null
       kelp      = null
+      pack      = null
       water     = null
       beck      = null
       force     = null
@@ -493,6 +529,7 @@ export function createLandscape (
     haulouts,
     cliffs:    cliffColonies,
     kelp:      skirts,
+    pack:      packIce,
     lanternHubs,
     hearths,
     windows,
@@ -505,5 +542,6 @@ export function createLandscape (
 // one tarn draw,
 // one merged settlement draw,
 // one moving fleet draw, one turning sail draw, one hauled colony draw, one
-// leaning kelp draw, and one
+// leaning kelp draw, one
+// frozen pack draw, and one
 // InstancedMesh per scattered prop type.

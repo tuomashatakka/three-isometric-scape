@@ -147,6 +147,39 @@ export interface AtmosphereQuality {
   cliffBirds: number
 
   /**
+   * Plates of pack ice on the whole archipelago. 0 is a sound that freezes flat.
+   *
+   * A count for the *world* rather than per island, and the one place it differs
+   * from `cliffBirds`: the pack lies on the sea between the islands rather than
+   * on any one of them, and there is no per-feature cap underneath it — the
+   * search offers thousands of seats and the tier decides how many of them carry
+   * ice. Which seats, at any budget, is `planPackIce`'s own deal, so a phone's
+   * field is a thinning of a workstation's rather than a raft on one shore.
+   *
+   * Zero is a graceful absence and a cheap one: the ice *sheet* is the water
+   * surface's own shading and stays at every tier, so a mobile sound still reads
+   * as frozen — what a plate buys is the edge and the shadow on it.
+   *
+   * It is a budget of *seats*, and how many of them are standing in any week is
+   * the year's — the same split `cliffBirds` has. At the authored `season.ice`
+   * the deepest week of the winter stands a little over two thirds of them, and
+   * the rest are the outer pack, which wants a harder freeze than this coast's
+   * year reaches. Turning `season.ice` up to 1 brings them in.
+   *
+   * At the authored `pack.spacing` the search offers 627 seats in the whole
+   * archipelago, so the two top tiers both take the field entire and only the
+   * phone is actually thinned. The headroom on `ultra` is deliberate rather than
+   * decorative: `pack.spacing` is the density knob, and a run that tightens it
+   * should find the top tier already able to draw what it offers.
+   *
+   * The cost is instances in one shared draw, not draws: a four-part plate of
+   * 80 triangles, stamped once per floe, with one sine and one matrix per plate
+   * per frame — and none of that in the three seasons the pack does not exist,
+   * because the placement stops at the first plate whose week has not come.
+   */
+  floeCount: number
+
+  /**
    * Puffs in one chimney's plume. 0 is a tier whose hearths do not smoke.
    *
    * A count and not a density, and — like `birdCount` and unlike `starCount` —
@@ -439,6 +472,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     sealCount:       0,
     kelpCount:       0,
     cliffBirds:      0,
+    floeCount:       0,
     beaconBlades:    0,
     lampSpill:       0,
     cursorLight:     false,
@@ -485,6 +519,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     sealCount:       5,
     kelpCount:       100,
     cliffBirds:      14,
+    floeCount:       420,
     beaconBlades:    1,
     lampSpill:       2,
     cursorLight:     false,
@@ -547,6 +582,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     sealCount:       11,
     kelpCount:       250,
     cliffBirds:      30,
+    floeCount:       620,
     beaconBlades:    2,
     lampSpill:       3,
     cursorLight:     true,
@@ -593,6 +629,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     sealCount:       16,
     kelpCount:       340,
     cliffBirds:      44,
+    floeCount:       900,
     beaconBlades:    3,
     lampSpill:       4,
     cursorLight:     true,
@@ -656,6 +693,7 @@ const UNLOCKED_FLOOR = {
   sealCount:      5,
   kelpCount:      100,
   cliffBirds:     30,
+  floeCount:      620,
   beaconBlades:   1,
   lampSpill:      2,
   cursorLight:    true,
@@ -704,6 +742,7 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
     sealCount:      Math.max(quality.sealCount, UNLOCKED_FLOOR.sealCount),
     kelpCount:      Math.max(quality.kelpCount, UNLOCKED_FLOOR.kelpCount),
     cliffBirds:     Math.max(quality.cliffBirds, UNLOCKED_FLOOR.cliffBirds),
+    floeCount:      Math.max(quality.floeCount, UNLOCKED_FLOOR.floeCount),
     beaconBlades:   Math.max(quality.beaconBlades, UNLOCKED_FLOOR.beaconBlades),
     lampSpill:      Math.max(quality.lampSpill, UNLOCKED_FLOOR.lampSpill),
     cursorLight:    true,

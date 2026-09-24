@@ -2,6 +2,7 @@ import { SCAPE_CONFIG } from '../src/scene/config.ts'
 import { bowPeak } from '../src/scene/rainbow.ts'
 import { stormPeak } from '../src/scene/storm.ts'
 import { COAST_TOURS } from './scape-poses-coast.ts'
+import { ICE_TOURS } from './scape-poses-ice.ts'
 
 
 /**
@@ -120,6 +121,9 @@ export const TOURS: Record<string, Pose[]> = {
   // at the lint config's line ceiling and the crag, the stack and the arch are
   // one subject at three stages, so they moved together.
   ...COAST_TOURS,
+
+  // And the frozen sound, out in `scape-poses-ice.ts` for the same reason.
+  ...ICE_TOURS,
 
   tour: [
     { name: 'default' },
@@ -1707,6 +1711,14 @@ export const STILL = [
   'force.flow=0',
 
   'boats.speed=0',
+
+  // The pack working in the leads. Already held by `wind.speed=0` above, because
+  // a floe grinds on the wind's own travel rather than on a rate of its own —
+  // named anyway, for the reason `mill.spin` and `squall.drift` are: a capture
+  // must not depend on a second knob's value to be reproducible, and a sound
+  // whose ice is half a metre further along in every frame is a winter tour that
+  // cannot be diffed.
+  'pack.working=0',
 
   // The sails are already stopped by `wind.strength=0` above, because that is
   // the factor their rate is scaled by. Named anyway: a capture must not depend

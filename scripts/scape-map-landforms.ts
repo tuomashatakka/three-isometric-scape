@@ -12,9 +12,11 @@ import { countAshore, hauledSeals, planHaulouts } from '../src/scene/landscape/h
 import { iceCapOf, measureIce } from '../src/scene/landscape/icecap.ts'
 import { kelpDepth, kelpLean, kelpPlants, planKelp } from '../src/scene/landscape/kelpbed.ts'
 import { colonyAshore, ledgeBirds, planCliffColonies } from '../src/scene/landscape/ledges.ts'
+import { fairwayClearance, floeExtent, planPackIce, sheetOver } from '../src/scene/landscape/packice.ts'
 import { birdAshore } from '../src/scene/landscape/seabirds.ts'
 import { MAX_DEPTH } from '../src/scene/landscape/shore-mask.ts'
 import { planTreeline } from '../src/scene/landscape/treeline.ts'
+import { freezeAmount } from '../src/scene/season.ts'
 import { tideAmplitudeAt } from '../src/scene/tide.ts'
 import type { MapStats } from './scape-map.ts'
 
@@ -1096,4 +1098,62 @@ export function archStats (survey: ArchipelagoSurvey, config: ScapeConfig): Arch
       ...report,
     }]
   })
+}
+
+/**
+ * How many plates the world is dealt when the map asks, whatever tier is
+ * running. The desktop budget, for the reason {@link MAP_TIER_HEADS} is.
+ */
+const MAP_TIER_PLATES = 620
+
+/**
+ * The pack, and the weeks of the year it is standing.
+ *
+ * Here rather than in a screenshot because the two things worth knowing about a
+ * floe field are both differences between *times*, and a still holds one. `full`
+ * against `deep` is the year: how much of the surveyed pack the authored winter
+ * actually stands, against how much a harder one would — a pack whose two
+ * numbers are equal has stopped having an outside. `offered` against `plates` is
+ * the search, which is invisible in a frame because water that was never offered
+ * a plate and water the tier could not afford one for photograph identically.
+ *
+ * `sheet` is the claim the whole system rests on, and it is the *lowest* cover
+ * the surface's own `scapeIce` has under any plate at the week that plate
+ * arrives. Under `pack.sheet` means geometry has got out ahead of the shading
+ * somewhere, which is a floe standing on open water.
+ */
+export function packStats (survey: ArchipelagoSurvey, config: ScapeConfig): MapStats['pack'] {
+  const floes    = planPackIce(survey, config, MAP_TIER_PLATES)
+  const offered  = planPackIce(survey, config, Number.MAX_SAFE_INTEGER).length
+  const deepest  = freezeAmount(0) * config.season.ice
+  const legs     = survey.waterways.route.legs.map(leg => leg.points)
+  const standing = (freeze: number): number =>
+    floes.filter(floe => floeExtent(floe, freeze, config.pack.cover) > 0).length
+
+  const lengths = floes.map(floe => floe.length)
+  const onsets  = floes.map(floe => floe.onset)
+  const area    = floes.reduce((sum, floe) => sum + Math.PI * 0.25 * floe.length * floe.width, 0)
+
+  return {
+    plates:  floes.length,
+    offered,
+    full:    standing(deepest),
+    deep:    standing(1),
+    summer:  standing(freezeAmount(0.5) * config.season.ice),
+    first:   floes.length ? round(Math.min(...onsets), 2) : 0,
+    last:    floes.length ? round(Math.max(...onsets), 2) : 0,
+    small:   floes.length ? round(Math.min(...lengths), 1) : 0,
+    large:   floes.length ? round(Math.max(...lengths), 1) : 0,
+    rise:    floes.length ? round(Math.max(...floes.map(floe => floe.rise)), 2) : 0,
+    shallow: floes.length ? round(Math.min(...floes.map(floe => floe.depth)), 2) : 0,
+    cover:   round(area / (survey.size * survey.size) * 100, 1),
+    sheet:   floes.length
+      ? round(Math.min(...floes.map(floe => sheetOver(floe, config, floe.onset))), 3)
+      : 0,
+    lane: floes.length
+      ? round(Math.min(...floes.map(floe => fairwayClearance(floe, legs))), 1)
+      : 0,
+    asked: config.pack.sheet,
+    keep:  config.pack.fairway,
+  }
 }

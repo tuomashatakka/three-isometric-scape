@@ -15,7 +15,7 @@ import type { ScapeConfig } from '../src/scene/config.ts'
 import { formatStats } from './scape-map-format.ts'
 import { LEGEND, readLayers, renderGrid } from './scape-map-render.ts'
 import type { Window } from './scape-map-render.ts'
-import { archStats, cragStats, duneStats, fjordStats, forceStats, hauloutStats, icecapStats, ledgeStats, kelpStats, saltingsStats, shoalStats, skerryStats, stackStats, strandStats, treelineStats } from './scape-map-landforms.ts'
+import { archStats, cragStats, duneStats, fjordStats, forceStats, hauloutStats, icecapStats, ledgeStats, kelpStats, packStats, saltingsStats, shoalStats, skerryStats, stackStats, strandStats, treelineStats } from './scape-map-landforms.ts'
 import type { ArchStats, CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, SaltingsStats, ShoalStats, StackStats, TreelineStats } from './scape-map-landforms.ts'
 import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
@@ -416,6 +416,38 @@ export interface MapStats extends CompositionStats {
     face:    number
     summer:  number
     winter:  number
+  }
+
+  /**
+   * The pack on the sound, at both ends of the year and both ends of the
+   * budget.
+   *
+   * Here rather than in a screenshot for the reason the colony is: a plate is
+   * fourteen metres of ice in a frame fifteen hundred metres wide, so what is
+   * worth knowing is not the plate but how much of the field the *year* has
+   * standing — which is a difference between two weeks and cannot be in one
+   * frame — and whether the geometry is still behind the shading, which cannot
+   * be in a frame at all.
+   */
+  pack: {
+    plates:  number
+    offered: number
+    full:    number
+    deep:    number
+    summer:  number
+    first:   number
+    last:    number
+    small:   number
+    large:   number
+    rise:    number
+    shallow: number
+    cover:   number
+    sheet:   number
+    lane:    number
+
+    /** What `pack.sheet` and `pack.fairway` asked for, so the line can accuse. */
+    asked: number
+    keep:  number
   }
 
   haulout: {
@@ -902,6 +934,7 @@ export function surveyStats (
     skerries: skerryStats(survey, config),
     haulout:  hauloutStats(survey, config),
     ledges:   ledgeStats(survey, config),
+    pack:     packStats(survey, config),
     kelp:     kelpStats(survey, config),
     fjords:   fjordStats(survey),
     icecaps:  icecapStats(survey),
