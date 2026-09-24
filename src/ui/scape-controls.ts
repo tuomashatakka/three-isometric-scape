@@ -509,6 +509,31 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
     },
     {
       group: 'ground & water',
+      title: 'the pack ice',
+
+      // Filed under the water for the reason the seals are, and the split is
+      // theirs: how many plates the world carries is the tier's — see
+      // `quality.floeCount` — and which water carries any is the survey's, so
+      // what is left here is how much of the pack is in and how hard it is
+      // working. `pack.spacing`, `sheet`, `draught`, `plate`, `ragged`, `rise`
+      // and `fairway` are deliberately absent: between them they decide where
+      // every plate is and how big, which takes a rebuild to see.
+      //
+      // Not under `season > sea ice`, though that is where the front it stands
+      // on is tuned, for the reason the smoke is not under the mist: a control
+      // goes where the thing it changes lives, and nothing in here moves the
+      // freeze.
+      controls: [
+        toggled(
+          'floes',
+          range('pack.cover', 'plates standing', 0, 1, 0.01, quality.floeCount > 0),
+          1,
+          [ range('pack.working', 'working on the wind (m)', 0, 3, 0.05) ],
+        ),
+      ],
+    },
+    {
+      group: 'ground & water',
       title: 'the kelp',
 
       // Filed under the water because that is what it grows in. The split is the

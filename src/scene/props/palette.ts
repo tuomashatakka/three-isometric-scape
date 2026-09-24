@@ -115,6 +115,18 @@ export const NORDIC_PALETTE = {
   aukBreast: '#ded9cc',
   aukBill:   '#3c3833',
 
+  // The pack on the frozen sound, and the one family in this palette that has
+  // to stay *under* the snow it is drawn beside. Sea ice is not snow: it is
+  // frozen sea, with the sea's own blue still in it and a grey cast off the
+  // salt, and a plate painted `trimWhite` would out-burn the drift lying on the
+  // island behind it. `floeSnow` is the dry crust along a rafted ridge — the one
+  // part of a floe that *is* snow — and `floeWet` is the course at the
+  // waterline the sea keeps washing, which is what gives a plate an edge to be
+  // seen by.
+  floe:     '#cdd6d8',
+  floeSnow: '#e2e7e6',
+  floeWet:  '#93a3a8',
+
   /** A burning wick behind glass — the lamp in the lantern room, and its beams. */
   lampWarm: '#ffdca8',
   flagBlue: '#2f5d8f',

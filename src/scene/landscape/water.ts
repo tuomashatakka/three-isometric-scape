@@ -23,6 +23,7 @@ import type { HeightField } from './height.ts'
 import { LAYER } from '../layers.ts'
 import { MAX_DEPTH, bakeShoreMask } from './shore-mask.ts'
 import { WATER_CAPS_GLSL, capsAmount } from './water-caps.ts'
+import { WATER_ICE_GLSL } from './water-ice.ts'
 import {
   CAUSTIC_RATE,
   WATER_CAUSTIC_FRAGMENT,
@@ -120,26 +121,23 @@ const WAVE_GLSL = /* glsl */`
 `
 
 /**
- * The freeze, shared verbatim by both stages, for the same reason the swell is.
- *
- * The vertex stage needs it to stop displacing water that has stopped moving
- * and the fragment stage needs it to paint what is lying there instead; two
- * approximations of the same ice front would show up as a swell running under a
- * shelf that is not rising with it.
+ * The bathymetry, shared verbatim by both stages, for the same reason the swell
+ * is.
  *
  * The one texture fetch in here is the bathymetry mask, which the vertex stage
  * did not previously read. That is a vertex texture fetch on at most 16k
  * vertices — the whole lake is one plane of 24 to 128 segments a side — against
  * a mask with no mipmaps and linear filtering, so there is no derivative to go
  * looking for and nothing to stall on.
+ *
+ * The freeze that reads it went out to `water-ice.ts` when the pack ice started
+ * reading the same front from the cpu — see {@link WATER_ICE_GLSL}. The
+ * uniforms stay the lake's; both chunks are pasted into one program and the
+ * order is: this, then the ice.
  */
-const ICE_GLSL = /* glsl */`
+const SHORE_GLSL = /* glsl */`
   uniform sampler2D uShoreMap;
   uniform float uShoreScale;
-  uniform float uFreeze;
-  uniform float uIceReach;
-  uniform float uIceBreak;
-  uniform float uFloeScale;
   uniform float uTide;
 
   /**
@@ -167,40 +165,13 @@ const ICE_GLSL = /* glsl */`
   float scapeDepth (vec2 ground) {
     return scapeShore(ground).r;
   }
-
-  // The floe field. Three sines rather than a noise fetch, because the vertex
-  // stage would otherwise exceed the cheap tier's texture budget. uFloeScale
-  // grows the authored 196-metre pattern with the inhabited world; without it
-  // the old lobes repeat 2.65 times more often across the archipelago and read
-  // as wallpaper instead of fractured coastal ice.
-  float scapeFloe (vec2 p) {
-    vec2 q = p * uFloeScale;
-    return 0.5 + 0.34 * sin(q.x * 0.0545 + q.y * 0.029) +
-      0.26 * sin(q.y * 0.0788 - q.x * 0.035) +
-      0.16 * sin((q.x - q.y) * 0.1394);
-  }
-
-  /**
-   * How much ice is lying on the water at a point, 0..1.
-   *
-   * Depth is the whole physics of it: a bank a foot deep gives its heat up in a
-   * week and a sound five metres deep takes the season, so the freeze starts at
-   * the shoreline and walks outward as the year deepens rather than arriving
-   * everywhere at once. The 1.7 is what lets a fully committed winter push past
-   * the upper threshold in the shallows while the middle is still open.
-   */
-  float scapeIce (vec2 ground, float depth) {
-    float shelter = 1.0 - uIceReach * smoothstep(0.0, 0.55, depth);
-    float local   = uFreeze * shelter * 1.7 + (scapeFloe(ground) - 0.5) * uIceBreak;
-
-    return smoothstep(0.45, 0.85, local);
-  }
 `
 
 const WATER_PARS_VERTEX = /* glsl */`
   varying vec2 vWaterGround;
 ${WAVE_GLSL}
-${ICE_GLSL}
+${SHORE_GLSL}
+${WATER_ICE_GLSL}
 `
 
 const WATER_SWELL_VERTEX = /* glsl */`
@@ -385,7 +356,8 @@ ${CLOUD_SHADOW_GLSL}
   uniform vec3 uPhosphorColor;
   varying vec2 vWaterGround;
 ${WAVE_GLSL}
-${ICE_GLSL}
+${SHORE_GLSL}
+${WATER_ICE_GLSL}
 ${WATER_SURF_GLSL}
 ${WATER_CAPS_GLSL}
 ${WATER_CAUSTIC_GLSL}

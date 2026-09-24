@@ -157,6 +157,30 @@ function hauloutLine (haulout: MapStats['haulout']): string {
  * Its own function for `hauloutLine`'s reason, and it carries the same two
  * relations: the search's yield, and the clock the colony answers to.
  */
+/**
+ * The pack, in one line.
+ *
+ * `full` against `deep` is the year and `plates` against `offered` is the
+ * budget, and the two failures worth shouting about are both refusals of the
+ * claim the system rests on: `sheet` under what `pack.sheet` asked for is a
+ * plate standing on water the surface still draws as open, and a lane narrower
+ * than `pack.fairway` is a floe in the ferry's way.
+ */
+function packLine (pack: MapStats['pack']): string {
+  if (!pack.plates)
+    return 'pack NONE  <- no water in the archipelago is both deep enough to float a plate and shut enough to carry one'
+
+  return `pack ${pack.plates}/${pack.offered} plates  ` +
+    `${pack.small}..${pack.large}m across  standing ${pack.rise}m  ` +
+    `ice ${pack.cover}% of the world  ` +
+    `in from freeze ${pack.first} to ${pack.last}  ` +
+    `up ${pack.full} midwinter / ${pack.deep} at a hard freeze / ${pack.summer} midsummer  ` +
+    `sheet ${pack.sheet}  lane ${pack.lane}m` +
+    (pack.sheet < pack.asked - 1e-3 ? '  <- A PLATE IS STANDING ON OPEN WATER' : '') +
+    (pack.lane < pack.keep - 1e-3 ? '  <- A PLATE IS IN THE FAIRWAY' : '') +
+    (pack.full === pack.deep ? '  <- the winter never leaves the pack anything to add' : '')
+}
+
 function ledgeLine (ledges: MapStats['ledges']): string {
   if (!ledges.cliffs)
     return `ledges NONE  <- none of ${ledges.offered} headlands stands high enough over the water`
@@ -474,6 +498,7 @@ export function formatStats (stats: MapStats): string {
     hauloutLine(stats.haulout),
     kelpLine(stats.kelp),
     ledgeLine(stats.ledges),
+    packLine(stats.pack),
     ...stats.fjords.map(fjord =>
       `fjord ${fjord.id}  len ${fjord.length}m  sea ${fjord.sea}m  ` +
       `sill ${fjord.sill}m  basin ${fjord.basin}m  head +${fjord.head}m  ` +
