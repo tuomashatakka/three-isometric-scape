@@ -67,6 +67,21 @@ export const LAYER = {
    */
   beacon: 20,
 
+  /**
+   * The night bank. Sheets index up from here.
+   *
+   * Under the ground mist and over the beams, and both halves of that are the
+   * same argument: the bank is the *lowest* fog in the scape. It lies in a band
+   * a few metres over mean water where the mist's column stands nine metres and
+   * the haze in its top is therefore nearer the eye, and it lies over the beams
+   * because a lamp seen through a fog bank is a lamp with fog in front of it.
+   *
+   * Four sheets at four heights are four overlapping quads whose bounding
+   * spheres share a centre, which is precisely the projected-depth coin toss
+   * this ladder exists to settle — so they index rather than being left to sort.
+   */
+  haar: 24,
+
   /** Ground fog. Sheets index up from here; the upright slices sit above those. */
   mist: 30,
 

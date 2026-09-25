@@ -446,6 +446,37 @@ function capsLine (caps: MapStats['caps']): string {
         : '')
 }
 
+/**
+ * The night bank line, and the three ways it says nothing is happening.
+ *
+ * `now` is the parked hour and is *expected* to read zero on the default
+ * midsummer afternoon — the bank is a thing of the dark, and a line that only
+ * reported the parked hour would say the same thing about a system that works
+ * and one that was never built. So the wind columns are read at midwinter
+ * midnight instead, and the notes separate the three causes a picture cannot:
+ * the switch is off, the wind never lets it form, or the sun is never down.
+ *
+ * `drowns` and `clear` are the structural half, and the pair is the whole claim
+ * the system makes: the low ground goes under and the tops do not. A top raised
+ * past the highest island reads as `0/6 clear` here, at any hour, weeks before
+ * anybody photographs the white-out.
+ */
+function haarLine (haar: MapStats['haar']): string {
+  return `haar  top ${haar.top}m over mean (${haar.ceiling}m)  band ${haar.depth}m  ` +
+    `sheets ${haar.floor}..${haar.ceiling}m  now ${haar.now}  ` +
+    `dark night: still ${haar.still} rest ${haar.rest} gust ${haar.gust}  ` +
+    `scour ${haar.scour} vs wind ${haar.wind}  ` +
+    `drowns ${haar.drowned}% of the home island  ` +
+    `${haar.standing}/${haar.islands} tops clear` +
+    (haar.still <= 0
+      ? '  <- the low ground never fills: haar.strength is at zero'
+      : haar.rest <= 0
+        ? '  <- scoured at the authored wind: the bank exists only in captures'
+        : haar.standing <= 0
+          ? '  <- the top is over every peak in the archipelago: a white-out'
+          : '')
+}
+
 /** The stats block, as the run reads it. */
 export function formatStats (stats: MapStats): string {
   const steading = Object.entries(stats.steading)
@@ -561,6 +592,7 @@ export function formatStats (stats: MapStats): string {
     moonLine(stats.moon),
     shadeLine(stats.shade),
     capsLine(stats.caps),
+    haarLine(stats.haar),
     treelineLine(stats.treeline),
     ...stats.drift.map(driftLine),
     grazingLine(stats.grazing),

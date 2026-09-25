@@ -15,11 +15,26 @@ export interface AtmosphereQuality {
    * This is separate from map size: a smaller map still compiles and runs the
    * same hidden MeshDepthMaterial pass, which Firefox on the Pixel 10 rejects.
    */
-  shadows:        boolean
-  shadowMapSize:  number
-  bloom:          boolean
-  grain:          boolean
-  mistLayers:     number
+  shadows:       boolean
+  shadowMapSize: number
+  bloom:         boolean
+  grain:         boolean
+  mistLayers:    number
+
+  /**
+   * Level sheets in the night fog bank. 0 is a coast whose low ground never
+   * fills.
+   *
+   * A count rather than a switch, for the reason `mistLayers` and `auroraLayers`
+   * are — but it buys something the other two do not. The bank's whole claim is
+   * that it has a *top*, and the softness of that top is entirely the stagger
+   * between the contours its sheets cut into the hillsides: one sheet is a line
+   * drawn round every island at the same height, and five are a slope going
+   * into fog. Each sheet's share is divided by the count, so a phone gets the
+   * same density of bank with a harder edge on it rather than a fifth of the
+   * fog.
+   */
+  haarSheets:     number
   msaaSamples:    number
   tiltShiftPairs: number
 
@@ -461,6 +476,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     bloom:           false,
     grain:           false,
     mistLayers:      1,
+    haarSheets:      0,
     msaaSamples:     0,
     tiltShiftPairs:  0,
     auroraLayers:    0,
@@ -508,6 +524,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     bloom:           false,
     grain:           false,
     mistLayers:      2,
+    haarSheets:      2,
     msaaSamples:     0,
     tiltShiftPairs:  0,
     auroraLayers:    1,
@@ -571,6 +588,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     bloom:           true,
     grain:           true,
     mistLayers:      4,
+    haarSheets:      4,
     msaaSamples:     4,
     tiltShiftPairs:  2,
     auroraLayers:    2,
@@ -618,6 +636,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     bloom:           true,
     grain:           true,
     mistLayers:      6,
+    haarSheets:      5,
     msaaSamples:     8,
     tiltShiftPairs:  2,
     auroraLayers:    3,
@@ -683,6 +702,7 @@ export function isQualityEffects (value: string): value is QualityEffects {
  */
 const UNLOCKED_FLOOR = {
   mistLayers:     2,
+  haarSheets:     2,
   tiltShiftPairs: 1,
   auroraLayers:   1,
   starCount:      700,
@@ -732,6 +752,7 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
     post:           true,
     environment:    true,
     mistLayers:     Math.max(quality.mistLayers, UNLOCKED_FLOOR.mistLayers),
+    haarSheets:     Math.max(quality.haarSheets, UNLOCKED_FLOOR.haarSheets),
     tiltShiftPairs: Math.max(quality.tiltShiftPairs, UNLOCKED_FLOOR.tiltShiftPairs),
     auroraLayers:   Math.max(quality.auroraLayers, UNLOCKED_FLOOR.auroraLayers),
     starCount:      Math.max(quality.starCount, UNLOCKED_FLOOR.starCount),

@@ -349,6 +349,24 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           0.34,
           [ range('atmosphere.mistDrag', 'drift', 0, 1.5, 0.01) ],
         ),
+
+        // Beside the mist because it is the same substance, and separate from it
+        // because it is the opposite claim: the haze above has no top and this
+        // is nothing but one. `top` and `depth` are the two that are worth
+        // dragging — the whole picture is which ground is left standing.
+        toggled(
+          'the night bank',
+          range('haar.strength', 'thickness', 0, 1, 0.01, quality.haarSheets > 0),
+          0.85,
+          [
+            range('haar.top', 'top (m)', 0, 12, 0.1),
+            range('haar.depth', 'depth (m)', 0.2, 8, 0.1),
+            range('haar.drag', 'drift', 0, 1.5, 0.01),
+            range('haar.scour', 'scoured at (wind)', 0, 4, 0.05),
+            range('haar.burn', 'burn-off', 0, 3, 0.05),
+            range('haar.damp', 'after rain', 0, 1, 0.01),
+          ],
+        ),
       ],
     },
     {

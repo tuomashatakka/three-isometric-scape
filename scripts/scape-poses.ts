@@ -435,6 +435,40 @@ export const TOURS: Record<string, Pose[]> = {
    * `shade-night` is a moonless midnight: the cover is up and the darkness is
    * authored, and there is no light for a cloud to take away.
    */
+  /**
+   * The night bank, and the three ways it can fail to be one.
+   *
+   * The tour can nearly see this system and that is exactly the problem: two of
+   * its six poses are dark enough for the bank to be out, and neither is aimed
+   * at what the bank *claims*. The claim is about a top — the low ground goes
+   * under and the tops do not — and a frame that only shows fog cannot tell a
+   * bank from the ground mist that was already there.
+   *
+   * So `haar` is the home island at a view wide enough to hold the whole of it,
+   * where the hills standing out of the fog are the picture, and `haar-far` is
+   * the same instant at 540, which is the only frame in this scape that shows
+   * six islands as six tops in one sheet of fog.
+   *
+   * The last three are the controls, and each one takes a different gate away.
+   * `haar-none` is the switch at zero: the identical frame with the bank gone,
+   * which must be the coast this scape had before any of this and must be
+   * identical to the reference build wherever the run did not also touch the
+   * mist. `haar-blow` is the *wind's* half — `STILL` has zeroed the wind, so
+   * every other frame here is taken in a dead calm and the scour is invisible in
+   * all of them — at a strength well past `haar.scour`, where the bank must be
+   * gone and the night must otherwise be unchanged. `haar-day` is the sun's
+   * half, the same week at noon, and it is the pose that catches a burn-off set
+   * to nothing: a fog still lying over the farm at midday is a sea fret and this
+   * system is not one.
+   */
+  haar: [
+    { name: 'haar', zoom: 160, time: 0.02, season: 0.78 },
+    { name: 'haar-far', zoom: 540, time: 0.02, season: 0.78 },
+    { name: 'haar-none', zoom: 160, time: 0.02, season: 0.78, set: [ 'haar.strength=0' ]},
+    { name: 'haar-blow', zoom: 160, time: 0.02, season: 0.78, set: [ 'wind.strength=2.4' ]},
+    { name: 'haar-day', zoom: 160, time: 0.5, season: 0.78 },
+  ],
+
   shade: [
     { name: 'shade', zoom: 520 },
     { name: 'shade-none', zoom: 520, set: [ 'atmosphere.cloudShadow=0' ]},

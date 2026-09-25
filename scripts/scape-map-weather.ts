@@ -17,7 +17,8 @@ import { stormLive, stormPeak, stormSchedule, stormSites } from '../src/scene/st
 import { snowAmount } from '../src/scene/season.ts'
 import { capsAmount } from '../src/scene/landscape/water-caps.ts'
 import { phosphorAmount, trackAmount } from '../src/scene/landscape/water-gleam.ts'
-import { showerAmount } from '../src/scene/weather.ts'
+import { haarAmount } from '../src/scene/haar.ts'
+import { showerAmount, wetAmount } from '../src/scene/weather.ts'
 import type { ScapeConfig } from '../src/scene/config.ts'
 import type { ArchipelagoSurvey } from '../src/scene/landscape/archipelago.ts'
 import type { MapStats } from './scape-map.ts'
@@ -251,5 +252,71 @@ export function capsStats (config: ScapeConfig): MapStats['caps'] {
     onset: round(whitecapOnset, 2),
     wind:  round(strength, 2),
     lee:   round(whitecapLee, 2),
+  }
+}
+
+/**
+ * The night bank, and the two silences it has.
+ *
+ * Neither is a silence a picture can break. The first is the whitecaps' —
+ * `STILL` zeroes `wind.strength`, so every still this scape takes is taken in a
+ * dead calm and `still` is the only column a frame can report; whether the
+ * authored wind leaves anything at all is `rest`, and whether a front sweeps it
+ * away twice a cycle is `gust`. Set `haar.scour` at or under the authored wind
+ * and the bank exists only in captures, which is a system nobody watching the
+ * scape ever sees and every picture of it looks entirely correct.
+ *
+ * The second is the tour's. The bank is a thing of the dark and four of the six
+ * tour poses are taken in daylight, so the wind columns are read at midwinter
+ * midnight — the condition the bank is *for* — rather than at whatever hour the
+ * config happens to be parked on. `now` is the parked hour and is allowed to be
+ * zero, and the gap between it and `still` is the difference between "there is
+ * no bank" and "there is no night".
+ *
+ * `drowned` is the structural reading and the one that catches a top set too
+ * high: it is the share of the home island's *land* lying under it, measured
+ * off the height field, and it answers at noon in midsummer exactly as it does
+ * at midnight in January because relief has no clock.
+ */
+type HomeType = { drowned: number }
+
+export function haarStats (
+  config: ScapeConfig,
+  home: HomeType,
+  landmasses: { peak: { height: number }}[],
+): MapStats['haar'] {
+  const { haar, terrain, wind }       = config
+  const { latitude, axialTilt, time } = config.daylight
+  const year                          = config.season.time
+  const parked                        = sunHeight(time, year, latitude, axialTilt)
+  const wet                           = wetAmount(config.weather.time)
+
+  // Midwinter, and the hour the sun is furthest under it. At latitude 68 that
+  // is a polar night, so the terms are the same at any hour of the week — the
+  // pair is named anyway, because the latitude is a slider and a scape moved
+  // south has a midnight that is genuinely darker than its afternoon.
+  const deep = sunHeight(0, 0, latitude, axialTilt)
+  const gust = wind.strength * (1 + wind.gust)
+
+  const at = (sun: number, strength: number): number =>
+    haarAmount(haar, dayAmount(sun), strength, wet)
+
+  const ceiling = terrain.waterLevel + haar.top
+  const clear   = landmasses.filter(landmass => landmass.peak.height > ceiling).length
+
+  return {
+    top:      round(haar.top, 2),
+    ceiling:  round(ceiling, 2),
+    depth:    round(haar.depth, 2),
+    floor:    round(Math.max(terrain.waterLevel + 0.25, ceiling - haar.depth), 2),
+    now:      round(at(parked, wind.strength), 3),
+    still:    round(at(deep, 0), 3),
+    rest:     round(at(deep, wind.strength), 3),
+    gust:     round(at(deep, gust), 3),
+    scour:    round(haar.scour, 2),
+    wind:     round(wind.strength, 2),
+    drowned:  round(home.drowned),
+    standing: clear,
+    islands:  landmasses.length,
   }
 }

@@ -20,15 +20,27 @@ import type { ArchStats, CragStats, DuneStats, FjordStats, ForceStats, IcecapSta
 import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
 import { causewayOf, croftOf, dykeOf, peatOf, pierOf, shielingOf, smokehouseOf, tarnOf, weirOf, wreckOf } from './scape-map-sites.ts'
-import { capsStats, moonStats, rainbowStats, shadeStats, stormStats } from './scape-map-weather.ts'
+import { capsStats, haarStats, moonStats, rainbowStats, shadeStats, stormStats } from './scape-map-weather.ts'
 import { applyOverrides, parseArgs } from './args.ts'
 
 
 export interface CompositionStats {
-  seed:       number
-  size:       number
-  land:       number
-  snowbound:  number
+  seed:      number
+  size:      number
+  land:      number
+  snowbound: number
+
+  /**
+   * What share of this island's land lies under the night bank's top, 0..100.
+   *
+   * The structural half of the fog, and the half no still can report: the bank
+   * only exists on a dark, calm night, and `scape:diff` photographs four of its
+   * six poses in daylight. This is the same question asked of the *ground* —
+   * how much of the island is under `haar.top` — and it answers at every hour,
+   * because relief does not have a clock. A bank raised past the highest
+   * ground reads here as 100 long before anybody takes a picture of a white-out.
+   */
+  drowned:    number
   peak:       { height: number, x: number, z: number }
   landRadius: number
   yard:       { x: number, z: number, radius: number }
@@ -598,6 +610,48 @@ export interface MapStats extends CompositionStats {
   }
 
   /**
+   * The night fog bank: where its top is, what it covers, and the three winds.
+   *
+   * Here for two reasons the picture cannot cover. The first is the whitecaps'
+   * reason exactly — `STILL` zeroes `wind.strength`, so a capture can only ever
+   * report `still`, and whether the authored wind leaves any bank at all is
+   * invisible in every frame. The second is the tour's: the bank is a thing of
+   * the dark, four of the six tour poses are taken in daylight, and a bank
+   * raised until it drowns the archipelago photographs as an unchanged noon.
+   *
+   * So the wind columns are read at the darkest night of the year rather than
+   * at the parked hour. `now` is the parked hour, and it is allowed to be zero.
+   */
+  haar: {
+
+    /** Metres of the top over mean water, and the world height that puts it at. */
+    top:     number
+    ceiling: number
+
+    /** Metres of fog under the top, and the world height the lowest sheet lies at. */
+    depth: number
+    floor: number
+
+    /** The bank as the config is parked: this hour, this week, the authored wind. */
+    now: number
+
+    /** The bank at midwinter midnight, at a dead calm, at rest and in the gust. */
+    still: number
+    rest:  number
+    gust:  number
+
+    scour: number
+    wind:  number
+
+    /** Share of the home island's land under the top, 0..100. */
+    drowned: number
+
+    /** Islands whose peak stands clear of the top, out of all of them. */
+    standing: number
+    islands:  number
+  }
+
+  /**
    * The rough grazing, and the flocks turned out on it.
    *
    * Here for the reason the colonies are, and rather more so: a sheep is a
@@ -729,14 +783,31 @@ function beckOf (
  * trace, an island that drowned, a pasture that never found room — each one is
  * a single field here and none of them are legible in eighty columns of ascii.
  */
-function compositionStats (landmass: LandmassSurvey, w: number, h: number): CompositionStats {
-  const { config, origin, survey }                         = landmass
-  const { layout, field, places, landing, harbour, paths } = survey
-  const { waterLevel, size }                               = config.terrain
-  const half                                               = size * 0.5
+interface ReliefCensus {
+  land:      number
+  snowbound: number
+  drowned:   number
+  peak:      { height: number, x: number, z: number }
+}
+
+/**
+ * One island's relief, counted over the same grid the picture is drawn on.
+ *
+ * Its own function rather than a preamble to {@link compositionStats}, which is
+ * long enough already and was at the lint config's complexity ceiling before
+ * this loop gained its third question. Every field here is a census of cells:
+ * how many are dry, how many hold snow, how many lie under the night bank's
+ * top, and which one stands highest.
+ */
+function reliefCensus (landmass: LandmassSurvey, w: number, h: number): ReliefCensus {
+  const { config, survey }   = landmass
+  const { field }            = survey
+  const { waterLevel, size } = config.terrain
+  const half                 = size * 0.5
 
   let land      = 0
   let snowbound = 0
+  let drowned   = 0
   let peak      = { height: -Infinity, x: 0, z: 0 }
 
   for (let row = 0; row < h; row += 1)
@@ -755,7 +826,19 @@ function compositionStats (landmass: LandmassSurvey, w: number, h: number): Comp
 
       if (height - waterLevel > config.season.snowLine)
         snowbound += 1
+
+      if (height - waterLevel <= config.haar.top)
+        drowned += 1
     }
+
+  return { land, snowbound, drowned, peak }
+}
+
+function compositionStats (landmass: LandmassSurvey, w: number, h: number): CompositionStats {
+  const { config, origin, survey }                         = landmass
+  const { layout, field, places, landing, harbour, paths } = survey
+  const { waterLevel, size }                               = config.terrain
+  const { land, snowbound, drowned, peak }                 = reliefCensus(landmass, w, h)
 
   const lengths = paths.paths.map(path => pathLength(path.points))
   const worldX  = (x: number): number => x + origin.x
@@ -766,6 +849,7 @@ function compositionStats (landmass: LandmassSurvey, w: number, h: number): Comp
     size,
     land:      round(100 * land / (w * h)),
     snowbound: land ? round(100 * snowbound / land) : 0,
+    drowned:   land ? round(100 * drowned / land) : 0,
     peak:      {
       height: round(peak.height, 2),
       x:      Math.round(worldX(peak.x)),
@@ -969,6 +1053,7 @@ export function surveyStats (
     moon:     moonStats(config),
     shade:    shadeStats(config),
     caps:     capsStats(config),
+    haar:     haarStats(config, home, landmasses),
     hearths:  hearthStats(survey),
     windows:  windowStats(survey),
     colonies: {

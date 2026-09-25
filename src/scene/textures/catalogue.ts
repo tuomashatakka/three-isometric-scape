@@ -29,7 +29,8 @@ import { normalFromHeight } from './normals.ts'
 export type TextureId =
   'ground.grain' | 'ground.normal' | 'ground.wear' | 'prop.bark' | 'sky.cloudShadow' |
   'water.ripple' | 'water.wave' | 'water.shoreMask' |
-  'weather.squall' | 'sky.deck' | 'sky.aurora' | 'sky.gradient' | 'mist.field' | 'post.lut'
+  'weather.squall' | 'sky.deck' | 'sky.aurora' | 'sky.gradient' | 'mist.field' |
+  'haar.field' | 'post.lut'
 
 /**
  * Where a texture's pixels come from.
@@ -167,6 +168,14 @@ export const TEXTURES: readonly TextureEntry[] = [
     purpose:   'the ground mist sheet, cut by the island mask',
     size:      256,
     module:    'mist.ts',
+    consumers: [ 'map' ],
+  },
+  {
+    id:        'haar.field',
+    origin:    'baked',
+    purpose:   'the night fog bank, biased solid and torn into lanes',
+    size:      128,
+    module:    'haar.ts',
     consumers: [ 'map' ],
   },
   {
