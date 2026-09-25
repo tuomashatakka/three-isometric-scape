@@ -8,6 +8,7 @@ const ORDER = [
   'water',
   'seaSmoke',
   'beacon',
+  'haar',
   'mist',
   'birds',
   'rain',
@@ -56,6 +57,17 @@ describe('the transparent layer ladder', () => {
   })
 
   /**
+   * The bank lies in the bottom few metres and the mist's column stands nine,
+   * so the haze in the top of that column is nearer the eye than any sheet of
+   * the bank is. And a lamp or a beam seen through a fog bank is a light with
+   * fog in front of it, which is the other half of the same placement.
+   */
+  test('the night bank is over the beams and under the ground mist', () => {
+    expect(LAYER.haar).toBeGreaterThan(LAYER.beacon)
+    expect(LAYER.haar).toBeLessThan(LAYER.mist)
+  })
+
+  /**
    * A band with several sheets indexes up from its own base, so a tier that
    * grants more of them must not walk into the band above. Checked against the
    * richest tier *and* `unlockEffects`, which lifts several counts to a floor.
@@ -67,6 +79,8 @@ describe('the transparent layer ladder', () => {
 
     expect(LAYER.mist + mist * 2).toBeLessThan(LAYER.rain)
     expect(LAYER.seaSmoke + mist).toBeLessThan(LAYER.mist)
+    expect(LAYER.haar + widest(quality => quality.haarSheets)).toBeLessThan(LAYER.mist)
+    expect(LAYER.seaSmoke + mist).toBeLessThan(LAYER.haar)
     expect(LAYER.clouds + 8).toBeLessThan(LAYER.aurora)
     expect(LAYER.aurora + widest(quality => quality.auroraLayers)).toBeLessThan(LAYER.stars)
   })

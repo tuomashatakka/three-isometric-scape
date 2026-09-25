@@ -19,7 +19,7 @@
  * one configuration already known to run on the handset.
  */
 export const SCAPE_FAMILIES = [
-  'inject', 'detail', 'dressing', 'water', 'mist', 'clouds', 'aurora', 'nightsky', 'rain',
+  'inject', 'detail', 'dressing', 'water', 'mist', 'haar', 'clouds', 'aurora', 'nightsky', 'rain',
   'squall', 'storm', 'rainbow', 'birds', 'beacon', 'hearth', 'windows', 'post', 'shadows',
 ] as const
 
