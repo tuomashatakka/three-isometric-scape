@@ -141,8 +141,14 @@ export function createMillSails (options: MillSailsOptions): MillSails | null {
  * an instanced bound from the *geometry* at the identity and the wheels are
  * hundreds of metres apart. Without this the mills on two of the three islands
  * are culled from most poses.
+ *
+ * Exported because the watermill's wheels are the same fleet in every respect
+ * that matters here — one geometry, one instance buffer, hubs an archipelago
+ * apart — and two answers to "how big is the sphere that holds them" is one
+ * culling bug waiting for whichever of the two is retuned second. See
+ * `mill-wheels.ts`.
  */
-function hubBounds (hubs: readonly MillHub[], span: number): Sphere {
+export function hubBounds (hubs: readonly MillHub[], span: number): Sphere {
   let minX = Infinity
   let minY = Infinity
   let minZ = Infinity

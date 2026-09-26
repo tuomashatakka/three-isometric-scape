@@ -302,6 +302,7 @@ bun run scape:shot --poses beck                     # the water in the channel, 
 bun run scape:shot --poses force                    # the fall the beck goes over, 4 frames
 bun run scape:shot --poses smokehouse               # the hut above the harbour, 3 frames
 bun run scape:shot --poses shieling                 # the hut on the summer grazing, 3 frames
+bun run scape:shot --poses watermill                # the mill on the beck, its lade and its winter, 4 frames
 bun run scape:shot --poses croft                    # the holding out on the islets, 3 frames
 bun run scape:shot --poses wreck                    # the hull on the low rock, 4 frames
 bun run scape:shot --poses shoal                    # the banks in the sound, and the tide over them, 4 frames

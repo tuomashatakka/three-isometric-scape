@@ -9,6 +9,7 @@ import { pierHead } from '../src/scene/landscape/pier.ts'
 import type { Pier } from '../src/scene/landscape/pier.ts'
 import type { PeatBank } from '../src/scene/landscape/peat.ts'
 import type { ShielingSite } from '../src/scene/landscape/shieling.ts'
+import type { WatermillSite } from '../src/scene/landscape/watermill.ts'
 import type { SmokehouseSite } from '../src/scene/landscape/smokehouse.ts'
 import { tarnWetted } from '../src/scene/landscape/tarn.ts'
 import type { Tarn } from '../src/scene/landscape/tarn.ts'
@@ -73,6 +74,34 @@ export function shielingOf (
     rise:     round(site.rise, 2),
     fromYard: round(site.fromYard),
     toWater:  Number.isFinite(site.toWater) ? round(site.toWater) : null,
+  }
+}
+
+/**
+ * The mill on the beck, the head it was built for, and the trough it took to
+ * get it.
+ *
+ * Three numbers rather than one, because the three are what say whether the
+ * search did its job. `head` alone says only that the gate passed; the *surplus*
+ * over the trough's own rise says how deep the mouth is cut into its bank, and
+ * `lade` says how far somebody carried the timber. A mill that comes back with
+ * fifteen metres of lade for a head that barely clears the gate is a mill the
+ * scoring put in the wrong place, and no still in the scape would show it.
+ */
+export function watermillOf (
+  site:   WatermillSite | null,
+  worldX: Project,
+  worldZ: Project,
+): CompositionStats['watermill'] {
+  return site && {
+    x:      round(worldX(site.x)),
+    z:      round(worldZ(site.z)),
+    head:   round(site.head, 2),
+    lade:   round(site.lade, 1),
+    intake: {
+      x: round(worldX(site.intake.x)),
+      z: round(worldZ(site.intake.z)),
+    },
   }
 }
 

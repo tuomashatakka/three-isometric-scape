@@ -36,6 +36,8 @@ import { SHIELING_FOOTING, findShielingSite } from './shieling.ts'
 import type { ShielingSite } from './shieling.ts'
 import { SMOKEHOUSE_FOOTING, findSmokehouseSite } from './smokehouse.ts'
 import type { SmokehouseSite } from './smokehouse.ts'
+import { WATERMILL_FOOTING, findWatermillSite } from './watermill.ts'
+import type { WatermillSite } from './watermill.ts'
 import { STEADING_BUILDINGS, doorstepOf, steadingPlaces } from './steading.ts'
 import type { SteadingPlaces } from './steading.ts'
 import { solveSaltings } from './saltings.ts'
@@ -76,6 +78,14 @@ export interface ScapeSurvey {
 
   /** The hut on the summer grazing, or `null` on an island with no hill to put one on. */
   shieling: ShielingSite | null
+
+  /**
+   * The mill on the beck, or `null` where no reach of it would turn a wheel.
+   *
+   * The only site in the survey that is two places at once — the bank the house
+   * stands on and the mouth up the channel that feeds it. See `watermill.ts`.
+   */
+  watermill: WatermillSite | null
 
   /** The trestle out to deep water, or `null` when the shelf never drops away. */
   pier: Pier | null
@@ -487,6 +497,52 @@ function grazeTheHill (
 }
 
 /**
+ * The mill on the beck, or the reason there is none.
+ *
+ * A function of its own for the reason {@link ringTheHill} and
+ * {@link grazeTheHill} are — the survey holds the *order*, not the argument
+ * lists. Run beside the hut and before the routes, because a mill is walked to
+ * and the leg worn down to its door has to be planned with the rest.
+ *
+ * What it is handed is everything already standing ashore, the hut included: a
+ * watermill is the last building sited on these islands and it takes what is
+ * left. The ice and the cart track are barred outright, the way they are for the
+ * hut. The channel itself is *not* — this is the one building in the scape whose
+ * whole business is to stand on the edge of it, and `watermill.standoff` is the
+ * gate that says how near, measured against the channel's own edge rather than
+ * against its middle.
+ */
+function damTheBeck (
+  config: ScapeConfig,
+  layout: ScapeLayout,
+  field:  HeightField,
+  avoid:  readonly Obstacle[],
+): WatermillSite | null {
+  const { creek } = layout
+
+  if (!creek)
+    return null
+
+  return findWatermillSite(
+    {
+      ground:      field.heightAt,
+      course:      creek.points,
+      clearanceAt: creek.clearanceAt,
+      courseAt:    (x, z) => creek.sampleAt(x, z).at,
+      waterLevel:  config.terrain.waterLevel,
+      head:        config.watermill.head,
+      standoff:    config.watermill.standoff,
+      freeboard:   config.watermill.freeboard,
+      reach:       config.watermill.reach,
+      barred:      (x, z) =>
+        iceClaim(config, x, z, field.heightAt(x, z)) > 0 ||
+        distanceToTrack(layout, x, z) < layout.track.width * 1.5,
+    },
+    avoid,
+  )
+}
+
+/**
  * Survey the scape without building it.
  *
  * Split out of `createLandscape` when the debugging tools arrived, because the
@@ -630,7 +686,7 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
   // because the whole of that is ground it has to miss.
   const shieling = grazeTheHill(config, layout, field, standing)
 
-  const avoid: Obstacle[] = [
+  const claimed: Obstacle[] = [
     ...standing,
     // The hut, for the same reason as the chapel and at a fifth of the size.
     ...claim(smokehouse, SMOKEHOUSE_FOOTING),
@@ -638,6 +694,18 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     // the farmyard's own — a leg that cut the corner off it would be a path
     // through a sheep pen.
     ...claim(shieling, SHIELING_FOOTING),
+  ]
+
+  // Down on the beck, and sited last for the reason the hut is sited late:
+  // everything above is ground it has to miss. It is also the only search here
+  // that wants to be *near* the water rather than clear of it.
+  const watermill = damTheBeck(config, layout, field, claimed)
+
+  const avoid: Obstacle[] = [
+    ...claimed,
+    // The house, the wheel and the tail race. The trough is deliberately not in
+    // it — see `WATERMILL_FOOTING`.
+    ...claim(watermill, WATERMILL_FOOTING),
   ]
 
   // The smokehouse is walked to at its *door*, like every other building. The
@@ -648,6 +716,7 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     harbour && { x: harbour.x, z: harbour.z, name: 'harbour', kind: 'shore' },
     smokehouse && { ...doorstepOf(smokehouse), name: 'smokehouse', kind: 'door' },
     shieling && { ...doorstepOf(shieling), name: 'shieling', kind: 'door' },
+    watermill && { ...doorstepOf(watermill), name: 'watermill', kind: 'door' },
   ]
 
   const network = planFarmNetwork(layout, places, outlying, avoid)
@@ -681,6 +750,7 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     croft,
     smokehouse,
     shieling,
+    watermill,
     pier,
     weir,
     wreck,

@@ -10,6 +10,7 @@ import type { HearthStack } from '../hearth.ts'
 import type { WindowLight } from '../windows.ts'
 import { createScapeMaterials } from '../props/material.ts'
 import { MILL_HUB_HEIGHT, MILL_HUB_REACH, MILL_SINK } from '../props/mill.ts'
+import { WATERMILL_SINK, WHEEL_AXLE, WHEEL_REACH } from '../props/watermill.ts'
 import type { ScapeMaterials } from '../props/material.ts'
 import type { LanternHub } from '../beacon.ts'
 import { createTextureCatalogue } from '../textures/catalogue.ts'
@@ -22,7 +23,7 @@ import type { TideState } from '../tide.ts'
 import type { WindState } from '../wind.ts'
 import { surveyArchipelago } from './archipelago.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
-import { createBeck } from './beck.ts'
+import { beckFreeze, createBeck } from './beck.ts'
 import type { Beck } from './beck.ts'
 import { createBoatFleet } from './boats.ts'
 import type { BoatFleet } from './boats.ts'
@@ -50,6 +51,8 @@ import { yawAlong } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
 import { createMillSails } from './mill-sails.ts'
 import type { MillHub, MillSails } from './mill-sails.ts'
+import { createWaterWheels } from './mill-wheels.ts'
+import type { WaterWheelHub, WaterWheels } from './mill-wheels.ts'
 import { createSeabirdCliffs } from './seabirds.ts'
 import type { SeabirdCliffs } from './seabirds.ts'
 import { createSealColony } from './seals.ts'
@@ -214,6 +217,7 @@ export function createLandscape (
   let dressing: Dressing | null        = null
   let fleet: BoatFleet | null          = null
   let sails: MillSails | null          = null
+  let wheels: WaterWheels | null       = null
   let seals: SealColony | null         = null
   let cliffs: SeabirdCliffs | null     = null
   let kelp: KelpForest | null          = null
@@ -250,6 +254,53 @@ export function createLandscape (
       yaw: yawAlong(mill.bearing),
     }]
   })
+
+  /**
+   * Every watermill's wheel, in world space.
+   *
+   * Resolved from the survey beside the sails and for the sails' reason — the
+   * hub is a fact about where the mill *is*, not about the geometry that was
+   * raised there. The frame is the building's own, so the offsets read out of
+   * `props/watermill.ts` rather than being restated: local `-z` is the wet side,
+   * and the yaw the wheel turns in is the yaw the house was raised with, because
+   * the axle runs through the wall between them.
+   */
+  const wheelHubs: WaterWheelHub[] = archipelago.landmasses.flatMap(landmass => {
+    const site = landmass.survey.watermill
+
+    if (!site)
+      return []
+
+    const x = site.x + landmass.origin.x
+    const z = site.z + landmass.origin.z
+
+    return [{
+      x:     x + Math.sin(site.angle) * -WHEEL_REACH,
+      y:     field.heightAt(x, z) - WATERMILL_SINK + WHEEL_AXLE,
+      z:     z + Math.cos(site.angle) * -WHEEL_REACH,
+      yaw:   site.angle,
+      // Away from the water that fills it. The trough comes in over one end of
+      // the wet wall or the other, and which one is the bank's decision.
+      sense: -site.feedSide,
+    }]
+  })
+
+  /**
+   * Hand back everything the last build allocated on the gpu.
+   *
+   * A list walked rather than a column of `?.dispose()`, and the reason is the
+   * lint config's complexity ceiling rather than taste — the twelfth system in
+   * that column is what took `dispose` past it. The ceiling is right: which
+   * systems exist was never the interesting part of teardown, the *order* of
+   * what follows is, and that is still spelled out in `dispose` itself.
+   */
+  function releaseSystems (): void {
+    const systems: readonly ({ dispose(): void } | null)[] =
+      [ dressing, fleet, sails, wheels, seals, kelp, cliffs, pack, water, beck, force, tarns ]
+
+    for (const system of systems)
+      system?.dispose()
+  }
 
   /**
    * Every lantern, lifted to the lamp inside it.
@@ -412,6 +463,7 @@ export function createLandscape (
           },
         })
         sails = createMillSails({ config, hubs: millHubs, material: materials.ground })
+        wheels = createWaterWheels({ config, quality, hubs: wheelHubs, material: materials.ground })
         seals = createSealColony({ config, haulouts, material: materials.ground, tide })
         kelp = createKelpForest({ config, skirts, material: materials.ground, tide })
         cliffs = createSeabirdCliffs({ config, colonies: cliffColonies, material: materials.ground })
@@ -420,6 +472,9 @@ export function createLandscape (
 
         if (sails)
           root.add(sails.mesh)
+
+        if (wheels)
+          root.add(wheels.mesh)
 
         if (seals)
           root.add(seals.mesh)
@@ -465,6 +520,9 @@ export function createLandscape (
 
       fleet?.update(frame.delta)
       sails?.update(frame.delta, wind.strength)
+      // What is left of the beck this week. The same function the water in the
+      // channel reads, so the wheel stops on the week the channel does.
+      wheels?.update(frame.delta, 1 - beckFreeze(now.freeze))
       seals?.update(frame.delta)
       kelp?.update(frame.delta)
       cliffs?.update(year.time)
@@ -477,17 +535,7 @@ export function createLandscape (
     },
 
     dispose () {
-      dressing?.dispose()
-      fleet?.dispose()
-      sails?.dispose()
-      seals?.dispose()
-      kelp?.dispose()
-      cliffs?.dispose()
-      pack?.dispose()
-      water?.dispose()
-      beck?.dispose()
-      force?.dispose()
-      tarns?.dispose()
+      releaseSystems()
 
       if (root) {
         root.removeFromParent()
@@ -506,6 +554,7 @@ export function createLandscape (
       dressing  = null
       fleet     = null
       sails     = null
+      wheels    = null
       seals     = null
       cliffs    = null
       kelp      = null

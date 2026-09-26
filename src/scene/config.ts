@@ -30,6 +30,8 @@ import { SCAPE_SHOAL } from './config-shoal.ts'
 import type { ShoalConfig } from './config-shoal.ts'
 import { SCAPE_STACK } from './config-stack.ts'
 import type { StackConfig } from './config-stack.ts'
+import { SCAPE_WATERMILL } from './config-watermill.ts'
+import type { WatermillConfig } from './config-watermill.ts'
 import { SCAPE_TREELINE } from './config-treeline.ts'
 import type { TreelineConfig } from './config-treeline.ts'
 import { SCAPE_WEIR } from './config-weir.ts'
@@ -269,7 +271,7 @@ export interface DressingBudget {
 
 export interface ScapeConfig extends DykeConfig, ForceConfig, GuardConfig, HaarConfig,
   KelpConfig, LedgeConfig, PackIceConfig, ShielingConfig, ShoalConfig, TreelineConfig,
-  WreckConfig {
+  WatermillConfig, WreckConfig {
   seed:    number
   terrain: {
     size:       number
@@ -2854,6 +2856,7 @@ export const SCAPE_CONFIG = {
   ...SCAPE_SHIELING,
   ...SCAPE_SHOAL,
   ...SCAPE_TREELINE,
+  ...SCAPE_WATERMILL,
   ...SCAPE_WEIR,
   ...SCAPE_WRECK,
   footpath: {

@@ -769,6 +769,52 @@ export const TOURS: Record<string, Pose[]> = {
   ],
 
   /**
+   * The mill on the beck, the trough that feeds it, and the winter that stops
+   * it.
+   *
+   * The tour reports this run as `same` at four of its six poses and it is worth
+   * saying why rather than tuning the threshold until it does not: the mill is a
+   * four-metre shed with a two-metre wheel on it, nine metres down the bank from
+   * a mouth on a burn, and at the default 1400 m frame that is a pixel and a
+   * half. `near`'s ten metres is down in the farmyard, thirty metres away and
+   * pointed the other way.
+   *
+   * `watermill` reads the building from across the channel: the boarded gable,
+   * the stone underbuilding standing out of the low side, the wheel in its frame
+   * and the trough coming in over the wall head. `watermill-lade` is the pose
+   * the *siting* has to be judged on rather than the geometry — the mouth up at
+   * the fall, the run of trestles down the bank, the wheel at the bottom of it,
+   * and the beck between them in one frame. Everything this search decides is
+   * about the relationship between those three points, and no closer frame can
+   * show a relationship.
+   *
+   * `watermill-winter` is the wheel's own control, and it is the one pose here
+   * that is about a *rate*. The channel is shut in midwinter, `beckFreeze` takes
+   * the flow to nothing, and the wheel is therefore identical to a capture of
+   * the same frame taken any other week — which is exactly what a diff against a
+   * reference with `watermill.spin=0` proves.
+   *
+   * `watermill-none` is the control for the siting, and it is the shieling set's
+   * lesson applied again: the meadow's own beck and the flat ground beside it,
+   * where a burn with no step in it rightly gets no mill. Half of what this
+   * search decided is which islands *cannot* carry one, and a set with no
+   * refusal in it cannot show that.
+   */
+  watermill: [
+    { name: 'watermill', rot: 40, zoom: 13, set: [ 'camera.focusX=16.6', 'camera.focusZ=33.8' ]},
+    { name: 'watermill-lade', rot: 40, zoom: 30, set: [ 'camera.focusX=17.8', 'camera.focusZ=29.3' ]},
+    {
+      name:   'watermill-winter',
+      rot:    40,
+      zoom:   13,
+      time:   0.5,
+      season: 0.02,
+      set:    [ 'camera.focusX=16.6', 'camera.focusZ=33.8' ],
+    },
+    { name: 'watermill-none', rot: 40, zoom: 30, set: [ 'camera.focusX=151', 'camera.focusZ=113' ]},
+  ],
+
+  /**
    * The pier, and the two coasts that answer differently about one.
    *
    * The tour cannot see this one and it is worth saying exactly why: a pier here
@@ -1759,6 +1805,13 @@ export const STILL = [
   // on a second knob's value to be reproducible, and the day the gearing stops
   // reading the wind is the day every still taken after it moves.
   'mill.spin=0',
+
+  // The water wheel, which nothing above stops. It runs on the fall under it
+  // rather than on the wind — a still day does not stop a beck — and the only
+  // thing in the config that takes it to zero on its own is a hard winter. A
+  // wheel left turning is two metres of bucket somewhere else in every frame of
+  // a tour, on the one building in the settlement a close pose is pointed at.
+  'watermill.spin=0',
 
   // The optic. A rotation the config could not stop is a beam somewhere else in
   // every frame of a tour, and the lamp is at its brightest in exactly the two

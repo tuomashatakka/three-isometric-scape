@@ -19,7 +19,7 @@ import { archStats, cragStats, duneStats, fjordStats, forceStats, hauloutStats, 
 import type { ArchStats, CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, SaltingsStats, ShoalStats, StackStats, TreelineStats } from './scape-map-landforms.ts'
 import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
-import { causewayOf, croftOf, dykeOf, peatOf, pierOf, shielingOf, smokehouseOf, tarnOf, weirOf, wreckOf } from './scape-map-sites.ts'
+import { causewayOf, croftOf, dykeOf, peatOf, pierOf, shielingOf, smokehouseOf, tarnOf, watermillOf, weirOf, wreckOf } from './scape-map-sites.ts'
 import { capsStats, haarStats, moonStats, rainbowStats, shadeStats, stormStats } from './scape-map-weather.ts'
 import { applyOverrides, parseArgs } from './args.ts'
 
@@ -108,6 +108,17 @@ export interface CompositionStats {
    * enough up there to lay a sill on.
    */
   shieling: { x: number, z: number, rise: number, fromYard: number, toWater: number | null } | null
+
+  /**
+   * The mill on the beck, or `null` where no reach of it would turn a wheel.
+   *
+   * `head` is the reading that matters and it is the one no picture can give:
+   * the wheel is fed at the trough's own rise, so a head that drifts down toward
+   * it is a lade running level — water that arrives and then sits there — and a
+   * head that runs away from it is a mouth being cut ever deeper into its bank.
+   * Both are invisible in a still, and both are one retune away at any time.
+   */
+  watermill: { x: number, z: number, head: number, lade: number, intake: { x: number, z: number }} | null
 
   /**
    * The trestle out to deep water, at its head.
@@ -908,6 +919,7 @@ function compositionStats (landmass: LandmassSurvey, w: number, h: number): Comp
     },
     smokehouse: smokehouseOf(survey.smokehouse, worldX, worldZ),
     shieling:   shielingOf(survey.shieling, worldX, worldZ),
+    watermill:  watermillOf(survey.watermill, worldX, worldZ),
     dyke:       dykeOf(survey.dyke, worldX, worldZ),
     pier:       pierOf(survey.pier, worldX, worldZ),
     weir:       weirOf(survey.weir, config, worldX, worldZ),
