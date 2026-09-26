@@ -22,6 +22,7 @@ import { createGroundContact, findCrossing, isFoliage, raiseArch, raiseShieling,
 import { raiseHarbour } from './dressing-harbour.ts'
 import { raiseEnclosures } from './dressing-enclosures.ts'
 import type { Walling } from './dressing-enclosures.ts'
+import { raiseWatermill } from './dressing-watermill.ts'
 import { createDressingSampling } from './dressing-sampling.ts'
 import { createScatterRules, createZoneTests } from './dressing-zones.ts'
 import { createGrazingTest } from './grazing.ts'
@@ -491,6 +492,8 @@ export function createDressing (
       placeHero,
       (x, z, radius) => solver.reserve(x, z, radius),
     )
+
+    raiseWatermill(survey.watermill, landmass.origin, walling)
 
     // The windmill, out on the shoulder the survey found for it. Merged rather
     // than plopped, unlike the five farmstead buildings: a mill stands on four

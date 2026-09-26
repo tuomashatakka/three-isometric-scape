@@ -276,6 +276,7 @@ async function main (): Promise<void> {
       '                        chapel (4, the church and its yard)',
       '                        smokehouse (3, the hut above the harbour)',
       '                        shieling (3, the hut on the summer grazing, and an island without one)',
+      '                        watermill (4, the mill on the beck, its lade, its winter, and a beck without one)',
       '                        pier (3, the trestle out to deep water, and a coast without one)',
       '                        croft (3, the holding out on the islets)',
       '                        shallows (4, the light on the bottom)',

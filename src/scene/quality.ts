@@ -437,6 +437,24 @@ export interface AtmosphereQuality {
    */
   archBlocks: number
 
+  /**
+   * Buckets between a water wheel's two shrouds — see `props/watermill.ts`.
+   *
+   * A count rather than a switch, and the only tier handle the watermill has,
+   * because the wheel is the only part of it that is not merged into the
+   * steading's one hero draw. It is also the one handle here that must *not*
+   * reach zero, unlike `weirStakes`: an unwoven fish trap is a ruin somebody
+   * stopped working, which is a real thing to draw, while a wheel with nothing
+   * between its rims is a cartwheel leaning on a shed. A mill that has lost its
+   * buckets has lost the reason it is a mill.
+   *
+   * The floor is set by the turn rather than by taste. Under about eight the
+   * gaps between the boards are wider than the boards, and a wheel spinning at
+   * `watermill.spin` reads as a strobing star instead of as a wheel — which is
+   * the one failure a still cannot show and a tour can.
+   */
+  wheelBuckets: number
+
   /** Lake plane subdivisions per side. */
   waterSegments: number
 
@@ -510,6 +528,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     tarnSectors:     20,
     pierBoards:      0.9,
     archBlocks:      5,
+    wheelBuckets:    8,
     dykeSpacing:     0.98,
     weirStakes:      0,
     waterSegments:   24,
@@ -567,6 +586,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     tarnSectors:   28,
     pierBoards:    1.2,
     archBlocks:    6,
+    wheelBuckets:  10,
     dykeSpacing:   0.92,
     weirStakes:    1.1,
     waterSegments: 48,
@@ -622,6 +642,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     tarnSectors:     44,
     pierBoards:      1.6,
     archBlocks:      9,
+    wheelBuckets:    14,
     dykeSpacing:     0.76,
     weirStakes:      0.8,
     waterSegments:   96,
@@ -670,6 +691,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     tarnSectors:     56,
     pierBoards:      2,
     archBlocks:      12,
+    wheelBuckets:    18,
     dykeSpacing:     0.64,
     weirStakes:      0.55,
     waterSegments:   128,

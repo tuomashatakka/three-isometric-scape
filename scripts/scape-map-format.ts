@@ -293,6 +293,7 @@ function sitedLines (stats: MapStats): string[] {
         `${Math.round(stats.causeway.neaps * 100)}% neaps`
       : 'causeway NONE  <- no rock close enough to the shore to walk to',
     shielingLine(stats.shieling),
+    watermillLine(stats.watermill),
     wreckLine(stats.wreck),
   ]
 }
@@ -332,6 +333,23 @@ function shielingLine (shieling: MapStats['shieling']): string {
   return `shieling (${shieling.x},${shieling.z}) rise ${shieling.rise}m  ` +
     `${shieling.fromYard}m from the yard  ` +
     (shieling.toWater === null ? 'no burn' : `${shieling.toWater}m from the burn`)
+}
+
+/**
+ * The mill on the beck, as one line.
+ *
+ * Its own function for the reason `shielingLine` is one, and the mouth's own
+ * coordinates are on it rather than only the house's: the whole claim this
+ * search makes is that the two are on the same reach of one channel, and a pair
+ * of points thirty metres apart on the grid says that has stopped being true
+ * faster than any of the numbers beside them would.
+ */
+function watermillLine (watermill: MapStats['watermill']): string {
+  if (!watermill)
+    return 'watermill NONE  <- no reach of the beck falls a wheel\'s head in a lade\'s length'
+
+  return `watermill (${watermill.x},${watermill.z}) head ${watermill.head}m  ` +
+    `lade ${watermill.lade}m from (${watermill.intake.x},${watermill.intake.z})`
 }
 
 /**
@@ -512,7 +530,8 @@ export function formatStats (stats: MapStats): string {
       `pier ${landmass.pier ? `${landmass.pier.length}m berth ${landmass.pier.depth}m` : 'NONE'}  ` +
       `weir ${landmass.weir ? `lead ${landmass.weir.lead}m pound r${landmass.weir.pound}m` : 'NONE'}  ` +
       `dyke ${landmass.dyke ? `${landmass.dyke.length}/${landmass.dyke.circuit}m ${landmass.dyke.gates}g` : 'NONE'}  ` +
-      `shieling ${landmass.shieling ? `rise ${landmass.shieling.rise}m` : 'NONE'}`),
+      `shieling ${landmass.shieling ? `rise ${landmass.shieling.rise}m` : 'NONE'}  ` +
+      `watermill ${landmass.watermill ? `head ${landmass.watermill.head}m lade ${landmass.watermill.lade}m` : 'NONE'}`),
     `waterways ${stats.waterways.legs} legs ${stats.waterways.length}m  ` +
       `connected ${stats.waterways.connected ? 'OK' : 'BROKEN'}  ` +
       `wet ${stats.waterways.wet ? 'OK' : 'DRY'}  ` +
