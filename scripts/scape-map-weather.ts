@@ -18,6 +18,7 @@ import { snowAmount } from '../src/scene/season.ts'
 import { capsAmount } from '../src/scene/landscape/water-caps.ts'
 import { phosphorAmount, trackAmount } from '../src/scene/landscape/water-gleam.ts'
 import { haarAmount } from '../src/scene/haar.ts'
+import { shaftAmount, shaftSheetHeights } from '../src/scene/shafts.ts'
 import { showerAmount, wetAmount } from '../src/scene/weather.ts'
 import type { ScapeConfig } from '../src/scene/config.ts'
 import type { ArchipelagoSurvey } from '../src/scene/landscape/archipelago.ts'
@@ -220,6 +221,58 @@ export function shadeStats (config: ScapeConfig): MapStats['shade'] {
     light:   round(Math.min(1, day + lunar), 3),
     reach:   round(Math.hypot(at.x, at.z)),
     bearing: round((Math.atan2(at.x, at.z) * COMPASS % 360 + 360) % 360),
+  }
+}
+
+/**
+ * The beams standing in the gaps of the deck, at the parked hour.
+ *
+ * It shares the shadow's arithmetic down to the throw and then parts from it on
+ * the one term that matters: the cover. `shadeAmount` multiplies by it and this
+ * runs it through `4c(1-c)`, so the two systems reading one cloud map report
+ * opposite things about a sky at nine tenths cover — the dapple at its
+ * strongest and the beams gone. That divergence is the section's whole claim
+ * and it is invisible in a still, because a frame with no beams in it looks
+ * exactly like a frame taken before the section existed.
+ *
+ * `lean` is measured rather than authored: it is the same key-light throw the
+ * shadow reports, taken over the part of the column that is lit, so it answers
+ * the question a picture at the default pose cannot — whether the stack is
+ * standing up in a pillar or laid flat across the sound.
+ */
+export function shaftStats (config: ScapeConfig): MapStats['shafts'] {
+  const { latitude, axialTilt, time, azimuth } = config.daylight
+  const { cloudCover, cloudHeight }            = config.atmosphere
+  const { strength, reach }                    = config.shafts
+  const year                                   = config.season.time
+  const sun                                    = sunHeight(time, year, latitude, axialTilt)
+  const day                                    = dayAmount(sun)
+  const swing                                  = sunSwing(time, year, latitude, axialTilt)
+  const bearing                                = azimuth / COMPASS + swing
+  const height                                 = Math.max(sun, KEY_FLOOR)
+  const flat                                   = Math.sqrt(Math.max(0, 1 - height * height))
+  const at                                     = shadowThrow(
+    Math.sin(bearing) * flat,
+    height,
+    Math.cos(bearing) * flat,
+    cloudHeight,
+  )
+
+  const heights = shaftSheetHeights(config.terrain.waterLevel, cloudHeight, reach, 2)
+  const column  = heights[1] - heights[0]
+
+  return {
+    bright:   round(shaftAmount(strength, cloudCover, day), 3),
+    strength: round(strength, 3),
+    cover:    round(cloudCover, 2),
+    broken:   round(4 * cloudCover * (1 - cloudCover), 3),
+    light:    round(day, 3),
+
+    // The run of the top sheet over the foot of the stack: the full ground
+    // throw is the run of the deck itself, and the lit column stops short of it.
+    lean:   round(Math.hypot(at.x, at.z) * (column / Math.max(cloudHeight, 1e-3)), 1),
+    column: round(column, 1),
+    top:    round(heights[1], 1),
   }
 }
 

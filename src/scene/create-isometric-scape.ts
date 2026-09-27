@@ -19,6 +19,7 @@ import type { DaylightState } from './daylight.ts'
 import { createLandscape } from './landscape/index.ts'
 import type { Landscape } from './landscape/index.ts'
 import { createHaarLayer } from './haar.ts'
+import { createShaftsLayer } from './shafts.ts'
 import { createMistLayer } from './mist.ts'
 import { createNightSky } from './nightsky.ts'
 import type { SeasonState } from './season.ts'
@@ -280,7 +281,7 @@ interface GroundLayerOptions {
 /**
  * Everything that stands over the islands rather than over the world.
  *
- * Eight layers that differ only in what they answer to, and they are grouped for
+ * Nine layers that differ only in what they answer to, and they are grouped for
  * the same reason the skies are: each needs the landscape *and* the atmosphere
  * to exist first, so none of them can be built where the two are being built.
  * The fall takes the weather for how hard it comes down and the year for what it
@@ -289,12 +290,15 @@ interface GroundLayerOptions {
  * takes that front a third time, for the two moments in each of its bands when
  * there are drops in the air and sky enough left to light them; the storm
  * takes that same front again, for the instant a strike fires, and the survey
- * for which of the outer islands it lands on; the gulls
+ * for which of the outer islands it lands on; the sun shafts take the day and
+ * the landscape's own texture catalogue, so that the light standing in a gap of
+ * the deck and the shadow lying on the water beside it are one cloud map read
+ * twice; the gulls
  * take the day for whether they are up; the coastal light takes the day for
  * whether the lamp is lit; the hearth smoke takes the year for how hard the
  * fires are banked; and the window lamps take the day for dusk and the *clock*
- * for whether anybody is up to have lit one. Five of the eight are also *sited*
- * by the survey — the three that answer only to the frame are not — and every one
+ * for whether anybody is up to have lit one. Five of the nine are also *sited*
+ * by the survey — the four that answer only to the frame are not — and every one
  * of them returns null on a
  * tier — or an archipelago — with nothing to give, so the cheapest device gets a
  * graceful absence rather than a poor version.
@@ -325,6 +329,13 @@ function hangOverTheGround (
       config,
       quality,
       weather: landscape.weather,
+    })),
+    unless(skip, 'shafts', () => createShaftsLayer({
+      config,
+      quality,
+      textures: landscape.textures,
+      daylight,
+      wind,
     })),
     unless(skip, 'storm', () => createStormFlashes({
       camera,

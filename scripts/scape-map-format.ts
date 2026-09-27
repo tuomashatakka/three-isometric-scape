@@ -439,6 +439,32 @@ function shadeLine (shade: MapStats['shade']): string {
 }
 
 /**
+ * The sun shafts, and the two opposite silences behind them.
+ *
+ * `bright` first, then the terms. The one worth reading twice is `broken`: a
+ * shadow rides the cover straight and a beam rides a curve that is nothing at
+ * both ends of it, so a sky at 0.05 cover and a sky at 0.95 produce the same
+ * empty air for reasons that are each other's opposite, and only this column
+ * distinguishes them. `lean` is the other half — it is the same throw the
+ * shadow line reports, scaled by how much of the column under the deck is lit,
+ * and it is what makes a stack of level sheets read as a beam at all.
+ */
+function shaftLine (shafts: MapStats['shafts']): string {
+  return `shafts ${shafts.bright}  strength ${shafts.strength}  ` +
+    `cover ${shafts.cover} -> broken ${shafts.broken}  light ${shafts.light}  ` +
+    `lean ${shafts.lean}m over ${shafts.column}m  top ${shafts.top}m` +
+    (shafts.light <= 0
+      ? '  <- no sun up: a beam is scattered light, and the moon raises none'
+      : shafts.broken <= 0.01
+        ? shafts.cover <= 0.5
+          ? '  <- a clear sky: no cloud to cut the light into beams'
+          : '  <- an overcast: no holes left for the light to come through'
+        : shafts.strength <= 0
+          ? '  <- shafts.strength is at zero'
+          : '')
+}
+
+/**
  * The whitecap line, and the silence no capture can break.
  *
  * `still` is the only column a picture of this scape can report, because
@@ -610,6 +636,7 @@ export function formatStats (stats: MapStats): string {
     rainbowLine(stats.rainbow),
     moonLine(stats.moon),
     shadeLine(stats.shade),
+    shaftLine(stats.shafts),
     capsLine(stats.caps),
     haarLine(stats.haar),
     treelineLine(stats.treeline),
