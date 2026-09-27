@@ -26,6 +26,8 @@ import { SCAPE_SHIELING } from './config-shieling.ts'
 import type { ShielingConfig } from './config-shieling.ts'
 import { SCAPE_HAAR } from './config-haar.ts'
 import type { HaarConfig } from './config-haar.ts'
+import { SCAPE_SHAFTS } from './config-shafts.ts'
+import type { ShaftsConfig } from './config-shafts.ts'
 import { SCAPE_SHOAL } from './config-shoal.ts'
 import type { ShoalConfig } from './config-shoal.ts'
 import { SCAPE_STACK } from './config-stack.ts'
@@ -270,8 +272,8 @@ export interface DressingBudget {
 }
 
 export interface ScapeConfig extends DykeConfig, ForceConfig, GuardConfig, HaarConfig,
-  KelpConfig, LedgeConfig, PackIceConfig, ShielingConfig, ShoalConfig, TreelineConfig,
-  WatermillConfig, WreckConfig {
+  KelpConfig, LedgeConfig, PackIceConfig, ShaftsConfig, ShielingConfig, ShoalConfig,
+  TreelineConfig, WatermillConfig, WreckConfig {
   seed:    number
   terrain: {
     size:       number
@@ -2853,6 +2855,7 @@ export const SCAPE_CONFIG = {
   ...SCAPE_KELP,
   ...SCAPE_LEDGES,
   ...SCAPE_PACK_ICE,
+  ...SCAPE_SHAFTS,
   ...SCAPE_SHIELING,
   ...SCAPE_SHOAL,
   ...SCAPE_TREELINE,

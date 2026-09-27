@@ -20,7 +20,15 @@ import type { ArchStats, CragStats, DuneStats, FjordStats, ForceStats, IcecapSta
 import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
 import { causewayOf, croftOf, dykeOf, peatOf, pierOf, shielingOf, smokehouseOf, tarnOf, watermillOf, weirOf, wreckOf } from './scape-map-sites.ts'
-import { capsStats, haarStats, moonStats, rainbowStats, shadeStats, stormStats } from './scape-map-weather.ts'
+import {
+  capsStats,
+  haarStats,
+  moonStats,
+  rainbowStats,
+  shadeStats,
+  shaftStats,
+  stormStats,
+} from './scape-map-weather.ts'
 import { applyOverrides, parseArgs } from './args.ts'
 
 
@@ -582,6 +590,39 @@ export interface MapStats extends CompositionStats {
    * produce a frame with no dapple on it. `shade` is the product the shader is
    * handed, and the three columns behind it say which of them took it there.
    */
+  /**
+   * The daylight standing in the gaps of that same deck.
+   *
+   * Here because every way this one goes quiet is a frame that looks like a
+   * frame with the section removed, and two of them are the *opposite* of each
+   * other: a clear sky has no holes cut in it and an overcast has no holes left
+   * in it, and both come out as a sound with no beams over it. A picture can
+   * show neither as a cause. `bright` is the product the shader is handed;
+   * `broken` is the curve that separates the two silences, and `lean` is the
+   * horizontal run of a beam over the height it falls through — the number that
+   * says whether a shaft leans across the frame or stands up in it.
+   */
+  shafts: {
+    bright: number
+
+    /** `shafts.strength` — the authored end, and the switch. */
+    strength: number
+
+    /** `atmosphere.cloudCover`, and `4c(1-c)`: how broken the sky is. */
+    cover:  number
+    broken: number
+
+    /** `day`: a beam needs a sun, and takes no moon. */
+    light: number
+
+    /** Metres the top of a beam is thrown from the foot of it. */
+    lean: number
+
+    /** Metres of air the column is lit through, and the world height of its top. */
+    column: number
+    top:    number
+  }
+
   shade: {
     shade: number
 
@@ -1064,6 +1105,7 @@ export function surveyStats (
     rainbow:  rainbowStats(config),
     moon:     moonStats(config),
     shade:    shadeStats(config),
+    shafts:   shaftStats(config),
     caps:     capsStats(config),
     haar:     haarStats(config, home, landmasses),
     hearths:  hearthStats(survey),

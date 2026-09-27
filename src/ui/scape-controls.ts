@@ -367,6 +367,24 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
             range('haar.damp', 'after rain', 0, 1, 0.01),
           ],
         ),
+
+        // Under the two fogs because it is the third thing hung in the same air,
+        // and the one that is only out while they are not. `strength` is the
+        // switch; the other two are the shape of a beam rather than whether
+        // there is one, so they are folded away behind it.
+        toggled(
+          // Not 'sun shafts', which the optics section already has: that one is
+          // `look.godRays`, a screen-space smear out of the bright pixels near
+          // the sun, and this one is the volume under the cloud. Two controls
+          // under one label in one panel is a reader changing the wrong knob.
+          'light through the deck',
+          range('shafts.strength', 'brightness', 0, 0.6, 0.005, quality.shaftSheets > 0),
+          0.22,
+          [
+            range('shafts.reach', 'reach up the deck', 0.1, 1, 0.01),
+            range('shafts.taper', 'kept at the bottom', 0, 1, 0.01),
+          ],
+        ),
       ],
     },
     {

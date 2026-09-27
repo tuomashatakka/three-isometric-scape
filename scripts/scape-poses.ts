@@ -3,6 +3,7 @@ import { bowPeak } from '../src/scene/rainbow.ts'
 import { stormPeak } from '../src/scene/storm.ts'
 import { COAST_TOURS } from './scape-poses-coast.ts'
 import { ICE_TOURS } from './scape-poses-ice.ts'
+import { SKY_TOURS } from './scape-poses-sky.ts'
 
 
 /**
@@ -124,6 +125,11 @@ export const TOURS: Record<string, Pose[]> = {
 
   // And the frozen sound, out in `scape-poses-ice.ts` for the same reason.
   ...ICE_TOURS,
+
+  // And what the deck overhead does — the shadow it lays, the light that gets
+  // past it and the fog that fills the ground once it has gone — out in
+  // `scape-poses-sky.ts`, on the seam the coast was cut on.
+  ...SKY_TOURS,
 
   tour: [
     { name: 'default' },
@@ -411,71 +417,6 @@ export const TOURS: Record<string, Pose[]> = {
    * `water.phosphor`, `palette.phosphor`, the surf, the wakes, or anything that
    * reads `DaylightState.moon` or `DaylightState.dark`.
    */
-  /**
-   * The shadow the deck lays, and the four ways of having none.
-   *
-   * A 520 m frame over the home island and the sound around it, which is the
-   * only framing that can hold the claim: the archipelago is 19 % land, so the
-   * water is better than four fifths of what a wide frame of this scape is
-   * made of, and it is the part the shadow never used to reach. A closer pose
-   * would be a picture of a hillside, which is the half that already worked.
-   *
-   * `shade-none` is the switch and the control — `atmosphere.cloudShadow=0`,
-   * the flat sea and the flat ground this scape had. `shade-clear` is the
-   * *second* control and the more interesting one: a sky with no cloud in it at
-   * the authored darkness, which used to dapple the whole archipelago anyway
-   * and must now be identical to `shade-none` rather than merely close to it.
-   *
-   * `shade-low` is the projection. The same frame with the sun down at the
-   * bottom of its arc, where a 34 m deck throws its shadow the better part of
-   * two hundred metres downsun — so the dapple is somewhere else entirely, and
-   * `shade` against `shade-low` is the difference between a shadow and a noise
-   * texture read off world `xz`.
-   *
-   * `shade-night` is a moonless midnight: the cover is up and the darkness is
-   * authored, and there is no light for a cloud to take away.
-   */
-  /**
-   * The night bank, and the three ways it can fail to be one.
-   *
-   * The tour can nearly see this system and that is exactly the problem: two of
-   * its six poses are dark enough for the bank to be out, and neither is aimed
-   * at what the bank *claims*. The claim is about a top — the low ground goes
-   * under and the tops do not — and a frame that only shows fog cannot tell a
-   * bank from the ground mist that was already there.
-   *
-   * So `haar` is the home island at a view wide enough to hold the whole of it,
-   * where the hills standing out of the fog are the picture, and `haar-far` is
-   * the same instant at 540, which is the only frame in this scape that shows
-   * six islands as six tops in one sheet of fog.
-   *
-   * The last three are the controls, and each one takes a different gate away.
-   * `haar-none` is the switch at zero: the identical frame with the bank gone,
-   * which must be the coast this scape had before any of this and must be
-   * identical to the reference build wherever the run did not also touch the
-   * mist. `haar-blow` is the *wind's* half — `STILL` has zeroed the wind, so
-   * every other frame here is taken in a dead calm and the scour is invisible in
-   * all of them — at a strength well past `haar.scour`, where the bank must be
-   * gone and the night must otherwise be unchanged. `haar-day` is the sun's
-   * half, the same week at noon, and it is the pose that catches a burn-off set
-   * to nothing: a fog still lying over the farm at midday is a sea fret and this
-   * system is not one.
-   */
-  haar: [
-    { name: 'haar', zoom: 160, time: 0.02, season: 0.78 },
-    { name: 'haar-far', zoom: 540, time: 0.02, season: 0.78 },
-    { name: 'haar-none', zoom: 160, time: 0.02, season: 0.78, set: [ 'haar.strength=0' ]},
-    { name: 'haar-blow', zoom: 160, time: 0.02, season: 0.78, set: [ 'wind.strength=2.4' ]},
-    { name: 'haar-day', zoom: 160, time: 0.5, season: 0.78 },
-  ],
-
-  shade: [
-    { name: 'shade', zoom: 520 },
-    { name: 'shade-none', zoom: 520, set: [ 'atmosphere.cloudShadow=0' ]},
-    { name: 'shade-clear', zoom: 520, set: [ 'atmosphere.cloudCover=0' ]},
-    { name: 'shade-low', zoom: 520, time: 0.78 },
-    { name: 'shade-night', zoom: 520, time: 0.02, season: 10 / 12.368 },
-  ],
 
   nightsea: [
     {

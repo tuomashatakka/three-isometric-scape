@@ -34,7 +34,24 @@ export interface AtmosphereQuality {
    * same density of bank with a harder edge on it rather than a fifth of the
    * fog.
    */
-  haarSheets:     number
+  haarSheets: number
+
+  /**
+   * Level sheets in the stack of lit air under the deck. 0 is a coast the
+   * daylight never stands up in.
+   *
+   * A count rather than a switch, for the reason `haarSheets` is — and it buys
+   * the same thing in reverse. A shaft's whole claim is that it *leans*: one
+   * sheet is a flat patch of brightness hanging in the air, and eight are a
+   * beam, because what makes the lean visible is the stagger between the
+   * offsets each sheet reads the cloud map at. Each sheet's share is divided by
+   * the count, so a phone gets the same amount of light through the gap with a
+   * coarser beam in it rather than three eighths of the effect.
+   *
+   * The whole stack is one draw call whatever this says, so what the number
+   * costs is fill rate and nothing else.
+   */
+  shaftSheets:    number
   msaaSamples:    number
   tiltShiftPairs: number
 
@@ -495,6 +512,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     grain:           false,
     mistLayers:      1,
     haarSheets:      0,
+    shaftSheets:     0,
     msaaSamples:     0,
     tiltShiftPairs:  0,
     auroraLayers:    0,
@@ -544,6 +562,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     grain:           false,
     mistLayers:      2,
     haarSheets:      2,
+    shaftSheets:     3,
     msaaSamples:     0,
     tiltShiftPairs:  0,
     auroraLayers:    1,
@@ -609,6 +628,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     grain:           true,
     mistLayers:      4,
     haarSheets:      4,
+    shaftSheets:     6,
     msaaSamples:     4,
     tiltShiftPairs:  2,
     auroraLayers:    2,
@@ -658,6 +678,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     grain:           true,
     mistLayers:      6,
     haarSheets:      5,
+    shaftSheets:     8,
     msaaSamples:     8,
     tiltShiftPairs:  2,
     auroraLayers:    3,
@@ -725,6 +746,7 @@ export function isQualityEffects (value: string): value is QualityEffects {
 const UNLOCKED_FLOOR = {
   mistLayers:     2,
   haarSheets:     2,
+  shaftSheets:    3,
   tiltShiftPairs: 1,
   auroraLayers:   1,
   starCount:      700,
@@ -775,6 +797,7 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
     environment:    true,
     mistLayers:     Math.max(quality.mistLayers, UNLOCKED_FLOOR.mistLayers),
     haarSheets:     Math.max(quality.haarSheets, UNLOCKED_FLOOR.haarSheets),
+    shaftSheets:    Math.max(quality.shaftSheets, UNLOCKED_FLOOR.shaftSheets),
     tiltShiftPairs: Math.max(quality.tiltShiftPairs, UNLOCKED_FLOOR.tiltShiftPairs),
     auroraLayers:   Math.max(quality.auroraLayers, UNLOCKED_FLOOR.auroraLayers),
     starCount:      Math.max(quality.starCount, UNLOCKED_FLOOR.starCount),

@@ -68,6 +68,23 @@ export const LAYER = {
   beacon: 20,
 
   /**
+   * The daylight standing in the gaps of the deck.
+   *
+   * Under both fogs, and that is the whole of its ordering argument: a beam is
+   * light in the air, and air with fog in front of it is dimmer air. Painted
+   * over the bank it would be a shaft standing in front of the weather rather
+   * than in it. Where it falls relative to the lamps and the beams below is
+   * cosmetically moot for the usual reason — all three are additive — and moot
+   * twice over here, because a shaft needs a sun up and none of those three
+   * burns while there is one.
+   *
+   * One number rather than a base to index from: the whole stack is a single
+   * draw, so there is nothing for the sheets to be sorted against each other
+   * by. Addition is commutative, which is why that is allowed to be true.
+   */
+  shafts: 22,
+
+  /**
    * The night bank. Sheets index up from here.
    *
    * Under the ground mist and over the beams, and both halves of that are the

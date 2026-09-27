@@ -14,6 +14,7 @@ import { WATERMILL_SINK, WHEEL_AXLE, WHEEL_REACH } from '../props/watermill.ts'
 import type { ScapeMaterials } from '../props/material.ts'
 import type { LanternHub } from '../beacon.ts'
 import { createTextureCatalogue } from '../textures/catalogue.ts'
+import type { TextureCatalogue } from '../textures/catalogue.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import { createSeason } from '../season.ts'
 import type { SeasonState } from '../season.ts'
@@ -171,6 +172,22 @@ export interface Landscape {
    * is coming down, and cannot be a shower ahead of the ground it lands on.
    */
   weather: WeatherState
+
+  /**
+   * The scape's one texture catalogue.
+   *
+   * Published for the same reason the season and the weather are: a module
+   * hung outside the landscape sometimes needs the *identical* map one of the
+   * landscape's own materials is reading, and baking a second copy of the same
+   * recipe is two textures that agree until somebody edits one of them. The
+   * sun shafts read `sky.cloudShadow` out of here so that a beam in the air
+   * and the shadow on the water are one field rather than two bakes of it.
+   *
+   * It is the catalogue rather than a texture because the ownership does not
+   * move: the landscape built it and the landscape frees it, and a reader is
+   * borrowing the object for as long as the scape is up.
+   */
+  textures: TextureCatalogue
 }
 
 export function createLandscape (
@@ -584,6 +601,7 @@ export function createLandscape (
     windows,
     season:    season.state,
     weather:   weather.state,
+    textures,
   }
 }
 
