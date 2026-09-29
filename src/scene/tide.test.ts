@@ -3,7 +3,7 @@ import type { FrameContext, SceneContext } from 'threejs-scene'
 import { SCAPE_CONFIG } from './config.ts'
 import type { ScapeConfig } from './config.ts'
 import { LUNATIONS, moonPhase } from './daylight.ts'
-import { createTide, springAmount, tideAmplitude, tideLevel, tidePhase } from './tide.ts'
+import { createTide, springAmount, tideAmplitude, tideAmplitudeAt, tideLevel, tidePhase, tideStream } from './tide.ts'
 
 
 /** The module hooks ignore the scene entirely, so there is nothing to stub. */
@@ -201,5 +201,59 @@ describe('the range the scape is authored at', () => {
     // followed it had to be audited; a tidal range is not one of them, and this
     // is the line that says so if a future scale pass reaches for it.
     expect(TIDE.range).toBeLessThan(SCAPE_CONFIG.archipelago.worldSize * 0.01)
+  })
+})
+
+
+describe('the water the swing has to move', () => {
+  const spring = tideAmplitudeAt(1, TIDE)
+
+  test('both slacks are slack', () => {
+    expect(tideStream(0, spring, spring)).toBeCloseTo(0, 12)
+    expect(tideStream(0.5, spring, spring)).toBeCloseTo(0, 12)
+  })
+
+  /**
+   * The derivative of the level's own cosine, which is what puts the top of the
+   * stream at half tide. A scape that whitened its narrows at high water would
+   * be drawing a sea that moves fastest when it is not moving at all.
+   */
+  test('the stream is hardest halfway between them', () => {
+    expect(Math.abs(tideStream(0.25, spring, spring))).toBeCloseTo(1, 12)
+    expect(Math.abs(tideStream(0.75, spring, spring))).toBeCloseTo(1, 12)
+  })
+
+  test('the flood runs the opposite way to the ebb', () => {
+    expect(tideStream(0.25, spring, spring)).toBeLessThan(0)
+    expect(tideStream(0.75, spring, spring)).toBeGreaterThan(0)
+  })
+
+  /**
+   * The month, surviving the normalisation. Dividing by the amplitude in force
+   * rather than by the spring one would run every tide at full rate at half
+   * water, neaps included — which is the bug this states as a fact.
+   */
+  test('a neap runs slower than a spring', () => {
+    const neap = tideAmplitudeAt(0, TIDE)
+
+    expect(Math.abs(tideStream(0.25, neap, spring)))
+      .toBeLessThan(Math.abs(tideStream(0.25, spring, spring)))
+  })
+
+  test('a tideless coast has no stream in it', () => {
+    const still = { ...TIDE, range: 0 }
+
+    expect(tideStream(0.25, tideAmplitudeAt(1, still), tideAmplitudeAt(1, still))).toBe(0)
+  })
+
+  test('the published record carries it, and it moves with the hour', () => {
+    const half  = createTide(() => withClocks(0.42, 0.5, { lag: 2.4, spring: 0 }))
+    const slack = createTide(() => withClocks(0.42, 0.5, { lag: 5.664, spring: 0 }))
+
+    half.module.build?.(NO_SCENE)
+    slack.module.build?.(NO_SCENE)
+
+    expect(Math.abs(half.state.stream)).toBeGreaterThan(0.9)
+    expect(Math.abs(slack.state.stream)).toBeLessThan(0.02)
   })
 })

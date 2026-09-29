@@ -1,22 +1,26 @@
 import { DataTexture, LinearFilter, RGBAFormat } from 'three'
 import type { ScapeConfig } from '../config.ts'
 import type { HeightField } from './height.ts'
+import { surveyRoosts } from './roost.ts'
 
 
 /**
- * The bathymetry the lake is shaded from, and the direction the sea lies in.
+ * The bathymetry the lake is shaded from, the direction the sea lies in, and
+ * where the tide has to hurry to get through.
  *
- * One map, two facts. `r` is how deep the water is, which is what the depth
+ * One map, three facts. `r` is how deep the water is, which is what the depth
  * tint, the alpha ramp, the ice front and the foam trim have always read. `g`
  * and `b` are the **seaward direction** at that point — a unit vector in the
- * ground plane pointing from the bank out toward open water.
+ * ground plane pointing from the bank out toward open water. `a` is **how tight
+ * a gate this water is in**, which is what the roost reads — see `roost.ts`.
  *
- * The second one used to be three channels of nothing: the bake wrote the same
- * depth byte into `r`, `g` and `b` and 255 into `a`, so two thirds of a 512²
- * upload carried a copy of the first third. Putting the shore's own bearing
- * there is what lets the surf ask which way a coast faces without a second
- * fetch, a second map or a per-fragment gradient — the tap the water was
- * already making now answers both questions at once.
+ * All three used to be channels of nothing: the bake wrote the same depth byte
+ * into `r`, `g` and `b` and 255 into `a`, so three quarters of a 512² upload
+ * carried a copy of the first quarter. Putting the shore's own bearing in two
+ * of them is what lets the surf ask which way a coast faces without a second
+ * fetch, a second map or a per-fragment gradient; putting the gates in the last
+ * one is what lets the sound break at half ebb without a map of its own. The
+ * tap the water was already making now answers all three questions at once.
  *
  * Derived from the depth grid rather than from the height field a second time.
  * A central difference over the grid costs four array reads per texel; four
@@ -54,19 +58,20 @@ export function decodeUnit (byte: number): number {
 }
 
 /**
- * The mask as bytes, before it is a texture.
+ * How deep the water stands over every texel, as a fraction of {@link MAX_DEPTH}.
  *
- * Split out so the bake can be tested at all: a `DataTexture` is a handle with
- * an image behind it, and reaching into `texture.image.data` to state a fact
- * about the shoreline is the kind of test that breaks when three changes how it
- * stores one.
+ * Split out from the bake below because two things now want it and only one of
+ * them wants a texture: the mask packs it into a byte, and the roost search
+ * reads it as the plan of the coast — dry is 0 and everything over it is water.
+ * Building it twice would be the expensive half of the bake paid twice, since
+ * this is the loop that actually samples the composite height field.
  */
-export function bakeShoreData (
+export function bakeDepthGrid (
   config: ScapeConfig,
   field:  HeightField,
   span:   number,
   size:   number = SHORE_RESOLUTION,
-): Uint8Array {
+): Float32Array {
   const step  = span / (size - 1)
   const depth = new Float32Array(size * size)
 
@@ -81,8 +86,27 @@ export function bakeShoreData (
       )
     }
 
-  const data = new Uint8Array(size * size * 4)
-  const at   = (column: number, row: number): number =>
+  return depth
+}
+
+/**
+ * The mask as bytes, before it is a texture.
+ *
+ * Split out so the bake can be tested at all: a `DataTexture` is a handle with
+ * an image behind it, and reaching into `texture.image.data` to state a fact
+ * about the shoreline is the kind of test that breaks when three changes how it
+ * stores one.
+ */
+export function bakeShoreData (
+  config: ScapeConfig,
+  field:  HeightField,
+  span:   number,
+  size:   number = SHORE_RESOLUTION,
+): Uint8Array {
+  const depth = bakeDepthGrid(config, field, span, size)
+  const roost = surveyRoosts(depth, size, span, config.roost).field
+  const data  = new Uint8Array(size * size * 4)
+  const at    = (column: number, row: number): number =>
     depth[Math.min(size - 1, Math.max(0, row)) * size + Math.min(size - 1, Math.max(0, column))]
 
   for (let row = 0; row < size; row += 1)
@@ -102,7 +126,10 @@ export function bakeShoreData (
       data[index]     = Math.round(depth[row * size + column] * 255)
       data[index + 1] = encodeUnit(gradientX * seaward)
       data[index + 2] = encodeUnit(gradientZ * seaward)
-      data[index + 3] = 255
+
+      // Unsigned, unlike the two above it: a gate is a strength rather than a
+      // bearing, so it uses the whole byte rather than half of one.
+      data[index + 3] = Math.round(roost[row * size + column] * 255)
     }
 
   return data

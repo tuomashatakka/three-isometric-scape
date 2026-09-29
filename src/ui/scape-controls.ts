@@ -432,6 +432,20 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
             range('water.whitecapLee', 'lee spared', 0, 1, 0.01),
           ],
         ),
+        // The third white on this sea, and the only one with no wind in it.
+        // When it runs is the tide's — the stream is the water level's own
+        // derivative and nothing here can turn it on out of slack — so what is
+        // in the panel is how white a gate gets and how much the surface is
+        // pulled about by it. Where the gates *are* is cut into the bathymetry
+        // mask at build (`roost.gate`, `reach`, `opening`, `spread`), and a
+        // slider that needs a reload lies about what a slider does.
+        toggled(
+          'roost',
+          range('roost.strength', 'broken water', 0, 1, 0.01),
+          0.72,
+          [ range('roost.chop', 'chop', 0, 1, 0.01) ],
+        ),
+
         // How much of it is up on any given hour is the sun's, the same way the
         // surf's heading is the wind's. What is here is how bright, how far
         // down it reaches, and how big the cells of the net are.
