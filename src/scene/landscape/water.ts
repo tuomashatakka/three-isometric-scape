@@ -10,7 +10,7 @@ import {
 import type { IUniform, Texture, WebGLProgramParametersWithUniforms } from 'three'
 import { CLOUD_SHADOW_GLSL } from '../cloud-shadow.ts'
 import type { CloudShadow } from '../cloud-shadow.ts'
-import type { LiveConfig } from '../config.ts'
+import type { LiveConfig, ScapeConfig } from '../config.ts'
 import { createDaylight, keyShare, sunHeight } from '../daylight.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import type { SeasonState } from '../season.ts'
@@ -21,6 +21,7 @@ import type { WindState } from '../wind.ts'
 import type { BoatWakeEmitter } from './boats.ts'
 import type { HeightField } from './height.ts'
 import { LAYER } from '../layers.ts'
+import { WATER_ROOST_GLSL, roostAmount } from './roost.ts'
 import { MAX_DEPTH, bakeShoreMask } from './shore-mask.ts'
 import { WATER_CAPS_GLSL, capsAmount } from './water-caps.ts'
 import { WATER_ICE_GLSL } from './water-ice.ts'
@@ -313,10 +314,16 @@ const WATER_SURF_GLSL = /* glsl */`
  * the albedo alone arrives at the bank as a wash at half strength, against wet
  * sand, under the fog. Which is exactly where breaking water is *most* opaque:
  * it is air in water, and you cannot see the bottom through it. So the break
- * lifts the alpha back, and only the break does.
+ * lifts the alpha back.
+ *
+ * The race lifts it for the same reason and needed it more, because a gate is
+ * by construction a narrow piece of water between two banks and therefore
+ * shallow the whole way across: the first build mixed the overfalls into the
+ * albedo only, and most of the white went straight back out through the alpha
+ * ramp it was standing on.
  */
 const WATER_SURF_ALPHA = /* glsl */`
-  diffuseColor.a = max(diffuseColor.a, breakers * 0.94);
+  diffuseColor.a = max(diffuseColor.a, max(breakers, roost) * 0.94);
 `
 
 const WATER_PARS_FRAGMENT = /* glsl */`
@@ -360,6 +367,7 @@ ${SHORE_GLSL}
 ${WATER_ICE_GLSL}
 ${WATER_SURF_GLSL}
 ${WATER_CAPS_GLSL}
+${WATER_ROOST_GLSL}
 ${WATER_CAUSTIC_GLSL}
 ${BOAT_WAKE_GLSL}
 `
@@ -399,7 +407,7 @@ const WATER_ROUGHNESS_FRAGMENT = /* glsl */`
   // Broken water is air in water, and air in water is matte. Without this the
   // surf takes the same specular lobe the open sea does and the white band
   // gleams — which reads as wet paint laid on the shore rather than as foam.
-  roughnessFactor = mix(roughnessFactor, 0.94, max(breakers, caps));
+  roughnessFactor = mix(roughnessFactor, 0.94, max(max(breakers, caps), roost));
   roughnessFactor = mix(roughnessFactor, 0.88, iceCover);
 `
 
@@ -427,14 +435,25 @@ const WATER_COLOR_FRAGMENT = /* glsl */`
   // the fractal map. See water-caps.ts.
   float caps = scapeCaps(vWaterGround, shore, openWater) * (1.0 - iceCover);
 
+  // The white in the narrows, off the same fetch and no read at all: the gate is
+  // the mask's fourth channel and the overfalls are two sines. See roost.ts.
+  float roost = scapeRoost(vWaterGround, shore, waterDepth) * (1.0 - iceCover);
+
   diffuseColor.rgb = mix(uShallow, uDeep, smoothstep(0.0, 0.5, waterDepth));
 
 ${WATER_CAUSTIC_FRAGMENT}
 
+  // The race *adds* where the four before it take a maximum, and that is the
+  // physics rather than an oversight. The trim, the breakers and the caps are
+  // three readings of one thing — a wave breaking — so the whitest of them is
+  // the answer. An overfall is a different thing happening in the same water: a
+  // standing break the stream is driving, under whatever the wind is doing on
+  // top of it. A gate in a sea that is already capped is whiter than either, and
+  // a maximum there drew a race that vanished the moment the sound got up.
   diffuseColor.rgb = mix(
     diffuseColor.rgb,
     uFoam,
-    clamp(max(max(foam, breakers), caps) + boatWake * 0.72, 0.0, 0.86)
+    clamp(max(max(foam, breakers), caps) + roost + boatWake * 0.72, 0.0, 0.86)
   );
 
   // Texture the albedo, not just the normal. A normal-only ripple is invisible
@@ -512,10 +531,15 @@ ${WATER_CAUSTIC_FRAGMENT}
   // three.
   float caps = scapeCaps(vWaterGround, shore, openWater) * (1.0 - iceCover);
 
+  // And the third thing the cheap lake gains rather than loses. The race is
+  // arithmetic on the fetch it made in its first line — no read, no gate, and
+  // the same chunk the full program runs. See roost.ts.
+  float roost = scapeRoost(vWaterGround, shore, waterDepth) * (1.0 - iceCover);
+
   diffuseColor.rgb = mix(
     diffuseColor.rgb,
     uFoam,
-    clamp(max(breakers, caps) + boatWake * 0.62, 0.0, 0.86)
+    clamp(max(breakers, caps) + roost + boatWake * 0.62, 0.0, 0.86)
   );
 
 ${WATER_ICE_FRAGMENT}
@@ -535,6 +559,20 @@ ${WATER_ICE_FRAGMENT}
 ${WATER_SURF_ALPHA}
 `
 
+/**
+ * How much harder the race pulls the surface about.
+ *
+ * The other half of what broken water is, and the half that shows from the
+ * angles the white does not: a roost is not a stain on a flat sea, it is a
+ * patch of sea that has lost its own swell shape. Written as a gain on the
+ * perturbation the surface already computes rather than as a field of its own,
+ * because a second field would be a second read and this is the one system on
+ * the lake that costs none. The limit of that is honest and worth writing down:
+ * in a dead calm with the swell at zero there is nothing to multiply, so a race
+ * on glass is white without being rough.
+ */
+const WATER_ROOST_NORMAL = /* glsl */`(1.0 + roost * uRoostChop * 2.6)`
+
 const WATER_NORMAL_FRAGMENT_LITE = /* glsl */`
   #include <normal_fragment_begin>
   float swell  = scapeWave(vWaterGround);
@@ -545,7 +583,7 @@ const WATER_NORMAL_FRAGMENT_LITE = /* glsl */`
     -(swellX - swell) * uWaveHeight * 2.4,
     0.0,
     -(swellZ - swell) * uWaveHeight * 2.4
-  ) * (1.0 - iceCover));
+  ) * (1.0 - iceCover) * ${WATER_ROOST_NORMAL});
 `
 
 const WATER_NORMAL_FRAGMENT = /* glsl */`
@@ -573,8 +611,27 @@ const WATER_NORMAL_FRAGMENT = /* glsl */`
     (ripplA - 0.5) * uRippleStrength - (swellX - swell) * uWaveHeight * 2.4,
     0.0,
     (ripplB - 0.5) * uRippleStrength - (swellZ - swell) * uWaveHeight * 2.4
-  ) * (1.0 - iceCover));
+  ) * (1.0 - iceCover) * ${WATER_ROOST_NORMAL});
 `
+
+/**
+ * The race, off the same record the water level came from.
+ *
+ * Its own function rather than three lines in `update` because `update` is at
+ * the lint config's statement ceiling, and because the three belong together: a
+ * strength, its sign and the share of it the surface takes are one reading of
+ * one tide. Nothing here integrates — stop the day and the stream stops with it,
+ * which is why `STILL` gains nothing for this system.
+ */
+function setRoost (
+  uniforms: Record<string, IUniform>,
+  tide:     TideState,
+  roost:    ScapeConfig['roost'],
+): void {
+  uniforms.uRoost.value     = roostAmount(tide.stream, roost.strength)
+  uniforms.uRoostSet.value  = Math.max(-1, Math.min(1, tide.stream))
+  uniforms.uRoostChop.value = roost.chop
+}
 
 export function createWater (
   config:   LiveConfig,
@@ -722,6 +779,15 @@ export function createWater (
     uCaps:    { value: 0 },
     uCapsLee: { value: config().water.whitecapLee },
 
+    // How hard the narrows are running, which way, and how much of that the
+    // surface takes. The first is the tide's own rate resolved on the cpu — a
+    // curve every fragment would otherwise re-derive out of a clock it has no
+    // business holding; the second is its sign; the third is the authored share,
+    // straight through. See `roost.ts`.
+    uRoost:     { value: 0 },
+    uRoostSet:  { value: 0 },
+    uRoostChop: { value: config().roost.chop },
+
     // The state of the sea, in the same fractions of `MAX_DEPTH` the mask's own
     // channel is in, converted here for the reason `uSurfDepth` is.
     uTide: { value: 0 },
@@ -851,6 +917,8 @@ export function createWater (
       }
 
       uniforms.uTide.value = tide.level / MAX_DEPTH
+
+      setRoost(uniforms, tide, config().roost)
 
       syncBoatWakes(wakes)
 

@@ -118,6 +118,27 @@ function skerryLine (skerries: MapStats['skerries']): string {
 }
 
 /**
+ * The roost's line, and the two findings in it.
+ *
+ * Its own function for `skerryLine`'s reason, and it carries one condition of
+ * its own: an archipelago whose sounds are all wide gets no races, which is a
+ * real answer and the switch's own answer, and it has to be told apart from a
+ * search that found nothing because it is broken. `share` past a tenth is the
+ * other finding — at that point the gates have run into one another and what is
+ * drawn is a wash rather than a set of places.
+ */
+function roostLine (roost: MapStats['roost']): string {
+  if (!roost.gates)
+    return 'roost NONE  <- no channel is narrow with a way out of both ends, or the strength is zero'
+
+  return `roost ${roost.gates} gates  ` +
+    `tightest ${roost.tightest}m  widest ${roost.widest}m  ` +
+    `${roost.share}% of the water  nearest ${roost.nearest}m out  ` +
+    `springs ${roost.springs}` +
+    (roost.share > 10 ? '  <- the gates have run together into a wash' : '')
+}
+
+/**
  * The colony's line, and the two findings hiding in it.
  *
  * Its own function for `skerryLine`'s reason, and it carries two conditions
@@ -571,6 +592,7 @@ export function formatStats (stats: MapStats): string {
         `${stats.strand.connected ? 'CONNECTED' : 'DROWNED'}`
       : 'strand NONE  <- no pair of islands is named, or the crest is zero',
     skerryLine(stats.skerries),
+    roostLine(stats.roost),
     hauloutLine(stats.haulout),
     kelpLine(stats.kelp),
     ledgeLine(stats.ledges),

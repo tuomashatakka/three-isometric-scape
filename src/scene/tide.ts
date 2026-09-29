@@ -46,6 +46,25 @@ export interface TideState {
 
   /** Where the month is between neaps (0) and springs (1). */
   spring: number
+
+  /**
+   * How hard the water is running, −1 at the top of the ebb and 1 at the top of
+   * the flood.
+   *
+   * The half of a tide this scape did not have. A tide that only raises and
+   * lowers the sea is a tide with no water moving in it, and the water has to
+   * come from somewhere: between two islands a hundred metres apart, a sound's
+   * worth of sea goes through the gap four times a day. This is the rate that
+   * happens at, and it is what `landscape/roost.ts` turns into broken water in
+   * the narrows.
+   *
+   * Zero at both slacks and hardest at half tide, which is a cosine's own
+   * derivative and not a curve invented here. Scaled by the month as well, so a
+   * neap runs slower than a spring — the same six hours with less water to move
+   * — which is what makes {@link spring} visible in something other than how far
+   * up the beach the sea gets.
+   */
+  stream: number
 }
 
 export interface Tide {
@@ -143,6 +162,27 @@ export function tideLevel (time: number, year: number, tide: ScapeConfig['tide']
 }
 
 /**
+ * How hard the water is running at a phase of the cycle, −1..1.
+ *
+ * The derivative of {@link tideLevel}'s own cosine, normalised by the spring
+ * amplitude rather than by this hour's. Which is the whole reason the month
+ * survives the normalisation: divide by the amplitude in force and every tide
+ * runs at full rate at half water, including a neap that is barely moving.
+ *
+ * Positive on the flood, because the water rises through the second half of the
+ * cycle — phase 0 is high water and 0.5 is low.
+ *
+ * A tideless coast reads 0 rather than `NaN`: `tide.range` at 0 is the switch
+ * for the whole section and has to stay one.
+ */
+export function tideStream (phase: number, amplitude: number, spring: number): number {
+  if (!(spring > 0))
+    return 0
+
+  return -Math.sin(phase * TAU) * amplitude / spring
+}
+
+/**
  * One tide for the whole scape.
  *
  * Mounted beside the wind and ahead of the landscape, so the record the lake
@@ -151,7 +191,7 @@ export function tideLevel (time: number, year: number, tide: ScapeConfig['tide']
  * does needs a rebuild, which is what lets the sea run on a clock at all.
  */
 export function createTide (config: LiveConfig): Tide {
-  const state: TideState = { level: 0, phase: 0, amplitude: 0, spring: 1 }
+  const state: TideState = { level: 0, phase: 0, amplitude: 0, spring: 1, stream: 0 }
 
   /** Resolve the state from the two clocks. Split out so `build` can settle it too. */
   function resolve (): void {
@@ -162,6 +202,7 @@ export function createTide (config: LiveConfig): Tide {
     state.amplitude = tideAmplitude(year, scape.tide)
     state.phase     = tidePhase(scape.daylight.time, year, scape.tide)
     state.level     = state.amplitude * Math.cos(state.phase * TAU)
+    state.stream    = tideStream(state.phase, state.amplitude, tideAmplitudeAt(1, scape.tide))
   }
 
   const module = defineModule<ScapeConfig>({

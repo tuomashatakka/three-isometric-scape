@@ -69,6 +69,7 @@ waterways 5 legs 2515.5m  connected OK  wet OK  clearance 0.55m
 boats 5  separation 115.79m  conflicts 0
 strand sound<->fell  len 450m  crest 1.1m  lowest 0.4m  CONNECTED
 skerries 59 in 16 guards  widest 23.7m  lowest 0.8m over the water  nearest island 76.4m
+roost 16 gates  tightest 6.1m  widest 37.9m  6.2% of the water  nearest 53.6m out  springs 0.72
 seals 246 on 23/59 rocks in 13 guards  ashore 246 low / 189 high  ledges 0.21..1.4m over mean  springs ±0.4m
 kelp 1175/1343 plants in 42 beds on 6/6 coasts  water 1..4.2m  longest 6.71m  afloat 100%  lean 61.2° low / 39.4° high
 ledges 148 birds on 5/5 headlands  4 tiers of a 7m face  band 2.28..6.06m over mean  ashore 148 midsummer / 0 midwinter
@@ -178,6 +179,7 @@ waterways 5 legs 2515.5m  connected OK  wet OK  clearance 0.55m
 boats 5  separation 115.79m  conflicts 0
 strand sound<->fell  len 450m  crest 1.1m  lowest 0.4m  CONNECTED
 skerries 59 in 16 guards  widest 23.7m  lowest 0.8m over the water  nearest island 76.4m
+roost 16 gates  tightest 6.1m  widest 37.9m  6.2% of the water  nearest 53.6m out  springs 0.72
 seals 246 on 23/59 rocks in 13 guards  ashore 246 low / 189 high  ledges 0.21..1.4m over mean  springs ±0.4m
 kelp 1175/1343 plants in 42 beds on 6/6 coasts  water 1..4.2m  longest 6.71m  afloat 100%  lean 61.2° low / 39.4° high
 ledges 148 birds on 5/5 headlands  4 tiers of a 7m face  band 2.28..6.06m over mean  ashore 148 midsummer / 0 midwinter
@@ -233,6 +235,8 @@ note that this is the one block in `scape:map` that reports geometry rather than
 `tarn NONE` is that answer for standing water. a pool is *sited* rather than traced — the search takes the flattest upland the holding has not already claimed, and the surface it draws is the lowest point of that rim, because that is the first place the water would run out over. so an island whose spare ground is all hillside gets no pool, and the ridge is exactly that island. the two numbers beside the position are the finding: `wetted` is how far the water actually reaches once the basin is cut, measured against the same field the bank occludes the sheet with, and `rim` is the relief the search settled for. `wetted r0m` on an island that still reports a tarn means a basin that stopped holding water — invisible in every still, because the sheet is drawn to the full radius either way and simply disappears behind its own bank.
 
 `peat NONE` is that answer for the turf cutting, and it is the pool's search with its bribe reversed: flat, *low* and off everything the farm has taken. three of the six holdings have no low ground level enough along an eleven-metre face, and loosening `peat.spread` until they did would be cutting a peat bank into a hillside. the finding is `face ... standing` — the drop actually left at the face, measured on the carved ground. the carve takes a constant depth below whatever the moor was doing, so it guarantees at least `peat.depth` there: a reading *below* the configured depth is a bug rather than a siting outcome, and a reading far above it says the working is on ground steeper than it looks. a cutting whose face went flat is a rectangle of dark paint on an untouched hillside — identical from every pose, and invisible in every still the tour takes.
+
+`roost NONE` is a real answer too, and it is the switch's own: the search wants a channel narrower than `roost.gate` *with a way out of both ends*, so an archipelago whose sounds are all wide gets no races rather than a race up every cove. the two findings in the line are `gates` — a count, and therefore an outcome rather than a setting, so a retune that quietly halved the number of races is invisible in every still but obvious here — and `% of the water`, which is what moves when `roost.spread` or `roost.gate` is turned. past about a tenth of the water the gates have run into one another and what is drawn is a wash over the whole inshore sea; the line says so in words when it happens.
 
 `beacon NONE` is the same kind of answer: the light goes on the *outermost* islet in the ring that is broad enough for masonry and has eight dry bearings at its footing, so an archipelago whose skerries are all too small gets no lighthouse. a beacon that moved isle on a run that did not touch `beacon.minRock`, `beacon.freeboard` or `terrain.isles` is a finding.
 
@@ -330,12 +334,15 @@ bun run scape:shot --poses haar                     # the night fog bank, 5 fram
 bun run scape:shot --poses shafts                   # the beams under the deck, 5 frames, switched off, a clear sky, an overcast and a low sun
 bun run scape:shot --poses ledge                    # the birds on the headland, 4 frames, midsummer, midwinter and a bare cliff
 bun run scape:shot --poses pack                     # the ice on the sound, 6 frames, shut, half in, switched off and in summer
+bun run scape:shot --poses roost                    # the race in the narrows, 6 frames, running, slack, switched off and in a calm
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain
 ```
 
 `tour` is `default`, `near`, `far`, `noon`, `night`, `winter`. `night` pins a week as well as an hour, because the sun runs a seasonal arc and the config opens at a midsummer that has no night in it. every capture prints a line before anything opens the image, and most runs need only that line:
+
+`roost` is the set for the tide race, and it exists because the tour genuinely cannot see the system rather than because nobody pointed a camera at it. this archipelago's gates are six to forty metres wide in a world 1520 m across, so at the tour's 1400 m frames a race is a handful of pixels under the haze and five of the six poses come back `same` with the effect drawing correctly. six frames, on the trick `tide` invented — hold the hour and turn the water underneath it, because two frames at two hours of one day differ by the light as well and the light is the larger signal. `tide.spring=0` is a flat month at the full range, which puts the stream at its own maximum without moving the week; `tide.lag=5.664` is high water at the same instant, which is slack. `roost` is the 23 m strait between the home island's northern shore and the islet off it; `roost-slack` is the claim, and has to come back as smooth as the sound around it; `roost-none` is `roost.strength=0`, the switch; `roost-calm` is `water.whitecap=0`, the one frame where the race is the only white water in the picture, because the caps are the larger signal at every zoom; `roost-guard` is a lane through an outer skerry chain with no land in the frame to read the water against; and `roost-sound` is four gates at 200 m. reach for it whenever the change touches `roost.*`, `tide.*`, the bathymetry mask, the coast warp, or anything that moves the islets around the home island.
 
 `ice` is the set for the cap, and it exists for the reason `beacon` and `peat` do: the cap is 520 m north of the world origin every tour pose is aimed at, so `default` and `far` render a dome a hundred metres across as a white thumbprint. three frames — `ice` is the whole island at a 200 m view, and it is also the claim, because the config opens at midsummer and this is therefore the week every other white thing in the archipelago has gone; `ice-front` drops onto the seaward side at 90 m, the only frame that shows the ice *ending* in water rather than on a hillside; `ice-winter` is the control, where the lying snow reaches the same white down to the shore and the dome still has to read as a shape. reach for it whenever the change touches `terrain.icecap.*`, the terrain paint, or anything that scatters on ground.
 

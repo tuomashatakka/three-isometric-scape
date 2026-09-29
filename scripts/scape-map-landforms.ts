@@ -14,7 +14,8 @@ import { kelpDepth, kelpLean, kelpPlants, planKelp } from '../src/scene/landscap
 import { colonyAshore, ledgeBirds, planCliffColonies } from '../src/scene/landscape/ledges.ts'
 import { fairwayClearance, floeExtent, planPackIce, sheetOver } from '../src/scene/landscape/packice.ts'
 import { birdAshore } from '../src/scene/landscape/seabirds.ts'
-import { MAX_DEPTH } from '../src/scene/landscape/shore-mask.ts'
+import { ROOST_RESOLUTION, roostAmount, surveyRoosts } from '../src/scene/landscape/roost.ts'
+import { MAX_DEPTH, bakeDepthGrid } from '../src/scene/landscape/shore-mask.ts'
 import { planTreeline } from '../src/scene/landscape/treeline.ts'
 import { freezeAmount } from '../src/scene/season.ts'
 import { tideAmplitudeAt } from '../src/scene/tide.ts'
@@ -1155,5 +1156,54 @@ export function packStats (survey: ArchipelagoSurvey, config: ScapeConfig): MapS
       : 0,
     asked: config.pack.sheet,
     keep:  config.pack.fairway,
+  }
+}
+
+
+/**
+ * The gates the tide has to get through, and the share of the sea in one.
+ *
+ * The structural half of the roost, and the half no still can report. A race is
+ * twenty to forty metres wide in an archipelago 1520 m across, so a screenshot
+ * at any frame that holds the world holds a race as four pixels — see the
+ * `roost` pose set for why that is the system rather than a fault in it. What
+ * `scape:map` can say, and a picture cannot, is *how many* gates the search
+ * found, how tight the tightest is, how much of the sea ended up in one, and
+ * whether there is a gate anywhere near the farm at all.
+ *
+ * `share` is the number that actually moves when the section is retuned, and it
+ * is the one to watch: past about a tenth of the water the races stop being
+ * places and become a wash, and `roost.spread` is what put a build there once.
+ *
+ * Run at {@link ROOST_RESOLUTION} rather than at any tier's mask size, so what
+ * this prints is what the mobile, desktop and ultra programs all draw.
+ */
+export function roostStats (survey: ArchipelagoSurvey, config: ScapeConfig): MapStats['roost'] {
+  const span  = config.archipelago.worldSize * 1.02
+  const depth = bakeDepthGrid(config, survey.field, span, ROOST_RESOLUTION)
+  const found = surveyRoosts(depth, ROOST_RESOLUTION, span, config.roost)
+
+  let water = 0
+  let lit   = 0
+
+  for (let index = 0; index < depth.length; index += 1) {
+    if (!(depth[index] > 0))
+      continue
+
+    water += 1
+    lit += found.field[index] > 0 ? 1 : 0
+  }
+
+  const gaps = found.gates.map(gate => gate.gap)
+
+  return {
+    gates:    found.gates.length,
+    tightest: gaps.length ? round(Math.min(...gaps), 1) : 0,
+    widest:   gaps.length ? round(Math.max(...gaps), 1) : 0,
+    share:    round(water ? lit / water * 100 : 0, 1),
+    nearest:  found.gates.length
+      ? round(Math.min(...found.gates.map(gate => Math.hypot(gate.x, gate.z))), 1)
+      : 0,
+    springs: round(roostAmount(1, config.roost.strength), 2),
   }
 }

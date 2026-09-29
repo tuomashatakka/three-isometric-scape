@@ -15,7 +15,7 @@ import type { ScapeConfig } from '../src/scene/config.ts'
 import { formatStats } from './scape-map-format.ts'
 import { LEGEND, readLayers, renderGrid } from './scape-map-render.ts'
 import type { Window } from './scape-map-render.ts'
-import { archStats, cragStats, duneStats, fjordStats, forceStats, hauloutStats, icecapStats, ledgeStats, kelpStats, packStats, saltingsStats, shoalStats, skerryStats, stackStats, strandStats, treelineStats } from './scape-map-landforms.ts'
+import { archStats, cragStats, duneStats, fjordStats, forceStats, hauloutStats, icecapStats, ledgeStats, kelpStats, packStats, roostStats, saltingsStats, shoalStats, skerryStats, stackStats, strandStats, treelineStats } from './scape-map-landforms.ts'
 import type { ArchStats, CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, SaltingsStats, ShoalStats, StackStats, TreelineStats } from './scape-map-landforms.ts'
 import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
@@ -297,6 +297,24 @@ export interface MapStats extends CompositionStats {
     widest:  number
     lowest:  number
     nearest: number
+  }
+
+  /**
+   * The gates the tide hurries through, and how much of the sea is in one.
+   *
+   * The structural half of the roost — see `roostStats`. `share` is the number
+   * that moves when the section is retuned and the one a run should watch: past
+   * about a tenth of the water the races stop being places and become a wash.
+   * `nearest` is the other one, because a system nobody can walk to is a system
+   * only the instruments know about.
+   */
+  roost: {
+    gates:    number
+    tightest: number
+    widest:   number
+    share:    number
+    nearest:  number
+    springs:  number
   }
 
   /**
@@ -1069,6 +1087,7 @@ export function surveyStats (
     },
     strand,
     skerries: skerryStats(survey, config),
+    roost:    roostStats(survey, config),
     haulout:  hauloutStats(survey, config),
     ledges:   ledgeStats(survey, config),
     pack:     packStats(survey, config),
