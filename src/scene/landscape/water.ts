@@ -9,6 +9,7 @@ import {
 } from 'three'
 import type { IUniform, Texture, WebGLProgramParametersWithUniforms } from 'three'
 import { CLOUD_SHADOW_GLSL } from '../cloud-shadow.ts'
+import { WEATHER_BANK_GLSL } from '../weather-bank.ts'
 import type { CloudShadow } from '../cloud-shadow.ts'
 import type { LiveConfig, ScapeConfig } from '../config.ts'
 import { createDaylight, keyShare, sunHeight } from '../daylight.ts'
@@ -170,15 +171,33 @@ const SHORE_GLSL = /* glsl */`
 
 const WATER_PARS_VERTEX = /* glsl */`
   varying vec2 vWaterGround;
+  uniform sampler2D uCloudMap;
+${WEATHER_BANK_GLSL}
 ${WAVE_GLSL}
 ${SHORE_GLSL}
 ${WATER_ICE_GLSL}
 `
 
+/**
+ * The swell, banked.
+ *
+ * The bank is read in world metres off the model matrix rather than off
+ * `transformed.xz`, unlike everything else in this displacement: the sea's own
+ * fields are the lake's business and its plane is its own frame, but the weather
+ * is the scape's and the fragment stage — and the cloud deck, and the mist, and
+ * the four ground programs — all read it in the one world frame. A swell banked
+ * in plane space would be a sea that got up somewhere other than under the
+ * squall that raised it.
+ *
+ * One vertex texture fetch, on a plane of at most 128 segments a side, beside
+ * the bathymetry fetch this stage already makes. See `scene/weather-bank.ts`.
+ */
 const WATER_SWELL_VERTEX = /* glsl */`
   #include <begin_vertex>
   float swellIce = scapeIce(transformed.xz, scapeDepth(transformed.xz));
-  transformed.y += scapeWave(transformed.xz) * uWaveHeight * (1.0 - swellIce);
+  vec2 swellGround = (modelMatrix * vec4(transformed, 1.0)).xz;
+  transformed.y += scapeWave(transformed.xz) * uWaveHeight * (1.0 - swellIce) *
+    scapeWeatherSwell(swellGround);
 `
 
 const WATER_WORLD_VERTEX = /* glsl */`

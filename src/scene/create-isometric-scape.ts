@@ -26,6 +26,7 @@ import type { SeasonState } from './season.ts'
 import type { WeatherState } from './weather.ts'
 import { createAtmospherePost } from './post.ts'
 import type { AtmosphereQuality } from './quality.ts'
+import type { TextureCatalogue } from './textures/catalogue.ts'
 import { createRainLayer } from './rain.ts'
 import { createRainbow } from './rainbow.ts'
 import { createRuntime } from './runtime.ts'
@@ -229,6 +230,13 @@ interface SkyOptions {
   daylight: DaylightState
   season:   SeasonState
 
+  /**
+   * The scape's maps. Only the cloud deck reads them up here, and only for the
+   * bank — the field that decides where the sky is open has to be the same one
+   * the ground darkens by, or the two disagree about the weather.
+   */
+  textures: TextureCatalogue
+
   /** The one wind. The mist and the deck answer it; the aurora deliberately does not. */
   wind: WindState
 
@@ -253,12 +261,12 @@ interface SkyOptions {
  * cheapest device gets a plain sky rather than a poor one.
  */
 function hangSkies (
-  { camera, config, quality, skip, daylight, season, weather, wind }: SkyOptions,
+  { camera, config, quality, skip, daylight, season, textures, weather, wind }: SkyOptions,
 ): ScapeModule[] {
   return [
-    unless(skip, 'mist', () => createMistLayer({ camera, config, quality, daylight, season, wind })),
+    unless(skip, 'mist', () => createMistLayer({ camera, config, quality, daylight, season, textures, wind })),
     unless(skip, 'haar', () => createHaarLayer({ config, quality, daylight, weather, wind })),
-    unless(skip, 'clouds', () => createCloudLayer({ camera, config, quality, daylight, wind })),
+    unless(skip, 'clouds', () => createCloudLayer({ camera, config, quality, daylight, textures, wind })),
     unless(skip, 'aurora', () => createAuroraLayer({ camera, config, quality, daylight })),
     unless(skip, 'nightsky', () => createNightSky({ camera, config, quality, daylight })),
   ].filter((module): module is ScapeModule => module !== null)
@@ -444,6 +452,7 @@ export function createIsometricScape (
     skip,
     daylight: atmosphere.daylight,
     season:   landscape.season,
+    textures: landscape.textures,
     weather:  landscape.weather,
     wind:     wind.state,
   })

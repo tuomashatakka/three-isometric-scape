@@ -136,6 +136,31 @@ const CAP_CYCLES = 5
 const CAP_DRIFT = 5.2
 
 /**
+ * How far the weather bank walks the cut, in the cut's own units.
+ *
+ * The finding this answers is the one `scene/weather-bank.ts` was written for,
+ * and the sea is where it showed worst. Everything above sizes a windrow against
+ * a *frame* — correctly, because a whitecap is a few metres of water and stays a
+ * few metres of water however wide the archipelago gets — so one tile of the cap
+ * field is 175 m across the wind and the world is 1520 m. Before this, the wide
+ * poses drew the same streak on a nine-by-nine lattice over the whole sound,
+ * `paws` and all, because the cat's paws are two sines at that same tile and
+ * repeat with it.
+ *
+ * So the bank is the term that does not repeat: a field wider than the world,
+ * walking the *cut* rather than the white, exactly as `paws` does and for the
+ * same reason — a squall is water that has got up, not water that is whiter.
+ * Where the bank is high the sea breaks; in the lane between two banks it lies
+ * down, and the pattern that used to tile is now gated by something that cannot.
+ *
+ * Most of the coverage dial's own span, so a bank can make the difference between a
+ * sea that is properly up and one that is barely marked without being able to
+ * reach either end on its own — `water.whitecap` is still what decides whether
+ * there is a sea to bank at all.
+ */
+const CAP_BANK = 0.7
+
+/**
  * How much of the water a fully capped sea has white on it, as a share of the
  * coverage dial.
  *
@@ -241,7 +266,14 @@ export const WATER_CAPS_GLSL = /* glsl */`
     // as paper rather than as water. Broken water is *connected* — it covers a
     // fifth to a third of a sea that is properly up — so the cut goes where that
     // much of the distribution is, and CAP_TORN takes the paint back off.
-    float cut  = mix(0.68, 0.42, uCaps) + 0.025 * paws;
+    // The weather over it, which is the only term here that does not repeat with
+    // the tile. scapeWeatherBank is declared by the cloud shadow's chunk, which
+    // water.ts compiles into this program ahead of this one — see CAP_BANK.
+    float cut  = clamp(
+      mix(0.68, 0.42, uCaps) + 0.025 * paws - scapeWeatherBank(ground) * ${CAP_BANK.toFixed(2)},
+      0.3,
+      0.86
+    );
     float caps = smoothstep(cut, cut + 0.08, texture2D(uWaveMap, rows).r) * ${CAP_TORN.toFixed(2)};
 
     // And where the frame is too wide to hold a cap, the same water is its own

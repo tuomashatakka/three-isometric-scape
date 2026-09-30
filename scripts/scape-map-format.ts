@@ -449,7 +449,12 @@ function moonLine (moon: MapStats['moon']): string {
  */
 function shadeLine (shade: MapStats['shade']): string {
   return `shade ${shade.shade}  dark ${shade.dark}  cover ${shade.cover}  ` +
-    `light ${shade.light}  throw ${shade.reach}m @ ${shade.bearing}°` +
+    `light ${shade.light}  throw ${shade.reach}m @ ${shade.bearing}°  ` +
+    `bank ${shade.bank} over ${shade.bankTile}m  ` +
+    `repeats ${shade.mistRepeats}x mist / ${shade.repeats}x cloud / ${shade.bankRepeats}x bank` +
+    (shade.bank <= 0
+      ? '  <- unbanked: the cloud tile is the only period, and it is the lattice'
+      : '') +
     (shade.cover <= 0
       ? '  <- a clear sky: there is no cloud up there to cast one'
       : shade.light <= 0

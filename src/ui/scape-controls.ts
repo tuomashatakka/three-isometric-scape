@@ -311,6 +311,7 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
             range('atmosphere.cloudHeight', 'ceiling', 10, 90, 1),
             range('atmosphere.cloudShadow', 'shadow', 0, 1, 0.01),
             range('atmosphere.cloudScale', 'shadow size', 20, 260, 1),
+            range('atmosphere.weatherBank', 'banking', 0, 1, 0.01),
           ],
         ),
         // Under the sky rather than under the year, even though the year is half

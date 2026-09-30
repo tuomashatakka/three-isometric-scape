@@ -1,3 +1,4 @@
+import { weatherBankTile, skyRepeats } from '../src/scene/weather-bank.ts'
 import { shadeAmount, shadowThrow } from '../src/scene/cloud-shadow.ts'
 import {
   KEY_FLOOR,
@@ -18,6 +19,7 @@ import { snowAmount } from '../src/scene/season.ts'
 import { capsAmount } from '../src/scene/landscape/water-caps.ts'
 import { phosphorAmount, trackAmount } from '../src/scene/landscape/water-gleam.ts'
 import { haarAmount } from '../src/scene/haar.ts'
+import { TILE_UNITS } from '../src/scene/mist.ts'
 import { shaftAmount, shaftSheetHeights } from '../src/scene/shafts.ts'
 import { showerAmount, wetAmount } from '../src/scene/weather.ts'
 import type { ScapeConfig } from '../src/scene/config.ts'
@@ -191,13 +193,15 @@ const COMPASS = 180 / Math.PI
  * only the ratio.
  */
 export function shadeStats (config: ScapeConfig): MapStats['shade'] {
-  const { latitude, axialTilt, time, moonStrength, azimuth } = config.daylight
-  const { cloudShadow, cloudCover, cloudHeight }             = config.atmosphere
-  const year                                                 = config.season.time
-  const sun                                                  = sunHeight(time, year, latitude, axialTilt)
-  const place                                                = moonPlace(time, year, latitude, axialTilt)
-  const day                                                  = dayAmount(sun)
-  const lunar                                                = moonAmount(place.height, moonPhase(year), darkAmount(sun)) *
+  const { latitude, axialTilt, time, moonStrength, azimuth }              = config.daylight
+  const { cloudShadow, cloudCover, cloudHeight, weatherBank, cloudScale } = config.atmosphere
+  const bankTile                                                          = weatherBankTile(config.archipelago.worldSize)
+  const world                                                             = config.archipelago.worldSize
+  const year                                                              = config.season.time
+  const sun                                                               = sunHeight(time, year, latitude, axialTilt)
+  const place                                                             = moonPlace(time, year, latitude, axialTilt)
+  const day                                                               = dayAmount(sun)
+  const lunar                                                             = moonAmount(place.height, moonPhase(year), darkAmount(sun)) *
     moonStrength
 
   const key     = keyPlace(
@@ -221,6 +225,14 @@ export function shadeStats (config: ScapeConfig): MapStats['shade'] {
     light:   round(Math.min(1, day + lunar), 3),
     reach:   round(Math.hypot(at.x, at.z)),
     bearing: round((Math.atan2(at.x, at.z) * COMPASS % 360 + 360) % 360),
+
+    // The period, in the only unit that says whether it can be seen: how many
+    // times the tile fits across the world the camera can be pointed at.
+    bank:        round(weatherBank, 2),
+    bankTile:    round(bankTile),
+    mistRepeats: round(skyRepeats(world, TILE_UNITS), 1),
+    repeats:     round(skyRepeats(world, cloudScale), 1),
+    bankRepeats: round(skyRepeats(world, bankTile), 2),
   }
 }
 

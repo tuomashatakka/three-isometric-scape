@@ -211,6 +211,7 @@ src/
     ├── beacon.ts                   the coastal light: the lamp, and the beams it sweeps
     ├── clouds.ts                   sky deck, faded in as the view pulls back
     ├── cloud-shadow.ts             the shadow that deck throws: one cut, one drift, one projection, four programs
+    ├── weather-bank.ts             the one world-sized field: what stops every frame-sized tile reading as wallpaper
     ├── config.ts                   the public tuning surface
     ├── config-landmasses.ts        the six islands, as a table rather than as schema
     ├── config-guard.ts             the guard's own slice of the schema: rocks, weed, seals
@@ -2198,6 +2199,30 @@ the sea in this scape has had a tide since [`tide.ts`](src/scene/tide.ts) landed
 **`scape:map --stats` gains a `roost` line** — `16 gates  tightest 6.1m  widest 37.9m  6.2% of the water  nearest 53.6m out  springs 0.72` — and it carries the two things no still can. the count is an outcome rather than a setting, so a retune that quietly halved the number of races would look identical at every pose but the one nobody takes; and `nearest` is the other one, because a system nobody at the farm could walk to is a system only the instruments know about.
 
 **`scape-poses.ts` went past the 666-line ceiling again** and the four sets whose subject is the sea's own level moved out together into [`scape-poses-tide.ts`](scripts/scape-poses-tide.ts). the seam is a real one and not a line count: `tide` is the water level, `roost` is the water that level has to *move* in order to change, `saltings` is the ground it walks across and `causeway` is the crossing it closes — and all four share the one trick the subject forces on them.
+
+## the weather the world outgrew
+
+every noise field in this scape is a **tile**, and every one of those tiles was sized against a *frame*. that is the right instinct and it is written down in four separate places: a whitecap is a few metres of water, a wisp of mist has a real-world size, a cloud tile a little smaller than the widest authored view is a sky with several clouds in it. none of those facts changed when the scape stopped being one island.
+
+what changed is the denominator. `archipelago.worldSize` is **1520 m**. the mist field tiles every 79 m, the cloud shadow every 92, the whitecap field every 175 across the wind. so the wide poses draw one tile **nineteen, sixteen and nine times over**, on a perfect lattice, and a lattice of the same comma repeated is not weather — it is wallpaper. it is the loudest thing in the frame at `far` and completely invisible at every close pose, which is exactly why it survived this long: the composition each of those numbers was tuned for is still correct at the zoom it was tuned at.
+
+**the fix is not a bigger tile.** enlarging any of them takes the detail out of the close poses to buy a period nobody can see anyway — a 1500 m cloud tile is one cloud over the whole archipelago. what was missing is the other scale. [`weather-bank.ts`](src/scene/weather-bank.ts) is one more read of the map the ground shadow already binds, at a tile **`WEATHER_BANK_WORLD_FRACTION` times the width of the world**, and every field that tiles is now gated by it: cloud over the banks and open sky in the lanes between them, sea up under the weather and slack out of it.
+
+**the period moves rather than going away, and that is the whole claim.** `atmosphere.weatherBank` biases a field, it does not make a sine aperiodic. what it does is make the *repeat* stop repeating: the same streak at a quarter of the strength, or at none, is not the same streak. the number that states this is in `scape:map --stats`, on the shade line, and it is the instrument the section exists for — `repeats 19.2x mist / 16.5x cloud / 1.25x bank`. several repeats across a world is a lattice; one is where the weather happens to be.
+
+**0.8 of the world, not three.** the tile is near one rather than well over it and the second consideration is what fixed the number: the map is baked at `frequency: 3`, so a bank is about a third of its tile, and 0.8 puts that at four hundred metres — a squall over a sound. a first cut at 2.2 satisfied the period claim perfectly and drew a **gradient**, because every frame the scape has held one half of one bank.
+
+**it is one field, in one frame, read by five things.** the four ground programs take it through `CLOUD_SHADOW_GLSL`, which biases the cloud field before the cut; the cloud deck and every mist sheet mask their own alpha with it; the lake's fragment stage walks the whitecap *cut* with it, exactly the way `paws` already did and for the same reason — a squall is water that has got up, not water that is whiter; and the lake's vertex stage scales the swell by it. all five read it in **world metres off the model matrix**, never in their own uv, because every sheet in both sky families carries a different `map.repeat` and a different scrolling phase — a uv here would be a different field on every sheet and none of them the one the ground reads. the lane that opens in the sky has to be the lane the water goes slack in.
+
+**the deck is offset from the rest by exactly the throw.** the sky reads the bank where it is; the ground reads it `shadowThrow` metres back upsun, which is the same projection the shadow has always used. the mist takes no throw either — fog is the weather, not the shadow of it.
+
+**nothing new went into `STILL`.** the bank has no clock of its own: it drifts on `wind.travel` weighed by `atmosphere.cloudDrag`, and the capture harness already zeroes the wind's strength. `WEATHER_BANK_DRIFT` is in **metres per unit of travel** rather than in tiles, which is the half of the scale rule that is easy to get backwards — a front crossing a coast is a fact about weather, so a world that doubles sees the bank scroll *half* as far per tile rather than racing across it.
+
+**no tier gate, and that is deliberate.** it is one texture fetch, off a sampler every one of these programs already binds, plus one vertex fetch on a plane of at most 128 segments a side beside the bathymetry fetch that stage already makes. a mobile tier drawing the same cloud sixteen times across the frame is the *broken-looking* cheap version the quality rules exist to avoid, not a cheap one — so `mobile` gets the bank and the capture harness, which pins `--tier mobile`, is what photographed it.
+
+**what was measured and what was not.** `scape:diff --poses tour` moves `far` and leaves the other five inside the threshold, and the diff image is the finding: whitecap streaks appearing and disappearing in world-scale clusters over the water, with nothing on the land. the deck's half could not be measured at all, and the reason is worth writing down for whoever tries next — the deck fades in over `viewSize` 724..1441 and **every pose in `tour` is at 520 or closer**, so the cloud deck is not in a single still this repository has ever taken. that is a gap in the poses rather than in the deck.
+
+**and there is a lattice left that this did not cause and did not fix.** at `default` and `noon` the sea carries a fine regular pattern that survives `--skip post,shafts,clouds,mist,haar,rain`, `atmosphere.cloudShadow=0`, `atmosphere.mistAmount=0`, `water.waveHeight=0` and `water.whitecap=0`. it is on the water and not on the land. it is not the swell, not the caps, not the deck, not the mist and not the shadow — which leaves the lake's own fragment shading, and that is where the next run should start.
 
 ## ground that casts
 
