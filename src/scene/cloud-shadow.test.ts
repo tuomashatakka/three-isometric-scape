@@ -174,9 +174,19 @@ describe('and which lakes take it', () => {
     expect(applied).toHaveLength(2)
   })
 
-  test('the lake declares the chunk once, and does not write its own', () => {
+  /**
+   * The fragment stage takes the map from the chunk and never writes one of its
+   * own, which is what keeps the two lakes reading the one cloud. The *vertex*
+   * stage is the exception the swell's banking made, and it is an exception with
+   * a rule rather than a hole: a sampler declared in one stage is not visible in
+   * the other, so exactly one declaration is correct there — and more than one
+   * anywhere is the duplicate this test was written to catch.
+   */
+  test('the lake declares the chunk once, and writes one sampler of its own', () => {
+    const declared = lake.match(/uniform sampler2D uCloudMap;/g)
+
     expect(lake).toContain('${CLOUD_SHADOW_GLSL}')
-    expect(lake).not.toContain('uniform sampler2D uCloudMap')
+    expect(declared).toHaveLength(1)
   })
 
   /**

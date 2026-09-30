@@ -6,14 +6,24 @@ import {
   MeshBasicMaterial,
   PlaneGeometry,
 } from 'three'
-import type { OrthographicCamera, Texture } from 'three'
+import type { IUniform, OrthographicCamera, Texture, WebGLProgramParametersWithUniforms } from 'three'
+import { Vector2 } from 'three'
 import { defineModule, smoothstep } from 'threejs-scene'
+import {
+  WEATHER_BANK_BEGIN_VERTEX,
+  WEATHER_BANK_MAP_FRAGMENT,
+  WEATHER_BANK_PARS_FRAGMENT,
+  WEATHER_BANK_PARS_VERTEX,
+  weatherBankDrift,
+  weatherBankTile,
+} from './weather-bank.ts'
 import { CLOUD_CUT, CLOUD_EDGE } from './cloud-shadow.ts'
 import { bakeAlphaField } from 'threejs-scene/modules/assets'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import type { DaylightState } from './daylight.ts'
 import { sampleHeight } from './noise.ts'
 import type { AtmosphereQuality } from './quality.ts'
+import type { TextureCatalogue } from './textures/catalogue.ts'
 import type { WindState } from './wind.ts'
 import { LAYER } from './layers.ts'
 
@@ -22,6 +32,13 @@ export interface CloudOptions {
   camera:  OrthographicCamera
   config:  LiveConfig
   quality: AtmosphereQuality
+
+  /**
+   * The scape's maps. The deck bakes its own field but reads the *bank* off
+   * `sky.cloudShadow`, which is the one the ground darkens by — sampling any
+   * other map would give the sky lanes the ground knows nothing about.
+   */
+  textures: TextureCatalogue
 
   /** Live sky state, so the deck is lit by the same clock as everything else. */
   daylight: DaylightState
@@ -78,6 +95,7 @@ const REACH_IN  = 0.2
 const REACH_OUT = 0.47
 
 const WHITE = new Color('#ffffff')
+
 
 /**
  * The alpha field, cut into cloud rather than left as haze.
@@ -140,6 +158,7 @@ export function createCloudLayer ({
   config,
   quality,
   daylight,
+  textures,
   wind,
 }: CloudOptions): ScapeModule {
   const count    = Math.max(2, quality.mistLayers)
@@ -148,6 +167,20 @@ export function createCloudLayer ({
   const geometry = deckGeometry(deckSize)
   const tint     = new Color()
   const texture  = bakeAlphaField(TEXTURE_SIZE, f => bakeClouds(f, config().seed ^ 0x2c17))
+
+  // The weather the decks are in. World metres rather than deck uv, and the same
+  // map, scale and offset the ground shadow reads — which is what makes the lane
+  // that opens overhead the lane the ground brightens under. One set of uniform
+  // objects across every deck, because they are one sky.
+  const bankOffset: IUniform<Vector2>          = { value: new Vector2() }
+  const bankScale: IUniform<number>            = { value: 1 / weatherBankTile(config().archipelago.worldSize) }
+  const bank: IUniform<number>                 = { value: 0 }
+  const bankUniforms: Record<string, IUniform> = {
+    uCloudMap:          { value: textures.get('sky.cloudShadow') },
+    uWeatherBankOffset: bankOffset,
+    uWeatherBankScale:  bankScale,
+    uWeatherBank:       bank,
+  }
 
   function tile (index: number): Texture {
     const map = texture.clone()
@@ -173,6 +206,23 @@ export function createCloudLayer ({
       // cloud dissolves into the fog colour exactly when it comes into view.
       fog: false,
     })
+
+    // The bank, taken off the deck's alpha rather than out of its field. There
+    // is no field left up here to bias — `bakeClouds` stores the cut — so a low
+    // bank thins the sheet to nothing and a high one leaves all of it. The
+    // ground reads the same bank at the same scale, so the two agree about where
+    // the sky is open; see `weather-bank.ts`.
+    material.onBeforeCompile = (program: WebGLProgramParametersWithUniforms) => {
+      Object.assign(program.uniforms, bankUniforms)
+
+      program.vertexShader = program.vertexShader
+        .replace('#include <common>', `#include <common>\n${WEATHER_BANK_PARS_VERTEX}`)
+        .replace('#include <begin_vertex>', WEATHER_BANK_BEGIN_VERTEX)
+
+      program.fragmentShader = program.fragmentShader
+        .replace('#include <common>', `#include <common>\n${WEATHER_BANK_PARS_FRAGMENT}`)
+        .replace('#include <map_fragment>', WEATHER_BANK_MAP_FRAGMENT)
+    }
 
     const mesh         = new Mesh(geometry, material)
     mesh.name          = `cloud-${index + 1}`
@@ -209,7 +259,16 @@ export function createCloudLayer ({
         minViewSize + (maxViewSize - minViewSize) * 0.9,
         viewSize,
       )
-      const cover = config().atmosphere.cloudCover * zoom
+      const cover    = config().atmosphere.cloudCover * zoom
+      const bankTile = weatherBankTile(config().archipelago.worldSize)
+      const drag     = config().atmosphere.cloudDrag
+      const drifted  = weatherBankDrift(drag, wind.travel, bankTile)
+
+      // No throw here, unlike the shadow's: the deck *is* the cloud, and the
+      // downsun offset is what the ground adds to find the bank that is over it.
+      bankOffset.value.set(wind.dirX * drifted, wind.dirZ * drifted)
+      bankScale.value = 1 / bankTile
+      bank.value      = Math.max(0, config().atmosphere.weatherBank)
 
       // Lit by the same sky the fog and the sun are. Cloud is the one surface in
       // the frame with nothing but ambient on it, so if it does not follow the
@@ -261,5 +320,7 @@ export function createCloudLayer ({
 }
 
 // perf: two or three unlit transparent quads, drawn only while zoomed out, over
-// one shared 128² alpha field and one shared geometry. Nothing per-frame but
-// texture offsets, an opacity and a colour.
+// one shared 128² alpha field, one shared geometry and one borrowed cloud map.
+// Nothing per-frame but texture offsets, an opacity, a colour and the bank's
+// three uniforms; one extra texture fetch per fragment, on quads that are only
+// drawn at all once the camera has climbed past them.

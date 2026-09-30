@@ -1,5 +1,6 @@
 import { Vector2 } from 'three'
 import type { IUniform } from 'three'
+import { WEATHER_BANK_GLSL, weatherBankDrift, weatherBankTile } from './weather-bank.ts'
 import type { LiveConfig } from './config.ts'
 import { createDaylight } from './daylight.ts'
 import type { Vec2 } from './landscape/path.ts'
@@ -200,10 +201,11 @@ export const CLOUD_SHADOW_GLSL = /* glsl */`
   uniform vec2 uCloudOffset;
   uniform float uCloudScale;
   uniform float uCloudStrength;
-
+${WEATHER_BANK_GLSL}
   float scapeCloudShade (vec2 ground) {
-    float field = texture2D(uCloudMap, ground * uCloudScale + uCloudOffset).r;
-    float cloud = smoothstep(${CLOUD_CUT.toFixed(2)}, ${(CLOUD_CUT + CLOUD_EDGE).toFixed(2)}, field);
+    float detail = texture2D(uCloudMap, ground * uCloudScale + uCloudOffset).r;
+    float field  = clamp(detail + scapeWeatherBank(ground), 0.0, 1.0);
+    float cloud  = smoothstep(${CLOUD_CUT.toFixed(2)}, ${(CLOUD_CUT + CLOUD_EDGE).toFixed(2)}, field);
     return mix(1.0, 1.0 - ${TAKEN.toFixed(2)} * cloud, uCloudStrength);
   }
 `
@@ -222,19 +224,29 @@ export function createCloudShadow (
   config:   LiveConfig,
   textures: TextureCatalogue,
 ): CloudShadow {
-  const daylight                           = createDaylight(config)
-  const offset: IUniform<Vector2>          = { value: new Vector2() }
-  const scale: IUniform<number>            = { value: 1 / Math.max(1, config().atmosphere.cloudScale) }
-  const strength: IUniform<number>         = { value: 0 }
+  const daylight                   = createDaylight(config)
+  const offset: IUniform<Vector2>  = { value: new Vector2() }
+  const scale: IUniform<number>    = { value: 1 / Math.max(1, config().atmosphere.cloudScale) }
+  const strength: IUniform<number> = { value: 0 }
+
+  // The weather the cloud is in, at a tile wider than the world. The second read
+  // of the same map, and the reason the sky stopped repeating — see
+  // `weather-bank.ts`.
+  const bankOffset: IUniform<Vector2>      = { value: new Vector2() }
+  const bankScale: IUniform<number>        = { value: 1 / weatherBankTile(config().archipelago.worldSize) }
+  const bank: IUniform<number>             = { value: 0 }
   const uniforms: Record<string, IUniform> = {
 
     // Asked for by name rather than baked here. Every map in the scape is in
     // `textures/catalogue.ts`, which is what keeps this one provably a
     // different noise from the ground grain it is multiplied into.
-    uCloudMap:      { value: textures.get('sky.cloudShadow') },
-    uCloudOffset:   offset,
-    uCloudScale:    scale,
-    uCloudStrength: strength,
+    uCloudMap:          { value: textures.get('sky.cloudShadow') },
+    uCloudOffset:       offset,
+    uCloudScale:        scale,
+    uCloudStrength:     strength,
+    uWeatherBankOffset: bankOffset,
+    uWeatherBankScale:  bankScale,
+    uWeatherBank:       bank,
   }
 
   const state: CloudShadowState = { shade: 0, reach: 0, bearing: 0 }
@@ -248,6 +260,7 @@ export function createCloudShadow (
       const { atmosphere } = config()
       const sky            = daylight.sample(config().daylight.time, config().season.time)
       const tile           = 1 / Math.max(1, atmosphere.cloudScale)
+      const bankTile       = weatherBankTile(config().archipelago.worldSize)
 
       shadowThrow(
         sky.direction.x,
@@ -270,8 +283,21 @@ export function createCloudShadow (
         wind.dirZ * drift - throwAt.z * tile,
       )
 
-      scale.value    = tile
-      strength.value = shadeAmount(
+      // The bank rides the same wind and takes the same throw — a front over the
+      // island shades the ground downsun of it, exactly as the cloud in it does
+      // — but it is scrolled in its own tile, because a uv is a share of a tile
+      // and these two tiles differ by a factor of thirty.
+      const banked = weatherBankDrift(atmosphere.cloudDrag, wind.travel, bankTile)
+
+      bankOffset.value.set(
+        wind.dirX * banked - throwAt.x / bankTile,
+        wind.dirZ * banked - throwAt.z / bankTile,
+      )
+
+      bankScale.value = 1 / bankTile
+      bank.value      = Math.max(0, atmosphere.weatherBank)
+      scale.value     = tile
+      strength.value  = shadeAmount(
         atmosphere.cloudShadow,
         atmosphere.cloudCover,
         sky.day,
@@ -285,6 +311,10 @@ export function createCloudShadow (
   }
 }
 
-// perf: one texture fetch per fragment on four programs, and nothing per frame
-// but a `Vector2`, two floats and one allocation-free sky sample. The map
-// itself belongs to the catalogue, so nothing here is uploaded or freed.
+// perf: two texture fetches per fragment on four programs — the second is the
+// bank, off the same map and the same sampler, so it costs a fetch and no
+// upload — and nothing per frame but two `Vector2`s, four floats and one
+// allocation-free sky sample. The map itself belongs to the catalogue, so
+// nothing here is uploaded or freed. Ungated on every tier on purpose: a mobile
+// sky that repeats sixteen times across the frame is the broken-looking cheap
+// version rather than a cheap one.

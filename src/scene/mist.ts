@@ -4,16 +4,31 @@ import {
   Mesh,
   MeshBasicMaterial,
   PlaneGeometry,
+  Vector2,
   Vector3,
 } from 'three'
-import type { OrthographicCamera, Texture } from 'three'
+import type {
+  IUniform,
+  OrthographicCamera,
+  Texture,
+  WebGLProgramParametersWithUniforms,
+} from 'three'
 import { defineModule, smoothstep } from 'threejs-scene'
 import { bakeAlphaField } from 'threejs-scene/modules/assets'
+import {
+  WEATHER_BANK_BEGIN_VERTEX,
+  WEATHER_BANK_MAP_FRAGMENT,
+  WEATHER_BANK_PARS_FRAGMENT,
+  WEATHER_BANK_PARS_VERTEX,
+  weatherBankDrift,
+  weatherBankTile,
+} from './weather-bank.ts'
 import { landmassTerrain } from './config.ts'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import type { DaylightState } from './daylight.ts'
 import { sampleHeight } from './noise.ts'
 import type { AtmosphereQuality } from './quality.ts'
+import type { TextureCatalogue } from './textures/catalogue.ts'
 import type { WindState } from './wind.ts'
 import type { SeasonState } from './season.ts'
 import { LAYER } from './layers.ts'
@@ -42,6 +57,18 @@ export interface MistOptions {
    * still has parallax in it.
    */
   wind: WindState
+
+  /**
+   * The scape's maps, for the bank alone.
+   *
+   * The mist field is a 79 m tile and the world is 1520 m, so every sheet in
+   * here was a lattice of the same wisp stamped nineteen times across the
+   * archipelago — the single most visible thing in the scape at the wide poses.
+   * The bank is the world-sized field that was missing; it is read off
+   * `sky.cloudShadow` because that is the one map the whole weather agrees on.
+   * See `weather-bank.ts`.
+   */
+  textures: TextureCatalogue
 }
 
 interface MistSheet {
@@ -86,8 +113,14 @@ const MIST_HEIGHT = 9
  * sheet extends. Tie the repeat to the sheet instead of to this and widening
  * the sheet magnifies every wisp with it — a few big soft blobs, bilinearly
  * smoothed until the gaps close, which is how ground mist becomes a white-out.
+ *
+ * Exported so `scape:map` can state the other half of that sentence as a number.
+ * A wisp has a real-world size and this is it; what it is *not* is a licence to
+ * stamp the same tile nineteen times across a 1520 m world, which is what the
+ * wide poses showed before `weather-bank.ts` gave the field a world-sized one to
+ * be modulated by.
  */
-const TILE_UNITS = 79
+export const TILE_UNITS = 79
 
 /**
  * The world-pinned sheets must cover the focus range and a two-to-one maximum
@@ -320,6 +353,7 @@ export function createMistLayer ({
   quality,
   daylight,
   season,
+  textures,
   wind,
 }: MistOptions): ScapeModule {
   const count      = Math.max(1, quality.mistLayers)
@@ -341,6 +375,20 @@ export function createMistLayer ({
   // the other never is.
   const smokeColor = new Color(config().palette.fog).lerp(WHITE, 0.62)
   const visible    = amount > 0.01
+
+  // The weather every sheet in here is in, at a tile wider than the world. One
+  // set of uniform objects across the sheets, the slices and the sea smoke,
+  // because they are one bank of fog rather than three — and the same field, at
+  // the same scale, that the cloud deck and the ground shadow read.
+  const bankOffset: IUniform<Vector2>          = { value: new Vector2() }
+  const bankScale: IUniform<number>            = { value: 1 / weatherBankTile(config().archipelago.worldSize) }
+  const bank: IUniform<number>                 = { value: 0 }
+  const bankUniforms: Record<string, IUniform> = {
+    uCloudMap:          { value: textures.get('sky.cloudShadow') },
+    uWeatherBankOffset: bankOffset,
+    uWeatherBankScale:  bankScale,
+    uWeatherBank:       bank,
+  }
 
   function tile (index: number, scale: number): Texture {
     const map = texture.clone()
@@ -373,7 +421,7 @@ export function createMistLayer ({
   // prints `Material Name:` and nothing else when a driver declines to link and
   // declines to say why, and an unnamed material makes that line useless.
   function mistMaterial (map: Texture, opacity: number, name: string, color: Color): MeshBasicMaterial {
-    return new MeshBasicMaterial({
+    const material = new MeshBasicMaterial({
       name,
       map,
       color,
@@ -383,6 +431,25 @@ export function createMistLayer ({
       opacity,
       fog:          true,
     })
+
+    // Every sheet in every family takes the bank, and takes it in world metres
+    // rather than in its own uv: each one carries a different `map.repeat` and
+    // its own scrolling phase, so a uv here would be a different field on each
+    // and none of them the ground's. The model matrix is the one frame they all
+    // share, and it costs a varying — see `weather-bank.ts`.
+    material.onBeforeCompile = (program: WebGLProgramParametersWithUniforms) => {
+      Object.assign(program.uniforms, bankUniforms)
+
+      program.vertexShader = program.vertexShader
+        .replace('#include <common>', `#include <common>\n${WEATHER_BANK_PARS_VERTEX}`)
+        .replace('#include <begin_vertex>', WEATHER_BANK_BEGIN_VERTEX)
+
+      program.fragmentShader = program.fragmentShader
+        .replace('#include <common>', `#include <common>\n${WEATHER_BANK_PARS_FRAGMENT}`)
+        .replace('#include <map_fragment>', WEATHER_BANK_MAP_FRAGMENT)
+    }
+
+    return material
   }
 
   /**
@@ -503,6 +570,15 @@ export function createMistLayer ({
     update () {
       const density  = config().atmosphere.mistAmount
       const viewSize = camera.userData.viewSize as number ?? config().camera.viewSize
+      const bankTile = weatherBankTile(config().archipelago.worldSize)
+      const drifted  = weatherBankDrift(config().atmosphere.cloudDrag, wind.travel, bankTile)
+
+      // The bank the sheets are in. No downsun throw, unlike the ground shadow's:
+      // fog is the weather rather than the shadow of it, so it sits where the
+      // bank sits. It rides the scape's one wind, which `STILL` parks.
+      bankOffset.value.set(wind.dirX * drifted, wind.dirZ * drifted)
+      bankScale.value = 1 / bankTile
+      bank.value      = Math.max(0, config().atmosphere.weatherBank)
 
       // Mist is unlit, so nothing else would carry the time of day onto it. Take
       // the horizon straight from the clock and it stays the same substance as

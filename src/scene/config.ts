@@ -2065,6 +2065,25 @@ export interface ScapeConfig extends DykeConfig, ForceConfig, GuardConfig, HaarC
     cloudScale: number
 
     /**
+     * How strongly the weather is banked, 0..1.
+     *
+     * The knob that stopped the sky repeating. Both cloud tiles are about a
+     * hundred metres across — frame-sized, correctly, because that is the scale
+     * a sky is composed at — and the world is 1520 m, so before this the wide
+     * poses drew one tile sixteen times over on a perfect lattice. This is the
+     * second, **world-sized** read that was missing: a field at
+     * `WEATHER_BANK_WORLD_FRACTION` times the width of the world, biasing the
+     * cloud up over the banks and down over the lanes between them.
+     *
+     * 0 is the sky the scape had before it — a knob whose zero is the old
+     * behaviour, not a taper — and it is therefore the switch, with no flag
+     * beside it. Both the deck overhead and the shadow on the ground read the
+     * same field at the same scale, so a lane in the sky is a lane on the water.
+     * See `weather-bank.ts`, which owns the scale, the drift and the arithmetic.
+     */
+    weatherBank: number
+
+    /**
      * How hard the cloud answers the wind, 0..1.
      *
      * Shared by the deck overhead and the shadow it casts on the ground, which
@@ -3258,6 +3277,13 @@ export const SCAPE_CONFIG = {
     hemiStrength: 0.72,
     cloudShadow:  0.84,
     cloudScale:   92,
+
+    // Measured against the cut rather than picked: the cloud field spans about
+    // 0.17..0.83 and `CLOUD_CUT` is 0.55, so 0.6 of a full swing carries the
+    // field ±0.3 — far enough that a low bank never reaches the cut and a high
+    // one clears it everywhere, and short of the ±0.5 that would leave half the
+    // archipelago under a flat overcast and the other half under a bare sky.
+    weatherBank:  0.6,
     cloudDrag:    0.9,
     cloudCover:   0.5,
     cloudHeight:  34,

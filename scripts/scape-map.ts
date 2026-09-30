@@ -658,6 +658,26 @@ export interface MapStats extends CompositionStats {
 
     /** Which way it is thrown, in degrees. */
     bearing: number
+
+    /** `atmosphere.weatherBank` — how hard the weather is banked, 0 is the flat tile. */
+    bank: number
+
+    /** Width of the bank tile, in metres. */
+    bankTile: number
+
+    /**
+     * How many times the cloud tile repeats across the world, and how many times
+     * the bank does.
+     *
+     * The instrument the banking exists for. A still cannot measure a period —
+     * the eye reads a lattice long before it can count one — and these two
+     * numbers say it outright: sixteen repeats of a hundred-metre tile is
+     * wallpaper, and a bank that does not complete one period across the whole
+     * archipelago is weather.
+     */
+    mistRepeats: number
+    repeats:     number
+    bankRepeats: number
   }
 
   /**
