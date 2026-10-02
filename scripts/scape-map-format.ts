@@ -491,6 +491,43 @@ function shaftLine (shafts: MapStats['shafts']): string {
 }
 
 /**
+ * The hail line, and the four silences it separates.
+ *
+ * Every one of them is a frame with no stones in it, and a picture cannot tell
+ * them apart. `now` is the parked instant and is *expected* to be small or zero
+ * at most phases — the pulse is a twentieth of the cycle — so a line that only
+ * reported `now` would say the same thing about a system that works and one
+ * that was never built. `peak` is this week's fronts at their hardest and
+ * `best` is the whole year's, so between them they name which of the four it is.
+ *
+ * `lead` is the claim stated as a number: how far ahead of the rain's own peak
+ * the stones come, resolved off `showerAmount` rather than written down. A lead
+ * at or under zero is hail falling with or behind the heaviest rain, which is
+ * the one shape a hail shower does not have — and it would photograph as a
+ * perfectly reasonable white squall.
+ *
+ * `cell` against `world` is the world-sized half. A cell as wide as the
+ * archipelago has no edge in any frame, and the edge is the whole reason the
+ * shower is a patch rather than a weather setting; the line says so in words.
+ */
+function hailLine (hail: MapStats['hail']): string {
+  return `hail  now ${hail.now}  peak ${hail.peak}  best ${hail.best}  ` +
+    `strength ${hail.strength} x chill ${hail.chill}  ` +
+    `pulse ${hail.centre} +-${hail.width / 2}, ${hail.lead} ahead of the rain  ` +
+    `${hail.share}% of the front  ` +
+    `cell ${hail.cell}m of ${hail.world}m, travels ${hail.travel}m` +
+    (hail.best <= 0
+      ? '  <- no front in any week of this scape hails: weather.hail is at zero'
+      : hail.lead <= 0
+        ? '  <- the stones fall with the heaviest rain rather than ahead of it'
+        : hail.cell >= hail.world
+          ? '  <- the cell is wider than the archipelago: no frame holds an edge'
+          : hail.now <= 0
+            ? '  <- the front is parked outside the pulse: no still can see it'
+            : '')
+}
+
+/**
  * The whitecap line, and the silence no capture can break.
  *
  * `still` is the only column a picture of this scape can report, because
@@ -664,6 +701,7 @@ export function formatStats (stats: MapStats): string {
     moonLine(stats.moon),
     shadeLine(stats.shade),
     shaftLine(stats.shafts),
+    hailLine(stats.hail),
     capsLine(stats.caps),
     haarLine(stats.haar),
     treelineLine(stats.treeline),

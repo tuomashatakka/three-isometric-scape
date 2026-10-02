@@ -16,6 +16,18 @@ export interface WeatherState {
   sleet: number
 
   /**
+   * How hard it is hailing, 0..1.
+   *
+   * Beside {@link fall} rather than inside it, and that is the whole shape of
+   * the system. {@link sleet} is a *share* of the fall, because what the year
+   * freezes it freezes on the way down and one drop cannot be both; hail is a
+   * second fall entirely, out of the same cloud at a different moment in its
+   * life. See {@link hailAmount} for which moment, and why it is not this
+   * curve's.
+   */
+  hail: number
+
+  /**
    * How wet the ground is, 0..1.
    *
    * Never less than {@link fall} and usually more — see {@link wetAmount}. It is
@@ -118,6 +130,92 @@ export function wetAmount (phase: number): number {
 }
 
 /**
+ * How far ahead of the squall's own peak the hail comes, in cycles.
+ *
+ * The one number this system is, and it is a lead rather than a width because
+ * hail is not heavy rain. A shower of this kind is a column of air going up
+ * fast enough to carry water above the freezing level and hold it there, and
+ * the first thing that reaches the ground under it is what that column has
+ * already finished making. So the stones arrive on the band's *leading flank*,
+ * ahead of the rain, and are over before the rain is at its hardest.
+ *
+ * Taken off `BANDS[0].centre` rather than written down as a phase, for the
+ * reason `AT_BOW` asks `bowPeak` rather than carrying a decimal: a run that
+ * reshapes the front must not silently move the hail out of it.
+ */
+const HAIL_LEAD = 0.095
+
+/**
+ * Half-width of the pulse, in cycles.
+ *
+ * Narrow on purpose. The rain in this scape runs for about a quarter of the
+ * cycle and the trailing band adds another tenth; a hail fall that lasted as
+ * long would be a white shower rather than a hail shower, and the thing that
+ * makes somebody look up is that it starts and stops.
+ *
+ * Exported because `hail.ts` lays the cell's track across it: where the one
+ * patch of hard fall stands is a position *within the pulse*, and a module
+ * that derived that from a second width would drift out of the fall it is
+ * supposed to be carrying.
+ */
+export const HAIL_WIDTH = 0.045
+
+/** Where the pulse is centred, in cycles. */
+export const HAIL_CENTRE = BANDS[0].centre - HAIL_LEAD
+
+/**
+ * How hard the stones are coming down at a phase of the front, 0..1.
+ *
+ * Cut against the cosine of the phase like the bands above it and for the same
+ * reason — a bump assembled out of a gaussian is very slightly discontinuous at
+ * the wrap, and this clock runs for as long as the page is open.
+ *
+ * It is deliberately **not** a function of {@link showerAmount}. Scaling the
+ * rain's own curve is the obvious first cut and what it produces is rain that
+ * briefly goes white in the middle of itself, which is the one shape a hail
+ * shower does not have. The pulse peaks where the shower is still *climbing*,
+ * and reaches zero before the shower reaches one.
+ */
+export function hailAmount (phase: number): number {
+  const wrapped = phase - Math.floor(phase)
+  const across  = Math.cos((wrapped - HAIL_CENTRE) * TAU)
+
+  return smoothstep(Math.cos(HAIL_WIDTH * TAU), Math.cos(HAIL_WIDTH * TAU * 0.3), across)
+}
+
+/** What high summer keeps of the shoulder's hail, and what midwinter keeps. */
+const SUMMER_HAIL = 0.55
+const WINTER_HAIL = 0.12
+
+/**
+ * What the week of the year does to the hail, 0..1.
+ *
+ * A weight and deliberately not a gate, which is the difference between this
+ * and the `sleet` coupling two functions down. Snow is what the year turns the
+ * fall *into*, so it is a share and it is allowed to reach one; hail comes out
+ * of a cloud whose top is above freezing level, and in this latitude that cloud
+ * is standing over the sound in every month there is.
+ *
+ * What the year changes is how often it gets through. The shoulders are the
+ * season — cold air over a sea that has not cooled with it is the whole recipe
+ * — so the window opens as soon as the ground starts taking snow at all. High
+ * summer keeps better than half of it, because a hail shower in June is a thing
+ * that happens here and a system switched off for a third of the year is a
+ * system most visitors never see. The deep of winter is where it nearly goes,
+ * and that one is physics rather than taste: a column cold enough all the way
+ * down delivers snow, and the scape already draws that.
+ *
+ * Read off `season.snow` rather than off the week, so a scape moved south keeps
+ * the coupling instead of keeping the calendar.
+ */
+export function hailChill (snow: number): number {
+  const cold = smoothstep(0, 0.12, snow)
+  const deep = smoothstep(0.55, 0.9, snow)
+
+  return (SUMMER_HAIL + (1 - SUMMER_HAIL) * cold) * (1 - (1 - WINTER_HAIL) * deep)
+}
+
+/**
  * The third clock.
  *
  * Built like the other two — a phase, a speed, and everything else derived from
@@ -137,7 +235,7 @@ export function wetAmount (phase: number): number {
  * wet.
  */
 export function createWeather (config: LiveConfig): Weather {
-  const state: WeatherState = { phase: 0, fall: 0, sleet: 0, wet: 0 }
+  const state: WeatherState = { phase: 0, fall: 0, sleet: 0, hail: 0, wet: 0 }
 
   return {
     state,
@@ -155,6 +253,7 @@ export function createWeather (config: LiveConfig): Weather {
       const { weather } = config()
 
       state.fall = showerAmount(wrapped) * weather.rain
+      state.hail = hailAmount(wrapped) * hailChill(sleet) * weather.hail
       state.wet  = wetAmount(wrapped) * weather.rain * weather.wet * (1 - sleet)
 
       return state

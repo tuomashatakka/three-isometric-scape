@@ -23,12 +23,14 @@ import { causewayOf, croftOf, dykeOf, peatOf, pierOf, shielingOf, smokehouseOf, 
 import {
   capsStats,
   haarStats,
+  hailStats,
   moonStats,
   rainbowStats,
   shadeStats,
   shaftStats,
   stormStats,
 } from './scape-map-weather.ts'
+import type { WeatherStats } from './scape-map-weather.ts'
 import { applyOverrides, parseArgs } from './args.ts'
 
 
@@ -242,7 +244,7 @@ export interface LandmassMapStats extends CompositionStats {
   origin:  [ number, number ]
 }
 
-export interface MapStats extends CompositionStats {
+export interface MapStats extends CompositionStats, WeatherStats {
   waterLevel: number
   worldSize:  number
   grid:       { w: number, h: number, metres: number, metresZ: number }
@@ -532,213 +534,6 @@ export interface MapStats extends CompositionStats {
     longest: number
     low:     number
     high:    number
-  }
-
-  /**
-   * The lightning the front carries, and where it lands.
-   *
-   * Here for a reason none of the others have: every other system in this block
-   * is somewhere in every frame, and a strike is somewhere for two thirds of a
-   * second in seven minutes. A still taken at any other instant of the front is
-   * a still of a scape with no storm in it, so this is where a run finds out
-   * that the comb went empty, that a site drifted into open water, or that the
-   * fork stopped standing on ground. `asked` is the whole comb; `strikes` is
-   * what the rate lets through.
-   */
-  storm: {
-    strikes: number
-    asked:   number
-
-    /** The phase a `storm` pose is aimed at, and the island it is aimed over. */
-    peak:  { phase: number, id: string, x: number, z: number, base: number } | null
-    sited: { id: string, x: number, z: number, base: number, strikes: number }[]
-  }
-
-  /**
-   * The bow the shower leaves behind it.
-   *
-   * Here for the same reason the storm is, and it catches the same class of
-   * silence: the arc is only out on the edges of a band, so the phase the
-   * config is parked on decides whether a still has one in it at all. `now` is
-   * this phase's bow and `best` is the brightest the whole front ever gets —
-   * and a `best` of zero is the finding, because it means no instant of any
-   * front on this coast has a bow in it. `apex` is how far the top of the inner
-   * arc stands over the sea, which goes negative in the middle of a summer day
-   * and leaves the outer bow standing on its own.
-   */
-  rainbow: {
-    sun:   number
-    apex:  number
-    swing: number
-    cover: number
-    now:   number
-    best:  number
-    at:    number
-  }
-
-  /**
-   * The moon, read as a light rather than as a disc.
-   *
-   * Here for the reason the bow is, and it catches the same class of silence:
-   * the moon is a body on an arc, so half of every month it is under the sea at
-   * the hour a pose asks for, and a night with no moon up photographs exactly
-   * like a night with the light switched off. `share` is how much of the key
-   * light it has taken — which is to say how far round the shadows have swung
-   * from the bearing the sun set on, and the one number a still cannot give.
-   */
-  moon: {
-    phase:  number
-    lit:    number
-    up:     number
-    lights: number
-    share:  number
-
-    /** The specular budget the key light has on the water — the moon track. */
-    track: number
-
-    /** How hard the broken water burns tonight — the sea fire. */
-    fire: number
-  }
-
-  /**
-   * The shadow the cloud deck lays on the ground and on the sound.
-   *
-   * Here because the three ways it goes quiet are the same picture: a clear
-   * sky, an hour with no light to block, and the authored darkness at zero all
-   * produce a frame with no dapple on it. `shade` is the product the shader is
-   * handed, and the three columns behind it say which of them took it there.
-   */
-  /**
-   * The daylight standing in the gaps of that same deck.
-   *
-   * Here because every way this one goes quiet is a frame that looks like a
-   * frame with the section removed, and two of them are the *opposite* of each
-   * other: a clear sky has no holes cut in it and an overcast has no holes left
-   * in it, and both come out as a sound with no beams over it. A picture can
-   * show neither as a cause. `bright` is the product the shader is handed;
-   * `broken` is the curve that separates the two silences, and `lean` is the
-   * horizontal run of a beam over the height it falls through — the number that
-   * says whether a shaft leans across the frame or stands up in it.
-   */
-  shafts: {
-    bright: number
-
-    /** `shafts.strength` — the authored end, and the switch. */
-    strength: number
-
-    /** `atmosphere.cloudCover`, and `4c(1-c)`: how broken the sky is. */
-    cover:  number
-    broken: number
-
-    /** `day`: a beam needs a sun, and takes no moon. */
-    light: number
-
-    /** Metres the top of a beam is thrown from the foot of it. */
-    lean: number
-
-    /** Metres of air the column is lit through, and the world height of its top. */
-    column: number
-    top:    number
-  }
-
-  shade: {
-    shade: number
-
-    /** `atmosphere.cloudShadow` — the authored end, and the switch. */
-    dark: number
-
-    /** `atmosphere.cloudCover` — whether there is any cloud up there at all. */
-    cover: number
-
-    /** `day + moon`: how much light there is for a cloud to take away. */
-    light: number
-
-    /** Metres downsun the shadow lands from the cloud casting it. */
-    reach: number
-
-    /** Which way it is thrown, in degrees. */
-    bearing: number
-
-    /** `atmosphere.weatherBank` — how hard the weather is banked, 0 is the flat tile. */
-    bank: number
-
-    /** Width of the bank tile, in metres. */
-    bankTile: number
-
-    /**
-     * How many times the cloud tile repeats across the world, and how many times
-     * the bank does.
-     *
-     * The instrument the banking exists for. A still cannot measure a period —
-     * the eye reads a lattice long before it can count one — and these two
-     * numbers say it outright: sixteen repeats of a hundred-metre tile is
-     * wallpaper, and a bank that does not complete one period across the whole
-     * archipelago is weather.
-     */
-    mistRepeats: number
-    repeats:     number
-    bankRepeats: number
-  }
-
-  /**
-   * The whitecaps out in the sound, at the three winds that matter.
-   *
-   * Here because the capture harness cannot reach two of the three: `STILL`
-   * zeroes `wind.strength`, so a still is taken in a dead calm and `still` is
-   * the only column a picture can report. `rest` against `gust` is the reading
-   * that says whether a gust front is something the water can answer.
-   */
-  caps: {
-    still: number
-    rest:  number
-    gust:  number
-    onset: number
-    wind:  number
-
-    /** How much of the white the lee of a coast is spared, 0..1. */
-    lee: number
-  }
-
-  /**
-   * The night fog bank: where its top is, what it covers, and the three winds.
-   *
-   * Here for two reasons the picture cannot cover. The first is the whitecaps'
-   * reason exactly — `STILL` zeroes `wind.strength`, so a capture can only ever
-   * report `still`, and whether the authored wind leaves any bank at all is
-   * invisible in every frame. The second is the tour's: the bank is a thing of
-   * the dark, four of the six tour poses are taken in daylight, and a bank
-   * raised until it drowns the archipelago photographs as an unchanged noon.
-   *
-   * So the wind columns are read at the darkest night of the year rather than
-   * at the parked hour. `now` is the parked hour, and it is allowed to be zero.
-   */
-  haar: {
-
-    /** Metres of the top over mean water, and the world height that puts it at. */
-    top:     number
-    ceiling: number
-
-    /** Metres of fog under the top, and the world height the lowest sheet lies at. */
-    depth: number
-    floor: number
-
-    /** The bank as the config is parked: this hour, this week, the authored wind. */
-    now: number
-
-    /** The bank at midwinter midnight, at a dead calm, at rest and in the gust. */
-    still: number
-    rest:  number
-    gust:  number
-
-    scour: number
-    wind:  number
-
-    /** Share of the home island's land under the top, 0..100. */
-    drowned: number
-
-    /** Islands whose peak stands clear of the top, out of all of them. */
-    standing: number
-    islands:  number
   }
 
   /**
@@ -1145,6 +940,7 @@ export function surveyStats (
     moon:     moonStats(config),
     shade:    shadeStats(config),
     shafts:   shaftStats(config),
+    hail:     hailStats(config),
     caps:     capsStats(config),
     haar:     haarStats(config, home, landmasses),
     hearths:  hearthStats(survey),

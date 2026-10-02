@@ -87,6 +87,22 @@ export interface AtmosphereQuality {
   rainDrops: number
 
   /**
+   * Stones in the hail cell. 0 is a tier it never hails on.
+   *
+   * A count and not a density, for `rainDrops`' reason — but the column it is
+   * dealt into is the *smaller of the frame and the cell*, which is what makes
+   * it a third of the rain's and still a thicker shower. A hail cell is three
+   * hundred metres across in a world of 1 520, so at the wide frames every
+   * stone is inside the patch rather than nineteen in twenty being masked out
+   * at the edge of a column nobody is looking at.
+   *
+   * `minimal` gets none, and that is a graceful absence rather than a cheap
+   * version: the tier already has `rainDrops: 0`, so a device that draws no rain
+   * drawing no hail is the same sky it had, not a broken-looking one.
+   */
+  hailStones: number
+
+  /**
    * Stacked sheets in the shower crossing the water. 0 is a sea nothing ever
    * crosses.
    *
@@ -518,6 +534,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     auroraLayers:    0,
     starCount:       0,
     rainDrops:       0,
+    hailStones:      0,
     squallSheets:    0,
     stormFlashes:    0,
     birdCount:       0,
@@ -568,6 +585,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     auroraLayers:    1,
     starCount:       700,
     rainDrops:       900,
+    hailStones:      1_500,
     squallSheets:    1,
     stormFlashes:    1,
     birdCount:       90,
@@ -634,6 +652,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     auroraLayers:    2,
     starCount:       1_900,
     rainDrops:       2_600,
+    hailStones:      3_000,
     squallSheets:    2,
     stormFlashes:    2,
     birdCount:       260,
@@ -684,6 +703,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     auroraLayers:    3,
     starCount:       3_200,
     rainDrops:       4_200,
+    hailStones:      4_200,
     squallSheets:    3,
     stormFlashes:    3,
     birdCount:       420,
@@ -751,6 +771,7 @@ const UNLOCKED_FLOOR = {
   auroraLayers:   1,
   starCount:      700,
   rainDrops:      700,
+  hailStones:     1_500,
   squallSheets:   1,
   stormFlashes:   1,
   birdCount:      90,
@@ -802,6 +823,7 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
     auroraLayers:   Math.max(quality.auroraLayers, UNLOCKED_FLOOR.auroraLayers),
     starCount:      Math.max(quality.starCount, UNLOCKED_FLOOR.starCount),
     rainDrops:      Math.max(quality.rainDrops, UNLOCKED_FLOOR.rainDrops),
+    hailStones:     Math.max(quality.hailStones, UNLOCKED_FLOOR.hailStones),
     squallSheets:   Math.max(quality.squallSheets, UNLOCKED_FLOOR.squallSheets),
     stormFlashes:   Math.max(quality.stormFlashes, UNLOCKED_FLOOR.stormFlashes),
     birdCount:      Math.max(quality.birdCount, UNLOCKED_FLOOR.birdCount),

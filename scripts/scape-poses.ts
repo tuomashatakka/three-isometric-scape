@@ -1,6 +1,7 @@
 import { SCAPE_CONFIG } from '../src/scene/config.ts'
 import { bowPeak } from '../src/scene/rainbow.ts'
 import { stormPeak } from '../src/scene/storm.ts'
+import { HAIL_CENTRE, HAIL_WIDTH } from '../src/scene/weather.ts'
 import { COAST_TOURS } from './scape-poses-coast.ts'
 import { ICE_TOURS } from './scape-poses-ice.ts'
 import { SKY_TOURS } from './scape-poses-sky.ts'
@@ -62,6 +63,30 @@ const OVER_STRIKE = STRIKE
  */
 const AT_BOW = [ `weather.time=${bowPeak().toFixed(6)}` ]
 const NO_BOW = [ 'weather.time=0.3' ]
+
+/**
+ * The instant the stones are falling, and the instant the same front is only
+ * raining.
+ *
+ * Asked of `weather.ts` rather than written down, for the reason `AT_BOW` asks
+ * `bowPeak`: the pulse is a twentieth of the cycle, so a decimal copied into
+ * this file would go stale the moment a run reshaped the front — and it would
+ * go stale *silently*, photographing a frame with no hail in it and reporting
+ * `same`, which is indistinguishable from the system being broken.
+ *
+ * `AT_HAIL` is the peak, where the cell is centred on the world origin.
+ * `CROSSED_HAIL` is a little past half way through the pulse, by which time the
+ * shower has been carried about a hundred and forty metres downwind and is
+ * still falling at most of its rate — the one pair of frames that says the cell
+ * *travels* rather than fading up and down where it stands. Further through
+ * than that and the pair stops being a comparison: the pulse is closing, so
+ * what the second frame shows is a shower going out rather than one that moved. `NO_HAIL` is the heart of the rain band a tenth of a
+ * cycle later, and it is the claim: the hardest rain this front has, with not a
+ * stone in it.
+ */
+const AT_HAIL      = [ `weather.time=${HAIL_CENTRE.toFixed(6)}` ]
+const CROSSED_HAIL = [ `weather.time=${(HAIL_CENTRE + HAIL_WIDTH * 0.55).toFixed(6)}` ]
+const NO_HAIL      = [ 'weather.time=0.3' ]
 
 /** The middle of the sound's inlet, which four of the `fjord` poses sit on. */
 const SOUND_INLET = [ 'camera.focusX=-306', 'camera.focusZ=-374' ]
@@ -1539,6 +1564,59 @@ export const TOURS: Record<string, Pose[]> = {
     },
     { name: 'dyke-gate', zoom: 16, set: [ 'camera.focusX=-7.2', 'camera.focusZ=17.6' ]},
     { name: 'dyke-march', zoom: 70, set: [ 'camera.focusX=350', 'camera.focusZ=-516' ]},
+  ],
+
+  /**
+   * The stones, the edge of the cell they fall inside, and the four ways of
+   * having none.
+   *
+   * The tour sees this system — the config opens parked on the pulse, which is
+   * deliberate and is the `weather.time` argument again — but it cannot
+   * *separate* it, and there are two things to separate. The first is the
+   * claim about **when**: hail arrives on the squall's leading flank and is
+   * over before the rain is at its hardest, which is a statement about two
+   * instants of one front and therefore needs two frames. The second is the
+   * claim about **where**: the fall is one convective cell about 334 m across
+   * in a world of 1 520, so it has an edge, and an edge is only in the picture
+   * at a frame wide enough to hold both sides of it.
+   *
+   * `hail` is the home island at 520 m with the cell centred on it, which is
+   * the only framing that holds the stones *and* the dry water beyond them.
+   * `hail-far` is the whole archipelago, where the shower is a patch on one
+   * sound rather than weather over everything. `hail-near` is 60 m, the only
+   * frame in which a stone is an object rather than grain.
+   *
+   * `hail-crossed` is the pair to `hail` and the one that says the cell is a
+   * thing travelling rather than a thing fading: a little past half way through
+   * the same pulse, with the shower carried about a hundred and forty metres
+   * downwind of where the first frame had it and still falling at most of its
+   * rate.
+   *
+   * The last three are the controls, and each takes a different gate away.
+   * `hail-none` is the switch — `weather.hail=0` at the identical instant,
+   * which is the sky this scape had before the run and must be identical to the
+   * reference build. `hail-rain` is the *front's* own silence and the whole
+   * lead stated as a picture: a tenth of a cycle later, the heaviest rain this
+   * squall has, and not a stone in it. `hail-winter` is the **year's**, at a
+   * midwinter where the column is cold the whole way down and delivers snow —
+   * the stones must nearly go, and must do so for a reason in the season rather
+   * than in the config.
+   *
+   * `hail-blow` is the half no other frame can reach. `STILL` zeroes
+   * `wind.strength`, so every capture this scape takes is taken in a dead calm
+   * — and the most legible single difference between the two falls is what a
+   * gust does to them: the rain lays over at 0.42 m per metre fallen and the
+   * stones go very nearly straight down through the same wind.
+   */
+  hail: [
+    { name: 'hail', zoom: 520, set: AT_HAIL },
+    { name: 'hail-far', set: AT_HAIL },
+    { name: 'hail-near', zoom: 60, set: AT_HAIL },
+    { name: 'hail-crossed', zoom: 520, set: CROSSED_HAIL },
+    { name: 'hail-blow', zoom: 520, set: [ ...AT_HAIL, 'wind.strength=2.4' ]},
+    { name: 'hail-none', zoom: 520, set: [ ...AT_HAIL, 'weather.hail=0' ]},
+    { name: 'hail-rain', zoom: 520, set: NO_HAIL },
+    { name: 'hail-winter', zoom: 520, season: 0.02, set: AT_HAIL },
   ],
 
   // The cheap pass: is there a scape at all, and does it survive being drawn.
