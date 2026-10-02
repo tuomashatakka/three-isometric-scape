@@ -21,10 +21,17 @@ import { phosphorAmount, trackAmount } from '../src/scene/landscape/water-gleam.
 import { haarAmount } from '../src/scene/haar.ts'
 import { TILE_UNITS } from '../src/scene/mist.ts'
 import { shaftAmount, shaftSheetHeights } from '../src/scene/shafts.ts'
-import { showerAmount, wetAmount } from '../src/scene/weather.ts'
+import {
+  HAIL_CENTRE,
+  HAIL_WIDTH,
+  hailAmount,
+  hailChill,
+  showerAmount,
+  wetAmount,
+} from '../src/scene/weather.ts'
+import { hailCellRadius, hailCellTravel } from '../src/scene/hail.ts'
 import type { ScapeConfig } from '../src/scene/config.ts'
 import type { ArchipelagoSurvey } from '../src/scene/landscape/archipelago.ts'
-import type { MapStats } from './scape-map.ts'
 
 
 /**
@@ -35,6 +42,268 @@ import type { MapStats } from './scape-map.ts'
  * landforms took — a survey of one system, answering one question, with nothing
  * above it that the rest of the block needs.
  */
+
+/**
+ * What the map measures about the weather, as a type.
+ *
+ * Moved out of `scape-map.ts` with the readings themselves when the hail line
+ * took that file back past its 666-line ceiling, and the seam is the one it
+ * already had: these eight are the whole of what this module computes, and
+ * every one of them is here for the same reason — **a still cannot read it.**
+ * A strike lasts two thirds of a second in seven minutes, a bow stands only on
+ * the edges of a band, the moon is under the sea half the month, the beams and
+ * the dapple are the opposite halves of one cover term, the hail is a twentieth
+ * of a front, the caps and the bank are both invisible in a dead calm and
+ * `STILL` zeroes the wind. `MapStats` extends this, so every reader — the
+ * formatter included — goes on asking for `stats.caps` exactly as before.
+ */
+export interface WeatherStats {
+
+  /**
+   * The lightning the front carries, and where it lands.
+   *
+   * Here for a reason none of the others have: every other system in this block
+   * is somewhere in every frame, and a strike is somewhere for two thirds of a
+   * second in seven minutes. A still taken at any other instant of the front is
+   * a still of a scape with no storm in it, so this is where a run finds out
+   * that the comb went empty, that a site drifted into open water, or that the
+   * fork stopped standing on ground. `asked` is the whole comb; `strikes` is
+   * what the rate lets through.
+   */
+  storm: {
+    strikes: number
+    asked:   number
+
+    /** The phase a `storm` pose is aimed at, and the island it is aimed over. */
+    peak:  { phase: number, id: string, x: number, z: number, base: number } | null
+    sited: { id: string, x: number, z: number, base: number, strikes: number }[]
+  }
+
+  /**
+   * The bow the shower leaves behind it.
+   *
+   * Here for the same reason the storm is, and it catches the same class of
+   * silence: the arc is only out on the edges of a band, so the phase the
+   * config is parked on decides whether a still has one in it at all. `now` is
+   * this phase's bow and `best` is the brightest the whole front ever gets —
+   * and a `best` of zero is the finding, because it means no instant of any
+   * front on this coast has a bow in it. `apex` is how far the top of the inner
+   * arc stands over the sea, which goes negative in the middle of a summer day
+   * and leaves the outer bow standing on its own.
+   */
+  rainbow: {
+    sun:   number
+    apex:  number
+    swing: number
+    cover: number
+    now:   number
+    best:  number
+    at:    number
+  }
+
+  /**
+   * The moon, read as a light rather than as a disc.
+   *
+   * Here for the reason the bow is, and it catches the same class of silence:
+   * the moon is a body on an arc, so half of every month it is under the sea at
+   * the hour a pose asks for, and a night with no moon up photographs exactly
+   * like a night with the light switched off. `share` is how much of the key
+   * light it has taken — which is to say how far round the shadows have swung
+   * from the bearing the sun set on, and the one number a still cannot give.
+   */
+  moon: {
+    phase:  number
+    lit:    number
+    up:     number
+    lights: number
+    share:  number
+
+    /** The specular budget the key light has on the water — the moon track. */
+    track: number
+
+    /** How hard the broken water burns tonight — the sea fire. */
+    fire: number
+  }
+
+  /**
+   * The shadow the cloud deck lays on the ground and on the sound.
+   *
+   * Here because the three ways it goes quiet are the same picture: a clear
+   * sky, an hour with no light to block, and the authored darkness at zero all
+   * produce a frame with no dapple on it. `shade` is the product the shader is
+   * handed, and the three columns behind it say which of them took it there.
+   */
+  /**
+   * The daylight standing in the gaps of that same deck.
+   *
+   * Here because every way this one goes quiet is a frame that looks like a
+   * frame with the section removed, and two of them are the *opposite* of each
+   * other: a clear sky has no holes cut in it and an overcast has no holes left
+   * in it, and both come out as a sound with no beams over it. A picture can
+   * show neither as a cause. `bright` is the product the shader is handed;
+   * `broken` is the curve that separates the two silences, and `lean` is the
+   * horizontal run of a beam over the height it falls through — the number that
+   * says whether a shaft leans across the frame or stands up in it.
+   */
+  shafts: {
+    bright: number
+
+    /** `shafts.strength` — the authored end, and the switch. */
+    strength: number
+
+    /** `atmosphere.cloudCover`, and `4c(1-c)`: how broken the sky is. */
+    cover:  number
+    broken: number
+
+    /** `day`: a beam needs a sun, and takes no moon. */
+    light: number
+
+    /** Metres the top of a beam is thrown from the foot of it. */
+    lean: number
+
+    /** Metres of air the column is lit through, and the world height of its top. */
+    column: number
+    top:    number
+  }
+
+  shade: {
+    shade: number
+
+    /** `atmosphere.cloudShadow` — the authored end, and the switch. */
+    dark: number
+
+    /** `atmosphere.cloudCover` — whether there is any cloud up there at all. */
+    cover: number
+
+    /** `day + moon`: how much light there is for a cloud to take away. */
+    light: number
+
+    /** Metres downsun the shadow lands from the cloud casting it. */
+    reach: number
+
+    /** Which way it is thrown, in degrees. */
+    bearing: number
+
+    /** `atmosphere.weatherBank` — how hard the weather is banked, 0 is the flat tile. */
+    bank: number
+
+    /** Width of the bank tile, in metres. */
+    bankTile: number
+
+    /**
+     * How many times the cloud tile repeats across the world, and how many times
+     * the bank does.
+     *
+     * The instrument the banking exists for. A still cannot measure a period —
+     * the eye reads a lattice long before it can count one — and these two
+     * numbers say it outright: sixteen repeats of a hundred-metre tile is
+     * wallpaper, and a bank that does not complete one period across the whole
+     * archipelago is weather.
+     */
+    mistRepeats: number
+    repeats:     number
+    bankRepeats: number
+  }
+
+  /**
+   * The hail: when it falls, how hard, and how wide the patch of it is.
+   *
+   * Here because the pulse is five per cent of the front and a capture taken at
+   * any other phase is a frame with no stones in it — indistinguishable from
+   * the switch being off, from a midwinter that delivers snow instead, and from
+   * a camera that is not under the cell. One line separates all four.
+   */
+  hail: {
+
+    /** `weather.hail` — the switch, and the height of the pulse. */
+    strength: number
+
+    /** The fall at the parked phase and week, which is the one a still reports. */
+    now: number
+
+    /** The hardest this week's fronts hail, and the hardest any week does. */
+    peak: number
+    best: number
+
+    /** What the year is doing to it at the parked week, 0..1. */
+    chill: number
+
+    /** Share of the front's cycle with stones in it, 0..100. */
+    share: number
+
+    /** Where the pulse sits, and how far ahead of the rain's own peak it is. */
+    centre: number
+    lead:   number
+    width:  number
+
+    /** Width of one cell in metres, the world it falls on, and how far it crosses. */
+    cell:   number
+    world:  number
+    travel: number
+  }
+
+  /**
+   * The whitecaps out in the sound, at the three winds that matter.
+   *
+   * Here because the capture harness cannot reach two of the three: `STILL`
+   * zeroes `wind.strength`, so a still is taken in a dead calm and `still` is
+   * the only column a picture can report. `rest` against `gust` is the reading
+   * that says whether a gust front is something the water can answer.
+   */
+  caps: {
+    still: number
+    rest:  number
+    gust:  number
+    onset: number
+    wind:  number
+
+    /** How much of the white the lee of a coast is spared, 0..1. */
+    lee: number
+  }
+
+  /**
+   * The night fog bank: where its top is, what it covers, and the three winds.
+   *
+   * Here for two reasons the picture cannot cover. The first is the whitecaps'
+   * reason exactly — `STILL` zeroes `wind.strength`, so a capture can only ever
+   * report `still`, and whether the authored wind leaves any bank at all is
+   * invisible in every frame. The second is the tour's: the bank is a thing of
+   * the dark, four of the six tour poses are taken in daylight, and a bank
+   * raised until it drowns the archipelago photographs as an unchanged noon.
+   *
+   * So the wind columns are read at the darkest night of the year rather than
+   * at the parked hour. `now` is the parked hour, and it is allowed to be zero.
+   */
+  haar: {
+
+    /** Metres of the top over mean water, and the world height that puts it at. */
+    top:     number
+    ceiling: number
+
+    /** Metres of fog under the top, and the world height the lowest sheet lies at. */
+    depth: number
+    floor: number
+
+    /** The bank as the config is parked: this hour, this week, the authored wind. */
+    now: number
+
+    /** The bank at midwinter midnight, at a dead calm, at rest and in the gust. */
+    still: number
+    rest:  number
+    gust:  number
+
+    scour: number
+    wind:  number
+
+    /** Share of the home island's land under the top, 0..100. */
+    drowned: number
+
+    /** Islands whose peak stands clear of the top, out of all of them. */
+    standing: number
+    islands:  number
+  }
+}
+
 
 /** Round to `places`, the way every other number in the block is rounded. */
 function round (value: number, places = 1): number {
@@ -50,7 +319,7 @@ function round (value: number, places = 1): number {
  * failure this catches is one island taking every bolt in the front — which is
  * a hash that stopped spreading, and which no single still would ever show.
  */
-export function stormStats (config: ScapeConfig, survey: ArchipelagoSurvey): MapStats['storm'] {
+export function stormStats (config: ScapeConfig, survey: ArchipelagoSurvey): WeatherStats['storm'] {
   const sites    = stormSites(config, survey)
   const schedule = stormSchedule(config.seed, sites.length)
   const firing   = schedule.filter(strike => stormLive(strike, config.storm.rate))
@@ -102,7 +371,7 @@ function elevation (height: number): number {
  * inner bow that has gone under the horizon and left only the outer one, which
  * is a real sight rather than a fault — and the reason the module gates on 51°.
  */
-export function rainbowStats (config: ScapeConfig): MapStats['rainbow'] {
+export function rainbowStats (config: ScapeConfig): WeatherStats['rainbow'] {
   const { latitude, axialTilt, time } = config.daylight
   const year                          = config.season.time
   const sun                           = sunHeight(time, year, latitude, axialTilt)
@@ -151,7 +420,7 @@ export function rainbowStats (config: ScapeConfig): MapStats['rainbow'] {
  * a night with a bright track in it is a night with no fire in it, and the two
  * columns sum to less than one at every hour of every month.
  */
-export function moonStats (config: ScapeConfig): MapStats['moon'] {
+export function moonStats (config: ScapeConfig): WeatherStats['moon'] {
   const { latitude, axialTilt, time, moonStrength } = config.daylight
   const year                                        = config.season.time
   const phase                                       = moonPhase(year)
@@ -192,7 +461,7 @@ const COMPASS = 180 / Math.PI
  * — and it does not need to be normalised, because {@link shadowThrow} reads
  * only the ratio.
  */
-export function shadeStats (config: ScapeConfig): MapStats['shade'] {
+export function shadeStats (config: ScapeConfig): WeatherStats['shade'] {
   const { latitude, axialTilt, time, moonStrength, azimuth }              = config.daylight
   const { cloudShadow, cloudCover, cloudHeight, weatherBank, cloudScale } = config.atmosphere
   const bankTile                                                          = weatherBankTile(config.archipelago.worldSize)
@@ -252,7 +521,7 @@ export function shadeStats (config: ScapeConfig): MapStats['shade'] {
  * the question a picture at the default pose cannot — whether the stack is
  * standing up in a pillar or laid flat across the sound.
  */
-export function shaftStats (config: ScapeConfig): MapStats['shafts'] {
+export function shaftStats (config: ScapeConfig): WeatherStats['shafts'] {
   const { latitude, axialTilt, time, azimuth } = config.daylight
   const { cloudCover, cloudHeight }            = config.atmosphere
   const { strength, reach }                    = config.shafts
@@ -306,7 +575,7 @@ export function shaftStats (config: ScapeConfig): MapStats['shafts'] {
  * water that cannot answer it, and every frame of every capture still looks
  * entirely correct.
  */
-export function capsStats (config: ScapeConfig): MapStats['caps'] {
+export function capsStats (config: ScapeConfig): WeatherStats['caps'] {
   const { whitecap, whitecapOnset, whitecapLee } = config.water
   const { strength, gust }                       = config.wind
 
@@ -349,7 +618,7 @@ export function haarStats (
   config: ScapeConfig,
   home: HomeType,
   landmasses: { peak: { height: number }}[],
-): MapStats['haar'] {
+): WeatherStats['haar'] {
   const { haar, terrain, wind }       = config
   const { latitude, axialTilt, time } = config.daylight
   const year                          = config.season.time
@@ -383,5 +652,74 @@ export function haarStats (
     drowned:  round(home.drowned),
     standing: clear,
     islands:  landmasses.length,
+  }
+}
+
+
+/**
+ * The hail: when it falls, how much of it there is, and how wide the patch is.
+ *
+ * Here because **every way this system goes quiet looks the same in a still**,
+ * and there are four of them. The pulse is five per cent of the front, so a
+ * capture taken at any other phase is a frame with no stones in it — identical
+ * to a frame with the switch at zero, identical to a midwinter where the column
+ * is cold the whole way down and delivers snow instead, and identical to a
+ * frame the cell simply is not standing over. A picture separates none of those
+ * and this line separates all four.
+ *
+ * `now` is the parked instant, which is the one a still can report, and it is
+ * allowed to be anything. `peak` is the hardest this week's fronts ever hail
+ * and `best` is the hardest any week does — a `best` of zero is the finding,
+ * because it means no instant of any front in any season of this scape has a
+ * stone in it. `share` is how much of the cycle is hailing, and it is the
+ * number that says this is an event rather than a setting.
+ *
+ * `cell` is the world-sized half, and the pair beside it is the whole argument
+ * for having one: the patch is a few hundred metres across in a world of 1 520,
+ * so it has an *edge* and `travel` is how far that edge moves over the pulse. A
+ * cell as wide as the archipelago is white weather with no edge in any frame.
+ */
+export function hailStats (config: ScapeConfig): WeatherStats['hail'] {
+  const { hail, hailCell, time } = config.weather
+  const chill                    = hailChill(snowAmount(config.season.time) * config.season.snow)
+  const radius                   = hailCellRadius(config.archipelago.worldSize, hailCell)
+
+  let best    = 0
+  let share   = 0
+  let peakRun = 0
+  let soonest = 0
+
+  for (let step = 0; step < 1_000; step += 1) {
+    const phase  = step / 1_000
+    const amount = hailAmount(phase)
+
+    if (amount > 0)
+      share += 1
+
+    best = Math.max(best, amount * hailChill(snowAmount(phase) * config.season.snow) * hail)
+
+    // Where the rain is hardest, resolved rather than written down: the lead is
+    // the claim, and a decimal copied out of `weather.ts` would go stale the
+    // moment a run reshaped a band — silently, and in the direction of saying
+    // the system works.
+    if (showerAmount(phase) > peakRun) {
+      peakRun = showerAmount(phase)
+      soonest = phase
+    }
+  }
+
+  return {
+    strength: round(hail, 2),
+    now:      round(hailAmount(time) * chill * hail, 3),
+    peak:     round(hailChill(snowAmount(config.season.time) * config.season.snow) * hail, 3),
+    best:     round(best, 3),
+    chill:    round(chill, 2),
+    share:    round(share / 10, 1),
+    lead:     round(soonest - HAIL_CENTRE, 3),
+    centre:   round(HAIL_CENTRE, 3),
+    width:    round(HAIL_WIDTH * 2, 3),
+    cell:     round(radius * 2),
+    world:    round(config.archipelago.worldSize),
+    travel:   round(hailCellTravel(radius)),
   }
 }

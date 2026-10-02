@@ -234,6 +234,17 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           0.9,
           [ range('weather.fall', 'fall speed', 0, 40, 0.5) ],
         ),
+        // Beside the rain rather than inside it, because it is a second fall
+        // rather than a setting on the first — and the scrubber three rows up
+        // is the knob worth dragging with this one open, since the pulse is
+        // narrow and sits on the band's leading flank rather than in its middle.
+        toggled(
+          'hail',
+          range('weather.hail', 'how hard it comes down', 0, 1, 0.01, quality.hailStones > 0),
+          0.75,
+          [ range('weather.hailCell', 'cell width, share of the world', 0.04, 0.6, 0.01) ],
+        ),
+
         // Under the weather rather than under the ground, because it is the rain
         // that puts it there and the rain's own clock that takes it away again.
         range('weather.wet', 'wet ground', 0, 1, 0.01),

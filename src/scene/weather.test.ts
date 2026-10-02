@@ -1,7 +1,15 @@
 import { describe, expect, test } from 'bun:test'
 import { SCAPE_CONFIG } from './config.ts'
 import { createSeason } from './season.ts'
-import { createWeather, showerAmount, wetAmount } from './weather.ts'
+import {
+  HAIL_CENTRE,
+  HAIL_WIDTH,
+  createWeather,
+  hailAmount,
+  hailChill,
+  showerAmount,
+  wetAmount,
+} from './weather.ts'
 
 
 /** A week of the year, resolved the way the landscape module resolves it. */
@@ -47,6 +55,117 @@ describe('showerAmount', () => {
 
       expect(amount).toBeGreaterThanOrEqual(0)
       expect(amount).toBeLessThanOrEqual(1)
+    }
+  })
+})
+
+/** Where a curve over the cycle is at its highest, resolved rather than written down. */
+function peak (curve: (phase: number) => number): number {
+  let best  = 0
+  let where = 0
+
+  for (let step = 0; step < 2_000; step += 1) {
+    const phase  = step / 2_000
+    const amount = curve(phase)
+
+    if (amount > best) {
+      best  = amount
+      where = phase
+    }
+  }
+
+  return where
+}
+
+/** Share of the cycle a curve is above nothing for, 0..1. */
+function duty (curve: (phase: number) => number): number {
+  let wet = 0
+
+  for (let step = 0; step < 2_000; step += 1)
+    if (curve(step / 2_000) > 0)
+      wet += 1
+
+  return wet / 2_000
+}
+
+describe('hailAmount', () => {
+  test('comes ahead of the rain, which is the whole of the system', () => {
+    expect(peak(hailAmount)).toBeLessThan(peak(showerAmount))
+
+    // Inside its own pulse rather than at a decimal: the top of the curve is
+    // flat by construction — a hail shower is at full rate for the minute it
+    // lasts — so `peak` reports the first phase that reaches it, not the middle.
+    expect(Math.abs(peak(hailAmount) - HAIL_CENTRE)).toBeLessThanOrEqual(HAIL_WIDTH)
+  })
+
+  test('is over before the rain is at its hardest', () => {
+    expect(showerAmount(0.3)).toBeCloseTo(1, 5)
+    expect(hailAmount(0.3)).toBe(0)
+  })
+
+  test('falls on the band rather than in the clear spell before it', () => {
+    // A pulse that opened ahead of the front would be stones out of a blue sky.
+    expect(showerAmount(HAIL_CENTRE)).toBeGreaterThan(0)
+  })
+
+  test('is a minority of the cycle, which is what makes it an event', () => {
+    expect(duty(hailAmount)).toBeGreaterThan(0.02)
+    expect(duty(hailAmount)).toBeLessThan(0.12)
+  })
+
+  test('is shorter than the rain it arrives inside', () => {
+    expect(duty(hailAmount)).toBeLessThan(duty(showerAmount) * 0.5)
+  })
+
+  test('wraps, so a clock that has been running is a clock at a phase', () => {
+    expect(hailAmount(HAIL_CENTRE + 4)).toBeCloseTo(hailAmount(HAIL_CENTRE), 12)
+    expect(hailAmount(HAIL_CENTRE - 3)).toBeCloseTo(hailAmount(HAIL_CENTRE), 12)
+  })
+
+  test('stays inside the unit range everywhere', () => {
+    for (let step = 0; step < 500; step += 1) {
+      const amount = hailAmount(step / 500)
+
+      expect(amount).toBeGreaterThanOrEqual(0)
+      expect(amount).toBeLessThanOrEqual(1)
+    }
+  })
+
+  test('is there at the phase the config opens on', () => {
+    // The same argument `weather.time` is set by: a system that is off in the
+    // opening frame is a system nobody looking at the scape finds out it has.
+    expect(hailAmount(SCAPE_CONFIG.weather.time)).toBeGreaterThan(0.3)
+    expect(Math.abs(SCAPE_CONFIG.weather.time - HAIL_CENTRE)).toBeLessThan(HAIL_WIDTH)
+  })
+})
+
+describe('hailChill', () => {
+  test('is a weight rather than a gate: the fall never goes away entirely', () => {
+    for (let step = 0; step <= 100; step += 1)
+      expect(hailChill(step / 100)).toBeGreaterThan(0)
+  })
+
+  test('is strongest in the shoulder of the year', () => {
+    const shoulder = hailChill(0.3)
+
+    expect(shoulder).toBeGreaterThan(hailChill(0))
+    expect(shoulder).toBeGreaterThan(hailChill(1))
+  })
+
+  test('keeps better than half of itself through high summer', () => {
+    expect(hailChill(0)).toBeGreaterThan(0.5)
+  })
+
+  test('nearly goes in the deep of winter, where the column delivers snow', () => {
+    expect(hailChill(0.85)).toBeLessThan(0.25)
+  })
+
+  test('stays inside the unit range everywhere', () => {
+    for (let step = -20; step <= 120; step += 1) {
+      const weight = hailChill(step / 100)
+
+      expect(weight).toBeGreaterThanOrEqual(0)
+      expect(weight).toBeLessThanOrEqual(1)
     }
   })
 })
@@ -103,6 +222,32 @@ describe('createWeather', () => {
 
     expect(state.fall).toBe(0)
     expect(state.wet).toBe(0)
+  })
+
+  test('publishes the hail beside the fall rather than inside it', () => {
+    const weather = createWeather(() => SCAPE_CONFIG)
+    const state   = weather.sample(HAIL_CENTRE, week(0.5))
+
+    expect(state.hail).toBeGreaterThan(0)
+    expect(state.hail).not.toBe(state.fall)
+  })
+
+  test('takes the hail to nothing at its own switch and leaves the rain alone', () => {
+    const none    = { ...SCAPE_CONFIG, weather: { ...SCAPE_CONFIG.weather, hail: 0 }}
+    const weather = createWeather(() => none)
+    const state   = weather.sample(HAIL_CENTRE, week(0.5))
+
+    expect(state.hail).toBe(0)
+    expect(state.fall).toBeGreaterThan(0)
+  })
+
+  test('hails harder in the shoulder of the year than at midsummer', () => {
+    const weather  = createWeather(() => SCAPE_CONFIG)
+    const summer   = weather.sample(HAIL_CENTRE, week(0.5)).hail
+    const shoulder = weather.sample(HAIL_CENTRE, week(0.2)).hail
+
+    expect(shoulder).toBeGreaterThan(summer)
+    expect(weather.sample(HAIL_CENTRE, week(0)).hail).toBeLessThan(summer)
   })
 
   test('reuses one state object rather than allocating per frame', () => {

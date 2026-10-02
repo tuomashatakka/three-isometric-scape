@@ -148,6 +148,17 @@ export const LAYER = {
   rain: 50,
 
   /**
+   * The stones, over the rain they arrive ahead of.
+   *
+   * One above rather than beside it, and the reason is that the two are in the
+   * same air. Both columns are transparent and neither writes depth, so what
+   * decides which is in front is the order they are drawn in — and a stone is
+   * opaque where a streak is a smear, so a stone behind a drop still reads as a
+   * stone and a drop over a stone reads as a smudge on it.
+   */
+  hail: 52,
+
+  /**
    * A strike out on the far islands: the lit cloud, and the channel under it.
    *
    * Over the fall and under the deck, because that is physically where it is —

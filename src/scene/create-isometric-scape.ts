@@ -27,6 +27,7 @@ import type { WeatherState } from './weather.ts'
 import { createAtmospherePost } from './post.ts'
 import type { AtmosphereQuality } from './quality.ts'
 import type { TextureCatalogue } from './textures/catalogue.ts'
+import { createHailLayer } from './hail.ts'
 import { createRainLayer } from './rain.ts'
 import { createRainbow } from './rainbow.ts'
 import { createRuntime } from './runtime.ts'
@@ -289,11 +290,13 @@ interface GroundLayerOptions {
 /**
  * Everything that stands over the islands rather than over the world.
  *
- * Nine layers that differ only in what they answer to, and they are grouped for
+ * Ten layers that differ only in what they answer to, and they are grouped for
  * the same reason the skies are: each needs the landscape *and* the atmosphere
  * to exist first, so none of them can be built where the two are being built.
  * The fall takes the weather for how hard it comes down and the year for what it
- * comes down as; the far squall takes the same front read one lead ahead of
+ * comes down as; the stones take the same front for the one narrow pulse on its
+ * leading flank that is hail rather than rain, and the wind for which piece of
+ * the archipelago that cell is standing over; the far squall takes the same front read one lead ahead of
  * itself, so the rain on the horizon is the rain that has not arrived; the bow
  * takes that front a third time, for the two moments in each of its bands when
  * there are drops in the air and sky enough left to light them; the storm
@@ -316,6 +319,14 @@ function hangOverTheGround (
 ): ScapeModule[] {
   return [
     unless(skip, 'rain', () => createRainLayer({
+      camera,
+      config,
+      quality,
+      weather: landscape.weather,
+      season:  landscape.season,
+      wind,
+    })),
+    unless(skip, 'hail', () => createHailLayer({
       camera,
       config,
       quality,

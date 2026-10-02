@@ -231,6 +231,7 @@ src/
     ├── config-shoal.ts             the bank's own slice: the reach, the crest, and the room the sound leaves
     ├── config-roost.ts             the race's own slice: how wide a gate still runs, and how white it gets
     ├── config-weir.ts              the fish trap's own slice: the reach, the pound, the mouth, the wall
+    ├── config-front.ts             the front's own knobs: weather, the far squall, the lightning, the bow
     ├── config-palette.ts           every colour in the scape, schema and values together
     ├── config-kelp.ts              the weed's own slice: the depth window, the canopy, the clearings
     ├── config-force.ts             the fall's own slice: the step in the profile, and the sheet over it
@@ -242,7 +243,9 @@ src/
     ├── weather.ts                  clock three: the front, what falls, how long it stays wet
     ├── wind.ts                     clock four: one bearing, one gust, one travel every scroll shares
     ├── tide.ts                     the moon from underneath: how far the sea is off its mean this hour, and how hard it is running
+    ├── fall-column.ts              the column both falls share: the box, the buffer, the wrap, the screen scale
     ├── rain.ts                     the fall, as one screen-sized column of streaks
+    ├── hail.ts                     the stones, in one world-sized cell on the squall's leading flank
     ├── squall.ts                   the shower out on the water, one lead ahead of the front
     ├── storm.ts                    the lightning in that same front, out on the far islands
     ├── rainbow.ts                  the bow that same front leaves, drawn about the antisolar point
@@ -388,7 +391,7 @@ scripts/
 ├── scape-map-format.ts             the stats block, as the run reads it
 ├── scape-map-landforms.ts          the bar, the guard, the fjords and the treeline, walked
 ├── scape-map-sites.ts              the sited features of one island, projected and measured
-├── scape-map-weather.ts            the storm the front carries, and where its strikes land
+├── scape-map-weather.ts            the weather half of the stats block, and the type for it
 ├── scape-poses.ts                  every named pose set, and the clocks a capture stops
 ├── scape-poses-coast.ts            the hard shore's three ages: crag, arch, stack, folded back into TOURS
 ├── scape-poses-ice.ts              the frozen sound, folded back into TOURS the same way
@@ -2223,6 +2226,62 @@ what changed is the denominator. `archipelago.worldSize` is **1520 m**. the mist
 **what was measured and what was not.** `scape:diff --poses tour` moves `far` and leaves the other five inside the threshold, and the diff image is the finding: whitecap streaks appearing and disappearing in world-scale clusters over the water, with nothing on the land. the deck's half could not be measured at all, and the reason is worth writing down for whoever tries next — the deck fades in over `viewSize` 724..1441 and **every pose in `tour` is at 520 or closer**, so the cloud deck is not in a single still this repository has ever taken. that is a gap in the poses rather than in the deck.
 
 **and there is a lattice left that this did not cause and did not fix.** at `default` and `noon` the sea carries a fine regular pattern that survives `--skip post,shafts,clouds,mist,haar,rain`, `atmosphere.cloudShadow=0`, `atmosphere.mistAmount=0`, `water.waveHeight=0` and `water.whitecap=0`. it is on the water and not on the land. it is not the swell, not the caps, not the deck, not the mist and not the shadow — which leaves the lake's own fragment shading, and that is where the next run should start.
+
+## the fall nobody could see, and the second one
+
+this scape has had rain since `rain.ts` landed, and the module says what it is for in its own first paragraph: *a column sized to the frame rather than to the map, so the drop count is a screen density and 2 600 drops look like 2 600 drops from anywhere on the zoom range.* the box does exactly that. the **streaks in it did the opposite**, and nothing in the repository could tell.
+
+an orthographic frustum sized on `viewSize` lands a view-space offset `d` at `d * height / viewSize` pixels from where it started. a mark that is to keep its size on screen therefore has to *grow* with the view. `rain.ts` divided — `STREAK / viewSize` — so a streak went as the **inverse square** of the zoom: a sixty-pixel rod at a ten-metre frame, and four thousandths of one pixel at the 1 400 m frame five of the tour's six poses are taken at.
+
+the measurement is one command, and it is the finding whole:
+
+```sh
+bun run scape:shot --set weather.time=0.3 --set weather.rain=1
+bun run scape:shot --set weather.time=0.3 --set weather.rain=1 --skip rain
+# 800x500   changed 0   0.000%
+```
+
+**not one still in this repository has ever had any rain in it.** the fall was drawing, the draw count says so — 150 against 149 — and every pixel of it was sub-pixel. the ground went dark and glossy, the lake chopped, the bow came out on the edges of the band, and the drops themselves were never there. this is the exact failure the design record keeps naming in other systems and it had been sitting in the most-read module in the scape the whole time.
+
+### the three scales, in one file
+
+the fix is a *share of the frame's height* rather than a length in metres, because that is the only resolution-independent way to say "two pixels" — and it is the same form [`birds.ts`](src/scene/birds.ts) already uses for a wingspan that must not vanish. the same command afterwards reports **0.298 %**, and the step between those two numbers is the whole run's smallest and most useful measurement. [`fall-column.ts`](src/scene/fall-column.ts) is where it is written down, along with everything else both falls have to agree about: the box, the buffer, the quantised rates, the wrap, and the placement glsl. `screenSize(share, viewSize)` is three characters of arithmetic and the only reason it is a function is so a test can state the claim — the same number of pixels at every zoom on the range — as a fact rather than as a comment.
+
+all three of the readme's scale classes meet in that one module, which is why they are named in it:
+
+- **frame-sized** — the box. `FALL_SPAN` views across, `FALL_RISE` views high. never the world.
+- **screen-sized** — the mark. a streak's length and girth, a stone's radius.
+- **world-sized** — where the fall *is*. only the hail has one, and it is `weather.hailCell` against `archipelago.worldSize`.
+
+the ratio between the streak's length and its girth had to move with the fix and that is not a free tuning choice: sixteen-to-one is a fine proportion for a sixty-pixel rod and a sub-pixel hairline at any width a *correct* streak has.
+
+## the stones ahead of the rain
+
+a fall worth drawing was worth having two of. [`hail.ts`](src/scene/hail.ts) is the second thing that comes out of this scape's cloud, and it shares the first one's column, buffer, wrap and placement — what it does not share is any of the four things that actually make a hail shower one.
+
+**when.** hail is not heavy rain and it is not cold rain. a shower of this kind is a column of air going up fast enough to carry water above the freezing level and hold it there, and the first thing that reaches the ground under it is what that column has already finished making. so `hailAmount` is a narrow pulse on the band's **leading flank** — `HAIL_LEAD` ahead of `BANDS[0].centre`, taken off that constant rather than written down as a decimal, so a run that reshapes the front cannot silently move the hail out of it. the stones arrive ahead of the rain and are over before the rain is at its hardest, which the map states as a number (`0.056 ahead of the rain`) and a test states as a fact about the two curves. **scaling `showerAmount` was the obvious first cut** and what it draws is rain that briefly goes white in the middle of itself, which is the one shape a hail shower does not have.
+
+**what the year does to it is a weight and not a gate**, and that is the difference between `hailChill` and the `sleet` coupling beside it. snow is what the year turns the fall *into*, so it is a share and it is allowed to reach one. hail comes out of a cloud whose top is above freezing, and at this latitude that cloud is standing over the sound in every month there is — so high summer keeps better than half of it and only the deep of winter nearly takes it, where a column cold the whole way down delivers snow and the scape already draws that. a gate here would have been a system switched off for a third of the year, which is a system most visitors never find out exists.
+
+**where.** this is the part that makes it a different thing on screen rather than a brighter one. rain fills the frame, because a front is larger than any frame this camera has. a hail shower is one convective **cell** a few hundred metres across — it hails here and it is dry over the next island, and that edge is the single most legible thing about one from any distance. so the fall is masked in **world coordinates**: the patch stands over a piece of the archipelago and the camera moves past it. `weather.hailCell` is a share of `archipelago.worldSize` for the same reason `WEATHER_BANK_WORLD_FRACTION` is — a world that grows again must grow its cells with it, or the one patch of hard fall becomes a speck in the sound.
+
+the cell **travels** rather than fading up and down where it stands: it arrives upwind, crosses on the wind's own bearing, and is gone, with its position a function of the pulse's phase and nothing else. at the peak it is centred on the world origin, which is where the home island is — so the frame the scape opens on is a frame with stones in it, which is the `weather.time` argument again.
+
+**what, and how fast.** a stone is round, bright and opaque where a drop is a long soft smear; it comes down at `RATE` times the rain's speed and takes about a quarter of its lean, out of the same `weather.fall` knob — which is what keeps the one line already in `STILL` able to stop both falls. that last pair is the most legible single difference between the two in a blow: the rain lays over at 0.42 m per metre fallen and the stones go very nearly straight down through the same gust. no capture can show it, because `STILL` zeroes the wind, so `hail-blow` names one.
+
+### the column had to be clamped, and the first build changed 0.005 %
+
+a frame-sized column over a world-sized cell is almost entirely outside the cell. at the 520 m frame the box is 1 456 m across and the cell is 334, so **nineteen stones in twenty were masked out** — the first build drew its shower at **0.005 %** of its own frame, which is the "nothing moved at all" failure the brief names, arrived at from the inside.
+
+the column therefore covers **the part of the frame that is inside the cell**, which is the smaller of the two rather than either one of them: `sizeFallColumn` takes a ceiling in metres, and the centre is the cell's own, clamped to the slack between them so that a cell wider than the frame still follows the camera the way the rain's column does. it is continuous across the crossover, which is what keeps a zoom through it from popping. the same change is what lets the stone count be a third of the rain's and still draw a thicker shower. the hail's span is narrower than the rain's 2.8 for the same reason — margin spent outside a cell is margin spent on vertices the mask throws away.
+
+### cost
+
+**one draw call, one program, one static buffer and no allocation per frame**, measured at `draws 112` against `draws 111` with `weather.hail=0`. no texture, no upload, no survey, nothing in the build. the mesh goes `visible = false` outside the pulse — which is better than nineteen twentieths of every front — and again whenever the camera is not within a cell's radius of the shower, which on this archipelago is most of the rest. `quality.hailStones` is the tier handle and `minimal` gets **zero**: that tier already has `rainDrops: 0`, so a device that draws no rain drawing no hail is the sky it had rather than a broken-looking cheap version. no before-and-after frame rate was measured.
+
+### what moved out, and why
+
+`config.ts` went past its own raised 850-line ceiling on the two hail knobs, so [`config-front.ts`](src/scene/config-front.ts) is the next slice on the seam `config-guard.ts` names: there is one front, and `weather`, `squall`, `storm` and `rainbow` are the four things that happen to it — not one of the last three has a clock of its own, and a reader with any of them open wants `weather.time` in the same file. `scape-map.ts` went back past 666 on the hail line, so the eight weather readings' **type** followed the readings themselves into [`scape-map-weather.ts`](scripts/scape-map-weather.ts) as `WeatherStats`, which `MapStats` extends — every reader, the formatter included, goes on asking for `stats.caps` exactly as before.
 
 ## ground that casts
 

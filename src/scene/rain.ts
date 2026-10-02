@@ -1,17 +1,15 @@
-import {
-  BufferAttribute,
-  BufferGeometry,
-  Color,
-  DoubleSide,
-  MathUtils,
-  Mesh,
-  ShaderMaterial,
-  Vector2,
-  Vector3,
-} from 'three'
+import { Color, DoubleSide, Mesh, ShaderMaterial, Vector2, Vector3 } from 'three'
 import type { OrthographicCamera } from 'three'
-import { createSeededRng, defineModule } from 'threejs-scene'
+import { defineModule } from 'threejs-scene'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
+import {
+  FALL_PLACE_GLSL,
+  fallColumnBase,
+  fallGeometry,
+  fallWrap,
+  screenSize,
+  sizeFallColumn,
+} from './fall-column.ts'
 import type { AtmosphereQuality } from './quality.ts'
 import type { SeasonState } from './season.ts'
 import type { WeatherState } from './weather.ts'
@@ -42,32 +40,25 @@ export interface RainOptions {
 }
 
 /**
- * How many frames of the view the column covers, across and along.
+ * Streak half-length and half-width, as **shares of the frame's height**.
  *
- * Sized against the *frame*, not against the map, and that is the one decision
- * the whole module hangs off. A column sized to the island would put the same
- * drops over a hundred and ninety metres at every zoom, so pulling back would
- * thin the rain to nothing and zooming in would pack it into a wall — the same
- * mistake the mist and the aurora both had to have their tiles taken off them
- * for. Scaled to `viewSize` instead, the drop count *is* a screen density: 2600
- * drops look like 2600 drops from anywhere on the zoom range.
+ * Read `screenSize` in `fall-column.ts` before touching either: this is the
+ * pair that was inverted, and the form it is written in now is the whole of the
+ * fix. `0.008` is eight thousandths of the frame however tall the canvas is —
+ * about sixteen pixels of streak on a 1080-line viewport and eight on the
+ * harness's 500 — at a ten-metre frame and at a fourteen-hundred-metre one
+ * alike, which is what the module always claimed and never did.
+ *
+ * The ratio between them moved with the fix and had to. At the old numbers a
+ * streak was sixteen times its own width, which is a fine proportion for the
+ * sixty-pixel rods the close poses were drawing and a sub-pixel hairline at any
+ * width a correct streak has. At four-to-one and a girth of 0.0018 the fall
+ * measures **0.298 %** of the default frame against its own `--skip rain`
+ * control, where the first correct length at the old ratio measured 0.137 %
+ * and the shipped code measured 0.000 %.
  */
-const SPAN = 2.8
-
-/** Height of the column, as a multiple of the view. */
-const RISE = 0.85
-
-/** How far below the focus point the column starts, as a share of its height. */
-const DROP = 0.3
-
-// Streak length and half-width, as fractions of the default view. These are
-// constant in screen terms rather than world terms: a streak that grows with
-// `viewSize` reads as a rod at close zoom and a dot at far zoom. Tied to the
-// default viewSize (the value `viewSize` has at mid-range) and divided by the
-// live `viewSize` in the update, so the streak stays the same number of pixels
-// however far out the map is drawn.
-const STREAK = 0.026 * 260
-const GIRTH  = 0.0016 * 260
+const STREAK = 0.008
+const GIRTH  = 0.0018
 
 /** What a flake keeps of a drop's length and of its speed. */
 const FLAKE_LENGTH = 0.16
@@ -76,55 +67,20 @@ const FLAKE_SPEED  = 0.17
 /** How far the wind pushes the fall sideways, in metres per metre fallen. */
 const SLANT = 0.42
 
-/**
- * Distinct fall speeds, and the reason they are counted rather than drawn.
- *
- * A drop's height is `mod(cell - fallen * rate, height)`, so the offset has to be
- * wrapped somewhere or spend an hour growing into a float that can no longer
- * resolve a metre. Wrapping it is only invisible if every drop lands back where
- * it started, which needs `wrap * rate` to be a whole number of column heights
- * for *every* rate in the buffer — impossible with a continuous spread, and a
- * shower that jumps every few seconds with one. Quantised to `n` steps of `1/n`
- * around unity, a wrap at `n` column heights satisfies all of them at once, and
- * five speed groups is far more variety than a wall of rain can be read to have.
- */
-const RATE_STEPS = 5
-
 /** Opacity of one drop at the height of a squall. */
 const DROP_ALPHA = 0.5
 
 const RAIN_VERTEX = /* glsl */`
-  attribute vec3 aCell;
-  attribute float aRate;
-  uniform vec3 uBox;
-  uniform float uFallen;
+  ${FALL_PLACE_GLSL}
+
   uniform vec2 uStreak;
-  uniform vec2 uSlant;
   varying vec2 vShape;
 
   void main () {
-    // Wrapped rather than respawned. A drop that reaches the floor of the column
-    // reappears at its ceiling in the same instant, which is what lets the whole
-    // shower be one static buffer with one scalar animating it.
-    float drop = mod(aCell.y * uBox.y - uFallen * aRate, uBox.y);
-    vec3 local = vec3(
-      (aCell.x - 0.5) * uBox.x + uSlant.x * drop,
-      drop,
-      (aCell.z - 0.5) * uBox.z + uSlant.y * drop
-    );
+    vec4 view = modelViewMatrix * vec4(fallPlace(), 1.0);
 
-    vec4 view = modelViewMatrix * vec4(local, 1.0);
-
-    // The streak is laid along the *projected* fall, not along the screen's own
-    // vertical. They are the same thing in still air and visibly not the same in
-    // wind, and rain leaning one way while its streaks lean another is the kind
-    // of wrongness that reads before it can be named.
-    vec3 heading = normalize(vec3(uSlant.x, -1.0, uSlant.y));
-    vec2 along   = normalize((modelViewMatrix * vec4(heading, 0.0)).xy);
-    vec2 across  = vec2(-along.y, along.x);
-
-    view.xy += across * (position.x * uStreak.x) + along * (position.y * uStreak.y);
-    vShape   = position.xy;
+    view.xy    += fallBasis() * (position.xy * uStreak);
+    vShape      = position.xy;
     gl_Position = projectionMatrix * view;
   }
 `
@@ -149,72 +105,14 @@ const RAIN_FRAGMENT = /* glsl */`
 `
 
 /**
- * One buffer holding every drop, as screen-facing streaks.
- *
- * Four vertices and two triangles each, with the quad corner carried in
- * `position` and the drop's own cell in the column carried alongside it. Nothing
- * here is instanced, and that is the cheaper choice at this size: an
- * `InstancedMesh` of a two-triangle geometry spends a whole 4×4 matrix per drop
- * to say what three floats already say, and the vertex shader has to place the
- * corner in view space regardless.
- */
-function rainGeometry (count: number, seed: number): BufferGeometry {
-  const rng      = createSeededRng(seed)
-  const geometry = new BufferGeometry()
-  const position = new Float32Array(count * 4 * 3)
-  const cell     = new Float32Array(count * 4 * 3)
-  const rate     = new Float32Array(count * 4)
-  const index    = new Uint32Array(count * 6)
-
-  const corners = [ -1, 1, -1, -1, 1, -1, 1, 1 ]
-
-  for (let drop = 0; drop < count; drop += 1) {
-    const x = rng.next()
-    const y = rng.next()
-    const z = rng.next()
-
-    // Identical rates make a shower read as one sheet sliding down the glass,
-    // because every streak keeps its neighbour exactly where it found it for as
-    // long as the rain lasts. See RATE_STEPS for why the spread is quantised.
-    const speed = (Math.floor(rng.next() * RATE_STEPS) + 3) / RATE_STEPS
-
-    for (let corner = 0; corner < 4; corner += 1) {
-      const vertex = drop * 4 + corner
-
-      position[vertex * 3]     = corners[corner * 2]
-      position[vertex * 3 + 1] = corners[corner * 2 + 1]
-      position[vertex * 3 + 2] = 0
-      cell[vertex * 3]         = x
-      cell[vertex * 3 + 1]     = y
-      cell[vertex * 3 + 2]     = z
-      rate[vertex]             = speed
-    }
-
-    const base = drop * 4
-
-    index[drop * 6]     = base
-    index[drop * 6 + 1] = base + 1
-    index[drop * 6 + 2] = base + 2
-    index[drop * 6 + 3] = base
-    index[drop * 6 + 4] = base + 2
-    index[drop * 6 + 5] = base + 3
-  }
-
-  geometry.setAttribute('position', new BufferAttribute(position, 3))
-  geometry.setAttribute('aCell', new BufferAttribute(cell, 3))
-  geometry.setAttribute('aRate', new BufferAttribute(rate, 1))
-  geometry.setIndex(new BufferAttribute(index, 1))
-
-  return geometry
-}
-
-/**
  * The fall.
  *
  * A column of streaks that follows the camera's focus, drawn in one call from
  * one static buffer with one uniform advancing it. Nothing is respawned on the
  * cpu and nothing is uploaded per frame: the drops are a fixed cloud in a box,
- * and falling is that box's contents read at an offset that grows.
+ * and falling is that box's contents read at an offset that grows. The box, the
+ * buffer, the wrap and the placement are `fall-column.ts`, shared with the hail
+ * that falls through the same air.
  *
  * Following the focus is safe here in a way it is not for the mist, whose sheets
  * carry a pattern that would visibly drag across the ground as you pan. Rain has
@@ -226,6 +124,9 @@ function rainGeometry (count: number, seed: number): BufferGeometry {
  * share of the fall the season has frozen, and it shortens the streak, slows it,
  * and takes it from a pale blue-grey toward the same white the ground is going —
  * three uniform writes, no branch, and one program for both halves of the year.
+ * What falls *beside* it is the front's business and not the year's: hail is a
+ * second layer rather than a third setting here, because a stone is not a drop
+ * at a different temperature. See `hail.ts`.
  */
 export function createRainLayer ({
   camera,
@@ -238,7 +139,7 @@ export function createRainLayer ({
   if (quality.rainDrops < 1)
     return null
 
-  const geometry = rainGeometry(quality.rainDrops, config().seed ^ 0x3a91)
+  const geometry = fallGeometry(quality.rainDrops, config().seed ^ 0x3a91)
   const rainTone = new Color(config().palette.rain)
   const material = new ShaderMaterial({
     name:           'rain',
@@ -301,25 +202,14 @@ export function createRainLayer ({
 
       const viewSize = camera.userData.viewSize as number ?? config().camera.viewSize
       const focus    = camera.userData.target as readonly [number, number, number] | undefined
-      const rise     = viewSize * RISE
+      const rise     = sizeFallColumn(viewSize, box)
 
-      // The tilt foreshortens the ground along the view axis: at 52° the footprint
-      // is `viewSize / sin(52°) ≈ 1.27 * viewSize` deep but `viewSize` wide.
-      // A square column sized on `viewSize` alone leaves the far half of the frame
-      // dry — the rain stops at the frustum's midline and the top third is clear.
-      const tiltRad  = MathUtils.degToRad(
-        21 + (52 - 21) * Math.min(1, Math.max(0, (viewSize - 8) / (1600 - 8))),
-      )
-      const sinTilt  = Math.max(Math.sin(tiltRad), 0.5)
-
-      box.set(viewSize * SPAN, rise, viewSize * SPAN / sinTilt)
-
-      // Constant in screen terms: the streak and girth are authored at the
-      // default viewSize and scaled inversely with the live one, so a streak
-      // that reads as two pixels at 260 m reads as two pixels at 1600 m.
+      // Constant in screen terms: both are shares of the frame's height, so a
+      // streak that reads as sixteen pixels at a ten-metre view reads as
+      // sixteen pixels at a fourteen-hundred-metre one.
       streak.set(
-        GIRTH / viewSize,
-        STREAK / viewSize * (1 - (1 - FLAKE_LENGTH) * sleet),
+        screenSize(GIRTH, viewSize),
+        screenSize(STREAK, viewSize) * (1 - (1 - FLAKE_LENGTH) * sleet),
       )
 
       // The wind the grass already leans on, taken from the one place that
@@ -339,11 +229,11 @@ export function createRainLayer ({
 
       // Wrapped so the number a still is taken at never grows large enough to
       // lose precision, however long the page has been open — and wrapped at
-      // `RATE_STEPS` column heights rather than at one, which is the interval
-      // every quantised rate returns to its own starting height over.
-      fallen %= Math.max(1, rise) * RATE_STEPS
+      // `FALL_RATE_STEPS` column heights rather than at one, which is the
+      // interval every quantised rate returns to its own starting height over.
+      fallen %= fallWrap(rise)
 
-      mesh.position.set(focus?.[0] ?? 0, (focus?.[1] ?? 0) - rise * DROP, focus?.[2] ?? 0)
+      mesh.position.set(focus?.[0] ?? 0, fallColumnBase(focus?.[1] ?? 0, rise), focus?.[2] ?? 0)
       material.uniforms.uFallen.value = fallen
     },
 
