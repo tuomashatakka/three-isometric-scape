@@ -176,6 +176,16 @@ export const NET_RACK_FOOTING   = 2.4
 export const NET_RACK_CLEARING  = 4
 
 /**
+ * Metres of ground the stack of pots keeps to itself.
+ *
+ * Under the net rack's, because a stack of creels is a metre square and a
+ * drying rack is four metres of poles — and because the two stand side by side
+ * on purpose, so a clearing wide enough to push the other off its own ground
+ * would be the one thing this placement is for undoing.
+ */
+export const CREEL_STACK_CLEARING = 2
+
+/**
  * How far along the bank the pier is rooted from the boathouse's own line, in
  * metres.
  *
@@ -258,5 +268,26 @@ export function netRackSpot (bank: Spot): Vec2 {
   return {
     x: bank.x - Math.cos(bank.angle) * NET_RACK_SETBACK,
     z: bank.z - Math.sin(bank.angle) * NET_RACK_SETBACK,
+  }
+}
+
+/**
+ * Metres along the shore from the net rack to the stack of pots.
+ *
+ * Across the bank rather than further up it, because the gear and the nets want
+ * the same ground — flat, dry, and a few paces from where the boat lies — and
+ * stacking one behind the other would put the pots into the slope the rack is
+ * already at the top of.
+ */
+export const CREEL_STACK_OFFSET = 2.6
+
+/** Where the creels are stacked ashore, along the bank from the net rack. */
+export function creelStackSpot (bank: Spot): Vec2 {
+  const rack   = netRackSpot(bank)
+  const across = bank.angle + Math.PI / 2
+
+  return {
+    x: rack.x + Math.cos(across) * CREEL_STACK_OFFSET,
+    z: rack.z + Math.sin(across) * CREEL_STACK_OFFSET,
   }
 }

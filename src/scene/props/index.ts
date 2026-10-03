@@ -3,6 +3,7 @@ import type { SeededRng } from 'threejs-scene'
 import { buildLighthouse } from './beacon.ts'
 import { buildAitta, buildBarn, buildFarmhouse, buildSauna, buildWoodshed } from './buildings.ts'
 import { buildChapel, buildGraveMarker } from './chapel.ts'
+import { buildCreelBuoy, buildCreelStack } from './creel.ts'
 import { buildCroft } from './croft.ts'
 import { buildKelp } from './kelp.ts'
 import { buildWindmill } from './mill.ts'
@@ -129,6 +130,9 @@ export const PROPS = {
   cobble:     buildCobble,
   cairn:      buildCairn,
 
+  creelStack: buildCreelStack,
+  creelBuoy:  buildCreelBuoy,
+
   mooringPost: buildMooringPost,
   hayPole:     buildHayPole,
   peatStack:   buildPeatStack,
@@ -149,7 +153,7 @@ export const HERO_PROPS = [
   'barn', 'farmhouse', 'sauna', 'aitta', 'woodshed', 'meadowBarn', 'windmill', 'lighthouse',
   'chapel', 'graveMarker', 'smokehouse', 'shieling', 'watermill', 'croft', 'wreck',
   'jetty', 'boathouse', 'netRack', 'well', 'hayRack', 'logPile', 'flagpole',
-  'bridge', 'cart', 'gate', 'rowboat', 'mailbox',
+  'bridge', 'cart', 'gate', 'rowboat', 'mailbox', 'creelStack',
 ] as const satisfies readonly PropName[]
 
 /** Stamped in quantity through a single `InstancedMesh` each. */
@@ -159,6 +163,7 @@ export const SCATTER_PROPS = [
   'erratic', 'talus', 'fieldStone', 'cobble', 'cairn',
   'bladderwrack', 'rockLichen', 'kelp',
   'hayBale', 'firewood', 'barrel', 'driftwood', 'mooringPost', 'hayPole', 'peatStack',
+  'creelBuoy',
   'sheep', 'lamb', 'seal', 'guillemot', 'floe',
 ] as const satisfies readonly PropName[]
 

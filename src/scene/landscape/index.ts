@@ -30,6 +30,10 @@ import { createBoatFleet } from './boats.ts'
 import type { BoatFleet } from './boats.ts'
 import { planColonies } from './colony.ts'
 import type { Colony } from './colony.ts'
+import { planCreels } from './creel.ts'
+import type { CreelFleet } from './creel.ts'
+import { createCreelMarks } from './creels.ts'
+import type { CreelMarks } from './creels.ts'
 import { createDressing } from './dressing.ts'
 import { createForce } from './force.ts'
 import type { Force } from './force.ts'
@@ -115,6 +119,18 @@ export interface Landscape {
    * tide's.
    */
   kelp: readonly KelpSkirt[]
+
+  /**
+   * Every harbour's creel ground, and every pot shot on it.
+   *
+   * Published for the reason the weed and the haul-outs are: which water a
+   * harbour can work is an answer about the shelf and the distance from home
+   * rather than about geometry, and it is the one thing `scape:map` can measure
+   * about a fishery without a browser. What is drawn from it is
+   * `landscape/creels.ts`, and how each mark is riding at any hour is the
+   * tide's and the wind's.
+   */
+  creels: readonly CreelFleet[]
 
   /**
    * Every plate of ice the winter can stand on the sound, and the week each
@@ -238,6 +254,7 @@ export function createLandscape (
   let seals: SealColony | null         = null
   let cliffs: SeabirdCliffs | null     = null
   let kelp: KelpForest | null          = null
+  let creels: CreelMarks | null        = null
   let pack: PackIce | null             = null
   let water: Water | null              = null
   let beck: Beck | null                = null
@@ -303,6 +320,32 @@ export function createLandscape (
   })
 
   /**
+   * Advance everything with instances in it, on this frame's clocks.
+   *
+   * A function of its own for the reason {@link releaseSystems} is one, and it
+   * was the ninth of these calls that took `update` past the lint config's
+   * complexity ceiling. The ceiling is right both times: which systems exist
+   * was never the interesting part of a frame, the *order* of what the rest of
+   * `update` does is, and that is still spelled out there.
+   *
+   * The order inside here is not load-bearing — none of these reads another's
+   * output — but the clocks they are handed are. Every one of them comes from
+   * `update`, already resolved, rather than being sampled a second time.
+   */
+  function advancePopulated (delta: number, week: number, now: SeasonState): void {
+    fleet?.update(delta)
+    sails?.update(delta, wind.strength)
+    // What is left of the beck this week. The same function the water in the
+    // channel reads, so the wheel stops on the week the channel does.
+    wheels?.update(delta, 1 - beckFreeze(now.freeze))
+    seals?.update(delta)
+    kelp?.update(delta)
+    creels?.update(delta, wind)
+    cliffs?.update(week)
+    pack?.update(now, wind)
+  }
+
+  /**
    * Hand back everything the last build allocated on the gpu.
    *
    * A list walked rather than a column of `?.dispose()`, and the reason is the
@@ -313,7 +356,8 @@ export function createLandscape (
    */
   function releaseSystems (): void {
     const systems: readonly ({ dispose(): void } | null)[] =
-      [ dressing, fleet, sails, wheels, seals, kelp, cliffs, pack, water, beck, force, tarns ]
+      [ dressing, fleet, sails, wheels, seals, kelp, creels, cliffs, pack, water, beck, force,
+        tarns ]
 
     for (const system of systems)
       system?.dispose()
@@ -378,6 +422,17 @@ export function createLandscape (
    * plants a coast carries is a budget and which water carries any is not.
    */
   const skirts = planKelp(archipelago, config(), quality.kelpCount)
+
+  /**
+   * Every string of creels in the archipelago, shot once against mean water.
+   *
+   * Surveyed here beside the weed, and for the same reason — where a pot can be
+   * shot is a fact about how much water is over the shelf and how far it is
+   * from a harbour, rather than about geometry. The tier is asked here rather
+   * than inside the search because how many strings a harbour works is a budget
+   * and which water carries any is not.
+   */
+  const creelFleets = planCreels(archipelago, config(), quality.creelStrings)
 
   /**
    * Every bird on the headlands, sited once against the rock.
@@ -483,6 +538,12 @@ export function createLandscape (
         wheels = createWaterWheels({ config, quality, hubs: wheelHubs, material: materials.ground })
         seals = createSealColony({ config, haulouts, material: materials.ground, tide })
         kelp = createKelpForest({ config, skirts, material: materials.ground, tide })
+        creels = createCreelMarks({
+          config,
+          fleets:   creelFleets,
+          material: materials.ground,
+          tide,
+        })
         cliffs = createSeabirdCliffs({ config, colonies: cliffColonies, material: materials.ground })
         pack = createPackIce({ config, floes: packIce, material: materials.ground, tide })
         root.add(dressing.object, fleet.mesh)
@@ -498,6 +559,9 @@ export function createLandscape (
 
         if (kelp)
           root.add(kelp.mesh)
+
+        if (creels)
+          root.add(creels.mesh)
 
         if (cliffs)
           root.add(cliffs.mesh)
@@ -535,15 +599,7 @@ export function createLandscape (
       // three programs are handed the answer.
       shadow.update(wind)
 
-      fleet?.update(frame.delta)
-      sails?.update(frame.delta, wind.strength)
-      // What is left of the beck this week. The same function the water in the
-      // channel reads, so the wheel stops on the week the channel does.
-      wheels?.update(frame.delta, 1 - beckFreeze(now.freeze))
-      seals?.update(frame.delta)
-      kelp?.update(frame.delta)
-      cliffs?.update(year.time)
-      pack?.update(now, wind)
+      advancePopulated(frame.delta, year.time, now)
       materials?.update(wind, now, front)
       beck?.update(frame.delta, now)
       force?.update(frame.delta, now)
@@ -575,6 +631,7 @@ export function createLandscape (
       seals     = null
       cliffs    = null
       kelp      = null
+      creels    = null
       pack      = null
       water     = null
       beck      = null
@@ -595,6 +652,7 @@ export function createLandscape (
     haulouts,
     cliffs:    cliffColonies,
     kelp:      skirts,
+    creels:    creelFleets,
     pack:      packIce,
     lanternHubs,
     hearths,

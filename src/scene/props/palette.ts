@@ -127,6 +127,17 @@ export const NORDIC_PALETTE = {
   floeSnow: '#e2e7e6',
   floeWet:  '#93a3a8',
 
+  // The floats on the creel ground, and the one family in this palette chosen
+  // for *visibility* rather than for belonging. Everything else a person built
+  // in this scape is tar, timber or limewash, because that is what weathers
+  // well on a coast like this — and a pot marker is the one object whose entire
+  // job is to be found again from a boat in a lop. So it is painted the orange
+  // a float is actually painted, and `buoyBand` is the worn band round its
+  // waist, which is what keeps a float from reading as a single flat dot at the
+  // zoom most of the sea is seen at.
+  buoy:     '#c2602f',
+  buoyBand: '#d9c7a4',
+
   /** A burning wick behind glass — the lamp in the lantern room, and its beams. */
   lampWarm: '#ffdca8',
   flagBlue: '#2f5d8f',

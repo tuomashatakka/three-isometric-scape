@@ -13,6 +13,8 @@ import { SCAPE_FRONT } from './config-front.ts'
 import type { FrontConfig } from './config-front.ts'
 import { SCAPE_GUARD } from './config-guard.ts'
 import type { GuardConfig } from './config-guard.ts'
+import { SCAPE_CREEL } from './config-creel.ts'
+import type { CreelConfig } from './config-creel.ts'
 import { SCAPE_KELP } from './config-kelp.ts'
 import type { KelpConfig } from './config-kelp.ts'
 import { SCAPE_LANDMASSES } from './config-landmasses.ts'
@@ -275,8 +277,8 @@ export interface DressingBudget {
   lamb: number
 }
 
-export interface ScapeConfig extends DykeConfig, ForceConfig, FrontConfig, GuardConfig, HaarConfig,
-  KelpConfig, LedgeConfig, PackIceConfig, RoostConfig, ShaftsConfig, ShielingConfig,
+export interface ScapeConfig extends CreelConfig, DykeConfig, ForceConfig, FrontConfig,
+  GuardConfig, HaarConfig, KelpConfig, LedgeConfig, PackIceConfig, RoostConfig, ShaftsConfig, ShielingConfig,
   ShoalConfig, TreelineConfig, WatermillConfig, WreckConfig {
   seed:    number
   terrain: {
@@ -2661,6 +2663,7 @@ export const SCAPE_CONFIG = {
     camber:    0.55,
     halfWidth: 3.4,
   },
+  ...SCAPE_CREEL,
   ...SCAPE_DYKE,
   ...SCAPE_FORCE,
   ...SCAPE_FRONT,

@@ -15,7 +15,7 @@ import type { ScapeConfig } from '../src/scene/config.ts'
 import { formatStats } from './scape-map-format.ts'
 import { LEGEND, readLayers, renderGrid } from './scape-map-render.ts'
 import type { Window } from './scape-map-render.ts'
-import { archStats, cragStats, duneStats, fjordStats, forceStats, hauloutStats, icecapStats, ledgeStats, kelpStats, packStats, roostStats, saltingsStats, shoalStats, skerryStats, stackStats, strandStats, treelineStats } from './scape-map-landforms.ts'
+import { archStats, cragStats, creelStats, duneStats, fjordStats, forceStats, hauloutStats, icecapStats, ledgeStats, kelpStats, packStats, roostStats, saltingsStats, shoalStats, skerryStats, stackStats, strandStats, treelineStats } from './scape-map-landforms.ts'
 import type { ArchStats, CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, SaltingsStats, ShoalStats, StackStats, TreelineStats } from './scape-map-landforms.ts'
 import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
@@ -537,6 +537,30 @@ export interface MapStats extends CompositionStats, WeatherStats {
   }
 
   /**
+   * The creel grounds, and the water the gear on them is lying in.
+   *
+   * Here rather than in a screenshot for the reason the kelp is, and more so: a
+   * float is thirty centimetres across, which is nothing at the default pose
+   * and less pulled out. `offered` against `strings` is the search, `shallow`
+   * and `deep` say the gear is inside the window it was asked for, and `low` is
+   * the least water under any float at low springs — the finding, because a
+   * mark with no water under it is a mark sitting on the seabed.
+   */
+  creels: {
+    strings:  number
+    offered:  number
+    pots:     number
+    harbours: number
+    islands:  number
+    shallow:  number
+    deep:     number
+    longest:  number
+    low:      number
+    high:     number
+    aground:  number
+  }
+
+  /**
    * The rough grazing, and the flocks turned out on it.
    *
    * Here for the reason the colonies are, and rather more so: a sheep is a
@@ -907,6 +931,7 @@ export function surveyStats (
     ledges:   ledgeStats(survey, config),
     pack:     packStats(survey, config),
     kelp:     kelpStats(survey, config),
+    creels:   creelStats(survey, config),
     fjords:   fjordStats(survey),
     icecaps:  icecapStats(survey),
     dunes:    duneStats(survey),

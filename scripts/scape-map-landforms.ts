@@ -10,6 +10,7 @@ import { findFall } from '../src/scene/landscape/force.ts'
 import { createHeightField } from '../src/scene/landscape/height.ts'
 import { countAshore, hauledSeals, planHaulouts } from '../src/scene/landscape/haulout.ts'
 import { iceCapOf, measureIce } from '../src/scene/landscape/icecap.ts'
+import { creelAground, creelDepth, creelPots, planCreels } from '../src/scene/landscape/creel.ts'
 import { kelpDepth, kelpLean, kelpPlants, planKelp } from '../src/scene/landscape/kelpbed.ts'
 import { colonyAshore, ledgeBirds, planCliffColonies } from '../src/scene/landscape/ledges.ts'
 import { fairwayClearance, floeExtent, planPackIce, sheetOver } from '../src/scene/landscape/packice.ts'
@@ -273,6 +274,58 @@ export function kelpStats (survey: ArchipelagoSurvey, config: ScapeConfig): MapS
     longest: plants.length ? round(Math.max(...plants.map(plant => plant.length)), 2) : 0,
     low:     round(lean(-springs), 1),
     high:    round(lean(springs), 1),
+  }
+}
+
+/**
+ * How many strings a harbour is dealt when the map asks, whatever tier is
+ * running.
+ *
+ * The desktop budget, for {@link MAP_TIER_PLANTS}'s reason.
+ */
+const MAP_TIER_STRINGS = 3
+
+/**
+ * The creel grounds, and the relation the tide has with the gear on them.
+ *
+ * Here rather than in a screenshot for the kelp's reason and one of its own. A
+ * float is thirty centimetres across on a sea fifteen hundred metres wide, so
+ * every structural way this system fails is a number in this block and nothing
+ * at all in a still: a harbour whose shelf offered no ground, a string shot
+ * inside the fairway it is supposed to keep out of, a row of four pots sitting
+ * where eleven were asked for.
+ *
+ * `offered` against `strings` is the *search* — how many bearings out of all
+ * six harbours the depth rule and the range both allowed, before any tier or
+ * the spread spent a budget on them. `shallow` against `deep` says the gear is
+ * in the window `creel.sill` and `creel.deep` asked for. And `low` is the claim
+ * the floating rests on: the least water under any float at low springs, which
+ * below a quarter of a metre is a mark sitting on the ground.
+ */
+export function creelStats (survey: ArchipelagoSurvey, config: ScapeConfig): MapStats['creels'] {
+  const fleets         = planCreels(survey, config, MAP_TIER_STRINGS)
+  const pots           = creelPots(fleets)
+  const { waterLevel } = config.terrain
+  const springs        = tideAmplitudeAt(1, config.tide)
+  const strings        = fleets.flatMap(fleet => fleet.strings)
+
+  const depths = pots.map(pot => creelDepth(pot, waterLevel, 0))
+  const least  = (tide: number): number => pots.length === 0
+    ? 0
+    : Math.min(...pots.map(pot => creelDepth(pot, waterLevel, tide)))
+
+  return {
+    strings:  strings.length,
+    offered:  fleets.reduce((sum, fleet) => sum + fleet.offered, 0),
+    pots:     pots.length,
+    harbours: fleets.filter(fleet => fleet.strings.length > 0).length,
+    islands:  fleets.length,
+    shallow:  depths.length ? round(Math.min(...depths), 2) : 0,
+    deep:     depths.length ? round(Math.max(...depths), 2) : 0,
+    longest:  strings.length ? round(Math.max(...strings.map(string => string.length)), 1) : 0,
+    low:      round(least(-springs), 2),
+    high:     round(least(springs), 2),
+    aground:  pots.filter(pot => creelAground(pot, waterLevel, -springs)).length,
   }
 }
 

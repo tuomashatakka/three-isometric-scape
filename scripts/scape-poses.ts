@@ -1537,6 +1537,69 @@ export const TOURS: Record<string, Pose[]> = {
   ],
 
   /**
+   * The creel ground, at the two ends of one spring tide.
+   *
+   * Added for the kelp set's reason and one of its own. A float is sixty
+   * centimetres across on a sea fifteen hundred metres wide: at the tour's
+   * 1 400 m frame a whole fleet is three pixels, and `near` at ten metres is
+   * standing in the farmyard. Worse, the two things worth photographing are
+   * both *relations* — how high a mark rides, which is the sea against the
+   * seabed, and whether the line follows a contour, which only reads from
+   * above at a zoom that holds the whole string.
+   *
+   * `creel-low` and `creel-high` are the home island's long string at low and
+   * at high water of one spring tide, and the pair is the claim: the same
+   * eighty-metre line of marks, sitting lower and higher on the same ground.
+   * The hours are the kelp set's own, solved there rather than chosen here —
+   * week 0.687 is where `springAmount` reaches 1 with the sun still well up.
+   *
+   * `creel-near` is that string at a zoom where a float is a float rather than
+   * a dark fleck, which is the only frame the staff and the flag are separable
+   * in. `creel-blow` is the one frame the heel is in at all: `STILL` holds
+   * `wind.strength` at zero, so a lying-over mark can only be photographed by
+   * a pose that puts the wind back. `creel-shore` is the meadow island's
+   * ground, where two full strings lie on one coast and the thing on show is
+   * that neither is on top of the other.
+   */
+  creel: [
+    {
+      name:   'creel-low',
+      zoom:   90,
+      time:   0.35,
+      season: 0.687,
+      set:    [ 'camera.focusX=-42', 'camera.focusZ=-27' ],
+    },
+    {
+      name:   'creel-high',
+      zoom:   90,
+      time:   0.6,
+      season: 0.687,
+      set:    [ 'camera.focusX=-42', 'camera.focusZ=-27' ],
+    },
+    {
+      name:   'creel-near',
+      zoom:   26,
+      time:   0.35,
+      season: 0.687,
+      set:    [ 'camera.focusX=-42', 'camera.focusZ=-27' ],
+    },
+    {
+      name:   'creel-blow',
+      zoom:   40,
+      time:   0.35,
+      season: 0.687,
+      set:    [ 'camera.focusX=-42', 'camera.focusZ=-27', 'wind.strength=1', 'wind.speed=0' ],
+    },
+    {
+      name:   'creel-shore',
+      zoom:   150,
+      time:   0.35,
+      season: 0.687,
+      set:    [ 'camera.focusX=180', 'camera.focusZ=135' ],
+    },
+  ],
+
+  /**
    * The head dyke, and the hillside it is not on.
    *
    * The tour cannot see this one, and the reason is the one the drift set wrote
@@ -1741,6 +1804,16 @@ export const STILL = [
   // which is a function of the two clocks already stopped at the top of this
   // list, and it is the same reason the colony has no entry for it either.
   'kelp.sway=0',
+
+  // The swell under the creel floats, and it is here for the canopy's reason
+  // rather than the wind's: a mark rides a sea that happened somewhere else, so
+  // nothing else in this list stops it, and three hundred floats at a different
+  // height in every frame is a fishery that cannot be diffed. Nothing here for
+  // the *heel*: it is `creel.heel` times `wind.strength`, which the top of this
+  // list already holds at zero — and nothing for how high a float rides, which
+  // is a function of the tide, which is a function of the two clocks also
+  // already stopped there.
+  'creel.bob=0',
 
   // Nothing for the lightning, deliberately, and it is the reason the storm has
   // no rate of its own to zero. A strike's whole life is measured in the front's
