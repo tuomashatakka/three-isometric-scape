@@ -174,6 +174,26 @@ export interface AtmosphereQuality {
   kelpCount: number
 
   /**
+   * Strings of creels one harbour may work. 0 is a sea with no gear in it.
+   *
+   * A count per *harbour* rather than for the archipelago, for the reason
+   * `kelpCount` is per island: the fisheries belong to six harbours on coasts
+   * of five different shapes, and a number dealt across the world would leave
+   * the fell with one string and the home island with none. It is capped again
+   * by how many bearings the shelf actually offers — see `offered` in
+   * `landscape/creel.ts` — so a shelving coast takes the budget and a steep one
+   * takes what it can fit.
+   *
+   * The cost is instances in one shared draw, not draws: a four-part float of
+   * 120 triangles, stamped once per pot, with one maximum and one
+   * rotation per pot per frame to float it. It survives on `mobile` at two
+   * strings a harbour because that is under ninety marks in the whole world —
+   * the cheapest system in this scape by an order of magnitude, and the one a
+   * phone has least reason to go without.
+   */
+  creelStrings: number
+
+  /**
    * Birds one headland's colony may carry. 0 is a coast whose cliffs are bare.
    *
    * A count per *cliff* rather than for the archipelago, for the reason
@@ -540,6 +560,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     birdCount:       0,
     sealCount:       0,
     kelpCount:       0,
+    creelStrings:    0,
     cliffBirds:      0,
     floeCount:       0,
     beaconBlades:    0,
@@ -591,6 +612,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     birdCount:       90,
     sealCount:       5,
     kelpCount:       100,
+    creelStrings:    2,
     cliffBirds:      14,
     floeCount:       420,
     beaconBlades:    1,
@@ -658,6 +680,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     birdCount:       260,
     sealCount:       11,
     kelpCount:       250,
+    creelStrings:    3,
     cliffBirds:      30,
     floeCount:       620,
     beaconBlades:    2,
@@ -709,6 +732,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     birdCount:       420,
     sealCount:       16,
     kelpCount:       340,
+    creelStrings:    4,
     cliffBirds:      44,
     floeCount:       900,
     beaconBlades:    3,
@@ -777,6 +801,7 @@ const UNLOCKED_FLOOR = {
   birdCount:      90,
   sealCount:      5,
   kelpCount:      100,
+  creelStrings:   2,
   cliffBirds:     30,
   floeCount:      620,
   beaconBlades:   1,
@@ -829,6 +854,7 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
     birdCount:      Math.max(quality.birdCount, UNLOCKED_FLOOR.birdCount),
     sealCount:      Math.max(quality.sealCount, UNLOCKED_FLOOR.sealCount),
     kelpCount:      Math.max(quality.kelpCount, UNLOCKED_FLOOR.kelpCount),
+    creelStrings:   Math.max(quality.creelStrings, UNLOCKED_FLOOR.creelStrings),
     cliffBirds:     Math.max(quality.cliffBirds, UNLOCKED_FLOOR.cliffBirds),
     floeCount:      Math.max(quality.floeCount, UNLOCKED_FLOOR.floeCount),
     beaconBlades:   Math.max(quality.beaconBlades, UNLOCKED_FLOOR.beaconBlades),

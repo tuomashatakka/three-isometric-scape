@@ -7,7 +7,14 @@ import type { NordicPalette } from '../props/palette.ts'
 import { PIER_WIDTH, buildPierRun } from '../props/pier.ts'
 import { buildWeirRun } from '../props/weir.ts'
 import type { AtmosphereQuality } from '../quality.ts'
-import { BOATHOUSE_CLEARING, NET_RACK_CLEARING, boathouseSpot, netRackSpot } from './landing.ts'
+import {
+  BOATHOUSE_CLEARING,
+  CREEL_STACK_CLEARING,
+  NET_RACK_CLEARING,
+  boathouseSpot,
+  creelStackSpot,
+  netRackSpot,
+} from './landing.ts'
 import type { Spot } from './landing.ts'
 import { yawAlong } from './layout.ts'
 import type { Vec2 } from './layout.ts'
@@ -174,6 +181,7 @@ export function raiseHarbour (dressing: HarbourDressing): void {
   const bearing                                                                     = bank.angle
   const house                                                                       = boathouseSpot(bank)
   const rack                                                                        = netRackSpot(bank)
+  const stack                                                                       = creelStackSpot(bank)
 
   anchors.push({ x: bank.x + origin.x, z: bank.z + origin.z })
   placeHeroAt('boathouse', house.x + origin.x, water + 0.05, house.z + origin.z, yawAlong(bearing))
@@ -183,6 +191,13 @@ export function raiseHarbour (dressing: HarbourDressing): void {
   if (heightAt(rack.x + origin.x, rack.z + origin.z) > water + 0.5) {
     placeHero('netRack', rack.x + origin.x, rack.z + origin.z, yawAlong(bearing))
     reserve(rack.x + origin.x, rack.z + origin.z, NET_RACK_CLEARING)
+  }
+
+  // The pots come ashore beside the nets, on the same dry ground and under the
+  // same test — a stack standing in the shallows is gear nobody left there.
+  if (heightAt(stack.x + origin.x, stack.z + origin.z) > water + 0.5) {
+    placeHero('creelStack', stack.x + origin.x, stack.z + origin.z, yawAlong(bearing))
+    reserve(stack.x + origin.x, stack.z + origin.z, CREEL_STACK_CLEARING)
   }
 
   raisePier(dressing)

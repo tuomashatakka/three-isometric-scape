@@ -234,6 +234,7 @@ src/
     ├── config-front.ts             the front's own knobs: weather, the far squall, the lightning, the bow
     ├── config-palette.ts           every colour in the scape, schema and values together
     ├── config-kelp.ts              the weed's own slice: the depth window, the canopy, the clearings
+    ├── config-creel.ts             the fishery's own slice: the ground, the reach from home, the ride
     ├── config-force.ts             the fall's own slice: the step in the profile, and the sheet over it
     ├── config-access.ts            who owns the config, before and after the mount
     ├── state-path.ts               writePath with structural sharing
@@ -302,6 +303,8 @@ src/
     │   ├── floes.ts                the pack, in one instanced draw the year builds and takes back
     │   ├── kelpbed.ts              which water grows weed, and how long every plant in it is
     │   ├── kelp.ts                 the beds, in one instanced draw the tide leans over
+    │   ├── creel.ts                which contour a harbour shoots gear on, and where every pot of it lies
+    │   ├── creels.ts               the floats, in one instanced draw the tide carries and the wind lies over
     │   ├── colony.ts              the open water a flock can wheel over without crossing land
     │   ├── grazing.ts             the rough ground a farm turns its stock out onto
     │   ├── hearths.ts             every chimney and flue, at the mouth and in world space
@@ -339,7 +342,7 @@ src/
     │   ├── dressing-zones.ts       what the composition already claims the ground for
     │   ├── dressing-helpers.ts     the placement questions that are pure geometry
     │   ├── dressing-enclosures.ts  the pasture wall, the churchyard wall, the plot fences, the head dyke
-    │   ├── dressing-harbour.ts     the waterfront: boathouse, net rack, the trestle and the fish trap
+    │   ├── dressing-harbour.ts     the waterfront: boathouse, net rack, the pots ashore, the trestle, the fish trap
     │   ├── dressing.ts             placement, hero merge, instanced scatter
     │   └── index.ts                the scene module, and what raycasts
     ├── textures/
@@ -374,6 +377,7 @@ src/
         ├── stone.ts                erratics, field stones, cobbles, cairns
         ├── littoral.ts             bladderwrack and rock lichen — the tidal band
         ├── kelp.ts                 the oarweed plant — one metre of stipe and crown, scaled to its water
+        ├── creel.ts                the pot marker — the float, the staff, the flag — and the stack ashore
         ├── livestock.ts            the ewe with her head down, and the lamb with hers up
         ├── seabird.ts              the guillemot standing on its ledge, dark over white
         ├── ice.ts                  the unit plate of rafted sea ice, scaled into a field
@@ -2282,6 +2286,44 @@ the column therefore covers **the part of the frame that is inside the cell**, w
 ### what moved out, and why
 
 `config.ts` went past its own raised 850-line ceiling on the two hail knobs, so [`config-front.ts`](src/scene/config-front.ts) is the next slice on the seam `config-guard.ts` names: there is one front, and `weather`, `squall`, `storm` and `rainbow` are the four things that happen to it — not one of the last three has a clock of its own, and a reader with any of them open wants `weather.time` in the same file. `scape-map.ts` went back past 666 on the hail line, so the eight weather readings' **type** followed the readings themselves into [`scape-map-weather.ts`](scripts/scape-map-weather.ts) as `WeatherStats`, which `MapStats` extends — every reader, the formatter included, goes on asking for `stats.caps` exactly as before.
+
+## the gear the harbours leave out
+
+every harbour in this archipelago has had boats in it since the fleet was routed, and not one sign that anybody **fishes**. the boats pass through; the water they pass over is empty from the kelp band to the horizon, which on a coast whose whole economy is the sea is the one thing it cannot be. the six harbours now work creel ground. [`landscape/creel.ts`](src/scene/landscape/creel.ts) is the survey that finds it, [`landscape/creels.ts`](src/scene/landscape/creels.ts) is the one draw it costs, [`props/creel.ts`](src/scene/props/creel.ts) is the float and the stack of pots ashore, and the nine knobs are [`config-creel.ts`](src/scene/config-creel.ts).
+
+the rule is a depth and a distance from home and there is no third one. lobster and crab are on broken rock in a few metres of water, so the ground is found the way the kelp bed is — between `creel.sill` and `creel.deep`, measured as water rather than as distance offshore, because a coast is not a circle. the second rule is the only one about people: a string is shot within `creel.range` metres of the harbour that works it, because a half-decked boat hauling by hand does not steam an hour to its gear. everything else falls out: `offered` on each fleet is how many bearings the shelf and the range both allowed, and it ranges from two off the fell to thirty-four off the meadow without a number anywhere saying so.
+
+### a backline is shot along the contour, and the first cut was shot across it
+
+the obvious first version walked each candidate bearing straight out from the jetty and shot pots down it, which is how a boat *leaves* a harbour and is not how it shoots gear. these coasts shelve from the waterline to a nine-metre seabed inside a couple of bays, so the band between the sill and the deep end is a **ring a dozen metres wide** — and a row shot across it was four pots long before the bottom fell out from under it. every harbour came back with the minimum string on one bearing, and two of the six came back with nothing at all. that is the shape of a rule rather than the shape of a fishery.
+
+so the bearing out of the harbour only decides **where the string starts**. from there each pot is traced along the contour, and the trace is posed as a question about a *bearing* rather than about a point: the next pot is on the circle of one `creel.spacing` round the one behind it by construction, so the only thing left to solve is which way round that circle keeps it on its depth, and four newton steps on the angle do it. that ordering is the whole of why both halves come out exact at once. the version that solved for the point instead — step, correct back onto the depth, re-measure the chord — had the two pulling against each other, and it settled first at **five metres of gap where eight had been authored**, which is a knob quietly meaning something else, and then at eight metres of gap with **two and a half metres of depth across one string**, which is a backline shot down the shelf rather than along it.
+
+the clamp on the swing is what makes a corner of the shelf come out as a line that *stops* rather than a line that doubles back over the gear behind it. so is `HOLD`: a trace that has wandered a seventh of the window off the contour it started on has stopped following the ground, and it ends there rather than walking down the slope **inside a window wide enough to hide it** — which is what the first contour-following cut did, and which no number in `scape:map` could have told apart from a shelving coast. the test states it as the fact it is: no string spans more than a third of its own depth window.
+
+### and no two of a harbour's strings are on the same ground
+
+measured pot to pot across the whole of both lines rather than between the two starts, because two contour traces that begin forty metres apart can still converge, and what matters is whether a boat hauling one fouls the other. without it the strings out of one harbour all trace the same contour from starts a few degrees apart and lie on top of one another, which from above is one string drawn twice.
+
+the near end of the tether is not a formality either. a contour traced round a headland comes back **toward** the harbour it started from, and a pot that curled inside `creel.clear` is a rope round somebody's propeller — the string stops at the cut rather than stepping over it, and a `scape:map` run before that guard was in had gear thirteen metres off the jetty.
+
+### a float rides the sea, and that is the whole of the tide coupling
+
+`landscape/creels.ts` integrates nothing about the water. a mark is placed at the **maximum** of the seabed under it and the published sea less the float's own waterline, and that one maximum is the entire behaviour: a fleet that rises and falls through a spring tide, and a creel ground that dries out at low springs by sitting its marks on the ground, with no state and no branch anybody has to keep in step. at the authored sill nothing in the archipelago is ever aground, and `scape:map` says so rather than leaving it assumed.
+
+the wind lies them over, by `creel.heel` times `wind.strength` times how much rope is under the float — a mark in six metres of water has the scope to lie right over and one in two has not, and that term is the depth the survey already measured rather than a tenth knob. the one clock it carries of its own is `creel.bob`, which is in `STILL`; the heel is held there already by the two lines that zero the wind.
+
+**the float is mostly staff, and the test says so.** a creel float is sixty centimetres across, which is under a pixel at the zoom most of this sea is read at — what carries is the flagged pole over it, and the flag is a box rather than a plane because a single-plane flag disappears entirely at the bearing it is edge-on to. a mark invisible from a quarter of the compass is not a mark.
+
+### what it costs
+
+**one draw call, one program, one geometry, no texture and no allocation per frame.** at the desktop tier the archipelago carries 97 pots in one `InstancedMesh` of a four-part, 120-triangle prop, each one costing a maximum, a clamp and one rotation per frame. `quality.creelStrings` is the tier handle — `minimal` 0, `mobile` 2, `desktop` 3, `ultra` 4 strings a harbour — and zero on `minimal` is a graceful absence rather than a cheap version. it survives on `mobile` because two strings a harbour is under ninety marks in the whole world, which is the cheapest system in this scape by an order of magnitude and the one a phone has least reason to go without. the stack of pots ashore is a hero and costs nothing: it merges into the settlement draw beside the net rack it stands next to.
+
+### and the tour cannot see any of it
+
+said plainly, because it is the result rather than an excuse. `scape:diff --poses tour` comes back **`same` at all six poses** — 0.00 % at five of them and 0.01 % at `far` — and that is what a mark 0.6 m across and 2.4 m tall does at a frame 520 to 1400 m wide: under a pixel of float on two or three of staff, 97 times, against half a million pixels of sea. the dyke's section says the same thing about a wall and the kelp's about a canopy, and the answer is the one they reached: a system the tour cannot resolve gets **its own pose set**, and `--poses creel` is five frames at 26 to 150 m — the pair at low and high water that is the tide claim, the near frame where the staff and the flag are separable, the one frame with the wind put back because `STILL` zeroes the heel, and the meadow's coast where two strings lie on one shelf without lying on each other.
+
+what moved instead is the structural reading, and that is the honest measure of this one: `scape:map` gains a creel line, and `scape:diff` reports **no structural change** everywhere else — no island, path, plot or waterway touched.
 
 ## ground that casts
 

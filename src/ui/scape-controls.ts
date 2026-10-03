@@ -617,6 +617,29 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
     },
     {
       group: 'ground & water',
+      title: 'the creels',
+
+      // Filed under the water for the kelp's reason, and split the same way:
+      // how many strings a harbour works is the tier's — see
+      // `quality.creelStrings` — and which water carries any is the survey's,
+      // so what is left here is the weather working the marks. `creel.sill`,
+      // `deep`, `spacing`, `pots`, `range` and `clear` are deliberately absent:
+      // between them they decide where every pot was shot, which takes a
+      // rebuild to see.
+      //
+      // Nothing here for how high a float *rides*, which is the thing a reader
+      // actually watches over a tide. It is not a knob at all — it is the sea's
+      // own level against the seabed the survey left, so the hour slider is its
+      // control, and a second number that could lift a mark off the water would
+      // be the one bug this system can have.
+      controls: [
+        range('creel.heel', 'lie at full wind (rad)', 0, 1.2, 0.02, quality.creelStrings > 0),
+        range('creel.lift', 'swell lift (m)', 0, 0.4, 0.01, quality.creelStrings > 0),
+        range('creel.bob', 'bobs a minute', 0, 30, 0.5, quality.creelStrings > 0),
+      ],
+    },
+    {
+      group: 'ground & water',
       title: 'hearth smoke',
 
       // Filed with the ground because that is where the fires are, the way the

@@ -227,6 +227,28 @@ function kelpLine (kelp: MapStats['kelp']): string {
 }
 
 /**
+ * The creels, in one line, and the two findings hiding in it.
+ *
+ * Its own function for `kelpLine`'s reason, and it carries the same two classes
+ * of failure. `offered` at zero is the *search* having found no water at all
+ * between the sill and the deep end inside a boat's range of any harbour — a
+ * depth window that no longer straddles anything the shelf leaves behind.
+ * `aground` is the *siting*: gear was shot, and the sea goes off it at low
+ * springs, which leaves a float lying on wet rock in a frame nobody chose.
+ */
+function creelLine (creels: MapStats['creels']): string {
+  if (!creels.offered)
+    return 'creels NONE  <- no water inside a boat\'s range of any harbour is between the sill and the deep end'
+
+  return `creels ${creels.strings}/${creels.offered} strings, ${creels.pots} pots ` +
+    `off ${creels.harbours}/${creels.islands} harbours  ` +
+    `water ${creels.shallow}..${creels.deep}m  longest ${creels.longest}m  ` +
+    `least ${creels.low}m low / ${creels.high}m high springs` +
+    (creels.aground ? `  <- ${creels.aground} FLOATS ARE AGROUND AT LOW SPRINGS` : '') +
+    (creels.low === creels.high ? '  <- the tide never changes the water over the gear' : '')
+}
+
+/**
  * The channel and the water in it, as two lines.
  *
  * Their own function for the reason `windowLine` and `skerryLine` have one: a
@@ -637,6 +659,7 @@ export function formatStats (stats: MapStats): string {
     roostLine(stats.roost),
     hauloutLine(stats.haulout),
     kelpLine(stats.kelp),
+    creelLine(stats.creels),
     ledgeLine(stats.ledges),
     packLine(stats.pack),
     ...stats.fjords.map(fjord =>
