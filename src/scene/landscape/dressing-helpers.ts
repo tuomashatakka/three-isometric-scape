@@ -16,6 +16,8 @@ import type { HeightField } from './height.ts'
 import type { Spot } from './landing.ts'
 import { yawAlong } from './layout.ts'
 import type { Plot, ScapeLayout, Vec2 } from './layout.ts'
+import { HOWE_FOOTING } from './howe.ts'
+import type { HoweSite } from './howe.ts'
 import { SHIELING_FOOTING } from './shieling.ts'
 import type { ShielingSite } from './shieling.ts'
 import { WRECK_FOOTING } from './wreck.ts'
@@ -317,6 +319,65 @@ export function raiseShieling (
 
   place('shieling', site.x + origin.x, site.z + origin.z, site.angle)
   reserve(site.x + origin.x, site.z + origin.z, SHIELING_FOOTING + 0.8)
+}
+
+
+/**
+ * The barrow on the skyline, and the ground round it the scatter stays off.
+ *
+ * Merged rather than plopped, and for a reason the hut's note only half covers.
+ * A `Ploppable` cuts a level shelf and skirts it, which is right for a building
+ * with a floor and exactly wrong for this: a barrow is a pile of the ground it
+ * stands on, so it follows that ground by being dumped on it. The kerb gate in
+ * the siting — `kerbFall` — is what keeps the ring from standing in the air on
+ * the downhill side, and it is a metre rather than the hut's half, because a
+ * pile forgives what a sill does not.
+ *
+ * Here rather than inside the dressing's closure for the reason `raiseShieling`
+ * is, and with its two collaborators for the same arithmetic.
+ *
+ * The reserve is wider than the mound by more than any other here. Turf that
+ * has been grazed for three thousand years does not grow spruce, and a tree
+ * stamped on a barrow's flank is the one thing that would stop a reader seeing
+ * it as a made shape at all.
+ */
+export function raiseHowe (
+  site:    HoweSite | null,
+  origin:  Vec2,
+  place:   (name: PropName, x: number, z: number, angle: number) => void,
+  reserve: (x: number, z: number, radius: number) => void,
+): void {
+  if (!site)
+    return
+
+  place('howe', site.x + origin.x, site.z + origin.z, site.angle)
+  reserve(site.x + origin.x, site.z + origin.z, HOWE_FOOTING + 1.2)
+}
+
+
+/**
+ * Both of the things that stand out on the hill, in one statement.
+ *
+ * One call rather than two for the arithmetic reason the two of them are out
+ * here at all: `raiseOutlying` is at the lint config's statement ceiling, and
+ * the barrow arriving cost it exactly one more than it had. The pairing is not
+ * only accounting, though — the hut and the mound are the only two things in
+ * this scape sited on the open fell, they are sited against each other in the
+ * survey, and the one real difference between them at this end is which way
+ * they are raised: the hut is merged, and the mound is plopped. Handing both
+ * verbs in side by side is the clearest place that difference is stated.
+ */
+type SitesType = { shieling: ShielingSite | null, howe: HoweSite | null }
+
+export function raiseHillSites (
+  sites:   SitesType,
+  origin:  Vec2,
+  merge:   (name: PropName, x: number, z: number, angle: number) => void,
+  plop:    (name: PropName, x: number, z: number, angle: number) => void,
+  reserve: (x: number, z: number, radius: number) => void,
+): void {
+  raiseShieling(sites.shieling, origin, merge, reserve)
+  raiseHowe(sites.howe, origin, plop, reserve)
 }
 
 

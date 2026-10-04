@@ -19,7 +19,7 @@ import { archStats, cragStats, creelStats, duneStats, fjordStats, forceStats, ha
 import type { ArchStats, CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, SaltingsStats, ShoalStats, StackStats, TreelineStats } from './scape-map-landforms.ts'
 import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
-import { causewayOf, croftOf, dykeOf, peatOf, pierOf, shielingOf, smokehouseOf, tarnOf, watermillOf, weirOf, wreckOf } from './scape-map-sites.ts'
+import { causewayOf, croftOf, dykeOf, howeOf, peatOf, pierOf, shielingOf, smokehouseOf, tarnOf, watermillOf, weirOf, wreckOf } from './scape-map-sites.ts'
 import {
   capsStats,
   haarStats,
@@ -118,6 +118,19 @@ export interface CompositionStats {
    * enough up there to lay a sill on.
    */
   shieling: { x: number, z: number, rise: number, fromYard: number, toWater: number | null } | null
+
+  /**
+   * The barrow on the skyline, how far it stands over its own ground, and how
+   * far its crest clears everything between it and the farmyard.
+   *
+   * `skyline` at or below zero should be impossible — the search refuses it —
+   * so a reading that drifts toward zero is a mound sliding behind the shoulder
+   * in front of it, which is the one failure here a still cannot distinguish
+   * from an island that simply has no howe. `NONE` means no top outside the
+   * setback stood `howe.stature` clear of its own neighbourhood, or every one
+   * that did was hidden.
+   */
+  howe: { x: number, z: number, stands: number, skyline: number, fromYard: number } | null
 
   /**
    * The mill on the beck, or `null` where no reach of it would turn a wheel.
@@ -817,6 +830,7 @@ function compositionStats (landmass: LandmassSurvey, w: number, h: number): Comp
     },
     smokehouse: smokehouseOf(survey.smokehouse, worldX, worldZ),
     shieling:   shielingOf(survey.shieling, worldX, worldZ),
+    howe:       howeOf(survey.howe, worldX, worldZ),
     watermill:  watermillOf(survey.watermill, worldX, worldZ),
     dyke:       dykeOf(survey.dyke, worldX, worldZ),
     pier:       pierOf(survey.pier, worldX, worldZ),

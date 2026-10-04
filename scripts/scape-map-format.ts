@@ -336,6 +336,7 @@ function sitedLines (stats: MapStats): string[] {
         `${Math.round(stats.causeway.neaps * 100)}% neaps`
       : 'causeway NONE  <- no rock close enough to the shore to walk to',
     shielingLine(stats.shieling),
+    howeLine(stats.howe),
     watermillLine(stats.watermill),
     wreckLine(stats.wreck),
   ]
@@ -376,6 +377,25 @@ function shielingLine (shieling: MapStats['shieling']): string {
   return `shieling (${shieling.x},${shieling.z}) rise ${shieling.rise}m  ` +
     `${shieling.fromYard}m from the yard  ` +
     (shieling.toWater === null ? 'no burn' : `${shieling.toWater}m from the burn`)
+}
+
+/**
+ * The barrow on the skyline, as one line.
+ *
+ * Its own function for the reason `shielingLine` is one, and the two readings
+ * beside the position are the two halves of the claim: `stands` is how far the
+ * ground under it is above its own neighbourhood, and `seen` is how far the
+ * crest clears everything between it and the farmyard door. A mound with the
+ * first and not the second is a fine top with a shoulder in front of it, and
+ * the search refuses that — so `seen` shrinking toward zero across runs is the
+ * finding, not the reassurance it looks like.
+ */
+function howeLine (howe: MapStats['howe']): string {
+  if (!howe)
+    return 'howe NONE  <- no top out there stands clear of its own ground, or every one that does is hidden'
+
+  return `howe (${howe.x},${howe.z}) stands ${howe.stands}m over its prospect  ` +
+    `seen ${howe.skyline}m clear  ${howe.fromYard}m from the yard`
 }
 
 /**
@@ -642,6 +662,7 @@ export function formatStats (stats: MapStats): string {
       `weir ${landmass.weir ? `lead ${landmass.weir.lead}m pound r${landmass.weir.pound}m` : 'NONE'}  ` +
       `dyke ${landmass.dyke ? `${landmass.dyke.length}/${landmass.dyke.circuit}m ${landmass.dyke.gates}g` : 'NONE'}  ` +
       `shieling ${landmass.shieling ? `rise ${landmass.shieling.rise}m` : 'NONE'}  ` +
+      `howe ${landmass.howe ? `seen ${landmass.howe.skyline}m` : 'NONE'}  ` +
       `watermill ${landmass.watermill ? `head ${landmass.watermill.head}m lade ${landmass.watermill.lade}m` : 'NONE'}`),
     `waterways ${stats.waterways.legs} legs ${stats.waterways.length}m  ` +
       `connected ${stats.waterways.connected ? 'OK' : 'BROKEN'}  ` +
