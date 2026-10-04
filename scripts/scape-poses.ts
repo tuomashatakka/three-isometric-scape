@@ -729,6 +729,31 @@ export const TOURS: Record<string, Pose[]> = {
   ],
 
   /**
+   * The barrow, and the sightline that put it where it is.
+   *
+   * The second frame is the one that matters, and it is unlike every other
+   * siting set here. `howe` reads the mound — the kerb of set stones round the
+   * foot, the turf over it, and the hole in the crown with the spoil run down
+   * the flank toward the farm. But the mound is not the decision: a barrow is
+   * sited by what can be *seen* of it, and the whole of that judgement is a
+   * relationship between two points fifty metres apart. `howe-skyline` holds
+   * the farmyard and the mound in one frame with the ground between them, which
+   * is the only frame in which a reader can check the claim the search makes
+   * rather than take the number for it.
+   *
+   * `howe-none` is the control, and it is the shieling set's lesson applied
+   * again: the ridge island, where the whole of the dry ground outside the walk
+   * is either the farm's or a hand's breadth over the tide, and the search
+   * rightly raises nothing. Half of what this search decided is which islands
+   * *cannot* carry a mound, and a set with no refusal in it cannot show that.
+   */
+  howe: [
+    { name: 'howe', zoom: 16, set: [ 'camera.focusX=27.5', 'camera.focusZ=-30' ]},
+    { name: 'howe-skyline', zoom: 36, set: [ 'camera.focusX=18', 'camera.focusZ=-23' ]},
+    { name: 'howe-none', zoom: 44, set: [ 'camera.focusX=-178', 'camera.focusZ=128' ]},
+  ],
+
+  /**
    * The mill on the beck, the trough that feeds it, and the winter that stops
    * it.
    *

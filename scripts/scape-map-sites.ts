@@ -8,6 +8,7 @@ import { peatFaceStanding } from '../src/scene/landscape/peat.ts'
 import { pierHead } from '../src/scene/landscape/pier.ts'
 import type { Pier } from '../src/scene/landscape/pier.ts'
 import type { PeatBank } from '../src/scene/landscape/peat.ts'
+import type { HoweSite } from '../src/scene/landscape/howe.ts'
 import type { ShielingSite } from '../src/scene/landscape/shieling.ts'
 import type { WatermillSite } from '../src/scene/landscape/watermill.ts'
 import type { SmokehouseSite } from '../src/scene/landscape/smokehouse.ts'
@@ -74,6 +75,29 @@ export function shielingOf (
     rise:     round(site.rise, 2),
     fromYard: round(site.fromYard),
     toWater:  Number.isFinite(site.toWater) ? round(site.toWater) : null,
+  }
+}
+
+/**
+ * The barrow, what it stands over, and whether the farm can actually see it.
+ *
+ * `skyline` is the reading that matters and it is the one no still can give at
+ * a pose nobody thought to take: the mound can be on the finest top the island
+ * has and still be behind the shoulder in front of it, and the picture of that
+ * failure is a frame with no mound in it, which looks exactly like a frame of
+ * an island that was never given one.
+ */
+export function howeOf (
+  site:   HoweSite | null,
+  worldX: Project,
+  worldZ: Project,
+): CompositionStats['howe'] {
+  return site && {
+    x:        round(worldX(site.x)),
+    z:        round(worldZ(site.z)),
+    stands:   round(site.stands, 2),
+    skyline:  round(site.skyline, 2),
+    fromYard: round(site.fromYard),
   }
 }
 

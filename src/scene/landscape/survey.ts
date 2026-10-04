@@ -32,6 +32,8 @@ import { planFarmNetwork } from './network.ts'
 import type { FarmNetwork, OutlyingPlace } from './network.ts'
 import { solvePeatBank } from './peat.ts'
 import type { PeatBank } from './peat.ts'
+import { HOWE_FOOTING, findHoweSite } from './howe.ts'
+import type { HoweSite } from './howe.ts'
 import { SHIELING_FOOTING, findShielingSite } from './shieling.ts'
 import type { ShielingSite } from './shieling.ts'
 import { SMOKEHOUSE_FOOTING, findSmokehouseSite } from './smokehouse.ts'
@@ -78,6 +80,15 @@ export interface ScapeSurvey {
 
   /** The hut on the summer grazing, or `null` on an island with no hill to put one on. */
   shieling: ShielingSite | null
+
+  /**
+   * The barrow on the skyline, or `null` on an island with no top the farmyard
+   * can see against the sky.
+   *
+   * The only site in the survey chosen by what the place *looks like from
+   * somewhere else* rather than by what it is like underfoot. See `howe.ts`.
+   */
+  howe: HoweSite | null
 
   /**
    * The mill on the beck, or `null` where no reach of it would turn a wheel.
@@ -497,6 +508,50 @@ function grazeTheHill (
 }
 
 /**
+ * The barrow on the skyline, or the reason there is none.
+ *
+ * A function of its own for the reason {@link grazeTheHill} is one — the survey
+ * holds the *order*, not the argument lists. Run after the hut and before the
+ * routes: a howe is older than everything else on the island and so claims
+ * ground ahead of nothing, but it is a landmark, and a footpath worn straight
+ * through a barrow is a footpath nobody in this archipelago would have worn.
+ *
+ * It is handed the same two kinds of fact the hut takes. `avoid` is ground
+ * something already stands on, with the graded farmyard added for the reason it
+ * is added there; the hay meadow is deliberately *not* added, because a barrow
+ * inside a wall somebody later built round it is the commonest thing that
+ * happens to one and the setback already keeps it off the farm. `barred` is
+ * ground nothing can be founded on at all — under the ice, in the beck's own
+ * channel, and on the cart track.
+ */
+function raiseTheDead (
+  config:   ScapeConfig,
+  layout:   ScapeLayout,
+  field:    HeightField,
+  standing: readonly Obstacle[],
+): HoweSite | null {
+  const { creek, yard } = layout
+
+  return findHoweSite(
+    {
+      ground:     field.heightAt,
+      waterLevel: config.terrain.waterLevel,
+      prospect:   config.howe.prospect,
+      stature:    config.howe.stature,
+      setback:    config.howe.setback,
+      reach:      hillReach(layout),
+      eye:        config.howe.eye,
+      barred:     (x, z) =>
+        iceClaim(config, x, z, field.heightAt(x, z)) > 0 ||
+        (creek?.clearanceAt(x, z) ?? Infinity) < 0 ||
+        distanceToTrack(layout, x, z) < layout.track.width * 1.5,
+    },
+    yard,
+    standing,
+  )
+}
+
+/**
  * The mill on the beck, or the reason there is none.
  *
  * A function of its own for the reason {@link ringTheHill} and
@@ -680,11 +735,29 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
   // it, for the reason nothing does either for the light.
   const wreck = strandAHull(config, field, beacon, croft)
 
-  // Out on the hill, and the only thing in the survey sited *away* from
+  // Out on the hill, and the only building in the survey sited *away* from
   // everything: the grazing is the ground nothing else on the island wanted. Run
   // before the routes because the hut is walked to, and after everything ashore
   // because the whole of that is ground it has to miss.
   const shieling = grazeTheHill(config, layout, field, standing)
+
+  // Up on the same hill, and sited after the hut although it is three thousand
+  // years older than one. The order is a judgement about *this* scape rather
+  // than about history: the hut's site is the scarcer of the two — it wants
+  // grazing, a level sill and a burn all at once — while a barrow wants only a
+  // top that can be seen, and the islands have several. Letting the mound go
+  // first took the home island's hut off its own hill and its head dyke with
+  // it. The yard goes in by hand for the reason it does in the hut's search.
+  const howe = raiseTheDead(config, layout, field, [
+    ...standing,
+    { x: layout.yard.x, z: layout.yard.z, radius: layout.yard.radius },
+    ...claim(shieling, SHIELING_FOOTING),
+  ])
+
+  // The barrow's own ground, named rather than inlined because the wall is the
+  // one thing in the survey that is handed the claim list *without* it — see
+  // where the dyke is solved.
+  const barrow = claim(howe, HOWE_FOOTING)
 
   const claimed: Obstacle[] = [
     ...standing,
@@ -694,6 +767,10 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     // the farmyard's own — a leg that cut the corner off it would be a path
     // through a sheep pen.
     ...claim(shieling, SHIELING_FOOTING),
+    // The mound and its kerb, which is the largest claim anything on the island
+    // makes after the farmyard's own — a leg worn over a barrow is a leg nobody
+    // wore.
+    ...barrow,
   ]
 
   // Down on the beck, and sited last for the reason the hut is sited late:
@@ -750,6 +827,7 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     croft,
     smokehouse,
     shieling,
+    howe,
     watermill,
     pier,
     weir,
@@ -762,6 +840,13 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     saltings: marsh,
     network,
     paths,
-    dyke:     ringTheHill(config, layout, field, paths, avoid),
+    // The one consumer of the claim list that is handed it without the barrow
+    // in it. A head dyke is a line somebody walked along a contour laying
+    // stone, and the thing it does when it meets a mound already standing on
+    // that contour is run up to it and carry on out the other side — a barrow
+    // is a landmark the wall is built *to*, which is how half of them survived
+    // being in the middle of farmland at all. Leaving it in cost the home
+    // island its whole wall, which is the finding that put this line here.
+    dyke:     ringTheHill(config, layout, field, paths, avoid.filter(ground => !barrow.includes(ground))),
   }
 }

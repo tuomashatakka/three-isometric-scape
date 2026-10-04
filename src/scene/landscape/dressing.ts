@@ -18,7 +18,7 @@ import type { TiltWeight } from './align.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from './archipelago.ts'
 import { BEACON_FOOTING } from './beacon.ts'
 import { CROFT_FOOTING } from './croft.ts'
-import { createGroundContact, findCrossing, isFoliage, raiseArch, raiseShieling, raiseWreck, trackPointNear } from './dressing-helpers.ts'
+import { createGroundContact, findCrossing, isFoliage, raiseArch, raiseHillSites, raiseWreck, trackPointNear } from './dressing-helpers.ts'
 import { raiseHarbour } from './dressing-harbour.ts'
 import { raiseEnclosures } from './dressing-enclosures.ts'
 import type { Walling } from './dressing-enclosures.ts'
@@ -486,10 +486,18 @@ export function createDressing (
       raiseBuilding('smokehouse', x + ox, z + oz, angle)
     }
 
-    raiseShieling(
-      survey.shieling,
+    // The hut and the barrow, which are the two things out on the open fell.
+    // The hut is merged and the mound is plopped, and the difference is the
+    // argument order: a barrow is a pile of the ground it stands on, so it has
+    // no business being baked at one height and set down on ground that is not
+    // at it — the skirt a `Ploppable` grows is the apron a mound on a slope is
+    // revetted with, which is why the kerb's own fall gate can be as generous
+    // as it is.
+    raiseHillSites(
+      survey,
       landmass.origin,
       placeHero,
+      raiseBuilding,
       (x, z, radius) => solver.reserve(x, z, radius),
     )
 

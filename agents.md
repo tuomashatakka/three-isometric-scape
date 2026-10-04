@@ -310,6 +310,7 @@ bun run scape:shot --poses beck                     # the water in the channel, 
 bun run scape:shot --poses force                    # the fall the beck goes over, 4 frames
 bun run scape:shot --poses smokehouse               # the hut above the harbour, 3 frames
 bun run scape:shot --poses shieling                 # the hut on the summer grazing, 3 frames
+bun run scape:shot --poses howe                     # the barrow, the sightline that sited it, and the island with none, 3 frames
 bun run scape:shot --poses watermill                # the mill on the beck, its lade and its winter, 4 frames
 bun run scape:shot --poses croft                    # the holding out on the islets, 3 frames
 bun run scape:shot --poses wreck                    # the hull on the low rock, 4 frames
@@ -533,6 +534,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `shore.ts` | boathouse and slipway, net rack, mooring stakes |
 | `smokehouse.ts` | the smokehouse — log walls, turf roof, ridge cowl, and `SMOKEHOUSE_VENT` |
 | `shieling.ts` | the shieling — drystone room, turf roof, smoke hole, and the half-circle fold walled onto its back |
+| `howe.ts` | the howe — six frusta on a cosine slump, a kerb of set stones round the foot, and the hole the diggers left in the crown |
 | `croft.ts` | the croft — boarded walls, turf roof, stone flue, oars at the blind gable, and `CROFT_VENT` / `CROFT_WINDOWS` / `CROFT_SINK` |
 | `wreck.ts` | the wreck — keel, a sheered row of broken frames, the strakes the bedded side kept, two raked posts, and `WRECK_SINK`. **heeled, and based by measurement rather than by construction** |
 | `upland.ts` | meadow barn, hay drying poles |
@@ -576,6 +578,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `chapel.ts` | the knoll a chapel stands on, its doorstep, and `chapelYaw` — the one yaw `yawAlong` cannot give |
 | `smokehouse.ts` | the patch of bank above the harbour a smokehouse is built on |
 | `shieling.ts` | the patch of hill above the head dyke a summer hut is built on — scored on rise, level sill and nearness to the burn, and `SHIELING_FOOTING` |
+| `howe.ts` | the top a barrow stands on — the one search here scored on a *sightline* rather than on ground, swept as a grid rather than as rings, plus `skylineClearance` / `kerbFall` / `HOWE_FOOTING` / `HOWE_RADIUS` / `HOWE_HEIGHT` |
 | `croft.ts` | the free islet a croft is built on — scored on the row home from the harbour, and never the rock the light is already on |
 | `shoal.ts` | the drowned banks trailing off the islands' downdrift flanks — one per island the sound leaves room for, folded into the composite field after the bar and the guard, and drawn by nothing |
 | `wreck.ts` | the *lowest* rock in the ring — the beacon's search inverted — the line a hull came to rest on it along, and `WRECK_FOOTING` / `WRECK_BEARING` |
