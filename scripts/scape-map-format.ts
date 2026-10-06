@@ -585,6 +585,27 @@ function hailLine (hail: MapStats['hail']): string {
  * looks entirely correct, because a fully capped sound is a perfectly
  * reasonable picture of a blow.
  */
+/**
+ * The sea state, and the two ways it says the sea is not doing what the readme
+ * claims.
+ *
+ * A swell the shelf does not lift is the drowned bank's finding exactly: the
+ * readme says the swell trips on its weather flank and stands up in sets, and
+ * before `water.swellShoal` the surface crossing it was flat. A swell whose
+ * crests are longer than the archipelago is the other: at that wavelength the
+ * whole world is inside one trough and the sea reads as a tilted plane.
+ */
+function swellLine (swell: MapStats['swell'], world: number): string {
+  return `swell ${swell.length}m crests at ${swell.period}s, ${swell.speed}m/s  ` +
+    `fan ${swell.spread}rad  gain deep ${swell.deep} / bank ${swell.crest} / ` +
+    `break ${swell.breaker}` +
+    (swell.crest <= swell.deep + 0.001
+      ? '  <- the shelf never lifts it: swellShoal is at zero'
+      : swell.length >= world
+        ? '  <- one crest is wider than the archipelago'
+        : '')
+}
+
 function capsLine (caps: MapStats['caps']): string {
   return `caps  still ${caps.still}  rest ${caps.rest}  gust ${caps.gust}  ` +
     `onset ${caps.onset} vs wind ${caps.wind}  lee ${caps.lee}` +
@@ -746,6 +767,7 @@ export function formatStats (stats: MapStats): string {
     shadeLine(stats.shade),
     shaftLine(stats.shafts),
     hailLine(stats.hail),
+    swellLine(stats.swell, stats.worldSize),
     capsLine(stats.caps),
     haarLine(stats.haar),
     treelineLine(stats.treeline),

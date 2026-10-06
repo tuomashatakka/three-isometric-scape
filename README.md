@@ -333,6 +333,7 @@ src/
     │   ├── treeline.ts             where the wood stops: fetch, two lines, and the margin between them
     │   ├── shore-mask.ts           the baked bathymetry, which way each coast faces, and where the tide is squeezed
     │   ├── water.ts                swell, surf, foam, glitter, winter ice
+    │   ├── swell.ts              the shape of the sea: its dispersion, the fan the wind turns it by, and what a bank does to it
     │   ├── water-caustics.ts      the sun's net on the bottom of the shallows
     │   ├── water-gleam.ts         the light that never got in: the sky it mirrors, the moon's track, the fire in torn water
     │   ├── water-caps.ts          the white the open sound puts on when it blows, and the lee that is spared it
@@ -2357,6 +2358,36 @@ the order the two hill features are sited in is also a decision, and it went the
 **one draw call per island that has one, five in the whole archipelago, and no per-frame work at all.** the mound is a 1 040-triangle prop — six frusta on a cosine profile, twenty-eight kerb stones, the dig and its spoil — merged into one geometry on the shared ground material, which is the same material and the same program the five farmstead buildings already plop on. nothing about it animates, so `STILL` gains nothing and the capture harness has nothing new to stop. the mobile tier carries it in full: there is no tier gate, because five static props is cheaper than one more spruce in the scatter, and a barrow that only exists on desktop is a barrow the reader never sees.
 
 the structural cost is nothing, and `scape:map` says so: footpaths, dykes, plots, becks, piers, weirs, watermills and the whole waterway network come back **identical** to the run before it, on all six islands.
+
+## the swell the wind never turned
+
+everything in this scape leans on the one wind. the smoke leans on it, the grass leans on it, the whitecaps lie downwind of it, the surf picks the coast the sea is running *into* by it, and the breakers march in on its integrated travel. the **surface** did not. the swell was three sines locked to the world axes — `sin(x * 0.09)`, `sin(y * 0.13)`, `sin((x + y) * 0.062)` — so a sea blowing from the south-west had its crests running exactly where a sea blowing from the north did, and the foam on top of it was the only thing that knew the difference. [`landscape/swell.ts`](src/scene/landscape/swell.ts) is the sea's shape: a dispersion relation, a fan of three trains built on the wind's own bearing, green's law on the mask's own depth, and the shader chunk both stages share. `water.ts` keeps the uniforms, because the uniforms are the lake's.
+
+### not one still in this repository has ever had a wave in it
+
+the finding came first and it is the same shape as the rain's. the swell advanced on `elapsed` — raw wall seconds, with no rate anywhere in the config — so the only thing that could hold it still for a capture was its **amplitude**, and `STILL` duly carried `water.waveHeight=0`. every frame `scape:shot` and `scape:diff` have ever produced, on a coast that is eighty-one per cent water, was taken on a sheet of glass. the guard in `scape-shot.test.ts` even named it, under a heading that says exactly what the cost of that is: *amplitudes that gate motion* are systems a capture can only hold still by removing.
+
+`water.waveSpeed` is the fix and it is three lines of arithmetic. the phase is integrated off the frame's own step instead of read off the clock, so the rate reaches zero without the sea jumping a crest when the slider comes back up, and the step is clamped so a tab that has been asleep for a minute does not teleport the swell on focus. `STILL` now holds the rate and leaves the height alone, `water.waveHeight` is out of `GATES_MOTION`, and **every pose in the tour gained a sea** — which is why the diff for this run moves all six and is not a regression.
+
+### a fan, not a grid
+
+three trains rather than one, because a real sea is never one wave and a single train is a corrugated roof. they are fanned either side of the bearing the wind is pushing on by `water.swellSpread` — zero is the long-crested ocean swell that arrives after a thousand miles of sorting, wide is a wind sea with no direction left in it — and the fan is **asymmetric**, `+1` against `-0.62`, because a symmetric pair either side of a dominant train is a standing beat and a beat on open water reads as a lattice. the amplitude shares are the three the axis-locked sines already had, so `water.waveHeight` means what it always meant.
+
+the rates are not authored. `ω = sqrt(g k)` is the deep-water dispersion, so the long train outruns the short one because it is longer and for no other reason, and `water.swellLength` — metres, and they stay metres, because crest to crest is a fact about the water and the fetch behind it rather than about how wide the world is — sets all three through it. at the authored 70 m the sea runs at 10.45 m/s on a 6.7 s period. the three sines it replaces ran at about six metres a second in no particular ratio to their own wavelengths, and nothing said why.
+
+the bearings are resolved on the cpu, once a frame. three sines of one angle against three dot products in the shader, rather than per vertex and per lit fragment — and `uSwellRun[0]` **is** `uSwell`, the same bearing the surf and the caps read, so there is still one answer in the scape to which way the sea is going.
+
+### and a bank it has to climb
+
+green's law: a wave crossing onto a shelf keeps its energy, loses the water under it, and pays the difference in height — amplitude as the inverse fourth root of the depth. it is why a sea that is nothing at all out in the sound stands up in ranks over a bar with no wind having changed, and it is the claim the drowned bank's own section in this file has been making since it was written, about a surface that crossed it perfectly flat.
+
+**the depth is the bathymetry mask's, in fractions of its 3.2 m saturation**, and that is the whole of what "deep" means here: a fraction of one is the deepest water this scape resolves and is where the gain is exactly one. everything shallower is shelf. this is deliberately *not* a wavelength — a 70 m swell truly feels the bottom at thirty-five metres, and authoring that number would be authoring a depth the mask cannot see. what it costs is nothing: the vertex stage was already fetching the mask for the freeze and now takes the whole texel instead of its red channel, and the fragment stage resolves the gain beside the depth the surf band was already reading, three statements into a local that the rest of `main()` can see. **no second tap, at either stage.**
+
+the gain is capped at two doublings and lipped to zero over the last few centimetres, for the surf's reasons: a wave about to break is the surf band's business, and a swell drawn on wet sand under a plane that is already fading out against it is a ripple on a beach. `scape:map` reports the gain at three depths — deep, over the drowned bank's crest, and at the depth the breakers start — and accuses in words when the shelf never lifts the swell at all, or when one crest has grown wider than the archipelago.
+
+### what it costs
+
+**nothing new.** three sines and three dot products per vertex and per lit fragment, against the three sines the axis-locked field already cost; one `pow` per vertex and one per fragment for green's law; six uniforms, three of them a `vec2[3]`; no texture, no allocation per frame, no geometry and no draw call. there is no tier gate and there is nothing for one to take away — the sea had this cost before it had a direction.
 
 ## ground that casts
 

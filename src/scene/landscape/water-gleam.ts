@@ -197,7 +197,14 @@ export const WATER_REFLECTION_FRAGMENT = /* glsl */`
     // frame by at most ten levels. It is also the physics — the sky a sea
     // mirrors under a cloud *is* the underside of that cloud. cloudShade is
     // declared in the colour fragment above, in both programs.
-    vec3 sky = mix(uSkyHorizon, uSkyTop, facing) * cloudShade;
+    // And shaded by the swell's own faces, for exactly the reason the cloud is:
+    // the first cut of the directional swell put its faces into the albedo
+    // alone and moved **half a frame by half a level of 255**, which is the
+    // same arithmetic one paragraph up with a different cause. A face turned up
+    // into the sky mirrors a different part of it from the face behind it, so
+    // the ranks read in the mirror rather than only in the paint.
+    // swellShade is declared in the colour fragment above, in both programs.
+    vec3 sky = mix(uSkyHorizon, uSkyTop, facing) * cloudShade * swellShade;
 
     // Only over water deep enough to have a surface, and never over ice, which
     // is rough and scatters rather than mirrors.

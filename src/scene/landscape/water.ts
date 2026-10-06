@@ -26,6 +26,7 @@ import { WATER_ROOST_GLSL, roostAmount } from './roost.ts'
 import { MAX_DEPTH, bakeShoreMask } from './shore-mask.ts'
 import { WATER_CAPS_GLSL, capsAmount } from './water-caps.ts'
 import { WATER_ICE_GLSL } from './water-ice.ts'
+import { WATER_SWELL_GLSL, advanceSwell, setSwell, swellRate, swellWavenumber } from './swell.ts'
 import {
   CAUSTIC_RATE,
   WATER_CAUSTIC_FRAGMENT,
@@ -103,24 +104,6 @@ const SURGE_SPACING = 46
  */
 const RIPPLE_DRIFT = 0.0115
 
-/**
- * The swell, shared verbatim by both stages.
- *
- * The vertex shader displaces by it and the fragment shader differences it for
- * a slope — sampling the *same* function is the only way the shading agrees
- * with the silhouette. Three octaves of plain sine, because a Gerstner sum
- * buys nothing at an amplitude the eye reads as "slight".
- */
-const WAVE_GLSL = /* glsl */`
-  uniform float uWaveTime;
-  uniform float uWaveHeight;
-
-  float scapeWave (vec2 p) {
-    return sin(p.x * 0.09 + uWaveTime * 0.55) * 0.55 +
-      sin(p.y * 0.13 - uWaveTime * 0.41) * 0.3 +
-      sin((p.x + p.y) * 0.062 + uWaveTime * 0.29) * 0.4;
-  }
-`
 
 /**
  * The bathymetry, shared verbatim by both stages, for the same reason the swell
@@ -173,7 +156,7 @@ const WATER_PARS_VERTEX = /* glsl */`
   varying vec2 vWaterGround;
   uniform sampler2D uCloudMap;
 ${WEATHER_BANK_GLSL}
-${WAVE_GLSL}
+${WATER_SWELL_GLSL}
 ${SHORE_GLSL}
 ${WATER_ICE_GLSL}
 `
@@ -194,10 +177,16 @@ ${WATER_ICE_GLSL}
  */
 const WATER_SWELL_VERTEX = /* glsl */`
   #include <begin_vertex>
-  float swellIce = scapeIce(transformed.xz, scapeDepth(transformed.xz));
+
+  // One fetch, three readers: the freeze, the shelf gain and the ice. The depth
+  // was already being read here for the freeze; taking the whole mask instead of
+  // its red channel costs nothing and is what lets the displacement stand up
+  // over a bank rather than crossing it flat.
+  vec4 swellShore = scapeShore(transformed.xz);
+  float swellIce = scapeIce(transformed.xz, swellShore.r);
   vec2 swellGround = (modelMatrix * vec4(transformed, 1.0)).xz;
-  transformed.y += scapeWave(transformed.xz) * uWaveHeight * (1.0 - swellIce) *
-    scapeWeatherSwell(swellGround);
+  transformed.y += scapeWave(transformed.xz, scapeShoal(swellShore.r)) *
+    uWaveHeight * (1.0 - swellIce) * scapeWeatherSwell(swellGround);
 `
 
 const WATER_WORLD_VERTEX = /* glsl */`
@@ -381,7 +370,7 @@ ${CLOUD_SHADOW_GLSL}
   uniform float uPhosphor;
   uniform vec3 uPhosphorColor;
   varying vec2 vWaterGround;
-${WAVE_GLSL}
+${WATER_SWELL_GLSL}
 ${SHORE_GLSL}
 ${WATER_ICE_GLSL}
 ${WATER_SURF_GLSL}
@@ -436,6 +425,15 @@ const WATER_COLOR_FRAGMENT = /* glsl */`
   float waterDepth = shore.r;
   float iceCover   = scapeIce(vWaterGround, waterDepth);
   float openWater  = smoothstep(0.04, 0.3, waterDepth);
+
+  // Resolved here rather than in the normal chunk because the shore fetch is
+  // here: three statements down this is a local the whole rest of main() can
+  // see, and a second read of the same sampler at the same uv is exactly the
+  // tap the surf band already refuses to make.
+  float swellShoal = scapeShoal(waterDepth);
+  float swell  = scapeWave(vWaterGround, swellShoal);
+  float swellX = scapeWave(vWaterGround + vec2(1.6, 0.0), swellShoal);
+  float swellZ = scapeWave(vWaterGround + vec2(0.0, 1.6), swellShoal);
   float boatWake   = scapeBoatWake(vWaterGround) * openWater * (1.0 - iceCover);
 
   // Foam is a band hugging the bank, not a wash over everything shallow: it
@@ -480,6 +478,16 @@ ${WATER_CAUSTIC_FRAGMENT}
   // from half the angles the camera can orbit to.
   float sheen = texture2D(uRippleMap, vWaterGround * uRippleScale + uRippleOffset).r;
   diffuseColor.rgb *= 0.93 + 0.15 * sheen;
+
+  // And the swell, for the reason written directly above about the ripple. A
+  // sea whose shape only ever moved a normal is flat paint from half the angles
+  // this camera has, and the measurement said so: twelve times the authored
+  // amplitude moved one level of 255 at the tour's frames. This is the slope
+  // along the run rather than the height, so what it paints is the faces — the
+  // side turned up into the light and the side turned away — in ranks lying
+  // across the way the sea is going.
+  float swellShade = scapeSwellShade(swell, swellX, swellZ, iceCover);
+  diffuseColor.rgb *= swellShade;
 
   // Sun glitter. Two noise fields at incommensurate scales, multiplied and then
   // raised to a high power: the product is near zero almost everywhere and
@@ -528,6 +536,15 @@ const WATER_COLOR_FRAGMENT_LITE = /* glsl */`
   float waterDepth = shore.r;
   float iceCover   = scapeIce(vWaterGround, waterDepth);
   float openWater  = smoothstep(0.04, 0.3, waterDepth);
+
+  // Resolved here rather than in the normal chunk because the shore fetch is
+  // here: three statements down this is a local the whole rest of main() can
+  // see, and a second read of the same sampler at the same uv is exactly the
+  // tap the surf band already refuses to make.
+  float swellShoal = scapeShoal(waterDepth);
+  float swell  = scapeWave(vWaterGround, swellShoal);
+  float swellX = scapeWave(vWaterGround + vec2(1.6, 0.0), swellShoal);
+  float swellZ = scapeWave(vWaterGround + vec2(0.0, 1.6), swellShoal);
   float boatWake   = scapeBoatWake(vWaterGround) * openWater * (1.0 - iceCover);
 
   // The one thing the cheap lake gains rather than loses. The trim it cannot
@@ -542,6 +559,16 @@ ${WATER_CAUSTIC_FRAGMENT}
 
   float sheen = texture2D(uRippleMap, vWaterGround * uRippleScale + uRippleOffset).r;
   diffuseColor.rgb *= 0.93 + 0.15 * sheen;
+
+  // And the swell, for the reason written directly above about the ripple. A
+  // sea whose shape only ever moved a normal is flat paint from half the angles
+  // this camera has, and the measurement said so: twelve times the authored
+  // amplitude moved one level of 255 at the tour's frames. This is the slope
+  // along the run rather than the height, so what it paints is the faces — the
+  // side turned up into the light and the side turned away — in ranks lying
+  // across the way the sea is going.
+  float swellShade = scapeSwellShade(swell, swellX, swellZ, iceCover);
+  diffuseColor.rgb *= swellShade;
 
   // The one thing the cheap lake gains twice over. The caps are the same chunk
   // the full program runs, verbatim, and they have to be: the capture harness
@@ -594,10 +621,6 @@ const WATER_ROOST_NORMAL = /* glsl */`(1.0 + roost * uRoostChop * 2.6)`
 
 const WATER_NORMAL_FRAGMENT_LITE = /* glsl */`
   #include <normal_fragment_begin>
-  float swell  = scapeWave(vWaterGround);
-  float swellX = scapeWave(vWaterGround + vec2(1.6, 0.0));
-  float swellZ = scapeWave(vWaterGround + vec2(0.0, 1.6));
-
   normal = normalize(normal + vec3(
     -(swellX - swell) * uWaveHeight * 2.4,
     0.0,
@@ -618,10 +641,6 @@ const WATER_NORMAL_FRAGMENT = /* glsl */`
   vec2 rippleUv = vWaterGround * uRippleScale;
   float ripplA = texture2D(uWaveMap, rippleUv + uRippleOffset).r;
   float ripplB = texture2D(uWaveMap, rippleUv * 1.73 - uRippleOffset * 1.31).r;
-
-  float swell  = scapeWave(vWaterGround);
-  float swellX = scapeWave(vWaterGround + vec2(1.6, 0.0));
-  float swellZ = scapeWave(vWaterGround + vec2(0.0, 1.6));
 
   // Everything the surface does to its own normal goes away under ice, in one
   // multiply: a shelf is flat, and a ripple normal on it is the giveaway that
@@ -698,6 +717,25 @@ export function createWater (
   const waveTime: IUniform<number>      = { value: 0 }
   const iceColor: IUniform<Color>       = { value: new Color(config().palette.ice) }
   const swell: IUniform<Vector2>        = { value: new Vector2(1, 0) }
+
+  /**
+   * Where each of the swell's three trains runs. `uSwellRun[0]` is the dominant
+   * one and is `uSwell` itself — the surf and the caps read the bearing and this
+   * reads the fan built on it, so there is still one answer to which way the sea
+   * is going.
+   */
+  const swellRun: IUniform<Vector2[]> = {
+    value: [ new Vector2(1, 0), new Vector2(1, 0), new Vector2(1, 0) ],
+  }
+
+  /**
+   * Where the swell has got to, in radians of its dominant train, and when it
+   * was last asked.
+   *
+   * Integrated rather than taken off `elapsed`, so `water.waveSpeed` is a rate
+   * that can reach zero without the phase jumping when it is dragged back up.
+   */
+  const waveClock = { phase: 0, sampled: 0 }
 
   /**
    * Trail ring buffers, one per emitter. Each is three flat arrays of 6 vec4s
@@ -782,6 +820,10 @@ export function createWater (
     uWaveTime:           waveTime,
     uWaveHeight:         { value: config().water.waveHeight },
     uSwell:              swell,
+    uSwellRun:           swellRun,
+    uSwellK:             { value: swellWavenumber(config().water.swellLength) },
+    uSwellRate:          { value: swellRate(config().water.swellLength) },
+    uSwellShoal:         { value: config().water.swellShoal },
     uSurf:               { value: config().water.surf },
 
     // Metres in, fractions of `MAX_DEPTH` out — the mask's depth channel is a
@@ -950,7 +992,16 @@ export function createWater (
         wind.dirX * wind.travel * RIPPLE_DRIFT,
         wind.dirZ * wind.travel * RIPPLE_DRIFT,
       )
-      waveTime.value                   = elapsed
+
+      // The sea's own clock, integrated so that the rate is a knob rather than a
+      // reading of the wall. `STILL` holds this at zero and keeps
+      // `water.waveHeight`, which is why a capture now has a shaped sea in it
+      // rather than a sheet of glass.
+      waveTime.value                   = advanceSwell(
+        waveClock,
+        elapsed,
+        config().water.waveSpeed,
+      )
       uniforms.uBoatWakeStrength.value = config().water.wakeStrength
       uniforms.uSparkle.value          = config().water.sparkle * (1 - 0.85 * fall)
       uniforms.uWaveHeight.value       = config().water.waveHeight
@@ -966,6 +1017,7 @@ export function createWater (
       // strength — which is also what keeps a still, where the wind is zeroed by
       // definition, a photograph of a coast with a sea running on it.
       swell.value.set(wind.dirX, wind.dirZ)
+      setSwell(uniforms, swellRun.value, config().water, wind)
       uniforms.uSurgePhase.value   = wind.travel * SURGE_RATE
       uniforms.uSurf.value         = config().water.surf * (0.75 + 0.25 * Math.min(1.6, wind.strength))
       uniforms.uSurfDepth.value    = config().water.surfDepth / MAX_DEPTH

@@ -17,6 +17,8 @@ import { bowLight, bowPeak, bowPlace } from '../src/scene/rainbow.ts'
 import { stormLive, stormPeak, stormSchedule, stormSites } from '../src/scene/storm.ts'
 import { snowAmount } from '../src/scene/season.ts'
 import { capsAmount } from '../src/scene/landscape/water-caps.ts'
+import { swellStats } from '../src/scene/landscape/swell.ts'
+import type { SwellStats } from '../src/scene/landscape/swell.ts'
 import { phosphorAmount, trackAmount } from '../src/scene/landscape/water-gleam.ts'
 import { haarAmount } from '../src/scene/haar.ts'
 import { TILE_UNITS } from '../src/scene/mist.ts'
@@ -241,6 +243,20 @@ export interface WeatherStats {
     world:  number
     travel: number
   }
+
+  /**
+   * The shape of the sea itself, which no picture of this scape has ever had in
+   * it.
+   *
+   * Here for the same reason the caps are, doubled: until `water.waveSpeed`
+   * existed the only way `STILL` could make a frame reproducible was to zero
+   * `water.waveHeight`, so the swell was absent from every capture by
+   * construction and the instruments were all a reader had. Three of these are
+   * facts about the water — how long, how fast, how sorted — and three are what
+   * the ground does to it: the gain in deep water, over the drowned bank's
+   * crest, and at the depth the surf starts.
+   */
+  swell: SwellStats
 
   /**
    * The whitecaps out in the sound, at the three winds that matter.
@@ -575,6 +591,30 @@ export function shaftStats (config: ScapeConfig): WeatherStats['shafts'] {
  * water that cannot answer it, and every frame of every capture still looks
  * entirely correct.
  */
+/**
+ * The sea state, measured off the config rather than described.
+ *
+ * A thin wrapper on `swellStats`, which lives beside the shader chunk it is the
+ * mirror of. What this adds is the two depths worth probing in *this*
+ * archipelago: the crest of the drowned bank, which the readme says the swell
+ * trips on, and the depth the surf band starts at.
+ */
+export function seaStats (config: ScapeConfig): WeatherStats['swell'] {
+  const { swellLength, swellSpread, swellShoal, surfDepth } = config.water
+
+  const sea = swellStats(swellLength, swellSpread, swellShoal, config.shoals.crest, surfDepth)
+
+  return {
+    length:  round(sea.length, 1),
+    period:  round(sea.period, 2),
+    speed:   round(sea.speed, 2),
+    spread:  round(sea.spread, 3),
+    deep:    round(sea.deep, 3),
+    crest:   round(sea.crest, 3),
+    breaker: round(sea.breaker, 3),
+  }
+}
+
 export function capsStats (config: ScapeConfig): WeatherStats['caps'] {
   const { whitecap, whitecapOnset, whitecapLee } = config.water
   const { strength, gust }                       = config.wind

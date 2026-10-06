@@ -131,6 +131,27 @@ export interface Pose {
  * invisible from the default pose, which is exactly why the brief says it. One
  * command, one browser launch, six answers.
  */
+/**
+ * The one frame the swell set is argued in.
+ *
+ * Open water over the home island's drowned bank at 120 m, with the coast and
+ * two skerries in the corner for scale, and a weather phase pinned clear of the
+ * squall — the front otherwise parks a rain curtain and a cloud shadow over the
+ * one surface the set is about. Five of the six frames share it exactly, because
+ * every claim here is a difference between two seas and a difference needs the
+ * same camera twice.
+ */
+const BANK = {
+  zoom: 120,
+  time: 0.42,
+  set:  [ 'camera.focusX=66', 'camera.focusZ=-20', 'weather.time=0.62' ],
+}
+
+/** That frame, with whatever this one pose changes about the sea on it. */
+const bank = (name: string, ...extra: string[]): Pose =>
+  ({ ...BANK, name, set: [ ...BANK.set, ...extra ]})
+
+
 export const TOURS: Record<string, Pose[]> = {
   // The hard shore's three ages, out in `scape-poses-coast.ts`: this file was
   // at the lint config's line ceiling and the crag, the stack and the arch are
@@ -161,6 +182,38 @@ export const TOURS: Record<string, Pose[]> = {
     // autumn puts the sun twenty-six degrees under at the same hour.
     { name: 'night', time: 0.02, season: 0.78 },
     { name: 'winter', season: 0.02 },
+  ],
+
+  /**
+   * The sea, from the two distances that can see it and under the two winds
+   * that shape it.
+   *
+   * Unlike every other instrument set here, the reason this one exists is not
+   * that the tour cannot reach the subject — the tour is four fifths sea. It is
+   * that until `water.waveSpeed` existed the only thing in the config that could
+   * hold the surface still was its amplitude, so `STILL` zeroed it and every
+   * capture ever taken of this scape was taken on glass. The tour sees the
+   * swell now. What it cannot do is take the wind off it: `wind.strength=0`
+   * is in `STILL` by necessity, so the two frames that need a blow set it back.
+   *
+   * - `swell` is the whole archipelago at the default frame, with a sea on it
+   * - `swell-bank` is the drowned bank off the home island's south-east, which
+   *   the readme says the swell trips on and stands up in sets over — the one
+   *   frame where `water.swellShoal` is the subject rather than a modifier
+   * - `swell-long` and `swell-short` are the fan at its two ends, long-crested
+   *   ocean swell against a wind sea with no sorting left in it
+   * - `swell-veer` is the same frame as `swell` with the wind turned a quarter,
+   *   and it is the claim: the crests have to turn with it. On the sea this
+   *   replaces, the two frames are identical.
+   * - `swell-still` is the control, at `swellShoal` and `waveHeight` zero
+   */
+  swell: [
+    { name: 'swell' },
+    bank('swell-bank'),
+    bank('swell-long', 'water.swellSpread=0'),
+    bank('swell-short', 'water.swellSpread=1.1'),
+    bank('swell-veer', 'wind.bearing=135'),
+    bank('swell-still', 'water.waveHeight=0'),
   ],
 
   /**
@@ -1739,7 +1792,13 @@ export const STILL = [
 
   'look.grain=0',
   'atmosphere.auroraSpeed=0',
-  'water.waveHeight=0',
+  // The sea's own rate, and not its amplitude. Until `water.waveSpeed` existed
+  // the swell advanced on raw elapsed seconds and the only way to make a frame
+  // reproducible was to take the waves out of it — so every still this
+  // repository has ever taken was a photograph of a dead flat sea, on a coast
+  // that is four fifths water. Zeroing the rate holds the swell at phase zero
+  // instead, which is just as reproducible and is a sea.
+  'water.waveSpeed=0',
 
   // The running water. Its own rate rather than a share of the wind, because a
   // beck runs on the fall under it — so nothing else in this list stops it, and

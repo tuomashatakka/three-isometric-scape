@@ -70,8 +70,14 @@ const NOT_A_RATE: Record<string, string> = {
  * These do not match `RATE` and never will, so nothing would notice them going
  * missing. They are the reason a still is still: zero here stops the thing that
  * a rate would otherwise be moving.
+ *
+ * `water.waveHeight` was here and is not any more, and the difference is the
+ * point of `water.waveSpeed`: an amplitude listed here is a system a capture
+ * can only hold still by *removing*, and what this one removed was the sea.
+ * Every still taken before that knob existed was a photograph of glass. A rate
+ * holds the swell at phase zero instead, which is just as reproducible.
  */
-const GATES_MOTION = [ 'wind.strength', 'water.waveHeight' ]
+const GATES_MOTION = [ 'wind.strength' ]
 
 const stillPaths = new Set(STILL.map(entry => entry.split('=')[0]))
 
