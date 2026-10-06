@@ -1787,6 +1787,63 @@ export interface ScapeConfig extends CreelConfig, DykeConfig, ForceConfig, Front
     /** Swell amplitude in metres. */
     waveHeight: number
 
+    /**
+     * How fast the swell runs, as a share of its own dispersion speed.
+     *
+     * The switch for the sea's *motion*, and the reason this exists at all:
+     * the surface used to advance on raw elapsed seconds, so the only thing in
+     * the config that could hold it still was `waveHeight` — and `STILL`
+     * duly held it there. **Every capture this repository has ever taken was a
+     * photograph of a dead flat sea**, in a scape whose whole coast is water.
+     * A rate that reaches zero is what lets a still have a swell in it, the
+     * same argument `beck.flow` and `force.flow` are in that list for.
+     *
+     * 1 is the speed a wave of {@link swellLength} actually travels at — see
+     * `swellRate` in `landscape/swell.ts` — rather than a number anybody chose.
+     */
+    waveSpeed: number
+
+    /**
+     * The swell's wavelength in deep water, in metres.
+     *
+     * **Metres, and they stay metres.** Crest to crest is a fact about the
+     * water and the fetch behind it, not about how wide the world is or how
+     * far the camera is pulled out, so a wider archipelago must not scale it.
+     * What it *does* set, through the deep-water dispersion, is how fast the
+     * sea runs: `ω = sqrt(g k)`, so a longer swell is a slower one.
+     */
+    swellLength: number
+
+    /**
+     * How far the three trains are fanned either side of the wind, in radians.
+     *
+     * 0 is perfectly long-crested — an ocean swell arriving after a thousand
+     * miles of sorting — rather than a sea switched off, and there is no flag
+     * beside it for the same reason there is no flag beside {@link surf}. Wide
+     * is a wind sea with no direction left in it.
+     *
+     * Dimensionless and therefore neither world-sized nor frame-sized: how
+     * sorted the sea is, rather than how far the sorting reaches.
+     */
+    swellSpread: number
+
+    /**
+     * How hard a bank stands the swell up as it crosses, 0..1.
+     *
+     * 0 takes the shoaling away and leaves a sea of even height from the
+     * horizon in to the breaking band, which is what this scape had. It does
+     * not hand back the band itself — a wave cannot be taller than the water
+     * under it whether or not anybody shoaled it. 1 is Green's law run to its
+     * cap. Like
+     * {@link surfDepth} and {@link causticDepth}, what it scales with is the
+     * ground rather than anything authored: the bathymetry mask saturates at
+     * 3.2 m, so the shelf it lifts over is wherever the ground comes up inside
+     * that — a drowned bank, a shoal, a bar, the last few metres of every
+     * beach — and none of those had to be listed. See `shoalGain` in
+     * `landscape/swell.ts`.
+     */
+    swellShoal: number
+
     /** Ripple normal perturbation. */
     rippleStrength: number
 
@@ -2998,7 +3055,11 @@ export const SCAPE_CONFIG = {
     // same sea with the term switched off.
     moonTrack:      10,
     phosphor:       0.5,
-    waveHeight:     0.075,
+    waveHeight:     0.55,
+    waveSpeed:      1,
+    swellLength:    70,
+    swellSpread:    0.42,
+    swellShoal:     0.85,
     rippleStrength: 0.2,
     wakeStrength:   0.78,
     roughness:      0.62,

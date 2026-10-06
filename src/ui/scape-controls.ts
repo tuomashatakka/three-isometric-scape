@@ -414,7 +414,20 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           3.2,
           [ range('water.phosphor', 'sea fire', 0, 1, 0.01) ],
         ),
-        range('water.waveHeight', 'swell', 0, 0.4, 0.005),
+        // The shape of the sea. Which way it runs is the wind's and lives under
+        // the weather; what is here is how big, how fast, how sorted, and how
+        // hard a bank stands it up.
+        toggled(
+          'swell',
+          range('water.waveHeight', 'height (m)', 0, 0.4, 0.005),
+          0.075,
+          [
+            range('water.waveSpeed', 'rate', 0, 2, 0.01),
+            range('water.swellLength', 'wavelength (m)', 12, 220, 1),
+            range('water.swellSpread', 'fan (rad)', 0, 1.2, 0.01),
+            range('water.swellShoal', 'stands on a bank', 0, 1, 0.01),
+          ],
+        ),
         range('water.rippleStrength', 'ripple', 0, 0.6, 0.01),
 
         // Which way it breaks is the wind's, and lives under the weather. What

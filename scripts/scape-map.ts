@@ -22,6 +22,7 @@ import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
 import { causewayOf, croftOf, dykeOf, howeOf, peatOf, pierOf, shielingOf, smokehouseOf, tarnOf, watermillOf, weirOf, wreckOf } from './scape-map-sites.ts'
 import {
   capsStats,
+  seaStats,
   haarStats,
   hailStats,
   moonStats,
@@ -980,6 +981,7 @@ export function surveyStats (
     shade:    shadeStats(config),
     shafts:   shaftStats(config),
     hail:     hailStats(config),
+    swell:    seaStats(config),
     caps:     capsStats(config),
     haar:     haarStats(config, home, landmasses),
     hearths:  hearthStats(survey),

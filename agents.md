@@ -315,6 +315,7 @@ bun run scape:shot --poses watermill                # the mill on the beck, its 
 bun run scape:shot --poses croft                    # the holding out on the islets, 3 frames
 bun run scape:shot --poses wreck                    # the hull on the low rock, 4 frames
 bun run scape:shot --poses shoal                    # the banks in the sound, and the tide over them, 4 frames
+bun run scape:shot --poses swell                    # the sea's own shape: the bank it stands up over, the fan at both ends, and the wind turned a quarter, 6 frames
 bun run scape:shot --poses tide                     # the sea at both ends of its swing, 3 frames
 bun run scape:shot --poses fjord                    # the drowned valley in the sound, 4 frames
 bun run scape:shot --poses aspect                   # two sides of one hill, 4 frames
@@ -588,6 +589,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `aspect.ts` | which way a slope is turned, and the moss, the bleach and the snow line that follow from it |
 | `drift.ts` | the snow line's second swing — scoured off the weather face, banked in the lee — and the cover measured with it and without |
 | `water.ts` | baked bathymetry, swell, foam, glitter, winter ice and shader boat wakes |
+| `swell.ts` | the shape of the sea — the deep-water dispersion, the fan of three trains the wind turns, green's law on the mask's own depth, the integrated clock `water.waveSpeed` drives, and the glsl both stages share |
 | `water-caustics.ts` | the net the sun draws on the bottom of the shallows, and how bright it is today |
 | `water-caps.ts` | the white the open sound puts on when it blows, the wind curve under it, and the lee that is spared |
 | `beck.ts` | the sheet of water standing in every island's channel, its fall, its white water and the week it locks |
