@@ -19,7 +19,7 @@ import { archStats, cragStats, creelStats, duneStats, fjordStats, forceStats, ha
 import type { ArchStats, CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, SaltingsStats, ShoalStats, StackStats, TreelineStats } from './scape-map-landforms.ts'
 import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
-import { causewayOf, croftOf, dykeOf, howeOf, peatOf, pierOf, shielingOf, smokehouseOf, tarnOf, watermillOf, weirOf, wreckOf } from './scape-map-sites.ts'
+import { causewayOf, croftOf, dykeOf, howeOf, peatOf, pierOf, shielingOf, smokehouseOf, snowFenceOf, tarnOf, watermillOf, weirOf, wreckOf } from './scape-map-sites.ts'
 import {
   capsStats,
   seaStats,
@@ -132,6 +132,43 @@ export interface CompositionStats {
    * that did was hidden.
    */
   howe: { x: number, z: number, stands: number, skyline: number, fromYard: number } | null
+
+  /**
+   * The run of palings upwind of the cart track, at its middle.
+   *
+   * `run.bite` is the reading that matters and it is the one no still can give
+   * you, at any pose and in any season: it is how hard the stretch of road the
+   * fence was built for is drifting — a lee face multiplied by how squarely the track
+   * lies across the weather — and it is a number about the *wind*, which draws
+   * nothing. A fence can stand in a picture looking exactly like a fence and be
+   * guarding a stretch of track that stopped drifting two retunes ago.
+   *
+   * `guarded` and `length` are the second half of the same question. A run
+   * shorter than the stretch it covers is a fence the wind goes round the end
+   * of, and `setback` is the third: a line that crept in toward the road is a
+   * line that puts its own drift on it.
+   *
+   * `drifts` is reported whether or not anything was built, and it is the only
+   * number here that says *which* refusal an island made: a road that never
+   * drifts and a road that drifts with nowhere to put a fence are the same
+   * blank without it.
+   */
+  snowFence: {
+
+    /** Metres of this island's cart track standing on a drifting face. */
+    drifts: number
+
+    /** The run, or `null` when nothing upwind of a drifting stretch would stand one. */
+    run: {
+      x:       number
+      z:       number
+      length:  number
+      posts:   number
+      guarded: number
+      setback: number
+      bite:    number
+    } | null
+  }
 
   /**
    * The mill on the beck, or `null` where no reach of it would turn a wheel.
@@ -832,6 +869,7 @@ function compositionStats (landmass: LandmassSurvey, w: number, h: number): Comp
     smokehouse: smokehouseOf(survey.smokehouse, worldX, worldZ),
     shieling:   shielingOf(survey.shieling, worldX, worldZ),
     howe:       howeOf(survey.howe, worldX, worldZ),
+    snowFence:  snowFenceOf(survey.snowFence, worldX, worldZ),
     watermill:  watermillOf(survey.watermill, worldX, worldZ),
     dyke:       dykeOf(survey.dyke, worldX, worldZ),
     pier:       pierOf(survey.pier, worldX, worldZ),

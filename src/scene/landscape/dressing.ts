@@ -619,14 +619,15 @@ export function createDressing (
   // churchyard arrived — see `dressing-enclosures.ts`.
   const walling: Walling = {
     heightAt,
-    waterLevel:  water,
+    waterLevel:   water,
     rng,
     palette,
-    reserve:     (x, z, radius) => solver.reserve(x, z, radius),
-    addHero:     geometry => heroes.push(geometry),
+    reserve:      (x, z, radius) => solver.reserve(x, z, radius),
+    addHero:      geometry => heroes.push(geometry),
     placeHero,
     raiseBuilding,
-    dykeSpacing: quality.dykeSpacing,
+    dykeSpacing:  quality.dykeSpacing,
+    fencePalings: quality.fencePalings,
   }
 
   for (const landmass of archipelago.landmasses) {

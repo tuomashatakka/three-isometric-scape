@@ -12,6 +12,7 @@ import type { HoweSite } from '../src/scene/landscape/howe.ts'
 import type { ShielingSite } from '../src/scene/landscape/shieling.ts'
 import type { WatermillSite } from '../src/scene/landscape/watermill.ts'
 import type { SmokehouseSite } from '../src/scene/landscape/smokehouse.ts'
+import type { SnowFenceSurvey } from '../src/scene/landscape/snowfence.ts'
 import { tarnWetted } from '../src/scene/landscape/tarn.ts'
 import type { Tarn } from '../src/scene/landscape/tarn.ts'
 import { weirStanding } from '../src/scene/landscape/weir.ts'
@@ -98,6 +99,43 @@ export function howeOf (
     stands:   round(site.stands, 2),
     skyline:  round(site.skyline, 2),
     fromYard: round(site.fromYard),
+  }
+}
+
+/**
+ * The fence, the road it guards, and the one number about neither.
+ *
+ * `bite` is why this block exists. Every other refusal reported here is about
+ * ground — dry ground being scarce, a shelf falling away, a top standing clear
+ * — and every one of them is at least *in principle* visible in a still taken
+ * from the right angle. This one is about the weather crossing the ground, and
+ * there is no angle to take it from: a fence whose stretch of track has stopped
+ * drifting draws exactly like one whose has not. A `bite` that has fallen back
+ * toward `snowFence.bite` across runs is a fence being built on the threshold,
+ * which is the finding; one far above it is a road that really does close.
+ *
+ * `length` against `guarded` is the other reading, and it is a pair for the
+ * pier's reason: a run shorter than the stretch it was built for is a fence the
+ * wind simply goes round, and one number alone cannot say that.
+ */
+export function snowFenceOf (
+  survey: SnowFenceSurvey,
+  worldX: Project,
+  worldZ: Project,
+): CompositionStats['snowFence'] {
+  const fence = survey.run
+
+  return {
+    drifts: round(survey.drifts, 1),
+    run:    fence && {
+      x:       round(worldX(fence.guards.x)),
+      z:       round(worldZ(fence.guards.z)),
+      length:  round(fence.length, 1),
+      posts:   fence.posts.length,
+      guarded: round(fence.guarded, 1),
+      setback: round(fence.setback, 1),
+      bite:    round(fence.bite, 3),
+    },
   }
 }
 

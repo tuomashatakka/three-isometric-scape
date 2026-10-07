@@ -55,8 +55,13 @@ const placement = new Matrix4()
  * the caller doing the trigonometry anyway — so the colour is baked with no
  * transform and the geometry is placed with a matrix afterwards. Vertex colours
  * are unaffected by a later transform, and `applyMatrix4` carries the normals.
+ *
+ * Exported for [`snowfence.ts`](snowfence.ts), which is the third run builder
+ * on this line and the first one with a member in it that is neither plumb nor
+ * level: a raking brace is exactly "point at that", and a second copy of this
+ * would be a second set of scratch vectors for the same arithmetic.
  */
-function strut (
+export function strut (
   parts:  BufferGeometry[],
   rng:    SeededRng,
   color:  string,

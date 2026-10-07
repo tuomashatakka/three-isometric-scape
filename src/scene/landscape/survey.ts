@@ -42,6 +42,8 @@ import { WATERMILL_FOOTING, findWatermillSite } from './watermill.ts'
 import type { WatermillSite } from './watermill.ts'
 import { STEADING_BUILDINGS, doorstepOf, steadingPlaces } from './steading.ts'
 import type { SteadingPlaces } from './steading.ts'
+import { solveSnowFence } from './snowfence.ts'
+import type { SnowFenceSurvey } from './snowfence.ts'
 import { solveSaltings } from './saltings.ts'
 import type { Saltings } from './saltings.ts'
 import { solveTarn } from './tarn.ts'
@@ -169,6 +171,19 @@ export interface ScapeSurvey {
    * than only the ground — see {@link ringTheHill}.
    */
   dyke: HeadDyke | null
+
+  /**
+   * The run of palings upwind of the cart track, and how much of that track
+   * drifts whether or not one was built.
+   *
+   * The one site in the survey chosen by the *weather* rather than by the
+   * ground — see `snowfence.ts`. It is settled after everything else because it
+   * is the newest thing on the island and has to miss all of it, and it is the
+   * only entry here that is a record rather than a nullable site: the road
+   * drifts or does not drift regardless of whether anything could be stood
+   * upwind of it, and those are two different refusals.
+   */
+  snowFence: SnowFenceSurvey
 }
 
 /**
@@ -552,6 +567,50 @@ function raiseTheDead (
 }
 
 /**
+ * The fence upwind of the cart track, or the reason there is none.
+ *
+ * A function of its own for the reason {@link raiseTheDead} is one — the survey
+ * holds the *order*, not the argument lists. Run last, after the routes and
+ * after the wall, because a snow fence is the youngest structure on the island
+ * by two thousand years and has to miss everything already standing: the
+ * search is handed the same `avoid` list the paths were planned against.
+ *
+ * The ground it is barred from is the howe's list with one line removed and one
+ * added. The ice is not in it — a fence stood on an ice cap is a fence that
+ * never had a track to guard, and the track test below refuses that ground
+ * anyway. The yard *is* in it, explicitly, exactly as it is in the hut's and
+ * the mound's searches: the cart track ends at the farm, so without it the
+ * best-drifting stretch of road on half these islands is the farmyard itself.
+ */
+function fenceTheTrack (
+  config:   ScapeConfig,
+  layout:   ScapeLayout,
+  field:    HeightField,
+  avoid:    readonly Obstacle[],
+): SnowFenceSurvey {
+  const { creek, yard } = layout
+
+  return solveSnowFence({
+    track:      layout.track.points,
+    ground:     field.heightAt,
+    normal:     field.normalAt,
+    waterLevel: config.terrain.waterLevel,
+    bearing:    config.wind.bearing,
+    height:     config.snowFence.height,
+    setback:    config.snowFence.setback,
+    spacing:    config.snowFence.spacing,
+    bite:       config.snowFence.bite,
+    reach:      config.snowFence.reach,
+    freeboard:  config.snowFence.freeboard,
+    clear:      (x, z) =>
+      Math.hypot(x - yard.x, z - yard.z) > yard.radius &&
+      (creek?.clearanceAt(x, z) ?? Infinity) > 0 &&
+      distanceToTrack(layout, x, z) > layout.track.width * 1.5 &&
+      avoid.every(ground => Math.hypot(x - ground.x, z - ground.z) > ground.radius),
+  })
+}
+
+/**
  * The mill on the beck, or the reason there is none.
  *
  * A function of its own for the reason {@link ringTheHill} and
@@ -848,5 +907,11 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     // being in the middle of farmland at all. Leaving it in cost the home
     // island its whole wall, which is the finding that put this line here.
     dyke:     ringTheHill(config, layout, field, paths, avoid.filter(ground => !barrow.includes(ground))),
+
+    // Last, and handed the claim list *with* the barrow in it — unlike the
+    // wall. A head dyke is built to a landmark and a snow fence is built to a
+    // forecast, so the one thing a mound is to this structure is three metres
+    // of ground a post cannot be driven into.
+    snowFence: fenceTheTrack(config, layout, field, avoid),
   }
 }

@@ -3,6 +3,7 @@ import type { SeededRng } from 'threejs-scene'
 import { buildFenceRun } from '../props/fence.ts'
 import type { FencePoint } from '../props/fence.ts'
 import type { NordicPalette, PropName } from '../props/index.ts'
+import { buildSnowFenceRun } from '../props/snowfence.ts'
 import { buildStoneWallRun } from '../props/wall.ts'
 import type { LandmassSurvey } from './archipelago.ts'
 import { CHAPEL_FOOTING, chapelStanding } from './chapel.ts'
@@ -10,6 +11,7 @@ import type { ChapelSite } from './chapel.ts'
 import { plotOutline } from './dressing-helpers.ts'
 import { yawAlong } from './layout.ts'
 import type { Vec2 } from './layout.ts'
+import { SNOW_FENCE_CLAIM } from './snowfence.ts'
 import type { Standing } from './steading.ts'
 
 
@@ -67,6 +69,9 @@ export interface Walling {
    * stone in the scape by a factor of eight — see `AtmosphereQuality.dykeSpacing`.
    */
   dykeSpacing: number
+
+  /** Laths per bay on a snow fence — see `AtmosphereQuality.fencePalings`. */
+  fencePalings: number
 }
 
 const TAU = Math.PI * 2
@@ -382,10 +387,54 @@ function raiseHeadDyke (landmass: LandmassSurvey, walling: Walling): void {
     walling.placeHero('gate', gate.x + ox, gate.z + oz, gate.bearing + Math.PI / 2, undefined, `-dyke-${landmass.id}-${index}`)
 }
 
+/**
+ * The run of palings upwind of the cart track.
+ *
+ * The fifth walled thing and the only one that encloses nothing *and* keeps
+ * nothing out. The other four are built against animals, graves or a crop; this
+ * one is built against air, and the ground it claims is claimed for the reason
+ * the dyke's line is — the scatter solver has no idea the run exists and a
+ * juniper grown through it is a fence nobody built.
+ *
+ * The claim follows the posts rather than covering the line, and it is the
+ * narrowest in the scape: see `SNOW_FENCE_CLAIM`. The ground either side of a
+ * snow fence is exactly the ground the drift it throws lands on, and reserving
+ * that would be reserving the open hill the fence was put there to work with.
+ */
+function raiseSnowFence (landmass: LandmassSurvey, walling: Walling): void {
+  const fence = landmass.survey.snowFence.run
+
+  if (!fence)
+    return
+
+  const { x: ox, z: oz } = landmass.origin
+  const run              = buildSnowFenceRun({
+    points:    fence.posts.map(post => ({ x: post.x + ox, z: post.z + oz })),
+    heightAt:  walling.heightAt,
+    rng:       walling.rng.fork(`snow-fence-${landmass.id}`),
+    palette:   walling.palette,
+    height:    landmass.config.snowFence.height,
+    spacing:   landmass.config.snowFence.spacing,
+    palings:   walling.fencePalings,
+    lean:      fence.lean,
+    // The second reader of the survey's own rule, for the dyke's reason: the
+    // ground the dressing draws is the tier's tessellation of the ground the
+    // survey measured, and a post found a handspan clear can come back wet.
+    minHeight: walling.waterLevel + landmass.config.snowFence.freeboard,
+  })
+
+  if (run)
+    walling.addHero(run)
+
+  for (const post of fence.posts)
+    walling.reserve(post.x + ox, post.z + oz, SNOW_FENCE_CLAIM)
+}
+
 /** Every walled and fenced thing on one landmass, in the order it is built. */
 export function raiseEnclosures (landmass: LandmassSurvey, walling: Walling): void {
   raiseUpland(landmass, walling)
   raiseChurchyard(landmass, walling)
   raiseFences(landmass, walling)
   raiseHeadDyke(landmass, walling)
+  raiseSnowFence(landmass, walling)
 }

@@ -5,6 +5,7 @@ import { HAIL_CENTRE, HAIL_WIDTH } from '../src/scene/weather.ts'
 import { COAST_TOURS } from './scape-poses-coast.ts'
 import { ICE_TOURS } from './scape-poses-ice.ts'
 import { SKY_TOURS } from './scape-poses-sky.ts'
+import { SNOW_TOURS } from './scape-poses-snow.ts'
 import { TIDE_TOURS } from './scape-poses-tide.ts'
 
 
@@ -165,6 +166,11 @@ export const TOURS: Record<string, Pose[]> = {
   // past it and the fog that fills the ground once it has gone — out in
   // `scape-poses-sky.ts`, on the seam the coast was cut on.
   ...SKY_TOURS,
+
+  // And what the winter does to the ground, plus the one piece of settlement
+  // sited from that reading rather than from a shape — out in
+  // `scape-poses-snow.ts`, on the seam the coast was cut on.
+  ...SNOW_TOURS,
 
   // And what the sea's own level does — the swing itself, the water it has to
   // move to swing, the flat it walks across and the crossing it closes — out in
@@ -1491,67 +1497,6 @@ export const TOURS: Record<string, Pose[]> = {
     },
   ],
 
-  /**
-   * The winter, with the wind in it and without.
-   *
-   * The snow line has swung with the sun's aspect for as long as the ground has
-   * had one, and the tour saw none of that either — the run that put it there
-   * moved `winter` by hundredths and had to be judged on a pose set of its own.
-   * The wind's swing is a bigger number on a smaller share of the frame, so it
-   * lands in the same place: at 1 520 m every island is a white lozenge, and
-   * whether one *side* of a ridge came out from under the cover is a question
-   * about forty metres of hillside.
-   *
-   * The fell island is the subject because it is the tallest ground in the
-   * archipelago with no ice cap on it — the shield stands higher and wears a
-   * glacier over a third of itself, and a run about lying snow cannot be judged
-   * on the one island where the white is mostly not snow.
-   *
-   * Three winters in one frame, and the set is the claim rather than any one of
-   * them. `drift` is the ground as it now is; `drift-even` is the same hillside
-   * with `season.snowDrift` at zero, which is the winter the scape had before
-   * this run and the control every other frame is read against; `drift-lee` is
-   * the wind turned right around, which has to take the bare ground to the far
-   * side of every ridge — the dune belt's own argument, in snow. `drift-near` is
-   * 45 m, where the scoured face and the packed bank either side of one shoulder
-   * are surfaces rather than a tone.
-   *
-   * Deep winter at 0.02 and noon, pinned for the reason `beck-winter` is: the
-   * cover is a curve over the year and a frame taken at the configured phase
-   * would be measuring the calendar. Nothing here is in {@link STILL} — a drift
-   * is a winter's worth of weather resolved from a bearing and a normal, and
-   * neither of those is a clock.
-   */
-  drift: [
-    {
-      name:   'drift',
-      zoom:   120,
-      time:   0.5,
-      season: 0.02,
-      set:    [ 'camera.focusX=322', 'camera.focusZ=-462' ],
-    },
-    {
-      name:   'drift-even',
-      zoom:   120,
-      time:   0.5,
-      season: 0.02,
-      set:    [ 'camera.focusX=322', 'camera.focusZ=-462', 'season.snowDrift=0' ],
-    },
-    {
-      name:   'drift-lee',
-      zoom:   120,
-      time:   0.5,
-      season: 0.02,
-      set:    [ 'camera.focusX=322', 'camera.focusZ=-462', 'wind.bearing=74' ],
-    },
-    {
-      name:   'drift-near',
-      zoom:   45,
-      time:   0.5,
-      season: 0.02,
-      set:    [ 'camera.focusX=322', 'camera.focusZ=-462' ],
-    },
-  ],
 
   /**
    * The kelp beds, at the two ends of one spring tide.
