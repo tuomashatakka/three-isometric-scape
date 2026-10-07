@@ -28,6 +28,8 @@ import { SCAPE_PACK_ICE } from './config-packice.ts'
 import type { PackIceConfig } from './config-packice.ts'
 import { SCAPE_HOWE } from './config-howe.ts'
 import type { HoweConfig } from './config-howe.ts'
+import { SCAPE_SNOW_FENCE } from './config-snowfence.ts'
+import type { SnowFenceConfig } from './config-snowfence.ts'
 import { SCAPE_SHIELING } from './config-shieling.ts'
 import type { ShielingConfig } from './config-shieling.ts'
 import { SCAPE_HAAR } from './config-haar.ts'
@@ -281,7 +283,7 @@ export interface DressingBudget {
 
 export interface ScapeConfig extends CreelConfig, DykeConfig, ForceConfig, FrontConfig,
   GuardConfig, HaarConfig, HoweConfig, KelpConfig, LedgeConfig, PackIceConfig, RoostConfig, ShaftsConfig, ShielingConfig,
-  ShoalConfig, TreelineConfig, WatermillConfig, WreckConfig {
+  ShoalConfig, SnowFenceConfig, TreelineConfig, WatermillConfig, WreckConfig {
   seed:    number
   terrain: {
     size:       number
@@ -2735,6 +2737,7 @@ export const SCAPE_CONFIG = {
   ...SCAPE_ROOST,
   ...SCAPE_SHAFTS,
   ...SCAPE_SHIELING,
+  ...SCAPE_SNOW_FENCE,
   ...SCAPE_SHOAL,
   ...SCAPE_TREELINE,
   ...SCAPE_WATERMILL,

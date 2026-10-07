@@ -473,6 +473,26 @@ export interface AtmosphereQuality {
   weirStakes: number
 
   /**
+   * Laths per bay on a snow fence — see `props/snowfence.ts`.
+   *
+   * A count rather than a switch, and like {@link AtmosphereQuality.weirStakes}
+   * it *is* allowed to reach zero, for a reason that is the structure's own.
+   * The posts and the two rails are the fence; the cladding is what makes it
+   * stop air, and a railed run with no laths in it is a fence somebody has
+   * taken the boards off for the summer — which is a real thing on a real
+   * croft, and the graceful absence the brief asks for, rather than an island
+   * whose track loses its fence on a phone.
+   *
+   * It is also the one handle here with a *gap* to protect. A snow fence is
+   * about half open by design, so the laths are set a lath's width apart: the
+   * number here is how many of those pairs a bay carries, and raising it past
+   * about nine closes the run into a hoarding, which throws the wrong drift
+   * and reads as a wall. The whole run is merged into the steading's one hero
+   * draw, so nothing here is a draw call on any tier.
+   */
+  fencePalings: number
+
+  /**
    * Blocks in a sea arch's span — see `props/arch.ts`.
    *
    * A count rather than a switch, and not a gate, for the reason
@@ -587,6 +607,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     wheelBuckets:    8,
     dykeSpacing:     0.98,
     weirStakes:      0,
+    fencePalings:    0,
     waterSegments:   24,
     waterSpan:       2.2,
     shoreMask:       384,
@@ -648,6 +669,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     wheelBuckets:  10,
     dykeSpacing:   0.92,
     weirStakes:    1.1,
+    fencePalings:  3,
     waterSegments: 48,
     waterSpan:     3,
     shoreMask:     768,
@@ -707,6 +729,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     wheelBuckets:    14,
     dykeSpacing:     0.76,
     weirStakes:      0.8,
+    fencePalings:    5,
     waterSegments:   96,
     waterSpan:       8,
     shoreMask:       1_024,
@@ -759,6 +782,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     wheelBuckets:    18,
     dykeSpacing:     0.64,
     weirStakes:      0.55,
+    fencePalings:    7,
     waterSegments:   128,
     waterSpan:       8,
     shoreMask:       1_536,

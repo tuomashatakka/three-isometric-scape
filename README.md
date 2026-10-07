@@ -89,6 +89,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - **a watermill on the beck of four of the six islands**: a boarded mill house standing on seventy centimetres of field stone at the foot of the fall, a two-metre breastshot wheel turning in a timber frame off its wet gable, and a lade of nine to sixteen metres — a timber trough on trestles, each bent cut to the ground under it — carried down the bank from a mouth on the channel that stands a wheel's head above the sill. the wheel turns on the beck rather than on the wind, so a squall does nothing to it and the fortnight the channel freezes stops it dead; the meadow's burn falls too little over the length of a lade to turn anything, and the ridge has no bank at once off the channel, above the sea and level enough to lay a sill on
 - a walled upland hay meadow with a barn, a gate and drying poles
 - **a barrow on the skyline of five of the six islands**: seven metres of turf and field stone standing two and a half over the ground it was piled on, ringed with a kerb of set stones and opened at the crown by somebody who thought there was gold in it — sited not by what the ground is like underfoot but by what the mound *looks like from the farmyard door*, so the only tops it will take are the ones whose crest clears every shoulder between them and the farm. the ridge island gets none, because the whole of its dry ground outside the walk is either the farm's already or within a hand's breadth of the tide
+- **a snow fence upwind of the cart track on two of the six islands**: a run of driven posts, two rails and gapped laths standing square across the weather fifteen metres *upwind* of the stretch of road that drifts, so the bank it throws lands on the open fell between the two instead of on the track — the first thing in the scape sited from a season rather than from a shape, found where a lee face and a road lying across the wind coincide. four islands have a stretch worth fencing and two of them have nowhere to put one: the home island's setback stands in the sea and the meadow island's in its own farmyard, which the survey reports as metres of drifting road rather than as a blank
 - a limewashed chapel on a knoll above the farm — a bell tower with an open belfry and a spire, a stepped chancel, and a walled churchyard with twelve leaning markers in it
 - juniper bushes out on the dry upland heath — a low, spreading evergreen that reads apart from the conifers and answers to the same one wind
 - **a treeline drawn by the wind rather than by height**: two lines rather than one, mixed by how much open water lies upwind of a point — the wood gives out at about two metres over ground with the sea full on it and climbs to eight and a half in the lee of its own hill — with a margin of stunted spruce at the edge, salt keeping the trees back off every weather shore, birch thickest at the line and shaded out behind it, and juniper heath inheriting the bare tops the spruce gave up
@@ -230,6 +231,7 @@ src/
     ├── config-packice.ts           the pack's own slice: the gate, the draught, the plate, the lead kept open
     ├── config-wreck.ts             the wreck's own slice: how low a rock, how much of one, how flat a ledge
     ├── config-shoal.ts             the bank's own slice: the reach, the crest, and the room the sound leaves
+    ├── config-snowfence.ts         the snow fence's own slice: the height, the setback, and the bite that earns one
     ├── config-roost.ts             the race's own slice: how wide a gate still runs, and how white it gets
     ├── config-weir.ts              the fish trap's own slice: the reach, the pound, the mouth, the wall
     ├── config-front.ts             the front's own knobs: weather, the far squall, the lightning, the bow
@@ -318,6 +320,7 @@ src/
     │   ├── weir.ts                 the intertidal flat off the harbour, and the leader and pound laid on it
     │   ├── croft.ts                the free islet the croft is built on, and the row home that picked it
     │   ├── wreck.ts                the lowest rock in the ring, and the line a hull came to rest on it along
+    │   ├── snowfence.ts            the stretch of cart track that drifts, and the line set back upwind of it
     │   ├── dyke.ts                 the contour the head dyke follows, where it stops, and where it is gated
     │   ├── mill.ts                 the exposed shoulder a windmill would stand on
     │   ├── mill-sails.ts           every mill's wheel, turning in one instanced draw
@@ -373,6 +376,7 @@ src/
         ├── arch.ts                 the sea arch — two legs cut to their beds, and the rock over the hole
         ├── pier.ts                 the pier — driven piles, a level deck, bollards and a ladder
         ├── weir.ts                 the fish weir — a wrack-stained wall on the bed, and the wattle on its pound
+        ├── snowfence.ts            the snow fence — driven posts, two rails, and a bay of gapped laths between
         ├── croft.ts                the croft — boarded walls, turf roof, stone flue, oars at the gable
         ├── wreck.ts                the wreck — keel, broken frames, the strakes the bedded side kept
         ├── objects.ts              rowboat, bales, firewood, peat rick, barrel, mailbox, driftwood
@@ -403,6 +407,7 @@ scripts/
 ├── scape-poses-ice.ts              the frozen sound, folded back into TOURS the same way
 ├── scape-poses-sky.ts              what the deck does: the shadow, the beams under it, the fog after it
 ├── scape-poses-tide.ts             what the sea's own level does: the swing, the race, the flat, the crossing
+├── scape-poses-snow.ts             what the wind does with the winter, and the fence sited from it
 ├── scape-shot.ts                   headless stills, posed and pinned
 ├── scape-diff.ts                   what a change did to the picture, in numbers
 └── setup.ts                        what a run has before it starts thinking
@@ -2388,6 +2393,67 @@ the gain is capped at two doublings and lipped to zero over the last few centime
 ### what it costs
 
 **nothing new.** three sines and three dot products per vertex and per lit fragment, against the three sines the axis-locked field already cost; one `pow` per vertex and one per fragment for green's law; six uniforms, three of them a `vec2[3]`; no texture, no allocation per frame, no geometry and no draw call. there is no tier gate and there is nothing for one to take away — the sea had this cost before it had a direction.
+
+## the fence the road needed
+
+everything standing on these islands was sited by a **shape**. the mill takes the one exposed shoulder, the chapel the one knoll the yard can see, the weir the one flat the ebb drains, the barrow the one top that stands against the sky — every one of them a fact about ground that would be just as true in a place with no weather in it at all. the winter the wind moves, meanwhile, has been a thing the ground *has* since [`drift.ts`](src/scene/landscape/drift.ts) landed, and nothing had ever been placed from it.
+
+two of the six islands now carry a **snow fence**: a run of driven posts, two rails and gapped laths, standing square across the weather fifteen metres upwind of the one piece of the island that has to stay open all winter — the cart track. [`landscape/snowfence.ts`](src/scene/landscape/snowfence.ts) is the search, [`props/snowfence.ts`](src/scene/props/snowfence.ts) is the timber, and the six knobs are [`config-snowfence.ts`](src/scene/config-snowfence.ts).
+
+### the question is a product, and neither half of it is the question
+
+a road drifts where two things are true at once, and a threshold on either alone fences the wrong half of an island.
+
+- **is the ground banking.** `faceAmount` against `driftDirection` — the same reading the snow line swings on, and the same function the sun's aspect uses. positive is a lee face: the side the drift builds on.
+- **does it bank across the road or along it.** a track running down the wind collects nothing however sheltered its ground is, because the snow is travelling the way the road goes. so the shelter reading is multiplied by `|t × w|`, how squarely the track lies across the weather.
+
+`driftRisk` is that product, and the gate `snowFence.bite` sits on it rather than on either factor. shelter alone fences the whole lee half of an island; bearing alone fences the exposed crossings that never drift because nothing lies on them. [`snowfence.test.ts`](src/scene/landscape/snowfence.test.ts) states both halves as facts about the data: a fully sheltered face lying *along* the weather reads `0`, and a weather face lying across it reads `0` as well.
+
+### the fence is not built where the drift is
+
+the rule a reader would get wrong from first principles, and the only way this structure fails. a snow fence does not stop blowing snow — it slows the air until the snow falls out of it, and the bank forms **in the fence's lee**. so the line stands `snowFence.setback` of its own heights upwind of the stretch it guards, and the drift it throws lands on the open ground between the two. a fence built on the verge is a fence that puts a wall of snow on the road it was built for.
+
+twelve heights is the shallow end of what the handbooks give, and it is chosen against this coast rather than against them: these islands stand five to twenty-three metres out of the water and their cart tracks run from a farmyard to a shore, so a setback of twenty heights is in the sea on every one of them.
+
+the line is **square to the weather rather than parallel to the road**, and it is as wide as the guarded stretch's shadow across the wind plus four metres of overrun at each end. a fence laid along a winding track presents a different angle to the wind every ten metres and throws a drift that is deep in places and nothing in others; one straight line throws one even bank. on these tracks the difference is large — the sound island's worst stretch is twenty-five metres of road whose shadow across the weather is eighteen.
+
+### the refusal is the finding
+
+four of the six islands have a stretch of cart track worth fencing and **two of them have nowhere to put the fence**. the home island's setback stands in the sea; the meadow island's stands in its own farmyard. that is not a tuning failure, it is what a twelve-metre-high island with a road from the yard to the water actually offers, and it is the reason the search comes back with a **measurement rather than a site**:
+
+```ts
+interface SnowFenceSurvey {
+  drifts: number            // metres of this track standing on a drifting face
+  run:    SnowFence | null  // and whether anything could be stood upwind of it
+}
+```
+
+a bare `null` makes a road that never drifts and a road that drifts with nowhere to help it the same blank, and they are opposite facts about an island. `scape:map --stats` reports `drifts` on the islands that got nothing, which is the only place it can be read — the ridge island's `0 m` and the home island's `14.4 m` are two completely different refusals printing the same word.
+
+the search also tries **every** qualifying stretch, worst first, rather than the worst one only. the stretch that drifts hardest and the stretch that can be fenced are two different questions, and a cart track that runs from a farmyard to a shore makes the first answer unusable often enough that the second stretch is frequently the island's real one.
+
+### what it costs
+
+**no draw call, on any tier.** the whole run is merged into the steading's single hero geometry beside the head dyke, the field fences and the churchyard wall, which is also why the structure has no `enabled`: `snowFence.height` at zero takes the timber out of the scape through the arithmetic that places it rather than around it.
+
+the archipelago carries **36 m of fence — 16 posts, 14 bays** — against something like six hundred metres of head dyke, so this is a rounding error on the hero merge's vertex count. `quality.fencePalings` is the one tier handle: seven laths a bay on `ultra`, five on `desktop`, three on `mobile` and **zero on `minimal`**, which leaves a railed run standing rather than taking the fence off the island — a croft with its boards off for the summer is a real thing, and the graceful absence the brief asks for.
+
+two proportions in the timber are load-bearing rather than decorative. the laths are set a lath's width apart, because a snow fence is about half open by design and a solid board fence throws a shorter, steeper drift and scours a trench at its own foot. and the cladding stands clear of the ground by a tenth of the height, so the first bank it throws passes under it instead of burying it in the first week of the winter it was built for.
+
+the braces rake **downwind and only downwind**, which is the one part of a fence that says, in a still, which way the weather on this island comes from.
+
+### what it does not yet know
+
+the **treeline has never heard of it**. `driftRisk` reads the ground's aspect and the road's bearing, and neither of those knows what is growing on the ground — so the sound island's run stands in standing spruce, which is a fence built where the wood already does the job. a fetch test against [`treeline.ts`](src/scene/landscape/treeline.ts) would refuse that site in one gate.
+
+and **nothing lies against it**. the whole claim is that a bank forms in the fence's lee, and lying snow in this scape is [a surface response with no accumulation in it](#the-year) — so the one place here where a drift is a *made* thing is still drawn as the same wandering contour as the rest of the hill.
+
+### `--poses fence`, the twenty-sixth set
+
+**`scape-poses.ts` went past the 666-line ceiling again** the moment a twenty-sixth set arrived, and `drift` left with `fence` into [`scape-poses-snow.ts`](scripts/scape-poses-snow.ts). the seam is a real one and not a line count: `drift` is where the wind puts the winter it has already dropped, and `fence` is the one piece of settlement in the scape sited from exactly that reading — a set for the cause and a set for the only thing that answers it.
+
+
+the tour cannot see this one, for the reason it could not see the hillside: twenty-six metres of lath fence six hundred metres from the tour's focus is under a pixel of timber at 1 520 m. four frames on the sound island at deep winter and noon — `fence` at 60 m with both the structure and the road it guards in frame, because a fence photographed alone could be standing anywhere; `fence-bare`, the same frame with `snowFence.height` at zero, which is the scape exactly as it was before this run and the only honest control there is; `fence-near` at 22 m where the laths and the braces are timber; and `fence-fell`, the other island's ten-metre run, because two islands got very different fences and a set showing only the good one would be a set chosen to flatter the search.
 
 ## ground that casts
 

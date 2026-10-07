@@ -338,6 +338,7 @@ function sitedLines (stats: MapStats): string[] {
     shielingLine(stats.shieling),
     howeLine(stats.howe),
     watermillLine(stats.watermill),
+    snowFenceLine(stats.snowFence),
     wreckLine(stats.wreck),
   ]
 }
@@ -396,6 +397,29 @@ function howeLine (howe: MapStats['howe']): string {
 
   return `howe (${howe.x},${howe.z}) stands ${howe.stands}m over its prospect  ` +
     `seen ${howe.skyline}m clear  ${howe.fromYard}m from the yard`
+}
+
+/**
+ * The fence upwind of the track, as one line.
+ *
+ * Its own function for the reason `howeLine` is one, and the reading to watch
+ * is `bite`. It is the only number in this block that is about the weather
+ * rather than about the ground, which means it is the only one a still cannot
+ * check: a run of palings photographs identically whether the road behind it
+ * closes every February or has not drifted since the wind was retuned.
+ */
+function snowFenceLine (survey: MapStats['snowFence']): string {
+  const fence = survey.run
+
+  if (!fence)
+    return survey.drifts > 0
+      ? `snow fence NONE  <- ${survey.drifts}m of this track drifts and no line a setback ` +
+        'upwind of it stands on open ground'
+      : 'snow fence NONE  <- no stretch of the track both lies across the weather and banks'
+
+  return `snow fence (${fence.x},${fence.z}) ${fence.length}m of ${fence.posts} posts  ` +
+    `guards ${fence.guarded}m of ${survey.drifts}m drifting  ` +
+    `setback ${fence.setback}m  bite ${fence.bite}`
 }
 
 /**
@@ -684,7 +708,10 @@ export function formatStats (stats: MapStats): string {
       `dyke ${landmass.dyke ? `${landmass.dyke.length}/${landmass.dyke.circuit}m ${landmass.dyke.gates}g` : 'NONE'}  ` +
       `shieling ${landmass.shieling ? `rise ${landmass.shieling.rise}m` : 'NONE'}  ` +
       `howe ${landmass.howe ? `seen ${landmass.howe.skyline}m` : 'NONE'}  ` +
-      `watermill ${landmass.watermill ? `head ${landmass.watermill.head}m lade ${landmass.watermill.lade}m` : 'NONE'}`),
+      `watermill ${landmass.watermill ? `head ${landmass.watermill.head}m lade ${landmass.watermill.lade}m` : 'NONE'}  ` +
+      `fence ${landmass.snowFence.run
+        ? `${landmass.snowFence.run.length}m bite ${landmass.snowFence.run.bite}`
+        : 'NONE'} drifts ${landmass.snowFence.drifts}m`),
     `waterways ${stats.waterways.legs} legs ${stats.waterways.length}m  ` +
       `connected ${stats.waterways.connected ? 'OK' : 'BROKEN'}  ` +
       `wet ${stats.waterways.wet ? 'OK' : 'DRY'}  ` +
