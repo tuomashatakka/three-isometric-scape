@@ -473,6 +473,26 @@ export interface AtmosphereQuality {
   weirStakes: number
 
   /**
+   * Metres between armour blocks on the breakwater's seaward foot. 0 leaves the
+   * flank bare.
+   *
+   * The arm's one handle, and like {@link AtmosphereQuality.weirStakes} it *is*
+   * allowed to reach zero, for the same shape of reason. The mound is the
+   * breakwater — its wedge, its level capping and its shelter are all in the
+   * courses — and the armour is the apron of bigger stone tipped against the
+   * face that gets hit. An arm without it is a sea wall that has not been
+   * re-armoured since it was built, which is a thing that exists on every coast
+   * of this kind; an arm with a cheap, thin version of it would be the broken
+   * cheap version the brief refuses.
+   *
+   * The mound itself follows `dykeSpacing`, for the reason the weir's stone
+   * does: it is a drystone argument about station spacing against stone length,
+   * and it is the same argument in the water as it is on the hill. A second
+   * number here would be that one, restated, free to drift.
+   */
+  moleArmour: number
+
+  /**
    * Laths per bay on a snow fence — see `props/snowfence.ts`.
    *
    * A count rather than a switch, and like {@link AtmosphereQuality.weirStakes}
@@ -607,6 +627,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     wheelBuckets:    8,
     dykeSpacing:     0.98,
     weirStakes:      0,
+    moleArmour:      0,
     fencePalings:    0,
     waterSegments:   24,
     waterSpan:       2.2,
@@ -669,6 +690,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     wheelBuckets:  10,
     dykeSpacing:   0.92,
     weirStakes:    1.1,
+    moleArmour:    2.4,
     fencePalings:  3,
     waterSegments: 48,
     waterSpan:     3,
@@ -729,6 +751,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     wheelBuckets:    14,
     dykeSpacing:     0.76,
     weirStakes:      0.8,
+    moleArmour:      1.7,
     fencePalings:    5,
     waterSegments:   96,
     waterSpan:       8,
@@ -782,6 +805,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     wheelBuckets:    18,
     dykeSpacing:     0.64,
     weirStakes:      0.55,
+    moleArmour:      1.15,
     fencePalings:    7,
     waterSegments:   128,
     waterSpan:       8,

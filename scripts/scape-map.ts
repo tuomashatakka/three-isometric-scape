@@ -19,7 +19,7 @@ import { archStats, cragStats, creelStats, duneStats, fjordStats, forceStats, ha
 import type { ArchStats, CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, SaltingsStats, ShoalStats, StackStats, TreelineStats } from './scape-map-landforms.ts'
 import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
-import { causewayOf, croftOf, dykeOf, howeOf, peatOf, pierOf, shielingOf, smokehouseOf, snowFenceOf, tarnOf, watermillOf, weirOf, wreckOf } from './scape-map-sites.ts'
+import { causewayOf, croftOf, dykeOf, howeOf, moleOf, peatOf, pierOf, shielingOf, smokehouseOf, snowFenceOf, tarnOf, watermillOf, weirOf, wreckOf } from './scape-map-sites.ts'
 import {
   capsStats,
   seaStats,
@@ -196,6 +196,34 @@ export interface CompositionStats {
     depth:  number
     deck:   number
     bents:  number
+  } | null
+
+  /**
+   * The arm across the landing, at its head.
+   *
+   * `null` on an island whose landing was already in shelter, or whose shelf
+   * would take no run of rubble four stations long on either hand, or whose
+   * best run shadowed none of the sweep it was built against. A different
+   * question from the pier's and the weir's and the only one in this block
+   * asked about the *sea* rather than about the bed.
+   *
+   * `shelter` is the measurement no still can give you. It is degrees of the
+   * landing's own horizon the arm now stands in the way of, and it is the
+   * structure's whole claim stated as a number: an arm that is thirty metres
+   * long and shelters nothing has been built in the wrong place, and the only
+   * instrument that can say so is this one. `fetch` is what it was built
+   * against — metres of open water on the worst bearing, saturating at the
+   * sweep's own horizon.
+   */
+  mole: {
+    x:        number
+    z:        number
+    length:   number
+    elbow:    number
+    stations: number
+    crest:    number
+    fetch:    number
+    shelter:  number
   } | null
 
   /**
@@ -873,6 +901,7 @@ function compositionStats (landmass: LandmassSurvey, w: number, h: number): Comp
     watermill:  watermillOf(survey.watermill, worldX, worldZ),
     dyke:       dykeOf(survey.dyke, worldX, worldZ),
     pier:       pierOf(survey.pier, worldX, worldZ),
+    mole:       moleOf(survey.mole, worldX, worldZ),
     weir:       weirOf(survey.weir, config, worldX, worldZ),
     causeway:   causewayOf(survey.causeway, config, worldX, worldZ),
     croft:      croftOf(survey.croft, worldX, worldZ),

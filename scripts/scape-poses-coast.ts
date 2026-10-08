@@ -35,6 +35,15 @@ const OVER_STACK = [ 'camera.focusX=58', 'camera.focusZ=-35' ]
  */
 const OVER_ARCH = [ 'camera.focusX=35', 'camera.focusZ=-40' ]
 
+/**
+ * The home island's landing, and the arm beside it, in world metres.
+ *
+ * Between the two rather than on either: the jetty is at (-26,-17) and the
+ * breakwater's head at (-41.7,-33), and the whole point of the frame is that
+ * one of them is in front of the other.
+ */
+const OFF_THE_LANDING = [ 'camera.focusX=-34', 'camera.focusZ=-25' ]
+
 /** The middle of the home island's bird ledges, which is the middle of its crag. */
 const ON_LEDGES = [ 'camera.focusX=37', 'camera.focusZ=-28' ]
 
@@ -202,5 +211,44 @@ export const COAST_TOURS: Record<string, Pose[]> = {
       zoom: 40,
       set:  [ ...OVER_ARCH, 'terrain.arch.stature=0' ],
     },
+  ],
+
+  /**
+   * The breakwater, and the water it was built to quieten.
+   *
+   * The one set in this file aimed at something people put there rather than
+   * something the sea cut, and it is here because the subject is the same: a
+   * coast, photographed from the water side. An arm is a *harbour*-scaled thing
+   * — twenty-four metres of stone beside a seven-metre jetty — so the frames
+   * sit between the crag's coast zoom and the near pose's farmyard one.
+   *
+   * - `mole` is the home island's arm with the landing it shelters in frame at
+   *   45 m. The siting is the claim, and a mound photographed alone is a mound
+   *   that could be standing anywhere — the jetty has to be in the picture or
+   *   there is nothing to say the arm is in front of it.
+   * - `mole-bare` is the same frame with `mole.exposure` past what any coast on
+   *   this archipelago offers, which takes every arm out through the gate that
+   *   decides whether one is built rather than around it. It is the scape
+   *   exactly as it was before this run, and the only honest control there is.
+   * - `mole-near` is 18 m, where the five courses, the batter and the capping
+   *   are stone rather than a dark wedge. It is the frame that says whether the
+   *   mound was tipped or built.
+   * - `mole-fell` is the fell island's twelve-metre run at 40 m. Five islands
+   *   got an arm and they got very different ones — 24 m sheltering 75° against
+   *   12 m sheltering 217° — and a set showing only the long one would be a set
+   *   chosen to flatter the search.
+   *
+   * Nothing here is in {@link STILL}: a mound of stone has no rate in it, which
+   * is the whole reason this system needed no entry there.
+   */
+  mole: [
+    { name: 'mole', zoom: 45, set: OFF_THE_LANDING },
+    {
+      name: 'mole-bare',
+      zoom: 45,
+      set:  [ ...OFF_THE_LANDING, 'mole.exposure=100000' ],
+    },
+    { name: 'mole-near', zoom: 18, set: [ 'camera.focusX=-36', 'camera.focusZ=-22' ]},
+    { name: 'mole-fell', zoom: 40, set: [ 'camera.focusX=318', 'camera.focusZ=-392' ]},
   ],
 }

@@ -19,7 +19,7 @@ import type { ArchipelagoSurvey, LandmassSurvey } from './archipelago.ts'
 import { BEACON_FOOTING } from './beacon.ts'
 import { CROFT_FOOTING } from './croft.ts'
 import { createGroundContact, findCrossing, isFoliage, raiseArch, raiseHillSites, raiseWreck, trackPointNear } from './dressing-helpers.ts'
-import { raiseHarbour } from './dressing-harbour.ts'
+import { raiseWaterfront } from './dressing-harbour.ts'
 import { raiseEnclosures } from './dressing-enclosures.ts'
 import type { Walling } from './dressing-enclosures.ts'
 import { raiseWatermill } from './dressing-watermill.ts'
@@ -446,34 +446,21 @@ export function createDressing (
       )
     }
 
-    // The jetty and the route consume the same surveyed landing. A static
-    // rowboat no longer lives here; the shared fleet owns every hull.
-    const shore = survey.landing
-    if (shore) {
-      const shoreX = shore.x + ox
-      const shoreZ = shore.z + oz
-
-      placeHeroAt('jetty', shoreX, water + 0.05, shoreZ, yawAlong(shore.angle))
-      solver.reserve(shoreX, shoreZ, 7)
-    }
-
-    if (survey.harbour)
-      raiseHarbour({
-        bank:    survey.harbour,
-        origin:  landmass.origin,
-        survey,
-        config:  localConfig,
-        quality,
-        rng,
-        palette,
-        water,
-        heightAt,
-        placeHero,
-        placeHeroAt,
-        reserve: (x, z, radius) => solver.reserve(x, z, radius),
-        heroes,
-        anchors: harbourAnchors,
-      })
+    raiseWaterfront({
+      origin:  landmass.origin,
+      survey,
+      config:  localConfig,
+      quality,
+      rng,
+      palette,
+      water,
+      heightAt,
+      placeHero,
+      placeHeroAt,
+      reserve: (x: number, z: number, radius: number) => solver.reserve(x, z, radius),
+      heroes,
+      anchors: harbourAnchors,
+    })
 
     // The smokehouse, up the bank from the boats. Plopped rather than merged
     // into the steading draw, for the reason the five farmstead buildings are:
