@@ -4,6 +4,7 @@ import type { ScapeConfig } from '../config.ts'
 import type { FencePoint } from '../props/fence.ts'
 import type { PropName } from '../props/index.ts'
 import type { NordicPalette } from '../props/palette.ts'
+import { buildMoleRun } from '../props/mole.ts'
 import { PIER_WIDTH, buildPierRun } from '../props/pier.ts'
 import { buildWeirRun } from '../props/weir.ts'
 import type { AtmosphereQuality } from '../quality.ts'
@@ -40,10 +41,7 @@ import { weirCourse } from './weir.ts'
  * there is nothing to stamp. All of it lands in the steading's one merged hero
  * draw, which is why a waterfront costs no draw call on any tier.
  */
-export interface HarbourDressing {
-
-  /** The bank the harbour is dug into, in the island's own local frame. */
-  bank: Spot
+export interface WaterfrontDressing {
 
   /** Where the island sits in the world. */
   origin: Vec2
@@ -72,6 +70,21 @@ export interface HarbourDressing {
 
   /** Where the harbour bank itself goes, for everything that has to find it later. */
   anchors: Vec2[]
+}
+
+/**
+ * The waterfront, plus the one bank only the harbour's own pieces have.
+ *
+ * The split is not bookkeeping. The arm is rooted on the **landing** and
+ * everything else in this module on the **harbour**, and those are two
+ * different coves chosen by two opposite tests — see `landscape/mole.ts`. An
+ * island can have one and not the other, so the harbour bank is the harbour
+ * pieces' own argument rather than part of the shared waterfront.
+ */
+export interface HarbourDressing extends WaterfrontDressing {
+
+  /** The bank the harbour is dug into, in the island's own local frame. */
+  bank: Spot
 }
 
 /**
@@ -119,6 +132,68 @@ function raisePier (dressing: HarbourDressing): void {
 
   for (const bent of pier.bents)
     reserve(bent.x + origin.x, bent.z + origin.z, PIER_WIDTH)
+}
+
+/**
+ * Metres of scatter kept clear around each station of the arm.
+ *
+ * Sized off the *foot* rather than off the crest, which is the same lesson the
+ * weir's clearing is: a breakwater is a wedge, so the stone it actually stands
+ * on is several metres wider than the track along the top of it, and a clearing
+ * cut to the centreline leaves wrack growing up the seaward face.
+ */
+const MOLE_CLEARING = 6
+
+/**
+ * The arm across the landing, raised on the shore beside the jetty.
+ *
+ * Exported rather than folded into {@link raiseHarbour}, because it is the
+ * landing's piece and not the harbour's — see `landscape/mole.ts` for why those
+ * are two different banks — and `dressing.ts` already has the landing in hand
+ * when it sets the jetty down.
+ *
+ * World-space and parametric for the reason the pier and the weir are: the
+ * course came out of the bed and the height of every course of stone is
+ * whatever the crest left over that particular station, so there is no fixed
+ * shape to stamp. It lands in the steading's one merged hero draw, which is why
+ * an arm costs no draw call on any tier.
+ */
+export function raiseMole (dressing: WaterfrontDressing): void {
+  const { survey, origin, config, quality, rng, palette, heroes, heightAt, reserve } = dressing
+  const { mole }                                                                     = survey
+
+  if (!mole)
+    return
+
+  const stations = mole.stations.map(station => ({
+    x: station.x + origin.x,
+    z: station.z + origin.z,
+  }))
+
+  // Reserved before it is raised, and generously. The littoral band seeds wrack
+  // and driftwood along exactly the depths this thing walks through, and a mound
+  // is the one structure on the coast wide enough to have a clump of bladderwrack
+  // growing out of the middle of it rather than beside it.
+  for (const station of stations)
+    reserve(station.x, station.z, MOLE_CLEARING)
+
+  const stone = buildMoleRun({
+    stations,
+    heightAt,
+    crest:   mole.crest,
+    width:   config.mole.width,
+    batter:  config.mole.batter,
+    spacing: quality.dykeSpacing,
+    armour:  quality.moleArmour,
+    // The hand the survey built the arm on is the side the open sea is on, so
+    // the armour needs no second opinion about which face gets hit.
+    seaward: mole.hand,
+    rng:     rng.fork('mole'),
+    palette,
+  })
+
+  if (stone)
+    heroes.push(stone)
 }
 
 /**
@@ -176,7 +251,7 @@ function layTrap (dressing: HarbourDressing): void {
  * and its slipway runs out under the surface, so a foundation cut into the bank
  * would bury exactly the part that has to be open to the lake.
  */
-export function raiseHarbour (dressing: HarbourDressing): void {
+function raiseHarbour (dressing: HarbourDressing): void {
   const { bank, origin, water, heightAt, placeHero, placeHeroAt, reserve, anchors } = dressing
   const bearing                                                                     = bank.angle
   const house                                                                       = boathouseSpot(bank)
@@ -202,4 +277,46 @@ export function raiseHarbour (dressing: HarbourDressing): void {
 
   raisePier(dressing)
   layTrap(dressing)
+}
+
+/**
+ * Metres of scatter kept clear around the jetty.
+ *
+ * The landing's own clearing, moved here with the rest of the waterfront. Wider
+ * than the deck, because a jetty is approached as well as stood on.
+ */
+const JETTY_CLEARING = 7
+
+/**
+ * Everything the settlement put at the water, in the order it has to go up.
+ *
+ * One entry point rather than three, because the waterfront wants the same
+ * twelve things wherever it is rooted and only the *bank* differs — and because
+ * the order is the part worth keeping in one place: the shed claims its ground,
+ * the rack and the pots have to miss it, and the two runs built on the water are
+ * offset either side of the shed's own line.
+ *
+ * **The two banks are not interchangeable.** The jetty and the arm are rooted
+ * on the landing, which is the cove chosen for a way out of the island; the
+ * boathouse, the pier and the trap are rooted on the harbour, which is the cove
+ * chosen for shelter. An island can have one and not the other, so each half is
+ * guarded on the bank it actually needs.
+ */
+export function raiseWaterfront (dressing: WaterfrontDressing): void {
+  const { survey, origin, water, placeHeroAt, reserve } = dressing
+  const shore                                           = survey.landing
+
+  // The jetty and the route consume the same surveyed landing. A static rowboat
+  // no longer lives here; the shared fleet owns every hull.
+  if (shore) {
+    const shoreX = shore.x + origin.x
+    const shoreZ = shore.z + origin.z
+
+    placeHeroAt('jetty', shoreX, water + 0.05, shoreZ, yawAlong(shore.angle))
+    reserve(shoreX, shoreZ, JETTY_CLEARING)
+    raiseMole(dressing)
+  }
+
+  if (survey.harbour)
+    raiseHarbour({ bank: survey.harbour, ...dressing })
 }

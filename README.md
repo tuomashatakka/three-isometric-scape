@@ -85,6 +85,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a cobbled network of paths between every place the farm goes — planned as a graph, worn as desire lines, paved with stones sampled along the treads themselves
 - a working boat harbour: a boathouse on piles with a slipway, a net rack, and stakes in the shallows
 - **a pier walking out of three of the six harbours to water a keel can lie in**: driven piles cut one by one to the bed under them, a level deck of sawn boards over them, bollards and a ladder at the head — carried out to the last bent the bottom will still take a pile in, standing in about seven metres of water with open sea past the end of it, while the three most sheltered coves get none, because the cove with the best shelter is usually the one with no way out
+- **a breakwater across five of the six landings**: a rubble mound tipped out from the shore a shed's width along from the jetty, twelve to twenty-four metres of five-course granite carried out on the shelf at a slant and hooked back across the front of the boats, with a level capping along the crest standing a metre clear of the highest water of the month and an apron of larger stone tipped against the seaward face — sited on the *landing* rather than on the harbour, because the harbour is the cove picked for shelter and the landing is the one picked for a way out, and a way out is a way in for the sea. which hand of the bank it is built on is measured rather than ruled: both are solved and the one that shadows more of the landing's own horizon wins, and an arm that would shadow none of it is refused rather than built. the sixth island keeps its bare jetty, because neither hand of it holds a run of rubble four stations long
 - **a fish weir on the one harbour flat the archipelago has**: fourteen metres of wrack-stained drystone wall running out across intertidal ground, ending in a staked ring four metres across with a quarter of its circle left open facing back down the wall — covered by the flood, standing three quarters of a metre clear of a drained flat at low springs, and laid on the home island's harbour precisely because that cove is the enclosed shallow bay the pier refuses to build out of
 - **a watermill on the beck of four of the six islands**: a boarded mill house standing on seventy centimetres of field stone at the foot of the fall, a two-metre breastshot wheel turning in a timber frame off its wet gable, and a lade of nine to sixteen metres — a timber trough on trestles, each bent cut to the ground under it — carried down the bank from a mouth on the channel that stands a wheel's head above the sill. the wheel turns on the beck rather than on the wind, so a squall does nothing to it and the fortnight the channel freezes stops it dead; the meadow's burn falls too little over the length of a lade to turn anything, and the ridge has no bank at once off the channel, above the sea and level enough to lay a sill on
 - a walled upland hay meadow with a barn, a gate and drying poles
@@ -234,6 +235,7 @@ src/
     ├── config-snowfence.ts         the snow fence's own slice: the height, the setback, and the bite that earns one
     ├── config-roost.ts             the race's own slice: how wide a gate still runs, and how white it gets
     ├── config-weir.ts              the fish trap's own slice: the reach, the pound, the mouth, the wall
+    ├── config-mole.ts              the breakwater's own slice: the fetch it answers, the depth it stops at, the batter
     ├── config-front.ts             the front's own knobs: weather, the far squall, the lightning, the bow
     ├── config-palette.ts           every colour in the scape, schema and values together
     ├── config-kelp.ts              the weed's own slice: the depth window, the canopy, the clearings
@@ -318,6 +320,7 @@ src/
     │   ├── shieling.ts             the patch of hill above the head dyke the summer hut is built on
     │   ├── pier.ts                 the line off the harbour a trestle is carried out on, bent by bent
     │   ├── weir.ts                 the intertidal flat off the harbour, and the leader and pound laid on it
+    │   ├── mole.ts                 the sea off the landing, which hand of it to wall, and how much that shadows
     │   ├── croft.ts                the free islet the croft is built on, and the row home that picked it
     │   ├── wreck.ts                the lowest rock in the ring, and the line a hull came to rest on it along
     │   ├── snowfence.ts            the stretch of cart track that drifts, and the line set back upwind of it
@@ -376,6 +379,7 @@ src/
         ├── arch.ts                 the sea arch — two legs cut to their beds, and the rock over the hole
         ├── pier.ts                 the pier — driven piles, a level deck, bollards and a ladder
         ├── weir.ts                 the fish weir — a wrack-stained wall on the bed, and the wattle on its pound
+        ├── mole.ts                 the breakwater — five courses of tipped granite, a level capping, an armoured face
         ├── snowfence.ts            the snow fence — driven posts, two rails, and a bay of gapped laths between
         ├── croft.ts                the croft — boarded walls, turf roof, stone flue, oars at the gable
         ├── wreck.ts                the wreck — keel, broken frames, the strakes the bedded side kept
@@ -549,6 +553,8 @@ a tier is a bundle of decisions taken from what the device says about itself, an
 **`reliefSteps` is the newest count, and the clearest case of the rule.** the ground's parallax march is a tap per step of a map the one-tap path never binds at all, so the two phone tiers get **zero** — flat soil, which is a surface, rather than a two-step approximation of deep soil, which is a smear. desktop walks six and ultra twelve; unlocking lifts a zeroed tier to four, which is the fewest at which the silhouette of a rut stops stepping visibly.
 
 **`lampSpill` is the newest, and the same rule from the other side.** every tier gets lit windows — the pane is two triangles and there is no device that cannot afford forty-five of them. what the tier decides is the rings of additive haze in front of the glass: `minimal` gets **zero**, which is a lit window on a clear night rather than a coarse glow, and desktop gets three. unlocking lifts a zeroed tier to two, which is the fewest at which the fan reads as haze rather than as a ring.
+
+**`moleArmour` is the newest, and the third variation on the same theme.** the breakwater's mound is the same on every tier, because it is merged into a draw that already exists and a wedge of stone is what the structure *is*. what the tier decides is the apron of larger blocks tipped against the seaward face: `minimal` gets **zero**, which is an arm nobody has re-armoured since it was built — a thing that exists on every coast of this kind — and mobile gets one block every 2.4 m against ultra's 1.15. it is *not* in `UNLOCKED_FLOOR`, and that is deliberate and shared with `weirStakes` and `fencePalings`: those three are spacings in metres where smaller means more, so the floor's `Math.max` would turn unlocking into stripping, and a zero there is a real structure rather than a missing one.
 
 ## every texture, in one list
 
@@ -2454,6 +2460,75 @@ and **nothing lies against it**. the whole claim is that a bank forms in the fen
 
 
 the tour cannot see this one, for the reason it could not see the hillside: twenty-six metres of lath fence six hundred metres from the tour's focus is under a pixel of timber at 1 520 m. four frames on the sound island at deep winter and noon — `fence` at 60 m with both the structure and the road it guards in frame, because a fence photographed alone could be standing anywhere; `fence-bare`, the same frame with `snowFence.height` at zero, which is the scape exactly as it was before this run and the only honest control there is; `fence-near` at 22 m where the laths and the braces are timber; and `fence-fell`, the other island's ten-metre run, because two islands got very different fences and a set showing only the good one would be a set chosen to flatter the search.
+
+## the arm the landing never had
+
+the settlement has two pieces of water and they have exactly opposite problems. until this run only one of them had ever been answered.
+
+the **harbour** is a cove picked for shelter, and [`landscape/pier.ts`](src/scene/landscape/pier.ts) measured how sheltered: on the home island every bearing out of it runs into the far bank inside four metres, which is why the trestle refuses the site and why the fish weir takes it instead. there is no sea in there to keep out, because there is no way out.
+
+the **landing** is the other half of that pair and had never been given its own answer. it is sited for a *way out* — the ferry network is routed through it, so it is on navigable water by construction — and on this archipelago navigable water means the sweep off it saturates at 280 m of open fetch on the bearings that matter. the only thing standing in all of that was seven metres of jetty on six piles.
+
+five of the six landings now carry a **breakwater**: a rubble mound tipped out from the shore a shed's width along from the jetty, carried out on the shelf and hooked back across the front of the boats, with a level capping along the top and an apron of larger stone tipped against the face that gets hit. [`landscape/mole.ts`](src/scene/landscape/mole.ts) is the search, [`props/mole.ts`](src/scene/props/mole.ts) is the stone, the seven knobs are [`config-mole.ts`](src/scene/config-mole.ts), and it is raised beside the jetty in [`landscape/dressing-harbour.ts`](src/scene/landscape/dressing-harbour.ts).
+
+### it is the first structure here built against the sea rather than into the bed
+
+the pier asks where the bottom will take a pile. the weir asks where the tide walks far enough to strand a fish. the causeway asks how often a bar is covered. every one of those is a question about *ground*.
+
+a breakwater is a question about **water**: how much of it has room to build up before it arrives, and whether anything stands between that and the boats. so the first thing the search does is sweep the whole compass off the landing, walk every bearing until it runs into something, and reduce the result two different ways — because they answer two different questions.
+
+- the **fetch** is the worst single bearing. what wrecks a boat at its moorings is the one direction the sea has room to build on, not the average of the horizon.
+- the **bearing** is the fetch-weighted vector mean. the worst bearing *saturates*: on an open coast a dozen of them hit the sweep's horizon together, and picking the first of those is picking an artefact of the loop order.
+
+`mole.exposure` sits on the first of those and is the switch. there is no boolean beside it, for the reason there is none beside `weir`'s tide: a landing with no sea in front of it keeps its bare jetty, and raised past what the coast offers the whole archipelago comes back `null`.
+
+### the shelf runs along the shore, not away from it
+
+the first cut of this went straight out on the shore normal and hooked at the end, which is how a breakwater is drawn in a textbook. it produced **nothing on any island in the archipelago**, and the reason is the whole character of this coast: these banks go from dry to five metres of water inside two station lengths, so a run carried straight out of one is off the buildable bottom before it has laid four stones.
+
+what is actually buildable here is the shelf, and a shelf runs *along* a shore. so the bearing is searched the way the pier's is — fifty degrees either side of the normal, in ten-degree steps, on both hands of the landing — and what comes back is an arm leaving the beach at a slant, which is what a mound tipped off the end of a cart track does anyway.
+
+the depth the rubble stops at was swept rather than reasoned, and the sweep is worth recording because it says more about the coast than about the arm:
+
+```text
+tipped 2.6   home:NONE  ridge:12m  meadow:17m  sound:NONE  fell:12m  shield:NONE
+tipped 3.8   home:24m   ridge:12m  meadow:24m  sound:NONE  fell:12m  shield:12m
+tipped 5.0   home:34m   ridge:17m  meadow:26m  sound:NONE  fell:12m  shield:NONE
+```
+
+at 3.8 the coast has the most arms on it. past 5 it starts *losing* them again, because a deeper allowance lets the stem run further out before it hooks and the hook then finds nothing to turn onto.
+
+### which hand it is built on is measured, not ruled
+
+the obvious rule — put it on the weather side — is wrong about as often as it is right on a coast this crooked, because the shore beside a landing is a curve and the hand that reaches the sea is whichever one the curve happens to swing toward. so both hands are solved, across the whole arc, and the candidate that shadows more of the sweep wins with length breaking the ties.
+
+that comparison needs a number, and the number is the structure's whole claim: **`shelter`, degrees of the landing's own horizon the finished course now stands in the way of.** it is to a breakwater what `standing` is to a weir and `depth` is to a pier — the one measurement that separates a structure from a shape, and the one that is invisible in a still. a photograph of an arm shows stone in water whether the water behind it is quiet or not.
+
+so the third refusal is the interesting one. an arm that shadows nothing is a pile of stone, and `solveMole` returns `null` rather than build one. [`mole.test.ts`](src/scene/landscape/mole.test.ts) states the claim as a fact about the data rather than as a comment: every arm in the archipelago shelters some of the horizon it was built against, and every head is brought back toward the line the landing faces along — which is what a hook *is*, and what a straight mound standing beside the boats would fail.
+
+### a wedge, which is the first cross-section in the scape
+
+the two things this coast already had on the water are both **lines**: a trestle is piles under a deck, a weir is a band of stone a foot proud of a flat. a mound has a *shape*, and from the isometric camera that shape is nearly all of what you see — so the courses are laid by the batter rather than stacked straight. each one sits on the half-width the slope has reached at its own height, which is what makes the thing read as stone that was tipped rather than stone that was built.
+
+`mole.batter` is 1.25 and that is a shade steeper than loose granite's own angle of repose. the shade is deliberate: at true repose a crest standing five metres over the bed at the head spreads nearly nine metres either side, and the arm stops reading as a built thing and starts reading as a second island with a path on it.
+
+the crest is **level and the bed is not**, the same rule the pier's deck follows and for the same reason: a crest that followed the bottom down would be a ramp into the sea. so the arm grows taller as it goes out, and the foot grows wider with it.
+
+### what it costs
+
+**nothing in draw calls.** the course came out of the bed and every course of stone is whatever the crest left over that particular station, so there is no fixed shape to stamp — it is a parametric run in world coordinates, the shape `buildPierRun` and `buildWeirRun` already took, merged straight into the steading's one hero draw. five arms across the archipelago, zero draws, zero textures, zero uniforms.
+
+the stonework follows `quality.dykeSpacing` for the reason the weir's does: it is a drystone argument about station spacing against stone length, and it is the same argument in the water as it is on the hill. the one handle of its own is **`quality.moleArmour`**, metres between blocks on the seaward apron, and like `weirStakes` it is allowed to reach zero. an arm without its apron is a sea wall nobody has re-armoured since it was built, which is a thing that exists on every coast of this kind — a graceful absence rather than a broken cheap version. the minimal tier gets that; mobile gets the apron at 2.4 m, desktop at 1.7, ultra at 1.15.
+
+`station` is derived rather than exposed, at three quarters of `mole.width`. it is what the shelter sweep is measured against *and* what the mound's own resampling starts from, and a second knob there would be `width` restated and free to drift away from it — which would leave a course with gaps the sweep could see through.
+
+### the sixth island, and why it keeps its bare jetty
+
+`sound` refuses. its landing is as exposed as the rest — the sweep saturates — but neither hand of it holds a run of rubble four stations long inside the depth a cart will tip into, so there is nothing to build and the search says so. that is the same shape of answer the pier gives three harbours and the weir gives five, and `scape:map` prints the reason rather than a blank:
+
+```text
+mole NONE  <- the landing is sheltered already, or no hand of it would hold a run of rubble
+```
 
 ## ground that casts
 

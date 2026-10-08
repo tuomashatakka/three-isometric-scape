@@ -20,6 +20,8 @@ import { createHeightField, resolveIsles } from './height.ts'
 import type { HeightField } from './height.ts'
 import { BOATHOUSE_FOOTING, NET_RACK_FOOTING, boathouseSpot, findHarbourBank, findLanding, netRackSpot } from './landing.ts'
 import type { Spot } from './landing.ts'
+import { solveMole } from './mole.ts'
+import type { Mole } from './mole.ts'
 import { solvePier } from './pier.ts'
 import type { Pier } from './pier.ts'
 import { solveWeir } from './weir.ts'
@@ -102,6 +104,17 @@ export interface ScapeSurvey {
 
   /** The trestle out to deep water, or `null` when the shelf never drops away. */
   pier: Pier | null
+
+  /**
+   * The arm across the landing, or `null` when the bank is sheltered already.
+   *
+   * The settlement's one structure built against the sea rather than into it,
+   * and the only one rooted on the *landing* rather than on the harbour — which
+   * is the whole siting argument, and is made in `mole.ts`. The harbour is
+   * chosen for shelter and needs no wall; the landing is chosen for a way out,
+   * and a way out is a way in for the sea.
+   */
+  mole: Mole | null
 
   /**
    * The fish trap on the flat, or `null` when the coast is too steep to dry.
@@ -315,6 +328,48 @@ function reachDeepWater (
       freeboard:  config.pier.freeboard,
     },
     harbour,
+  )
+}
+
+/**
+ * The arm across the landing, or the reason there is none.
+ *
+ * A function of its own for the reason {@link reachDeepWater} is one — the
+ * survey holds the *order*, not the argument lists — and it takes the
+ * **landing** where the other two take the harbour. That is not an oversight
+ * being worked around: the harbour is the cove chosen for shelter, so there is
+ * no sea in it to wall out, and the landing is the bank chosen for a way out of
+ * the island, so there is nothing but sea in front of it. The two searches that
+ * refuse the landing and the one that refuses the harbour are the same coast
+ * answering two opposite questions.
+ *
+ * Surveyed against the field the crossing and the marsh are already in, for the
+ * reason the pier is: a bar laid across a mouth is ground, and an arm solved
+ * before it was there would be tipped out over the top of it.
+ */
+function shelterTheLanding (
+  config:  ScapeConfig,
+  field:   HeightField,
+  landing: Spot | null,
+): Mole | null {
+  return landing && solveMole(
+    {
+      ground:     field.heightAt,
+      waterLevel: config.terrain.waterLevel,
+      exposure:   config.mole.exposure,
+      tipped:     config.mole.tipped,
+      reach:      config.mole.reach,
+      // Derived rather than exposed. The survey's stations are what the shelter
+      // sweep is measured against and what the mound's own resampling starts
+      // from, and both want a step a little under the width of the thing — a
+      // second knob here would be `width`, restated, free to drift away from it
+      // and leave a course with gaps the sweep could see through.
+      station:    config.mole.width * 0.75,
+      turn:       config.mole.turn,
+      crest:      config.mole.crest,
+      width:      config.mole.width,
+    },
+    landing,
   )
 }
 
@@ -786,6 +841,7 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
 
   const pier = reachDeepWater(config, field, harbour)
   const weir = trapTheFlat(config, field, harbour)
+  const mole = shelterTheLanding(config, field, landing)
 
   // The third thing out on the rocks, and the only site in the survey that is
   // nobody's decision. Sited after the light and the croft because it is sited
@@ -890,6 +946,7 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     watermill,
     pier,
     weir,
+    mole,
     wreck,
     tarn,
     peat,

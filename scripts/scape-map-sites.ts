@@ -5,6 +5,8 @@ import type { CroftSite } from '../src/scene/landscape/croft.ts'
 import type { HeadDyke } from '../src/scene/landscape/dyke.ts'
 import type { HeightField } from '../src/scene/landscape/height.ts'
 import { peatFaceStanding } from '../src/scene/landscape/peat.ts'
+import { moleHead } from '../src/scene/landscape/mole.ts'
+import type { Mole } from '../src/scene/landscape/mole.ts'
 import { pierHead } from '../src/scene/landscape/pier.ts'
 import type { Pier } from '../src/scene/landscape/pier.ts'
 import type { PeatBank } from '../src/scene/landscape/peat.ts'
@@ -261,6 +263,37 @@ export function pierOf (
     depth:  round(pier.depth, 2),
     deck:   round(pier.deck, 2),
     bents:  pier.bents.length,
+  }
+}
+
+/**
+ * The arm, and the number that says whether it does anything.
+ *
+ * `shelter` is to a breakwater what `standing` is to a weir and `depth` is to a
+ * pier: the one measurement that separates a structure from a shape. All three
+ * are invisible in a still — a photograph of an arm shows stone in water
+ * whether the water behind it is quiet or not — and all three are the reason
+ * `scape:map` is read before `scape:diff` rather than after it.
+ */
+export function moleOf (
+  mole:   Mole | null,
+  worldX: Project,
+  worldZ: Project,
+): CompositionStats['mole'] {
+  if (!mole)
+    return null
+
+  const head = moleHead(mole)
+
+  return {
+    x:        round(worldX(head.x)),
+    z:        round(worldZ(head.z)),
+    length:   round(mole.length, 1),
+    elbow:    round(mole.elbow, 1),
+    stations: mole.stations.length,
+    crest:    round(mole.crest, 2),
+    fetch:    Math.round(mole.fetch),
+    shelter:  round(mole.shelter, 1),
   }
 }
 

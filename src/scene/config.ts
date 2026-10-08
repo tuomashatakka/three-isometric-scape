@@ -24,6 +24,8 @@ import { SCAPE_SALTINGS } from './config-saltings.ts'
 import type { SaltingsConfig } from './config-saltings.ts'
 import { SCAPE_LEDGES } from './config-ledges.ts'
 import type { LedgeConfig } from './config-ledges.ts'
+import { SCAPE_MOLE } from './config-mole.ts'
+import type { MoleConfig } from './config-mole.ts'
 import { SCAPE_PACK_ICE } from './config-packice.ts'
 import type { PackIceConfig } from './config-packice.ts'
 import { SCAPE_HOWE } from './config-howe.ts'
@@ -282,7 +284,7 @@ export interface DressingBudget {
 }
 
 export interface ScapeConfig extends CreelConfig, DykeConfig, ForceConfig, FrontConfig,
-  GuardConfig, HaarConfig, HoweConfig, KelpConfig, LedgeConfig, PackIceConfig, RoostConfig, ShaftsConfig, ShielingConfig,
+  GuardConfig, HaarConfig, HoweConfig, KelpConfig, LedgeConfig, MoleConfig, PackIceConfig, RoostConfig, ShaftsConfig, ShielingConfig,
   ShoalConfig, SnowFenceConfig, TreelineConfig, WatermillConfig, WreckConfig {
   seed:    number
   terrain: {
@@ -2733,6 +2735,7 @@ export const SCAPE_CONFIG = {
   ...SCAPE_HOWE,
   ...SCAPE_KELP,
   ...SCAPE_LEDGES,
+  ...SCAPE_MOLE,
   ...SCAPE_PACK_ICE,
   ...SCAPE_ROOST,
   ...SCAPE_SHAFTS,
