@@ -325,6 +325,7 @@ bun run scape:shot --poses storm                    # the lightning on the far i
 bun run scape:shot --poses causeway                 # the bar out to the nearest rock, 3 frames, covered and dry
 bun run scape:shot --poses ice                      # the cap on the northern island, 3 frames
 bun run scape:shot --poses bow                      # the rainbow, 4 frames, three heights of sun
+bun run scape:shot --poses halo                     # the ring round the sun, 5 frames, in the weeks that hold one
 bun run scape:shot --poses haulout                  # the seals on the guard, 4 frames, low water and high
 bun run scape:shot --poses wood                     # the treeline on two hillsides, 3 frames
 bun run scape:shot --poses pier                     # the trestle out to deep water, 3 frames, and a coast without one

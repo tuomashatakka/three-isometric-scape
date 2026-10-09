@@ -29,6 +29,7 @@ import type { AtmosphereQuality } from './quality.ts'
 import type { TextureCatalogue } from './textures/catalogue.ts'
 import { createHailLayer } from './hail.ts'
 import { createRainLayer } from './rain.ts'
+import { createHalo } from './halo.ts'
 import { createRainbow } from './rainbow.ts'
 import { createRuntime } from './runtime.ts'
 import { createSquallCurtains } from './squall.ts'
@@ -344,6 +345,12 @@ function hangOverTheGround (
       wind,
     })),
     unless(skip, 'rainbow', () => createRainbow({
+      camera,
+      config,
+      quality,
+      weather: landscape.weather,
+    })),
+    unless(skip, 'halo', () => createHalo({
       camera,
       config,
       quality,

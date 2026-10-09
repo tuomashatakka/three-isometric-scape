@@ -43,6 +43,20 @@ export const LAYER = {
    */
   rainbow: 5,
 
+  /**
+   * The ring standing round the sun.
+   *
+   * Beside the bow, and for exactly the bow's argument: it is hung the better
+   * part of a frame out along the *solar* bearing, beyond the far islands, so
+   * everything else in the scape is between the reader and it. Next to rather
+   * than merged with it because they are hung in opposite halves of the sky —
+   * one about the sun and one about the point opposite it — so a frame wide
+   * enough to hold both holds them at two quite different distances from the
+   * camera, and a shared `renderOrder` would leave the sort to settle which is
+   * in front. See `halo.ts`.
+   */
+  halo: 6,
+
   /** Steam coming off the water, under the fog that sits on the land. */
   seaSmoke: 10,
 

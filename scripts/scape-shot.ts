@@ -288,6 +288,7 @@ async function main (): Promise<void> {
       '                        fjord (4, the drowned valley in the sound)',
       '                        haulout (4, the seals on the guard, low and high water)',
       '                        bow (4, the rainbow at three heights of sun)',
+      '                        halo (5, the ring round the sun, in the weeks that hold one)',
       '                        wood (3, the treeline on two hillsides)',
       '                        dune (4, the blown sand on the weather shore)',
       '                        crag (4, the cliff on the steep shore)',

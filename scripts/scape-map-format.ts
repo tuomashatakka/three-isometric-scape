@@ -484,6 +484,29 @@ function rainbowLine (bow: MapStats['rainbow']): string {
 }
 
 /**
+ * The ring line, and the three silences it separates.
+ *
+ * A coast that never gets a halo, a week whose fall is all rain, and a week
+ * cold enough but with the sun under the sea for the whole of it. None of the
+ * three is a fault and all three photograph identically, which is the entire
+ * reason this line exists.
+ */
+function haloLine (ring: MapStats['halo']): string {
+  return `halo  sun ${ring.sun}° up  apex ${ring.apex}°  bearing ${ring.swing}°  ` +
+    `dogs ${ring.dogs === null ? 'none' : `${ring.dogs}° x${ring.dogLit}`}  ` +
+    `pillar ${ring.pillar}  ` +
+    `sleet ${ring.sleet}  veil ${ring.veil}  now ${ring.now}  ` +
+    `best ${ring.best} @ phase ${ring.at}` +
+    (ring.best > 0
+      ? ring.now <= 0 ? '  <- the parked phase has no ring, only the front does' : ''
+      : ring.sun <= 0
+        ? '  <- the parked week has ice in the air and no sun up to put a ring round'
+        : ring.sleet <= 0
+          ? '  <- the parked week falls as rain, so this sky makes bows and not rings'
+          : '  <- no instant of any front on this coast has a ring in it')
+}
+
+/**
  * The moon line, and the two silences it separates.
  *
  * A night frame with no moonlight in it has two quite different causes and one
@@ -796,6 +819,7 @@ export function formatStats (stats: MapStats): string {
     windowLine(stats.windows),
     stormLine(stats.storm),
     rainbowLine(stats.rainbow),
+    haloLine(stats.halo),
     moonLine(stats.moon),
     shadeLine(stats.shade),
     shaftLine(stats.shafts),
