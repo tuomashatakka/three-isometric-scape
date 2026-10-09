@@ -282,6 +282,25 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           ],
         ),
 
+        // Under the bow, because it is the bow's other half: the same front
+        // decides when both are out and the year decides which of the two the
+        // sky is doing. `lead` is the one worth dragging with the front parked
+        // — it is how far ahead of the rain the ice veil runs, and therefore
+        // which part of a pass of the weather has a ring in it at all.
+        toggled(
+          'halo',
+          range('halo.strength', 'how brightly it stands', 0, 1, 0.01, quality.haloArcs > 0),
+          0.85,
+          [
+            range('halo.dogs', 'the mock suns', 0, 2, 0.01, quality.haloArcs > 1),
+            range('halo.pillar', 'the shaft through it', 0, 2, 0.01, quality.haloArcs > 1),
+            range('halo.lead', 'how far ahead of the fall', 0, 0.3, 0.005),
+            range('halo.width', 'band width, degrees', 0.5, 6, 0.1),
+            range('halo.saturation', 'colour in the ring', 0, 1, 0.01),
+            range('halo.reach', 'how far out it hangs', 0.1, 1.2, 0.01),
+          ],
+        ),
+
         // Under the weather with the squall, because it is the same front: a
         // strike fires at a phase of `weather.time`, so the scrubber two rows up
         // is also the storm's, and `rate` is the knob worth dragging with the

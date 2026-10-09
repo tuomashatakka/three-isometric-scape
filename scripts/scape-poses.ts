@@ -1,4 +1,5 @@
 import { SCAPE_CONFIG } from '../src/scene/config.ts'
+import { haloPeak } from '../src/scene/halo.ts'
 import { bowPeak } from '../src/scene/rainbow.ts'
 import { stormPeak } from '../src/scene/storm.ts'
 import { HAIL_CENTRE, HAIL_WIDTH } from '../src/scene/weather.ts'
@@ -64,6 +65,21 @@ const OVER_STRIKE = STRIKE
  */
 const AT_BOW = [ `weather.time=${bowPeak().toFixed(6)}` ]
 const NO_BOW = [ 'weather.time=0.3' ]
+
+/**
+ * The instant the ice veil is over the sun, and the instant the same front has
+ * the rain itself there instead.
+ *
+ * Asked of `haloPeak` rather than written down, for the reason `AT_BOW` asks
+ * `bowPeak` — and asked with the config's own `halo.lead`, because the veil is
+ * the shower sampled that far ahead and the peak moves when the lead does.
+ *
+ * `NO_HALO` is a quarter of a cycle on from it, which is the clear spell behind
+ * a band: nothing approaching to make a veil out of, so nothing for a sun to
+ * stand a ring in. That makes it the control frame of the set.
+ */
+const AT_HALO = [ `weather.time=${haloPeak(SCAPE_CONFIG.halo.lead).toFixed(6)}` ]
+const NO_HALO = [ `weather.time=${((haloPeak(SCAPE_CONFIG.halo.lead) + 0.25) % 1).toFixed(6)}` ]
 
 /**
  * The instant the stones are falling, and the instant the same front is only
@@ -284,6 +300,55 @@ export const TOURS: Record<string, Pose[]> = {
     { name: 'bow-low', time: 0.85, set: AT_BOW },
     { name: 'bow-noon', time: 0.5, set: AT_BOW },
     { name: 'bow-clear', time: 0.3, set: NO_BOW },
+  ],
+
+  /**
+   * The ring, in the four weeks of the year that can hold one.
+   *
+   * The tour cannot see this system and neither can the bow's own set, which is
+   * the point of having a second one: a halo needs a sun up, an ice veil ahead
+   * of the fall and a week cold enough to freeze what falls, and the six frames
+   * of `tour` are parked on a midsummer week whose fall is rain. Every frame
+   * here therefore names a *week* as well as an hour, which no set before the
+   * snow tours had to.
+   *
+   * At this latitude the window is narrow and it is narrow for a real reason.
+   * The fall freezes in the weeks either side of midwinter and midwinter is a
+   * polar night, so the sky that can hold a ring is the fortnight at each end
+   * of the dark where there is a sun up and it is still cold — which is
+   * precisely the sky the sight belongs to. `scape:map --stats` carries the
+   * same window on its `halo` line.
+   *
+   * - `halo` is the brightest week the year has, with the noon sun 5.4° up and
+   *   three quarters of the fall frozen: the whole ring, both mock suns low on
+   *   the horizontal through the sun, and the shaft beginning to go
+   * - `halo-pillar` is the far side of the dark, a fortnight before the sun
+   *   stops rising at all, where it stands 3° up and the column through it is
+   *   most of what the frame is about
+   * - `halo-high` is the same week on a coast dragged twenty-three degrees
+   *   south, where the noon sun stands at 28° instead of 5° — and it is the
+   *   only way this archipelago can state `parhelionAngle`'s claim as a
+   *   picture. The mock suns walk outward as the sun climbs, and at 68°N the
+   *   weeks that have ice in the air never see a sun over 11°, so every frame
+   *   this coast can take has them sitting on the ring. Dragged to 45° they
+   *   stand five degrees outside it, which is the pair of pictures the claim
+   *   needs
+   * - `halo-rain` and `halo-clear` are the two controls, and there are two
+   *   because there are two clocks to get wrong. `halo-rain` is the same front
+   *   at the same phase in the week the scape opens on, where everything that
+   *   falls is water; `halo-clear` is the coldest week with the front a quarter
+   *   of a cycle on, in the clear spell behind a band with nothing approaching
+   *   to make a veil out of. Both must be identical to the reference. A ring in
+   *   the first is a module that stopped reading the year and a ring in the
+   *   second is one that stopped reading the front, and each is a failure that
+   *   looks exactly like a success from any other frame
+   */
+  halo: [
+    { name: 'halo', time: 0.5, season: 0.125, set: AT_HALO },
+    { name: 'halo-pillar', time: 0.5, season: 0.9, set: AT_HALO },
+    { name: 'halo-high', time: 0.5, season: 0.125, set: [ ...AT_HALO, 'daylight.latitude=45' ]},
+    { name: 'halo-rain', time: 0.5, season: 0.5, set: AT_HALO },
+    { name: 'halo-clear', time: 0.5, season: 0.125, set: NO_HALO },
   ],
 
   /**

@@ -409,6 +409,29 @@ export interface AtmosphereQuality {
   rainbowArcs: number
 
   /**
+   * Optics drawn about the sun itself. 0 is a coast that never gets one.
+   *
+   * A count rather than a switch, for `rainbowArcs`' reason and with a
+   * different split: 1 is the 21.84° ring alone, which is the whole of what a
+   * halo is for most people who have seen one; 2 adds the two mock suns on the
+   * horizontal through it and the shaft standing up through it, which are the
+   * same crystals settled flat rather than tumbling. Both are one draw of one
+   * quad either way — what the second grant costs is two gaussians and a column
+   * on the fragments the quad already covers.
+   *
+   * **The phone gets both**, and for a harder reason than the bow's. The
+   * capture harness pins `--tier mobile`, so a grant withheld there is a sight
+   * no still in this repository can ever show — and the mock suns are the half
+   * of this system that moves: they walk outward from 21.84° as the sun climbs
+   * and give out entirely past 60.75°, which is a claim about the optics that a
+   * frame has to be able to carry. Two gaussians and a column are cheaper than
+   * the second hue ramp mobile already pays for on the bow. What 0 buys on
+   * `minimal` is real: no quad, no program, no ring — and the floor hands an
+   * unlocked `minimal` the ring on its own, which is what the count is for.
+   */
+  haloArcs: number
+
+  /**
    * Sides on the ring of water up on the fell — see `landscape/tarn-water.ts`.
    *
    * A polygon count rather than a switch, because the pool is one draw of a
@@ -621,6 +644,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     reliefSteps:     0,
     beckRipples:     0,
     rainbowArcs:     0,
+    haloArcs:        0,
     tarnSectors:     20,
     pierBoards:      0.9,
     archBlocks:      5,
@@ -684,6 +708,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     reliefSteps:   0,
     beckRipples:   1,
     rainbowArcs:   2,
+    haloArcs:      2,
     tarnSectors:   28,
     pierBoards:    1.2,
     archBlocks:    6,
@@ -745,6 +770,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     reliefSteps:     6,
     beckRipples:     2,
     rainbowArcs:     2,
+    haloArcs:        2,
     tarnSectors:     44,
     pierBoards:      1.6,
     archBlocks:      9,
@@ -799,6 +825,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     reliefSteps:     12,
     beckRipples:     3,
     rainbowArcs:     2,
+    haloArcs:        2,
     tarnSectors:     56,
     pierBoards:      2,
     archBlocks:      12,
@@ -860,6 +887,7 @@ const UNLOCKED_FLOOR = {
   reliefSteps:    4,
   beckRipples:    1,
   rainbowArcs:    1,
+  haloArcs:       1,
 } as const
 
 /**
@@ -913,6 +941,7 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
     reliefSteps:    Math.max(quality.reliefSteps, UNLOCKED_FLOOR.reliefSteps),
     beckRipples:    Math.max(quality.beckRipples, UNLOCKED_FLOOR.beckRipples),
     rainbowArcs:    Math.max(quality.rainbowArcs, UNLOCKED_FLOOR.rainbowArcs),
+    haloArcs:       Math.max(quality.haloArcs, UNLOCKED_FLOOR.haloArcs),
   }
 }
 

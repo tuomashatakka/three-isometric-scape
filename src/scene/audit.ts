@@ -20,7 +20,7 @@
  */
 export const SCAPE_FAMILIES = [
   'inject', 'detail', 'dressing', 'water', 'mist', 'haar', 'clouds', 'aurora', 'nightsky', 'rain',
-  'hail', 'squall', 'storm', 'rainbow', 'shafts', 'birds', 'beacon', 'hearth', 'windows', 'post',
+  'hail', 'squall', 'storm', 'rainbow', 'halo', 'shafts', 'birds', 'beacon', 'hearth', 'windows', 'post',
   'shadows',
 ] as const
 

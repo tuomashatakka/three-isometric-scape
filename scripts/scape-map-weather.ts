@@ -14,6 +14,15 @@ import {
   sunSwing,
 } from '../src/scene/daylight.ts'
 import { bowLight, bowPeak, bowPlace } from '../src/scene/rainbow.ts'
+import {
+  HALO_RING,
+  dogLight,
+  haloLight,
+  haloPeak,
+  haloVeil,
+  parhelionAngle,
+  pillarLight,
+} from '../src/scene/halo.ts'
 import { stormLive, stormPeak, stormSchedule, stormSites } from '../src/scene/storm.ts'
 import { snowAmount } from '../src/scene/season.ts'
 import { capsAmount } from '../src/scene/landscape/water-caps.ts'
@@ -101,6 +110,38 @@ export interface WeatherStats {
     now:   number
     best:  number
     at:    number
+  }
+
+  /**
+   * The ring the cold puts round the sun.
+   *
+   * Here for the bow's reason and it catches a third silence the bow cannot.
+   * A halo needs three things at once — a sun up, a veil of ice ahead of the
+   * fall, and a week cold enough to freeze what falls — and on this coast the
+   * first and third are nearly exclusive: the weeks with ice in the air are the
+   * weeks either side of the polar night, and in the middle of them there is no
+   * sun at all. So `best` is the brightest any instant of the front gets at the
+   * parked *week*, and a `best` of zero with a `sun` under the horizon is a
+   * polar night rather than a broken module.
+   *
+   * `dogs` is where the mock suns stand, in degrees from the sun, or `null`
+   * above 60.75° where the refraction gives out and there are none, and
+   * `dogLit` is how much of them a sun that high leaves worth drawing. `apex`
+   * is how far the top of the ring clears the sea, which only goes negative
+   * with the sun itself under it.
+   */
+  halo: {
+    sun:    number
+    apex:   number
+    swing:  number
+    dogs:   number | null
+    dogLit: number
+    pillar: number
+    veil:   number
+    sleet:  number
+    now:    number
+    best:   number
+    at:     number
   }
 
   /**
@@ -410,6 +451,60 @@ export function rainbowStats (config: ScapeConfig): WeatherStats['rainbow'] {
     now:   round(light(config.weather.time), 3),
     best:  round(light(peak), 3),
     at:    round(peak, 3),
+  }
+}
+
+/**
+ * The ring, read as an instant of three clocks at once.
+ *
+ * The instrument the halo needs more badly than the bow needs its own, because
+ * the halo has one more way of being legitimately absent. A bow is gone when
+ * the front is in the wrong part of its cycle or the sun is too high; a ring is
+ * gone for either of those *and* for the whole half of the year whose fall is
+ * rain — and at this latitude the cold half is also the dark half, so the weeks
+ * that have ice in the air mostly have no sun to put a ring round. Reading that
+ * off a still is impossible: a blank sky looks the same whichever of the four
+ * is the cause.
+ *
+ * So the line carries all four separately. `sleet` is the frozen share of the
+ * fall at the parked week, `veil` is the ice cloud ahead of the fall at the
+ * parked phase, `sun` is the elevation, and `best` walks the front for the
+ * brightest instant it has at this week — which is the phase `--poses halo`
+ * parks on, so the instrument and the picture are reading one number.
+ */
+export function haloStats (config: ScapeConfig): WeatherStats['halo'] {
+  const { latitude, axialTilt, time } = config.daylight
+  const year                          = config.season.time
+  const sun                           = sunHeight(time, year, latitude, axialTilt)
+  // The live share of the fall that is frozen this week, read exactly as
+  // `rainbowStats` reads it and used for the opposite purpose: what takes the
+  // bow away is what puts the ring up.
+  const sleet = Math.min(1, Math.max(0, snowAmount(year) * config.season.snow))
+
+  const light = (phase: number): number => haloLight(
+    phase,
+    config.weather.rain,
+    sleet,
+    sun,
+    config.halo.strength,
+    config.halo.lead,
+  )
+
+  const peak = haloPeak(config.halo.lead)
+  const dogs = parhelionAngle(sun)
+
+  return {
+    sun:    round(elevation(sun)),
+    apex:   round(HALO_RING + elevation(sun)),
+    swing:  round(sunSwing(time, year, latitude, axialTilt) * 180 / Math.PI),
+    dogs:   dogs === null ? null : round(dogs),
+    dogLit: round(dogLight(sun), 2),
+    pillar: round(pillarLight(sun), 2),
+    veil:   round(haloVeil(config.weather.time, config.halo.lead), 2),
+    sleet:  round(sleet, 2),
+    now:    round(light(config.weather.time), 3),
+    best:   round(light(peak), 3),
+    at:     round(peak, 3),
   }
 }
 
