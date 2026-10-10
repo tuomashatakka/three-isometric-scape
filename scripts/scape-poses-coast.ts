@@ -51,6 +51,16 @@ const ON_LEDGES = [ 'camera.focusX=37', 'camera.focusZ=-28' ]
 const SEAWARD = 315
 
 
+/**
+ * The harbour bank west of the landing, in world metres.
+ *
+ * The flattest shore on the home island and the one the `tide` set already
+ * aims at, named here rather than repeated for the reason the crossing and the
+ * strike are: four of the five `swash` frames sit on it, and four copies of a
+ * pair of coordinates is four chances for one of them to drift off the subject.
+ */
+const ON_THE_BANK = [ 'camera.focusX=-30', 'camera.focusZ=-24' ]
+
 export const COAST_TOURS: Record<string, Pose[]> = {
 
   /**
@@ -250,5 +260,50 @@ export const COAST_TOURS: Record<string, Pose[]> = {
     },
     { name: 'mole-near', zoom: 18, set: [ 'camera.focusX=-36', 'camera.focusZ=-22' ]},
     { name: 'mole-fell', zoom: 40, set: [ 'camera.focusX=318', 'camera.focusZ=-392' ]},
+  ],
+
+  /**
+   * The band the sea wets, on the two shores that answer it differently.
+   *
+   * The twenty-seventh set, and the tour cannot see it — which is the frame
+   * rather than the clock, exactly as it is for the roost. The run-up at the
+   * authored sea is about two thirds of a metre of rise and six metres of walk
+   * on a beach; at the tour's 1400 m frame that is four pixels under the haze.
+   * A knob turned until the tour can read it would be a knob that has been lied
+   * to, so the set comes down to the shore instead.
+   *
+   * `swash` is the harbour bank west of the landing at the `tide` set's own
+   * frame, and it is the same ground for the same reason: it is the flattest
+   * coast on the home island, so it is where the walk is widest and where a
+   * run-up that is being computed wrongly has the most room to say so.
+   * `swash-crag` is the opposite end of the gradient — `crag-near`'s frame, on
+   * the 322.5° headland where the ground stands at better than one in three.
+   * The claim is that the *same* relation leaves a splash zone a handspan deep
+   * there rather than a tide mark, and the two frames together are the whole of
+   * what the Iribarren clamp is for.
+   *
+   * `swash-blow` is the same bank with a wind on it, which is the only way to
+   * see the gust lift — `STILL` zeroes `wind.strength` by definition, so the
+   * run-up every other frame here draws is the dead-calm three quarters. The
+   * sea in it is the authored one; what moves is the lift.
+   *
+   * `swash-back` is the same bank half a swell on. `water.waveSpeed` is zero
+   * through the still, so the surge is frozen at the phase the clock stopped
+   * at, and the only way to move the band is to move the *sea under it*:
+   * a swell half a wavelength longer puts the far side of the cycle over the
+   * same ground. It is the frame that says the band oscillates rather than
+   * standing where it was painted.
+   *
+   * `swash-none` is the switch at zero and the control. It has to come back
+   * byte-identical to the shore this scape had before the band existed — a
+   * difference there would mean the run-up is reaching ground the sea never
+   * touches.
+   */
+  swash: [
+    { name: 'swash', zoom: 55, set: ON_THE_BANK },
+    { name: 'swash-crag', zoom: 38, set: [ 'camera.focusX=39', 'camera.focusZ=-30' ]},
+    { name: 'swash-blow', zoom: 55, set: [ ...ON_THE_BANK, 'wind.strength=1.6' ]},
+    { name: 'swash-back', zoom: 55, set: [ ...ON_THE_BANK, 'water.swellLength=105' ]},
+    { name: 'swash-none', zoom: 55, set: [ ...ON_THE_BANK, 'swash.reach=0' ]},
   ],
 }

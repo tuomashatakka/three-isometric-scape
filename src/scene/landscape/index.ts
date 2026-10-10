@@ -62,6 +62,8 @@ import { createSeabirdCliffs } from './seabirds.ts'
 import type { SeabirdCliffs } from './seabirds.ts'
 import { createSealColony } from './seals.ts'
 import type { SealColony } from './seals.ts'
+import { swashState } from './swash.ts'
+import { advanceSwell } from './swell.ts'
 import { createTarnWater } from './tarn-water.ts'
 import type { TarnWater } from './tarn-water.ts'
 import { createArchipelagoTerrain } from './terrain.ts'
@@ -246,6 +248,18 @@ export function createLandscape (
   const shadow = createCloudShadow(config, textures)
 
   let root: Group | null               = null
+
+  /**
+   * Where the swell has got to, in radians of its dominant train, and when it
+   * was last asked.
+   *
+   * Integrated rather than taken off `elapsed`, so `water.waveSpeed` is a rate
+   * that can reach zero without the phase jumping when it is dragged back up.
+   * It lives here rather than in the lake because the lake is no longer its
+   * only reader — see the note in `update`.
+   */
+  const waveClock = { phase: 0, sampled: 0 }
+
   let materials: ScapeMaterials | null = null
   let dressing: Dressing | null        = null
   let fleet: BoatFleet | null          = null
@@ -600,11 +614,19 @@ export function createLandscape (
       shadow.update(wind)
 
       advancePopulated(frame.delta, year.time, now)
-      materials?.update(wind, now, front)
       beck?.update(frame.delta, now)
       force?.update(frame.delta, now)
       tarns?.update(now)
-      water?.update(frame.elapsed, wind, tide, now, front, fleet?.wakeEmitters)
+
+      // The sea's one clock, integrated here rather than inside the lake. Two
+      // things draw the same swell now — the surface, and the band it wets on
+      // the beach — and the way to give two readers one phase is one authority
+      // above both of them. `STILL` holds it at zero through `water.waveSpeed`,
+      // exactly as it did when the lake owned it.
+      const phase = advanceSwell(waveClock, frame.elapsed, config().water.waveSpeed)
+
+      water?.update(phase, wind, tide, now, front, fleet?.wakeEmitters)
+      materials?.update(wind, now, front, swashState(config(), tide, wind, phase))
     },
 
     dispose () {

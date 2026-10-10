@@ -1808,6 +1808,13 @@ export const STILL = [
   // repository has ever taken was a photograph of a dead flat sea, on a coast
   // that is four fifths water. Zeroing the rate holds the swell at phase zero
   // instead, which is just as reproducible and is a sea.
+  //
+  // It is also what holds the **swash**, and that needs no second line here:
+  // the band on the beach is the dominant train's own phase read at the shore —
+  // `landscape/index.ts` integrates it once and hands it to the lake and the
+  // ground together — so a sea held at phase zero is a shore held at the same
+  // instant of its own surge, which is a still with a wash in it rather than a
+  // shore caught halfway up a wave it can never finish.
   'water.waveSpeed=0',
 
   // The running water. Its own rate rather than a share of the wind, because a

@@ -5,6 +5,7 @@ import { SCAPE_CONFIG } from '../config.ts'
 import { SNOW_BAND, SNOW_WANDER, WANDER_ACROSS, WANDER_ALONG } from '../landscape/drift.ts'
 import { createSeason } from '../season.ts'
 import { createWeather } from '../weather.ts'
+import { SWASH_DRY } from '../landscape/swash.ts'
 import { createScapeMaterials } from './material.ts'
 
 
@@ -227,6 +228,7 @@ describe('the two compasses the snow line swings on', () => {
       },
       createSeason(() => SCAPE_CONFIG).state,
       createWeather(() => SCAPE_CONFIG).state,
+      SWASH_DRY,
     )
 
     expect(uniforms.uDriftDir.value.x).toBeCloseTo(Math.cos(bearing), 12)

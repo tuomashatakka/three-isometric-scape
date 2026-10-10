@@ -26,7 +26,7 @@ import { WATER_ROOST_GLSL, roostAmount } from './roost.ts'
 import { MAX_DEPTH, bakeShoreMask } from './shore-mask.ts'
 import { WATER_CAPS_GLSL, capsAmount } from './water-caps.ts'
 import { WATER_ICE_GLSL } from './water-ice.ts'
-import { WATER_SWELL_GLSL, advanceSwell, setSwell, swellRate, swellWavenumber } from './swell.ts'
+import { WATER_SWELL_GLSL, setSwell, swellRate, swellWavenumber } from './swell.ts'
 import {
   CAUSTIC_RATE,
   WATER_CAUSTIC_FRAGMENT,
@@ -64,17 +64,25 @@ export interface Water {
   mesh: Mesh
 
   /**
-   * Advance swell, ripple, boat wakes and foam phase, and take the wind, the
-   * year's freeze and the weather's chop. Allocation-free.
+   * Draw the sea at a phase of its own clock, and take the wind, the year's
+   * freeze and the weather's chop. Allocation-free.
+   *
+   * The clock is the **caller's**, which it was not until the shore learned to
+   * wet itself: the lake used to integrate the swell off `elapsed` and nothing
+   * else could see where the sea had got to. The swash on the beach is the same
+   * train arriving, so it has to read the same phase — and the way to give two
+   * readers one number is one authority above both of them rather than a
+   * getter on one of them. `landscape/index.ts` owns it now.
    */
   update(
-    elapsed: number,
+    phase: number,
     wind: WindState,
     tide: TideState,
     season: SeasonState,
     weather: WeatherState,
     wakes?: readonly BoatWakeEmitter[],
   ): void
+
   dispose(): void
 }
 
@@ -729,15 +737,6 @@ export function createWater (
   }
 
   /**
-   * Where the swell has got to, in radians of its dominant train, and when it
-   * was last asked.
-   *
-   * Integrated rather than taken off `elapsed`, so `water.waveSpeed` is a rate
-   * that can reach zero without the phase jumping when it is dragged back up.
-   */
-  const waveClock = { phase: 0, sampled: 0 }
-
-  /**
    * Trail ring buffers, one per emitter. Each is three flat arrays of 6 vec4s
    * (position, direction, distance) plus a scalar point count. The shader
    * iterates only the valid points, so a partially filled trail is cheap.
@@ -957,7 +956,7 @@ export function createWater (
 
     // Read back from the config every frame rather than captured at build, so
     // the tuning overlay can drive the lake without rebuilding the scene.
-    update (elapsed, wind, tide, season, weather, wakes) {
+    update (phase, wind, tide, season, weather, wakes) {
       // Rain, without a uniform or a fetch of its own. A shower does two things
       // to a lake and the shader already has a knob for each: it puts the surface
       // into a chop that kills the glitter — a sun lobe needs a facet to hold
@@ -993,15 +992,7 @@ export function createWater (
         wind.dirZ * wind.travel * RIPPLE_DRIFT,
       )
 
-      // The sea's own clock, integrated so that the rate is a knob rather than a
-      // reading of the wall. `STILL` holds this at zero and keeps
-      // `water.waveHeight`, which is why a capture now has a shaped sea in it
-      // rather than a sheet of glass.
-      waveTime.value                   = advanceSwell(
-        waveClock,
-        elapsed,
-        config().water.waveSpeed,
-      )
+      waveTime.value                   = phase
       uniforms.uBoatWakeStrength.value = config().water.wakeStrength
       uniforms.uSparkle.value          = config().water.sparkle * (1 - 0.85 * fall)
       uniforms.uWaveHeight.value       = config().water.waveHeight

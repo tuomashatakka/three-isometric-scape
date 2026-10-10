@@ -54,6 +54,33 @@ function treelineLine (treeline: MapStats['treeline']): string {
  * island looks whitened either way. `realised` says whether that would be the
  * knob's fault or the hillside's.
  */
+/**
+ * The band the sea wets, and the two ways it can be missing.
+ *
+ * `run` and `walk` are medians over every land sample within four metres of the
+ * waterline, because a coast with one crag on it has a maximum that says
+ * nothing about the rest of it. The pair is the whole reading: a run that grew
+ * while the walk stayed put is a steeper coast, a walk that grew while the run
+ * stayed put is a flatter one, and both moving together is the sea having
+ * changed rather than the ground.
+ *
+ * `wetted` against `shore` is the share of the littoral actually inside the
+ * run-up at full surge, and it is the number that catches a band that has
+ * stopped reaching the ground — which is invisible in a still taken at any
+ * pose but the one aimed at the beach it still works on.
+ */
+function swashLine (swash: MapStats['swash']): string {
+  return `swash run ${swash.run}m / ${swash.tallest}m most  ` +
+    `walk ${swash.walk}m / ${swash.widest}m widest  ` +
+    `grade 1:${swash.grade > 0 ? (1 / swash.grade).toFixed(1) : '0'}  ` +
+    `wets ${swash.wetted}/${swash.shore} of the littoral` +
+    (swash.tallest <= 0
+      ? '  <- swash.reach is at zero: the shore is dry to the waterline'
+      : swash.wetted <= 0
+        ? '  <- the run-up reaches no ground: the coast is steeper than the sea'
+        : '')
+}
+
 function driftLine (island: MapStats['drift'][number]): string {
   return `drift ${island.id}  scoured ${island.scoured}% / drifted ${island.drifted}%  ` +
     `cover ${island.even}% -> ${island.cover}%  bared ${island.bared}%  banked ${island.banked}%  ` +
@@ -829,6 +856,7 @@ export function formatStats (stats: MapStats): string {
     haarLine(stats.haar),
     treelineLine(stats.treeline),
     ...stats.drift.map(driftLine),
+    swashLine(stats.swash),
     grazingLine(stats.grazing),
     `gulls ${stats.colonies.count}/${stats.colonies.asked} colonies  ` +
       (stats.colonies.sited
