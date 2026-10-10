@@ -343,6 +343,7 @@ bun run scape:shot --poses shade                    # the cloud shadow, 5 frames
 bun run scape:shot --poses haar                     # the night fog bank, 5 frames, near and far, switched off, blown away and at noon
 bun run scape:shot --poses shafts                   # the beams under the deck, 5 frames, switched off, a clear sky, an overcast and a low sun
 bun run scape:shot --poses ledge                    # the birds on the headland, 4 frames, midsummer, midwinter and a bare cliff
+bun run scape:shot --poses swash                    # the band the sea wets, 5 frames, a beach, a crag, a blow, half a swell on, and switched off
 bun run scape:shot --poses pack                     # the ice on the sound, 6 frames, shut, half in, switched off and in summer
 bun run scape:shot --poses roost                    # the race in the narrows, 6 frames, running, slack, switched off and in a calm
 bun run scape:shot --poses hail                     # the stones and the cell they fall in, 8 frames, switched off, in rain, in winter and in a blow

@@ -210,6 +210,12 @@ export interface SwellClock {
 /**
  * Carry the swell forward by one frame, and hand back where it stands.
  *
+ * The clock is the **landscape's**, not the lake's, and that moved when the
+ * shore learned to wet itself: two things draw this swell now — the surface,
+ * and the band it runs up on the beach — and the way to give two readers one
+ * phase is one authority above both of them rather than a getter on one of
+ * them. See `landscape/index.ts`.
+ *
  * Integrated off the frame's own step rather than read off `elapsed`, so
  * `water.waveSpeed` is a rate the overlay can drag to zero and back without the
  * sea jumping a crest when it does. A clamp on the step rather than a trust of

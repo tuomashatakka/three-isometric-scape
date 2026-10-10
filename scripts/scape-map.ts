@@ -19,6 +19,8 @@ import { archStats, cragStats, creelStats, duneStats, fjordStats, forceStats, ha
 import type { ArchStats, CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, SaltingsStats, ShoalStats, StackStats, TreelineStats } from './scape-map-landforms.ts'
 import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
+import { measureSwash } from '../src/scene/landscape/swash.ts'
+import type { SwashSurvey } from '../src/scene/landscape/swash.ts'
 import { causewayOf, croftOf, dykeOf, howeOf, moleOf, peatOf, pierOf, shielingOf, smokehouseOf, snowFenceOf, tarnOf, watermillOf, weirOf, wreckOf } from './scape-map-sites.ts'
 import {
   capsStats,
@@ -502,6 +504,21 @@ export interface MapStats extends CompositionStats, WeatherStats {
    * it. See {@link DriftSurvey}.
    */
   drift: DriftSurvey[]
+
+  /**
+   * The band the sea wets, measured on the ground it is drawn on.
+   *
+   * The one quantity in this scape that cannot be read off the config: the
+   * run-up is `water.waveHeight` and `water.swellLength` *through the
+   * archipelago's own gradients*, so the only honest reading of it is a walk
+   * over the coast asking the same two functions the fragment asks. It is here
+   * rather than in a still for the roost's reason — at the tour's fifteen-
+   * hundred-metre frame a six-metre band of damp sand is four pixels under the
+   * haze — and it catches the one failure a close pose would not: a relation
+   * that has quietly stopped producing a band anywhere but the one beach a
+   * screenshot happens to be pointed at. See {@link SwashSurvey}.
+   */
+  swash: SwashSurvey
 
   /**
    * The gull colonies, and the birds dealt across them.
@@ -1026,6 +1043,7 @@ export function surveyStats (
     forces:   forceStats(survey),
     treeline: treelineStats(survey, config),
     drift:    measureDrift(survey.field, config, survey.landmasses, config.archipelago.worldSize),
+    swash:    measureSwash(survey.field, config, config.archipelago.worldSize),
     grazing:  {
       count: flocks.length,
       asked: survey.landmasses.length * config.grazing.flocks,

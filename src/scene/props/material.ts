@@ -8,6 +8,8 @@ import type { CloudShadow } from '../cloud-shadow.ts'
 import type { LiveConfig } from '../config.ts'
 import { shadeDirection } from '../landscape/aspect.ts'
 import { SNOW_BAND, SNOW_WANDER, WANDER_ACROSS, WANDER_ALONG, driftDirection } from '../landscape/drift.ts'
+import { SWASH_FRAGMENT, SWASH_PARS_FRAGMENT, setSwash } from '../landscape/swash.ts'
+import type { SwashState } from '../landscape/swash.ts'
 import type { Vec2 } from '../landscape/path.ts'
 import type { SeasonState } from '../season.ts'
 import { createTextureCatalogue } from '../textures/catalogue.ts'
@@ -31,7 +33,7 @@ export interface ScapeMaterials {
    * Not the cloud shadow: that one is shared with the lake and advanced by
    * whoever owns both. See `cloud-shadow.ts`.
    */
-  update(wind: WindState, season: SeasonState, weather: WeatherState): void
+  update(wind: WindState, season: SeasonState, weather: WeatherState, swash: SwashState): void
   dispose(): void
 }
 
@@ -467,8 +469,6 @@ function seasonFragment (lie: string, aspect: string, drift: string): string {
 
   diffuseColor.rgb = mix(diffuseColor.rgb, uSeasonTint, uSeasonTintAmount * scapeGreen);
 
-  float scapeAltitude = cameraPosition.y - dot(vViewPosition, viewMatrix[1].xyz);
-
   // Snow arrives as a wandering line rather than as a thinning sheet — a fixed
   // contour round an island reads as a stripe someone painted on it.
   float scapeWander = sin(vScapeGround.x * ${along}) * cos(vScapeGround.y * ${across});
@@ -501,6 +501,25 @@ function seasonFragment (lie: string, aspect: string, drift: string): string {
   );
 `
 }
+
+/**
+ * World height, without a varying.
+ *
+ * `vViewPosition` is minus the view-space position, the view matrix is rigid,
+ * and the world height of a point is therefore the camera's height less that
+ * position projected onto the view matrix's second column — one dot product on
+ * a program that already argues about its varying budget with a handset
+ * offering sixty components in total.
+ *
+ * Emitted once, ahead of everything that reads it, because two readers wanted
+ * it: the snow line, which has needed it since snow learned to stay off the
+ * beach, and the swash, which is the beach. A second local would be a second
+ * dot product, and a second *name* for it would be the kind of thing that
+ * drifts apart.
+ */
+const ALTITUDE_FRAGMENT = /* glsl */`
+  float scapeAltitude = cameraPosition.y - dot(vViewPosition, viewMatrix[1].xyz);
+`
 
 const WET_PARS_FRAGMENT = /* glsl */`
   uniform float uWetAmount;
@@ -645,6 +664,30 @@ export function createScapeMaterials (
   // the grass and the ground it stands in cannot be in two different showers.
   const weather: Record<string, IUniform> = { uWetAmount: { value: 0 }}
 
+  // The shore. Only the ground reads it — the band is a gradient and a shelter
+  // taken off the face varying, and foliage emits none — so unlike the year and
+  // the shower there is no second program to keep in step. The foam colour is
+  // the palette's own, read every frame like everything else here, because the
+  // white the surf is drawn in is a knob and a shore whose lace disagreed with
+  // the breaker beside it would be two answers to one question.
+  const swashFoam: IUniform<Color>      = { value: new Color(config().palette.foam) }
+  const swashRun: IUniform<Vector2>     = { value: new Vector2(1, 0) }
+  const swash: Record<string, IUniform> = {
+    uSwashFoamColor: swashFoam,
+    uSwashRun:       swashRun,
+    uSwashLevel:     { value: config().terrain.waterLevel },
+    uSwashHeight:    { value: 0 },
+    uSwashSteepness: { value: 1 },
+    uSwashPhase:     { value: 0 },
+    uSwashK:         { value: 0 },
+    uSwashReach:     { value: config().swash.reach },
+    uSwashSteep:     { value: config().swash.steep },
+    uSwashWet:       { value: config().swash.wet },
+    uSwashSoak:      { value: config().swash.soak },
+    uSwashFoam:      { value: config().swash.foam },
+    uSwashLee:       { value: config().swash.lee },
+  }
+
   interface Injection {
     wind?:   Record<string, IUniform>
     detail?: Record<string, IUniform>
@@ -666,7 +709,17 @@ export function createScapeMaterials (
     const drift          = up ? GROUND_DRIFT : FOLIAGE_ASPECT
     const normalFragment = [
       extra.detail ? injected : '#include <normal_fragment_begin>',
+      extra.lie ? ALTITUDE_FRAGMENT : '',
       extra.lie ? wetFragment(extra.lie) : '',
+
+      // Between the shower and the year, and in that order for the reason the
+      // shower is before the snow: a coast does all three in a week, and what
+      // it ends up with is white over wet over whatever the sea left. Only a
+      // material that carries the face varying can have a swash on it, because
+      // the band is a gradient and a shelter read off that varying — foliage
+      // has neither, and a tuft standing in the wash is wet by the sand it is
+      // standing in.
+      up ? SWASH_FRAGMENT : '',
       extra.lie ? seasonFragment(extra.lie, aspect, drift) : '',
     ].join('\n')
 
@@ -692,6 +745,7 @@ export function createScapeMaterials (
           extra.detail,
           extra.lie ? season : null,
           extra.lie ? weather : null,
+          up ? swash : null,
         )
 
         // The normal varying rides with the ground pass rather than with the
@@ -717,6 +771,7 @@ export function createScapeMaterials (
             up ? UP_PARS_FRAGMENT : '',
             detailPars,
             extra.lie ? WET_PARS_FRAGMENT : '',
+            up ? SWASH_PARS_FRAGMENT : '',
             extra.lie ? SEASON_PARS_FRAGMENT : '',
           ].join('\n'))
           .replace('#include <color_fragment>', CLOUD_FRAGMENT)
@@ -758,7 +813,7 @@ export function createScapeMaterials (
     // Uniforms are refreshed from the config every frame rather than captured
     // at build. The scape's tuning surface is the config object, and a knob
     // that only takes effect on reload is not a knob.
-    update (breeze, year, sky) {
+    update (breeze, year, sky, shore) {
       // The cloud shadow is not written here. `cloud-shadow.ts` owns the four
       // uniforms these materials share with the lake, and the landscape
       // advances it once a frame — one shadow for the ground, the grass and
@@ -779,6 +834,13 @@ export function createScapeMaterials (
       season.uSeasonAspect.value     = config().season.snowSwing
       season.uSeasonDrift.value      = config().season.snowDrift
       weather.uWetAmount.value       = sky.wet
+
+      // The shore, off the one sea. The run bearing and the phase are the
+      // dominant swell train's own, handed over rather than re-derived, so the
+      // bore walking up a beach and the crest that raised it are one wave.
+      swashFoam.value.set(config().palette.foam)
+      swashRun.value.set(shore.runX, shore.runZ)
+      setSwash(swash, shore, config().swash)
 
       // Read here rather than resolved once at build, for the reason every
       // other line in this function is: `daylight.azimuth` is a slider, and a

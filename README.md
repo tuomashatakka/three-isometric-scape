@@ -222,6 +222,7 @@ src/
     ├── config-haar.ts              the night bank's own slice: the top, the band, and what takes it away
     ├── config-halo.ts              the ring's own slice: the lead ahead of the fall, the dogs, the shaft
     ├── config-shafts.ts            the beams' own slice: the brightness, the reach up the deck, the taper
+    ├── config-swash.ts             the wash's own slice: the run-up, the ceiling, and what the lee keeps
     ├── config-treeline.ts          the wood's own slice: the two lines, and the fetch between
     ├── config-dunes.ts             the sand's own slice: the profile, the arc, and the two vetoes
     ├── config-crag.ts              the cliff's own slice: the profile, the siting gradient, the clefts
@@ -343,6 +344,7 @@ src/
     │   ├── shore-mask.ts           the baked bathymetry, which way each coast faces, and where the tide is squeezed
     │   ├── water.ts                swell, surf, foam, glitter, winter ice
     │   ├── swell.ts              the shape of the sea: its dispersion, the fan the wind turns it by, and what a bank does to it
+    │   ├── swash.ts              the band the sea wets: hunt's run-up on the ground's own gradient, and the survey of it
     │   ├── water-caustics.ts      the sun's net on the bottom of the shallows
     │   ├── water-gleam.ts         the light that never got in: the sky it mirrors, the moon's track, the fire in torn water
     │   ├── water-caps.ts          the white the open sound puts on when it blows, and the lee that is spared it
@@ -2566,6 +2568,82 @@ the stonework follows `quality.dykeSpacing` for the reason the weir's does: it i
 ```text
 mole NONE  <- the landing is sheltered already, or no hand of it would hold a run of rubble
 ```
+
+## the band the sea wets
+
+this coast has had a moving waterline since the tide landed and a surf band since the shore learned which way the weather was on, and both of them stop at the same place: the water. a millimetre above it the ground was as dry as the fell. so the one line in the archipelago where the sea actually touches the land — the line a person standing on the beach is looking at — was the one line where nothing happened.
+
+a coast does not have an edge. it has a **band**, and the band is wet, dark, briefly white at the top of it, and wider on a beach than on a cliff by exactly the ratio of their slopes. [`landscape/swash.ts`](src/scene/landscape/swash.ts) is that band: a published run-up relation, a fragment chunk, and the survey `scape:map` walks the coast with. [`config-swash.ts`](src/scene/config-swash.ts) is its six knobs, and every one of them is dimensionless.
+
+### the width is the swell's own number, not a number anybody chose
+
+the run-up is **hunt's relation**, on the ground the fragment is standing on:
+
+```text
+R = H · ξ          ξ = tanβ / sqrt(H / L)
+```
+
+`ξ` is the iribarren number — the beach's gradient measured against the steepness of the wave arriving on it — and every term of it was already in the scape. `H` is `water.waveHeight`, `L` is `water.swellLength`, and `tanβ` is the ground's own normal, which the ground program has carried in `vScapeFace.x` since the grain learned to weigh itself by how horizontal a face is. nothing is fetched, nothing is baked, and no new varying is emitted.
+
+that is what makes the band **self-sizing** rather than authored, and the arithmetic is worth doing once by hand. the horizontal walk is `R / tanβ`, and the gradient cancels out of it exactly:
+
+```text
+R / tanβ = H / sqrt(H / L) = sqrt(H · L)
+```
+
+**6.2 m at the authored sea, on every beach the fit still holds on.** a shingle bank at 1:12 and a sand flat at 1:40 are wetted the same distance inland by the same swell, and the vertical rise is what differs. none of that is a number in the config, and `swash.test.ts` states it as a fact about the data rather than re-deriving it.
+
+### the ceiling is doing most of the work, and the survey is how we know
+
+`swash.steep` is the ξ at which the shore stops dissipating: above about 2.5 a wave stops spilling up a beach and starts surging against it, and hunt's line — which is a fit to spilling breakers — would otherwise carry a sheer granite face metres of run-up it has no beach to spend. the vertical run saturates there and only the horizontal walk goes on shrinking, which is what makes the crag a splash zone a handspan deep rather than a tide mark two storeys up.
+
+what was not obvious until it was measured is **which half of the relation this archipelago actually uses**. the `swash` line reports the median gradient within four metres of the waterline:
+
+```text
+swash run 1.38m / 1.38m most  walk 2.19m / 6.2m widest  grade 1:2.8  wets 448/1162 of the littoral
+```
+
+1:2.8 puts ξ at about four. the typical shore here is **over** the ceiling, so the clamp sets the band on the rock and hunt's line sets it on the sand flats and the saltings — and `run` and `tallest` agreeing to the centimetre is that read out loud. a scape with a gentler coast would see the opposite line, which is the point of printing the gradient beside the run rather than the run alone.
+
+the median and the maximum are both there because a coast with one crag on it has a maximum that says nothing about the rest of it. `wets` against the littoral count is the number that catches the failure a still cannot: a relation that has quietly stopped reaching the ground anywhere but the one beach a screenshot happens to be pointed at.
+
+### the band moves because the swell does, on the swell's own clock
+
+the wet is not a contour. the live edge runs up and drains back at the **dominant swell train's own phase**, dotted against the same run bearing and advanced on the same integrated clock `scapeWave` draws the surface with, with the sign the surface uses — so the bore walks up a beach as the crest that raised it arrives, and a headland is wetted a moment before the bay behind it. neither of those is authored anywhere. both fall out of sharing one clock.
+
+**sharing it meant moving it.** the lake used to integrate the swell off `elapsed` inside its own `update`, which was correct while the lake was the only thing drawing the sea. it is not any more, and a second clock on the shore would be a bore walking up a beach under a crest that was somewhere else. the clock is `landscape/index.ts`'s now — one `advanceSwell` per frame, handed to `water.update` as a phase and to the ground material as a swash — and `water.ts` lost sixteen lines and its `elapsed` argument in the move, which is what brought it back under the 666-line ceiling the swell window had just pushed it over.
+
+the surge is skewed, `pow(x, 0.6)` on the cosine, because a bore and a backwash are not the same shape: the water runs up fast and drains slow, and a symmetric band reads as a stripe sliding rather than as a sea breathing. `STILL` needs no new line for any of it — `water.waveSpeed=0` holds the clock, so a capture gets a shore frozen at one instant of its own surge rather than a shore caught halfway up a wave it can never finish.
+
+### what stays wet after the water has gone, and what is only wet once
+
+two bands, not one, and the difference is memory. sand the last wave reached stays dark for a good many waves after it, so the **damp** runs all the way up to the full run-up and only the **wet** inside it oscillates. `swash.soak` is the share the damp keeps, and at 0.72 the band's outline is the run-up and what moves is the depth of the colour in it. a fragment has no memory to decay, and it does not need one: the maximum of the two is the whole model.
+
+the wet itself is the two-sided read `weather.wet` already uses for a shower, because it is the same physics — a water film traps light the dry grains would have scattered back out, and that film is smoother than anything under it. albedo down, specular up. doing only the first gives a shore somebody turned the lights down on; doing only the second gives a shore made of plastic.
+
+the **lace** at the top of the run is drawn in `palette.foam`, the same white the surf, the caps and the wakes are in, because a bore running up a beach and a breaker tripping over a bank are the same substance. it is gated on the surge as well as on the edge, so a shore at the bottom of its backwash carries no white at all.
+
+and the band is deliberately **not** weighted by the `lie` the shower and the snow are. rain lands on what faces the sky and snow settles on it; the sea wets what it reaches, and what it reaches on this coast includes the seaward face of every jetty pile, every mole stone and every wave-cut platform standing at the waterline.
+
+### which shore, and how far below the waterline it gives out
+
+`swash.lee` is the same shape as `water.surfExposure` and is read off the same compass the winter's drift is — `vScapeFace.z`, the face resolved against the **base** wind bearing rather than this instant's gust. so a coast cannot be taking the sea on one side and running it up the other, and the band veers when the wind does without a second bearing existing anywhere. a third of the weather shore's run is what the lee keeps, which is harder than the surf's own lee for the reason the whitecaps' is: what reaches a sheltered beach has refracted round the headland rather than been stopped by it.
+
+under the waterline the band fades out over 40 cm rather than ending, and that is a seam rather than a nicety: the lake thins out against the sand rather than ending either, so a wet band with a hard bottom edge would show its own edge through the last few centimetres of water.
+
+### what it costs
+
+**no draw call, no triangle, no texture, no new varying and no tier gate.** thirteen uniforms and about twenty lines of arithmetic in the ground fragment, on three values it was already holding — the altitude the snow line computes, the face angle the grain weighs itself by, and the world position the cloud shadow is read at. the altitude moved out of `seasonFragment` into a chunk of its own so that the snow line and the swash read one dot product rather than two under different names.
+
+it is on every tier, and that is a decision rather than an oversight: a band that only exists where there is a normal map to spare would be a coastline that changes shape with the hardware, and the capture harness pins `--tier mobile`, so an effect the cheap ground cannot draw is an effect no still in this repository can show. the lite path and the full path take the identical chunk.
+
+foliage does not get it. the band is a gradient and a shelter taken off the face varying, and foliage emits neither — a tuft standing in the wash is wet by the sand it is standing in.
+
+### `--poses swash`, the twenty-seventh set
+
+the tour cannot see it, and the frame is why rather than the clock: the run-up is about two thirds of a metre of rise and a couple of metres of walk on the typical shore here, which at the tour's fifteen-hundred-metre frame is four pixels under the haze. a knob turned until the tour can read it is a knob that has been lied to, so the set comes down to the shore instead.
+
+`swash` is the harbour bank west of the landing, the flattest coast on the home island and the one the `tide` set already aims at. `swash-crag` is the other end of the gradient, where the claim is that the *same* relation leaves a handspan rather than a tide mark. `swash-blow` is the gust lift, which no other frame can show — `STILL` zeroes `wind.strength` by definition, so every other frame draws the dead-calm three quarters. `swash-back` moves the band by moving the *sea under it*, since the clock is stopped: a longer swell puts the far side of the surge over the same ground. `swash-none` is the switch at zero and has to come back byte-identical to the shore this scape had before the band existed.
 
 ## ground that casts
 

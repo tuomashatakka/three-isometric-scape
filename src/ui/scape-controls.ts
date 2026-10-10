@@ -628,6 +628,37 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
     },
     {
       group: 'ground & water',
+      title: 'the swash',
+
+      // Filed under the water rather than under the ground, although what it
+      // draws on is ground: the band is a fact about the sea arriving, and its
+      // width is `water.waveHeight` and `water.swellLength` read through a
+      // gradient. A reader who turns the swell up and wonders why the beach
+      // changed is looking in the right place.
+      //
+      // Every knob here is read per frame and every one of them is in, which is
+      // the whole section — there is nothing build-time in a band that is
+      // arithmetic on a fragment. `swash.steep` is the Iribarren ceiling and is
+      // in with the rest because it is the one number that decides whether a
+      // cliff gets a splash zone or a tide mark, and that is a thing worth being
+      // able to see move.
+      controls: [
+        toggled(
+          'the wash',
+          range('swash.reach', 'run-up (Hunt)', 0, 2, 0.01),
+          1,
+          [
+            range('swash.steep', 'surging at (Iribarren)', 0, 6, 0.05),
+            range('swash.wet', 'darkens the shore', 0, 1, 0.01),
+            range('swash.soak', 'stays damp', 0, 1, 0.01),
+            range('swash.foam', 'lace at the edge', 0, 1, 0.01),
+            range('swash.lee', 'what the lee keeps', 0, 1, 0.01),
+          ],
+        ),
+      ],
+    },
+    {
+      group: 'ground & water',
       title: 'the kelp',
 
       // Filed under the water because that is what it grows in. The split is the
