@@ -130,6 +130,19 @@ const HAUL_ROCK = [ 'camera.focusX=300', 'camera.focusZ=375' ]
  */
 const HAUL_EDGE = [ 'camera.focusX=305', 'camera.focusZ=366' ]
 
+/**
+ * The home island's harbour and the arm that closes it, which the four `lee`
+ * poses sit on.
+ *
+ * Chosen by the shelter survey rather than by eye: the mole stands at
+ * (-41.7, -33) and reaches 24 m out, the harbour it closes is at (-13, -28),
+ * and those are the two readings furthest apart in the archipelago — the water
+ * inside the arm comes back 0.86 sheltered at the authored wind against 0.18
+ * for the middle of the open sound. A frame that holds both is a frame with the
+ * whole of the claim in it.
+ */
+const OFF_THE_HARBOUR = [ 'camera.focusX=-25', 'camera.focusZ=-30' ]
+
 /** One camera and clock the scape gets photographed from. */
 export interface Pose {
   name:    string
@@ -1136,6 +1149,46 @@ export const TOURS: Record<string, Pose[]> = {
       zoom: 520,
       set:  [ 'wind.strength=2.4', 'water.whitecap=0' ],
     },
+  ],
+
+  /**
+   * The lee the land throws, and the only frames in this repository that can
+   * see it at all.
+   *
+   * `shelter.ts` is a sea-state system, and the sea is the one surface in this
+   * scape the whole-frame metric cannot read: at the parked weather, with the
+   * haze, the grade and the tilt-shift over it, **turning the surf off
+   * altogether** moves 2.74 % of the pixels of a 110 m frame by a two-level
+   * threshold and `0.00 %` by the diff's own. So these frames are not a wider
+   * net — they are a *switch*, and they are read in pairs.
+   *
+   * `lee` and `lee-none` are the pair. The second is the identical frame with
+   * both reaches at zero, which is the sea this scape had: no map, no lee, the
+   * caps and the swell running the same on both sides of every island. A pair
+   * that comes back identical means the map is not reaching the programs, which
+   * is the one failure a `same` verdict on the tour cannot distinguish from a
+   * change too subtle to see.
+   *
+   * `lee-veer` is the claim the harmonic exists to make, and it needs the wind
+   * turned rather than the camera moved: the stored field is a *function of
+   * bearing*, so a wind on the other quarter has to put the quiet water on the
+   * other side of the island with nothing rebaked. A build that stored a mean
+   * and no harmonic would come back identical to `lee`.
+   *
+   * `lee-blow` is the whitecaps' half. `STILL` zeroes the wind, so the lee on
+   * the white is invisible to any frame that does not name one after the still
+   * has — the same reason `blow` exists, pointed at the harbour the mole
+   * closes rather than at the open sound.
+   */
+  lee: [
+    { name: 'lee', zoom: 110, set: [ ...OFF_THE_HARBOUR ]},
+    {
+      name: 'lee-none',
+      zoom: 110,
+      set:  [ ...OFF_THE_HARBOUR, 'shelter.reach=0', 'shelter.swellReach=0' ],
+    },
+    { name: 'lee-veer', zoom: 110, set: [ ...OFF_THE_HARBOUR, 'wind.bearing=74' ]},
+    { name: 'lee-blow', zoom: 110, set: [ ...OFF_THE_HARBOUR, 'wind.strength=2.4' ]},
   ],
 
   /**

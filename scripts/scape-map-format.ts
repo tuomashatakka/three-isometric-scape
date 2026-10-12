@@ -166,6 +166,26 @@ function roostLine (roost: MapStats['roost']): string {
 }
 
 /**
+ * The lee's line, and the finding it carries at both ends.
+ *
+ * A sheltered share near zero is a map nothing on the water will read; a share
+ * past a third is an archipelago that has stopped having an open sound in it,
+ * and both are `shelter.reach` set wrong rather than a world that changed.
+ */
+function shelterLine (shelter: MapStats['shelter']): string {
+  const line = `shelter reach ${shelter.reach}m wind / ${shelter.swellReach}m swell  ` +
+    `mean ${shelter.mean}  lee ${shelter.lee}% of the water  swing ${shelter.swing}  ` +
+    `swell shade ${shelter.calm}, lee keeps ${shelter.keeps}`
+
+  if (shelter.lee < 1)
+    return `${line}  <- no water is half sheltered at the authored wind`
+
+  return shelter.lee > 33
+    ? `${line}  <- the lees have run together and the archipelago has no weather side`
+    : line
+}
+
+/**
  * The colony's line, and the two findings hiding in it.
  *
  * Its own function for `skerryLine`'s reason, and it carries two conditions
@@ -782,6 +802,7 @@ export function formatStats (stats: MapStats): string {
       : 'strand NONE  <- no pair of islands is named, or the crest is zero',
     skerryLine(stats.skerries),
     roostLine(stats.roost),
+    shelterLine(stats.shelter),
     hauloutLine(stats.haulout),
     kelpLine(stats.kelp),
     creelLine(stats.creels),

@@ -15,6 +15,7 @@ import type { ScapeConfig } from '../src/scene/config.ts'
 import { formatStats } from './scape-map-format.ts'
 import { LEGEND, readLayers, renderGrid } from './scape-map-render.ts'
 import type { Window } from './scape-map-render.ts'
+import { shelterStats } from './scape-map-shelter.ts'
 import { archStats, cragStats, creelStats, duneStats, fjordStats, forceStats, hauloutStats, icecapStats, ledgeStats, kelpStats, packStats, roostStats, saltingsStats, shoalStats, skerryStats, stackStats, strandStats, treelineStats } from './scape-map-landforms.ts'
 import type { ArchStats, CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, SaltingsStats, ShoalStats, StackStats, TreelineStats } from './scape-map-landforms.ts'
 import { measureDrift } from '../src/scene/landscape/drift.ts'
@@ -392,6 +393,24 @@ export interface MapStats extends CompositionStats, WeatherStats {
    * `nearest` is the other one, because a system nobody can walk to is a system
    * only the instruments know about.
    */
+  /**
+   * The lee the land throws on the water, and whether it is a place or a tint.
+   *
+   * See `shelterStats`. `lee` is the share to watch — the water at or over half
+   * sheltered at the authored wind — and `swing` is how much of the field
+   * answers to the *bearing* rather than merely to being enclosed. A swing near
+   * zero is an archipelago with no weather side.
+   */
+  shelter: {
+    reach:      number
+    swellReach: number
+    mean:       number
+    lee:        number
+    swing:      number
+    calm:       number
+    keeps:      number
+  }
+
   roost: {
     gates:    number
     tightest: number
@@ -1027,6 +1046,7 @@ export function surveyStats (
     strand,
     skerries: skerryStats(survey, config),
     roost:    roostStats(survey, config),
+    shelter:  shelterStats(survey, config),
     haulout:  hauloutStats(survey, config),
     ledges:   ledgeStats(survey, config),
     pack:     packStats(survey, config),

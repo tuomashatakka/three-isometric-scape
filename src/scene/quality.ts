@@ -595,6 +595,23 @@ export interface AtmosphereQuality {
    * the life of the scape.
    */
   shoreMask: number
+
+  /**
+   * Texels a side of the baked shelter map — see `landscape/shelter.ts`.
+   *
+   * A tier decision for the *build* rather than for the upload, which is the
+   * other way round from `shoreMask` above. The map itself is tiny at any of
+   * these numbers — 128² RGBA is 64 KB, against the bathymetry mask's megabytes
+   * — but the search behind it marches sixteen rays out of every texel, so the
+   * cost of baking it goes as the square of this number times the reach in
+   * texels, which is the cube of it. 96 against 160 is a third of the marching.
+   *
+   * It is also the one map in the scape that genuinely does not want to be
+   * sharper: what it holds changes over hundreds of metres, and the ultra tier
+   * is given 160 rather than 512 because past about a texel to ten metres there
+   * is nothing left in the field to resolve.
+   */
+  shelterMask: number
 }
 
 
@@ -656,6 +673,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     waterSegments:   24,
     waterSpan:       2.2,
     shoreMask:       384,
+    shelterMask:     96,
   },
   mobile: {
     pixelRatioMax:   1,
@@ -720,6 +738,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     waterSegments: 48,
     waterSpan:     3,
     shoreMask:     768,
+    shelterMask:   96,
   },
   desktop: {
     // One device pixel per css pixel, the same as every other tier that is
@@ -782,6 +801,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     waterSegments:   96,
     waterSpan:       8,
     shoreMask:       1_024,
+    shelterMask:     128,
   },
   ultra: {
     pixelRatioMax:   1,
@@ -837,6 +857,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     waterSegments:   128,
     waterSpan:       8,
     shoreMask:       1_536,
+    shelterMask:     160,
   },
 }
 

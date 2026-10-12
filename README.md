@@ -237,6 +237,7 @@ src/
     ├── config-shoal.ts             the bank's own slice: the reach, the crest, and the room the sound leaves
     ├── config-snowfence.ts         the snow fence's own slice: the height, the setback, and the bite that earns one
     ├── config-roost.ts             the race's own slice: how wide a gate still runs, and how white it gets
+    ├── config-shelter.ts           the lee's own slice: how far upwind land counts, for the wind sea and for the swell
     ├── config-weir.ts              the fish trap's own slice: the reach, the pound, the mouth, the wall
     ├── config-mole.ts              the breakwater's own slice: the fetch it answers, the depth it stops at, the batter
     ├── config-front.ts             the front's own knobs: weather, the far squall, the lightning, the bow
@@ -349,6 +350,8 @@ src/
     │   ├── water-gleam.ts         the light that never got in: the sky it mirrors, the moon's track, the fire in torn water
     │   ├── water-caps.ts          the white the open sound puts on when it blows, and the lee that is spared it
     │   ├── roost.ts               the gates the tide hurries through, found in the bathymetry and packed into it
+    │   ├── shelter.ts             how much of the weather the land upwind has already taken, as a mean and a harmonic
+    │   ├── water-wake.ts          the water a hull leaves behind it
     │   ├── water-ice.ts           where the winter shuts the water, in the shader's arithmetic and the survey's
     │   ├── samplers.ts             where the dressing throws its darts, islands and rocks alike
     │   ├── dressing-sampling.ts    what the darts are thrown at, and each feature's quota
@@ -409,6 +412,7 @@ scripts/
 ├── scape-map-render.ts             the picture half: the ramp, the layers and the grid
 ├── scape-map-format.ts             the stats block, as the run reads it
 ├── scape-map-landforms.ts          the bar, the guard, the fjords and the treeline, walked
+├── scape-map-shelter.ts            the lee the archipelago throws, surveyed off the depth grid
 ├── scape-map-sites.ts              the sited features of one island, projected and measured
 ├── scape-map-weather.ts            the weather half of the stats block, and the type for it
 ├── scape-poses.ts                  every named pose set, and the clocks a capture stops
@@ -2644,6 +2648,52 @@ foliage does not get it. the band is a gradient and a shelter taken off the face
 the tour cannot see it, and the frame is why rather than the clock: the run-up is about two thirds of a metre of rise and a couple of metres of walk on the typical shore here, which at the tour's fifteen-hundred-metre frame is four pixels under the haze. a knob turned until the tour can read it is a knob that has been lied to, so the set comes down to the shore instead.
 
 `swash` is the harbour bank west of the landing, the flattest coast on the home island and the one the `tide` set already aims at. `swash-crag` is the other end of the gradient, where the claim is that the *same* relation leaves a handspan rather than a tide mark. `swash-blow` is the gust lift, which no other frame can show — `STILL` zeroes `wind.strength` by definition, so every other frame draws the dead-calm three quarters. `swash-back` moves the band by moving the *sea under it*, since the clock is stopped: a longer swell puts the far side of the surge over the same ground. `swash-none` is the switch at zero and has to come back byte-identical to the shore this scape had before the band existed.
+
+## the lee the land throws
+
+six islands, fifty-nine skerries, a breakwater twenty-four metres out and a causeway across a sound — and the sea went through every one of them. the surf knew which way a *coast* faced, because [`shore-mask.ts`](src/scene/landscape/shore-mask.ts) bakes the seaward bearing into the bathymetry's spare channels and a fragment can dot against it; the whitecaps borrowed the same reading. that is not shelter. a baked gradient only exists within a texel or two of a bank, so the lee it drew stopped *at the bank*: the water a hundred metres behind an island broke exactly like the water in front of it, the harbour raised the same swell as the open sound, and the arm built to flatten that harbour flattened nothing. [`landscape/shelter.ts`](src/scene/landscape/shelter.ts) is the whole of it and [`config-shelter.ts`](src/scene/config-shelter.ts) is its two knobs.
+
+### shelter is a function of bearing, and a map cannot hold a function
+
+sixteen rays out of every texel of a depth grid, out to `shelter.reach`, and how far each one gets before it strikes land. that is a *function of bearing* per texel — sheltered from the north-west, open to the south — and no map holds one.
+
+but the function is smooth, because it is an integral over an arc, so its **mean and its first harmonic carry nearly all of it**: three numbers, `r` and `gb` of a 128² map, and the shader turns them back into the shelter for whatever bearing the wind is on with one dot product — `clamp(shelter.r + dot(shelter.gb * 2.0 - 1.0, upwind), 0.0, 1.0)` — and no trigonometry at all. the wind can veer through a whole gale without a byte being rebaked, which is the whole reason this is storable. the clamp is load-bearing rather than tidy: a first-harmonic fit of a function that is 1 over a quarter of the compass and 0 over the rest overshoots at both ends, and the overshoot would otherwise put a *negative* shelter — water whiter than the open sound — on the weather side of a long island.
+
+### the falloff is the root of the distance, and that is what makes a mole worth drawing
+
+fetch-limited wave height goes as about the square root of the distance the wind has run over the water, which is the JONSWAP fit and every engineering table built on it. so the *deficit* — what the sea has not got up yet, which is what shelter is — falls off as the root too.
+
+linear in distance, a nine-hundred-metre reach puts a shelter of 0.97 immediately behind a breakwater and 0.89 a hundred metres out, which is a smear across the whole sound. on the root it is a half at a quarter of the reach, which is a harbour with an open sound outside it. the survey says so: **0.86 behind the home island's mole and 0.18 in the middle of the sound**, at the authored wind.
+
+### the two seas answer to different distances, and the shorter one is the swell's
+
+the first build had this the other way round, and the fourth channel is where the argument is.
+
+a **wind sea** has to be *built*. water that has just come out from under a hill is flat, and the wind has to work on it over distance to get it up again — most of a kilometre before it is properly breaking. so the shadow a headland throws on the *white* is long, and it lies squarely downwind, because only the land the wind actually crossed is of any account. that is the mean and the harmonic, at `shelter.reach` of 900 m.
+
+a **swell** is already made, somewhere else, days ago, and arrives as a long wave that bends round what it meets. nothing has to rebuild it: its own shadow fills in from the sides over a few hundred metres, and it fills in from every bearing at once. so the alpha carries the same search at `shelter.swellReach` of 320 m, as a **mean with no direction in it**. built the other way round — 420 m for the white and 1_150 m for the swell — every corner of the world came back a tenth sheltered and the swell quietly lost a tenth of its height everywhere, which is a tint rather than a lee.
+
+### what reads it
+
+the **whitecaps**, through `scapeShelterLee` against `-uSwell`, in place of the baked-bearing hack `water-caps.ts` had. `water.whitecapLee` is the same knob at the same 0.85; what it multiplies has changed from a fact about this fragment's bank into a fact about what is nine hundred metres upwind.
+
+the **swell itself**, through `scapeShelterCalm` on the shoal gain — in the vertex stage, where the displacement is, and in both fragment programs, where the faces that displacement is shaded by are differenced. a sea that lay down only in the fragment would be a plane standing up in the silhouette and flat in its colour. `water.swellLee` at 0.45 is what a fully sheltered sea keeps, and it is held well above zero on purpose: a harbour on a day with a sea running outside is never glass.
+
+### what it costs
+
+**one 128² RGBA map — 64 KB — and one dependent fragment read, which takes the full lake from seven to eight and the cheap one from three to four.** the first tap any system has added to the cheap program since the whitecaps, and the argument for it is the size of the thing read: 64 KB is resident in texture cache after the first few fragments of a tile, where the bathymetry mask at 384² to 1_536² is streamed. a tap is not a tap is not a tap. the vertex stage pays a second fetch of the same map beside the bathymetry fetch it already makes, on a plane of at most 128 segments a side.
+
+the **bake is 36 ms** — 16 rays × 128² texels, walked one texel at a time out to the shorter reach and two past it — against the ~11 s the composite survey already costs. no draw call, no triangle, no new varying, and nothing a tier gate takes away: `quality.shelterMask` moves the resolution between 96 and 160 and every tier draws the system.
+
+`water.ts` went past the enforced 666-line ceiling on this, so the boat wake's chunk moved out whole and unchanged into [`water-wake.ts`](src/scene/landscape/water-wake.ts) — the split the house rules ask for, at the seam `water-caps.ts`, `water-caustics.ts`, `water-gleam.ts` and `roost.ts` already mark out.
+
+### `--poses lee`, the twenty-eighth set, and why the tour cannot see any of it
+
+**the tour reports `same` at all six poses, and so does this set.** that is not the system failing to draw; it is the whole-frame metric failing to read water at this grade, which this repository has now written down three times — the swell run said the sea's shape is invisible to it, the kelp run took a pose set of its own for the same reason, and here is the calibration that settles it:
+
+at the 110 m harbour frame, **turning the entire surf system off** — `water.surf=0`, a system nobody would call invisible — moves 3.19 % of the frame's pixels by two levels of 255 and 0.92 % by ten. **switching this map off** at the same frame, `shelter.reach=0` against the authored 900, moves **11.45 % by two levels and 1.96 % by ten**. the change is three times the surf's and `scape:diff` calls both of them `same`. amplified twelve times, the difference image is black over every acre of land and bright in lobes behind the island, behind the skerries and inside the harbour — which is exactly where a lee is and nowhere else.
+
+so the set is a **switch rather than a wider net**, read in pairs. `lee-none` is the identical frame with both reaches at zero: the sea this scape had. `lee-veer` turns the *wind* rather than the camera, because the stored field is a function of bearing and a build that kept only the mean would come back identical to `lee`. `lee-blow` is the whitecaps' half, which no other frame can show — `STILL` zeroes the wind by definition.
 
 ## ground that casts
 

@@ -1,4 +1,6 @@
+import type { IUniform } from 'three'
 import { smoothstep } from 'threejs-scene'
+import type { ScapeConfig } from '../config.ts'
 
 
 /**
@@ -35,17 +37,21 @@ import { smoothstep } from 'threejs-scene'
  * dependent read, the same on both programs. What the scale of that read has to
  * be, and the three builds that got it wrong, are in {@link WATER_CAPS_GLSL}.
  *
- * **the fetch** is the half you can see from across the room, and it costs
- * nothing either. Wind does not raise a sea instantly — it raises it over
- * distance, measured *upwind* — so water tucked under the shore the wind is
- * blowing off has had no run at all and lies flat while the sound beyond it
- * breaks. The obvious build for that is a second probe of the bathymetry one
- * step up the wind, and it is the wrong one: the mask fetch the surface has
- * *already* made carries the baked seaward bearing of the nearest coast in its
- * spare channels, which is the same question answered before it was asked. So
- * the lee falls out of `scapeSurf`'s own arithmetic, off `scapeSurf`'s own
- * fetch, and the white water on the weather side of an island and the flat
- * water behind it are two readings of one number.
+ * **the fetch** is the half you can see from across the room. Wind does not
+ * raise a sea instantly — it raises it over distance, measured *upwind* — so
+ * water tucked under the land the wind is blowing over has had no run at all
+ * and lies flat while the sound beyond it breaks.
+ *
+ * The first build of that read the bathymetry mask's own baked seaward bearing:
+ * free, already fetched, and wrong in one specific way that took a map of its
+ * own to fix. A baked gradient only exists within a texel or two of a coast, so
+ * the lee it drew stopped at the bank — the water *behind* an island broke
+ * exactly like the water in front of it, and a breakwater built to flatten a
+ * harbour flattened nothing. `shelter.ts` is the second build: sixteen rays out
+ * of every texel of a small map, kept as a mean and a first harmonic, resolved
+ * against the bearing the wind is on with one dot product. The white water on
+ * the weather side of an island and the flat water four hundred metres into its
+ * lee are now two readings of the same measured number.
  */
 
 /**
@@ -82,6 +88,23 @@ export function capsAmount (authored: number, onset: number, strength: number): 
     : 1
 
   return authored * (HELD + (1 - HELD) * blown)
+}
+
+/**
+ * The two uniforms this system owns, set together.
+ *
+ * Here rather than inline in the lake's `update` for the reason `setSwell` and
+ * `setRoost` are where they are: the coverage curve and the lee strength are
+ * one idea read once a frame, and the lake's update is already at the statement
+ * ceiling the lint config enforces.
+ */
+export function setCaps (
+  uniforms: Record<string, IUniform>,
+  water:    ScapeConfig['water'],
+  strength: number,
+): void {
+  uniforms.uCaps.value    = capsAmount(water.whitecap, water.whitecapOnset, strength)
+  uniforms.uCapsLee.value = water.whitecapLee
 }
 
 /**
@@ -193,8 +216,10 @@ const CAP_TORN = 0.62
  * harness pins `--tier mobile` — a detected tier is undiffable, so every still
  * this repository has ever taken is of the *cheap* program — and a system the
  * cheap program cannot draw is a system no instrument here can see. This one
- * costs one dependent read, which takes that lake from two to three; the lee
- * and the coverage curve are arithmetic on fetches it was already making.
+ * costs one dependent read of its own, which took that lake from two to three;
+ * the lee now costs a second, shared with the swell's gain and fetched by the
+ * caller — see `shelter.ts` for why a 64 KB map is not the same kind of tap as
+ * a nine-megabyte one.
  *
  * **The scale of that read is the whole of what makes it work, and three builds
  * died on it.** A procedural field — five rotated sine octaves, carefully
@@ -215,21 +240,16 @@ export const WATER_CAPS_GLSL = /* glsl */`
   uniform float uCaps;
   uniform float uCapsLee;
 
-  float scapeCaps (vec2 ground, vec4 shore, float open) {
+  float scapeCaps (vec2 ground, vec4 shelter, float open) {
     if (uCaps <= 0.001 || open <= 0.001)
       return 0.0;
 
-    // The lee, out of the fetch the caller already made. Bilinear filtering
-    // shortens the decoded bearing between texels and open sea leaves it at zero
-    // length, so its length is how near a coast this is and its direction is
-    // which way that coast faces — one is the weight and the other is the
-    // answer. Normalised here, where scapeSurf deliberately leaves them
-    // multiplied: a breaker wants both at once, and a lee wants to know how
-    // sheltered water is without that being confused with how near land it is.
-    vec2 seaward = shore.gb * 2.0 - 1.0;
-    float near   = length(seaward);
-    float facing = near < 0.02 ? 1.0 : clamp(-dot(seaward, uSwell) / near, 0.0, 1.0);
-    float run    = mix(1.0, facing, clamp(near * 1.7, 0.0, 1.0) * uCapsLee);
+    // The lee, out of the shelter map the caller already fetched — which is a
+    // fact about what is four hundred metres upwind rather than about which way
+    // the bank under this fragment happens to face. Negating uSwell is what
+    // makes it upwind: the swell runs with the wind in this scape and there is
+    // one compass, not two. See shelter.ts.
+    float run = mix(1.0, 1.0 - scapeShelterLee(shelter, -uSwell), uCapsLee);
 
     vec2 across = vec2(-uSwell.y, uSwell.x);
     float along = dot(ground, uSwell) + uSurgePhase * ${CAP_DRIFT.toFixed(2)};
