@@ -24,9 +24,11 @@ import type { HeightField } from './height.ts'
 import { LAYER } from '../layers.ts'
 import { WATER_ROOST_GLSL, roostAmount } from './roost.ts'
 import { MAX_DEPTH, bakeShoreMask } from './shore-mask.ts'
-import { WATER_CAPS_GLSL, capsAmount } from './water-caps.ts'
+import { WATER_CAPS_GLSL, setCaps } from './water-caps.ts'
 import { WATER_ICE_GLSL } from './water-ice.ts'
+import { WATER_SHELTER_GLSL, bakeShelterMask } from './shelter.ts'
 import { WATER_SWELL_GLSL, setSwell, swellRate, swellWavenumber } from './swell.ts'
+import { BOAT_WAKE_GLSL } from './water-wake.ts'
 import {
   CAUSTIC_RATE,
   WATER_CAUSTIC_FRAGMENT,
@@ -166,6 +168,7 @@ const WATER_PARS_VERTEX = /* glsl */`
 ${WEATHER_BANK_GLSL}
 ${WATER_SWELL_GLSL}
 ${SHORE_GLSL}
+${WATER_SHELTER_GLSL}
 ${WATER_ICE_GLSL}
 `
 
@@ -193,7 +196,15 @@ const WATER_SWELL_VERTEX = /* glsl */`
   vec4 swellShore = scapeShore(transformed.xz);
   float swellIce = scapeIce(transformed.xz, swellShore.r);
   vec2 swellGround = (modelMatrix * vec4(transformed, 1.0)).xz;
-  transformed.y += scapeWave(transformed.xz, scapeShoal(swellShore.r)) *
+
+  // The lee, on the wave itself. A vertex texture fetch beside the bathymetry
+  // one this stage was already making, on a plane of at most 128 segments a
+  // side — and the one place the calm has to be applied, because a sea that
+  // lay down only in the fragment's shading would be a plane standing up in
+  // the silhouette and flat in its colour. See shelter.ts.
+  float swellCalm = scapeShelterCalm(scapeShelter(transformed.xz));
+
+  transformed.y += scapeWave(transformed.xz, scapeShoal(swellShore.r) * swellCalm) *
     uWaveHeight * (1.0 - swellIce) * scapeWeatherSwell(swellGround);
 `
 
@@ -202,57 +213,6 @@ const WATER_WORLD_VERTEX = /* glsl */`
   vWaterGround = (modelMatrix * vec4(transformed, 1.0)).xz;
 `
 
-/** Three allocation-free wake emitters, packed as source xz + forward × strength. */
-const BOAT_WAKE_GLSL = /* glsl */`
-  uniform vec4 uBoatWakes[3];
-  uniform float uBoatWakePhases[3];
-  uniform float uBoatWakeStrength;
-
-  float scapeBoatWake (vec2 ground) {
-    if (uBoatWakeStrength <= 0.001)
-      return 0.0;
-
-    float field = 0.0;
-
-    for (int index = 0; index < 3; index++) {
-      vec2 impulse     = uBoatWakes[index].zw;
-      float wakeAmount = clamp(length(impulse), 0.0, 1.0);
-
-      // Keep the expensive oscillation inside an active emitter's visible
-      // footprint. Most water fragments are nowhere near any stern, and every
-      // emitter is inactive for the whole synchronized dock window.
-      if (wakeAmount > 0.001) {
-        vec2 forward = impulse / wakeAmount;
-        vec2 offset  = ground - uBoatWakes[index].xy;
-        float behind = -dot(offset, forward);
-
-        if (behind > 0.1 && behind < 32.0) {
-          float side  = abs(dot(offset, vec2(-forward.y, forward.x)));
-          float reach = smoothstep(0.1, 1.8, behind) *
-            (1.0 - smoothstep(18.0, 32.0, behind));
-          float arms = 1.0 - smoothstep(
-            0.16,
-            1.15,
-            abs(side - (0.55 + behind * 0.34))
-          );
-          float stern = (1.0 - smoothstep(0.4, 3.2, side)) *
-            (1.0 - smoothstep(7.0, 18.0, behind)) * 0.45;
-          float shape = arms + stern;
-
-          if (shape > 0.001) {
-            float ripple = 0.5 + 0.5 * sin(
-              (behind + side) * 2.3 - uBoatWakePhases[index] * 0.38 - uWaveTime * 1.2
-            );
-
-            field += wakeAmount * reach * shape * mix(0.45, 1.0, ripple);
-          }
-        }
-      }
-    }
-
-    return clamp(field * uBoatWakeStrength, 0.0, 1.0);
-  }
-`
 
 /**
  * The surf.
@@ -380,6 +340,7 @@ ${CLOUD_SHADOW_GLSL}
   varying vec2 vWaterGround;
 ${WATER_SWELL_GLSL}
 ${SHORE_GLSL}
+${WATER_SHELTER_GLSL}
 ${WATER_ICE_GLSL}
 ${WATER_SURF_GLSL}
 ${WATER_CAPS_GLSL}
@@ -434,11 +395,17 @@ const WATER_COLOR_FRAGMENT = /* glsl */`
   float iceCover   = scapeIce(vWaterGround, waterDepth);
   float openWater  = smoothstep(0.04, 0.3, waterDepth);
 
+  // The lee the archipelago throws, in one read. One fetch, three readers: the
+  // swell's gain on the line below, the caps' own lee further down, and the
+  // vertex stage's copy of the first of those. See shelter.ts.
+  vec4 shelter    = scapeShelter(vWaterGround);
+  float swellCalm = scapeShelterCalm(shelter);
+
   // Resolved here rather than in the normal chunk because the shore fetch is
   // here: three statements down this is a local the whole rest of main() can
   // see, and a second read of the same sampler at the same uv is exactly the
   // tap the surf band already refuses to make.
-  float swellShoal = scapeShoal(waterDepth);
+  float swellShoal = scapeShoal(waterDepth) * swellCalm;
   float swell  = scapeWave(vWaterGround, swellShoal);
   float swellX = scapeWave(vWaterGround + vec2(1.6, 0.0), swellShoal);
   float swellZ = scapeWave(vWaterGround + vec2(0.0, 1.6), swellShoal);
@@ -458,7 +425,7 @@ const WATER_COLOR_FRAGMENT = /* glsl */`
 
   // The white out in the sound, off the mask fetch already made and one read of
   // the fractal map. See water-caps.ts.
-  float caps = scapeCaps(vWaterGround, shore, openWater) * (1.0 - iceCover);
+  float caps = scapeCaps(vWaterGround, shelter, openWater) * (1.0 - iceCover);
 
   // The white in the narrows, off the same fetch and no read at all: the gate is
   // the mask's fourth channel and the overfalls are two sines. See roost.ts.
@@ -545,11 +512,17 @@ const WATER_COLOR_FRAGMENT_LITE = /* glsl */`
   float iceCover   = scapeIce(vWaterGround, waterDepth);
   float openWater  = smoothstep(0.04, 0.3, waterDepth);
 
+  // The lee the archipelago throws, in one read. One fetch, three readers: the
+  // swell's gain on the line below, the caps' own lee further down, and the
+  // vertex stage's copy of the first of those. See shelter.ts.
+  vec4 shelter    = scapeShelter(vWaterGround);
+  float swellCalm = scapeShelterCalm(shelter);
+
   // Resolved here rather than in the normal chunk because the shore fetch is
   // here: three statements down this is a local the whole rest of main() can
   // see, and a second read of the same sampler at the same uv is exactly the
   // tap the surf band already refuses to make.
-  float swellShoal = scapeShoal(waterDepth);
+  float swellShoal = scapeShoal(waterDepth) * swellCalm;
   float swell  = scapeWave(vWaterGround, swellShoal);
   float swellX = scapeWave(vWaterGround + vec2(1.6, 0.0), swellShoal);
   float swellZ = scapeWave(vWaterGround + vec2(0.0, 1.6), swellShoal);
@@ -583,7 +556,7 @@ ${WATER_CAUSTIC_FRAGMENT}
   // pins --tier mobile, so a sea this program could not draw is a sea no still
   // in this repository could show. One read, which takes this lake from two to
   // three.
-  float caps = scapeCaps(vWaterGround, shore, openWater) * (1.0 - iceCover);
+  float caps = scapeCaps(vWaterGround, shelter, openWater) * (1.0 - iceCover);
 
   // And the third thing the cheap lake gains rather than loses. The race is
   // arithmetic on the fetch it made in its first line — no read, no gate, and
@@ -715,6 +688,12 @@ export function createWater (
 
   const shoreMap: Texture = bakeShoreMask(config(), field, maskSpan, quality.shoreMask)
 
+  // The second map over the same span, and deliberately a *small* one: what it
+  // holds changes over hundreds of metres where the bathymetry changes over
+  // one, so it is baked at a sixth of the texels and shares the bathymetry's
+  // own `uShoreScale` rather than carrying a copy of it. See shelter.ts.
+  const shelterMap: Texture = bakeShelterMask(config(), field, maskSpan, quality.shelterMask)
+
   // Both from the shared catalogue, mipmapping and wrap modes included. The
   // speckled one only ever tints; the fractal one drives the shading, because
   // neighbouring texels have to agree which way the surface is leaning.
@@ -778,6 +757,7 @@ export function createWater (
 
   const uniforms: Record<string, IUniform> = {
     uShoreMap:           { value: shoreMap },
+    uShelterMap:         { value: shelterMap },
     uRippleMap:          { value: rippleMap },
     uWaveMap:            { value: waveMap },
     uRippleOffset:       rippleOffset,
@@ -836,8 +816,9 @@ export function createWater (
     // coast is spared. The first is resolved on the cpu because it is a curve of
     // the wind every fragment would otherwise re-derive; the second is the
     // authored share, straight through. See `water-caps.ts`.
-    uCaps:    { value: 0 },
-    uCapsLee: { value: config().water.whitecapLee },
+    uCaps:     { value: 0 },
+    uCapsLee:  { value: config().water.whitecapLee },
+    uSwellLee: { value: config().water.swellLee },
 
     // How hard the narrows are running, which way, and how much of that the
     // surface takes. The first is the tide's own rate resolved on the cpu — a
@@ -1015,15 +996,16 @@ export function createWater (
       uniforms.uSurfExposure.value = config().water.surfExposure
 
       // The white out in the sound. It reads the same wind the surf above it
-      // does and the same baked bearing, so a coast cannot be breaking on one
-      // side and sheltered on the same side — and none of it can be seen through
-      // ice, which the fragment takes off.
-      uniforms.uCaps.value    = capsAmount(
-        config().water.whitecap,
-        config().water.whitecapOnset,
-        wind.strength,
-      )
-      uniforms.uCapsLee.value = config().water.whitecapLee
+      // does and the same measured lee the swell below it does, so a coast
+      // cannot be breaking on one side and sheltered on the same side — and
+      // none of it can be seen through ice, which the fragment takes off.
+      setCaps(uniforms, config().water, wind.strength)
+
+      // The lee's other half, and the one the whole surface reads: the swell's
+      // own gain, live off the store like everything else the fragment takes
+      // per frame. The *map* is build-time — a reach is a shape of the world —
+      // and this is how much of it the sea is allowed to answer.
+      uniforms.uSwellLee.value = config().water.swellLee
 
       iceColor.value.copy(season.iceColor)
 
@@ -1090,6 +1072,7 @@ export function createWater (
       // the catalogue's and are freed with it — a shared texture disposed by one
       // consumer is how the other ends up sampling a dead handle.
       shoreMap.dispose()
+      shelterMap.dispose()
     },
   }
 }

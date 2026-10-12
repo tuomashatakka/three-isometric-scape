@@ -445,6 +445,15 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
             range('water.swellLength', 'wavelength (m)', 12, 220, 1),
             range('water.swellSpread', 'fan (rad)', 0, 1.2, 0.01),
             range('water.swellShoal', 'stands on a bank', 0, 1, 0.01),
+
+            // What the lee keeps of it. The *map* behind this — how far upwind
+            // land counts, for the wind sea and for the swell — is baked at
+            // build and stays out of the panel for the reason the roost's gates
+            // do: a reach that needs a reload to be seen is not a slider. This
+            // is the share the sea is allowed to answer it with, read per
+            // frame, and pulling it to 1 is the archipelago this scape had,
+            // where a harbour raised the same swell as the open sound.
+            range('water.swellLee', 'lee keeps', 0, 1, 0.01),
           ],
         ),
         range('water.rippleStrength', 'ripple', 0, 0.6, 0.01),

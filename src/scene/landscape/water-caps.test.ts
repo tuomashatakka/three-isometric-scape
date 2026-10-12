@@ -86,26 +86,31 @@ describe('the white the open sea puts on', () => {
 /**
  * The cost of this system, stated where a refactor has to walk past it.
  *
- * One dependent read, which takes the cheap lake from two to three — and the
- * lee has to come off the mask fetch the caller already made rather than a
- * probe of its own, so a second `scapeShore` in here is the phone's budget
- * going again.
+ * One dependent read of its own — the fractal map the streaks are cut from —
+ * and not one more. Both of the other fields it works on, the bathymetry and
+ * the shelter, are fetched once by the caller and handed in, so a `scapeShore`
+ * or a `scapeShelter` appearing in here is the phone's budget going again.
  */
 describe('the chunk', () => {
-  test('it takes exactly one texture read, and does not probe the mask', () => {
+  test('it takes exactly one texture read, and does not probe either mask', () => {
     expect(WATER_CAPS_GLSL.match(/texture2D/g)).toHaveLength(1)
     expect(WATER_CAPS_GLSL).not.toContain('scapeShore')
+    expect(WATER_CAPS_GLSL).not.toContain('scapeShelter(')
   })
 
-  test('the lee is the surf\'s own baked bearing, read the other way up', () => {
-    expect(WATER_CAPS_GLSL).toContain('shore.gb')
+  test('the lee is the measured shelter, not the bank under the fragment', () => {
+    // The whole of the second build. A baked seaward bearing only exists within
+    // a texel or two of a coast, so a lee read off it stopped at the bank and
+    // the water *behind* an island broke exactly like the water in front of it.
+    expect(WATER_CAPS_GLSL).toContain('scapeShelterLee')
+    expect(WATER_CAPS_GLSL).not.toContain('shore.gb')
     expect(WATER_CAPS_GLSL).toContain('uCapsLee')
 
-    // Both are shares of the same baked bearing, and the wind has raised less
-    // sea behind a hill than a swell refracting round a headland has lost — so
-    // the caps spare the lee harder than the surf does. Stated here because the
-    // two numbers live in different sections and nothing else would notice them
-    // crossing over.
+    // The lee strength is still set against the surf's exposure, and the
+    // ordering is still the claim: the wind has raised less sea behind a hill
+    // than a swell refracting round a headland has lost, so the caps spare the
+    // lee harder than the surf does. Stated here because the two numbers live
+    // in different sections and nothing else would notice them crossing over.
     expect(whitecapLee).toBeGreaterThan(surfExposure)
     expect(whitecapLee).toBeLessThanOrEqual(1)
   })

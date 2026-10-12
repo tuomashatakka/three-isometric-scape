@@ -28,7 +28,7 @@ import { normalFromHeight } from './normals.ts'
  */
 export type TextureId =
   'ground.grain' | 'ground.normal' | 'ground.wear' | 'prop.bark' | 'sky.cloudShadow' |
-  'water.ripple' | 'water.wave' | 'water.shoreMask' |
+  'water.ripple' | 'water.wave' | 'water.shoreMask' | 'water.shelterMask' |
   'weather.squall' | 'sky.deck' | 'sky.aurora' | 'sky.gradient' | 'mist.field' |
   'haar.field' | 'post.lut'
 
@@ -129,6 +129,14 @@ export const TEXTURES: readonly TextureEntry[] = [
     size:      512,
     module:    'landscape/shore-mask.ts',
     consumers: [ 'uShoreMap' ],
+  },
+  {
+    id:        'water.shelterMask',
+    origin:    'baked',
+    purpose:   'how much of the weather the land upwind has already taken — the mean lee in r, its first harmonic in gb, the swell\u2019s own lee in a',
+    size:      128,
+    module:    'landscape/shelter.ts',
+    consumers: [ 'uShelterMap' ],
   },
   {
     id:        'sky.deck',

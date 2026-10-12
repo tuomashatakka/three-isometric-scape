@@ -40,6 +40,8 @@ import { SCAPE_HALO } from './config-halo.ts'
 import type { HaloConfig } from './config-halo.ts'
 import { SCAPE_SHAFTS } from './config-shafts.ts'
 import type { ShaftsConfig } from './config-shafts.ts'
+import { SCAPE_SHELTER } from './config-shelter.ts'
+import type { ShelterConfig } from './config-shelter.ts'
 import { SCAPE_SWASH } from './config-swash.ts'
 import type { SwashConfig } from './config-swash.ts'
 import { SCAPE_ROOST } from './config-roost.ts'
@@ -289,7 +291,7 @@ export interface DressingBudget {
 
 export interface ScapeConfig extends CreelConfig, DykeConfig, ForceConfig, FrontConfig,
   GuardConfig, HaarConfig, HaloConfig, HoweConfig, KelpConfig, LedgeConfig, MoleConfig, PackIceConfig, RoostConfig, ShaftsConfig, ShielingConfig,
-  ShoalConfig, SnowFenceConfig, SwashConfig, TreelineConfig, WatermillConfig, WreckConfig {
+  ShelterConfig, ShoalConfig, SnowFenceConfig, SwashConfig, TreelineConfig, WatermillConfig, WreckConfig {
   seed:    number
   terrain: {
     size:       number
@@ -1935,20 +1937,45 @@ export interface ScapeConfig extends CreelConfig, DykeConfig, ForceConfig, Front
     whitecapOnset: number
 
     /**
-     * How much the water under a shore the wind is blowing off is spared, 0..1.
+     * How much of the open sound's white a fully sheltered sea is spared, 0..1.
      *
-     * The same shape as {@link surfExposure} and read off the same baked
-     * seaward bearing, because it is the same fact used the other way up: the
-     * surf asks which coast the swell is running *into*, and this asks which
-     * water has had no run at all. 0 breaks the same all round an island, which
-     * is the sound this scape had; 1 leaves the lee of every headland dead flat.
+     * The strength of the lee on the caps, and nothing about how far the lee
+     * reaches: *that* is the shelter map's two reaches, in `shelter.reach` and
+     * `shelter.swellReach`, and it is measured rather than authored. 0 breaks
+     * the same all round an island, which is the sound this scape had; 1 leaves
+     * the water behind every headland and every breakwater perfectly unbroken.
      *
-     * Dimensionless and therefore neither world-sized nor frame-sized — how
-     * sheltered water is, rather than how far the shelter reaches. How far it
-     * reaches is the bathymetry mask's own gradient and is not authored
-     * anywhere. See `landscape/water-caps.ts`.
+     * It used to be read off the bathymetry mask's own seaward bearing, which
+     * only knows which way the bank *here* faces — so the lee stopped a texel
+     * or two off the shore and the sound behind an island broke exactly like
+     * the sound in front of it. It now reads `scapeShelterLee`, which is a fact
+     * about what is four hundred metres upwind. The knob is the same knob and
+     * the number has not moved; what it multiplies has.
+     *
+     * Dimensionless and therefore neither world-sized nor frame-sized. See
+     * `landscape/shelter.ts` and `landscape/water-caps.ts`.
      */
     whitecapLee: number
+
+    /**
+     * What a fully sheltered sea keeps of the open swell's height, 0..1.
+     *
+     * The same shape as {@link swash.lee} and `surfExposure` — a share kept
+     * rather than a strength applied — and it works on the wave itself rather
+     * than on the white: the displacement in the vertex stage, the faces the
+     * fragment shades it by, and therefore the sheen and the gleam that stand
+     * on those faces. 1 is the sea this scape had, which raised the same swell
+     * inside a harbour as outside it.
+     *
+     * Held well above zero on purpose. A swell is the memory of a wind that
+     * blew somewhere else, and what arrives in a lee has bent round the land
+     * rather than been stopped by it — a harbour on a day with a sea running
+     * outside is never glass. 0 would be a mill pond behind every rock in the
+     * archipelago.
+     *
+     * Dimensionless: a gain on `waveHeight`, which is the metre.
+     */
+    swellLee: number
 
     /**
      * Specular spread. Low values concentrate the sun into a lobe narrow
@@ -2744,6 +2771,7 @@ export const SCAPE_CONFIG = {
   ...SCAPE_PACK_ICE,
   ...SCAPE_ROOST,
   ...SCAPE_SHAFTS,
+  ...SCAPE_SHELTER,
   ...SCAPE_SWASH,
   ...SCAPE_SHIELING,
   ...SCAPE_SNOW_FENCE,
@@ -3107,9 +3135,18 @@ export const SCAPE_CONFIG = {
     whitecap:      0.28,
     whitecapOnset: 2.2,
     whitecapLee:   0.85,
-    caustics:      1,
-    causticDepth:  2.8,
-    causticScale:  2.6,
+
+    // The swell's share, and the one number here that is set by what a harbour
+    // looks like rather than by what the sound does. Just under a half: enough
+    // that the water inside the mole is visibly flatter than the water outside
+    // it at every zoom the camera has, and far enough from zero that the lee of
+    // a skerry is calmer water rather than a hole in the sea. The `shelter`
+    // line of `scape:map --stats` is where the share it actually reaches is
+    // reported, because a gain on a mean is not a share of the water.
+    swellLee:     0.45,
+    caustics:     1,
+    causticDepth: 2.8,
+    causticScale: 2.6,
   },
   // The metre class, and it stays metres at any world size. The range is set
   // against `boats.clearance` at 0.42: half of 0.8 is 0.4, so the lowest spring
