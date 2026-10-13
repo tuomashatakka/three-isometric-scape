@@ -1,4 +1,7 @@
 import type { ScapeConfig } from '../src/scene/config.ts'
+import { dayLength } from '../src/scene/daylight.ts'
+import type { LandmassSurvey } from '../src/scene/landscape/archipelago.ts'
+import { carterJourney, carterLoads, carterWindow, planCarterRound } from '../src/scene/landscape/carter.ts'
 import { causewayCover } from '../src/scene/landscape/causeway.ts'
 import type { Causeway } from '../src/scene/landscape/causeway.ts'
 import type { CroftSite } from '../src/scene/landscape/croft.ts'
@@ -407,3 +410,54 @@ export function wreckOf (
     isle:      site.isle,
   }
 }
+
+/**
+ * The cart's day, as the four numbers no still can give you.
+ *
+ * Every one of them is invisible in a picture, and between them they are the
+ * whole of what this system is. A frame shows a cart somewhere on a road; it
+ * cannot show that the road is worked eight months of the year and shut for the
+ * other four, that today's window opens at a particular hour, or — the one that
+ * actually fails — that the round is a few metres too long for the longest day
+ * this latitude has and *no* frame anywhere in the year has a cart in it.
+ *
+ * `worked` is the reading that matters. A reach retuned down, a track that grew
+ * with the island, a latitude pushed north: any of the three closes the road,
+ * and all three leave a scape that builds, draws, lints and looks exactly as it
+ * did. This is the field that moves.
+ */
+export function carterOf (
+  landmass: LandmassSurvey,
+  world:    HeightField,
+  config:   ScapeConfig,
+): CompositionStats['carter'] {
+  const { latitude, axialTilt } = config.daylight
+  const { reach, day }          = config.carter
+  const length                  = planCarterRound(landmass, world)?.length ?? 0
+  const span                    = carterWindow(dayLength(config.season.time, latitude, axialTilt), day)
+  const today                   = carterJourney(config.daylight.time, span, length, reach)
+
+  let worked = 0
+
+  // Weekly rather than per frame: the window is a smooth function of the year
+  // and the question is what share of it the road is open, not which afternoon
+  // it shut on.
+  for (let week = 0; week < WEEKS; week += 1) {
+    const light = dayLength(week / WEEKS, latitude, axialTilt)
+
+    if (carterJourney(0.5, carterWindow(light, day), length, reach).out)
+      worked += 1
+  }
+
+  return {
+    round:  round(length * 2, 1),
+    worked: round(worked / WEEKS, 2),
+    window: span > 0 ? round(span, 2) : 0,
+    loads:  carterLoads(span, length, reach),
+    at:     today.out ? round(today.distance, 1) : null,
+    moving: today.moving,
+  }
+}
+
+/** Samples of the year the working season is counted over. One a week. */
+const WEEKS = 52

@@ -390,6 +390,7 @@ function sitedLines (stats: MapStats): string[] {
     shielingLine(stats.shieling),
     howeLine(stats.howe),
     watermillLine(stats.watermill),
+    carterLine(stats.carter),
     snowFenceLine(stats.snowFence),
     wreckLine(stats.wreck),
   ]
@@ -460,6 +461,25 @@ function howeLine (howe: MapStats['howe']): string {
  * check: a run of palings photographs identically whether the road behind it
  * closes every February or has not drifted since the wind was retuned.
  */
+/**
+ * The cart's day, as one line.
+ *
+ * check: a road worked eight months of the year and a road nothing has ever
+ * driven down photograph identically on the day nobody is out, which is most
+ * days in the half of the year a winter tour is taken in.
+ */
+function carterLine (survey: MapStats['carter']): string {
+  if (survey.worked === 0)
+    return `cart NONE  <- a ${survey.round}m round, and no day of this year is long enough for it`
+
+  const where = survey.at === null
+    ? 'in today'
+    : `${survey.at}m out, ${survey.moving ? 'on the road' : 'standing'}`
+
+  return `cart  ${survey.round}m round  worked ${Math.round(survey.worked * 100)}% of the year  ` +
+    `window ${survey.window} of today, ${survey.loads} loads  ${where}`
+}
+
 function snowFenceLine (survey: MapStats['snowFence']): string {
   const fence = survey.run
 
@@ -787,7 +807,10 @@ export function formatStats (stats: MapStats): string {
       `watermill ${landmass.watermill ? `head ${landmass.watermill.head}m lade ${landmass.watermill.lade}m` : 'NONE'}  ` +
       `fence ${landmass.snowFence.run
         ? `${landmass.snowFence.run.length}m bite ${landmass.snowFence.run.bite}`
-        : 'NONE'} drifts ${landmass.snowFence.drifts}m`),
+        : 'NONE'} drifts ${landmass.snowFence.drifts}m  ` +
+      `cart ${landmass.carter.worked > 0
+        ? `${landmass.carter.round}m ${Math.round(landmass.carter.worked * 100)}%`
+        : 'NONE'}`),
     `waterways ${stats.waterways.legs} legs ${stats.waterways.length}m  ` +
       `connected ${stats.waterways.connected ? 'OK' : 'BROKEN'}  ` +
       `wet ${stats.waterways.wet ? 'OK' : 'DRY'}  ` +

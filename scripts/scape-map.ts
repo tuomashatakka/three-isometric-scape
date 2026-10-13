@@ -22,7 +22,7 @@ import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
 import { measureSwash } from '../src/scene/landscape/swash.ts'
 import type { SwashSurvey } from '../src/scene/landscape/swash.ts'
-import { causewayOf, croftOf, dykeOf, howeOf, moleOf, peatOf, pierOf, shielingOf, smokehouseOf, snowFenceOf, tarnOf, watermillOf, weirOf, wreckOf } from './scape-map-sites.ts'
+import { carterOf, causewayOf, croftOf, dykeOf, howeOf, moleOf, peatOf, pierOf, shielingOf, smokehouseOf, snowFenceOf, tarnOf, watermillOf, weirOf, wreckOf } from './scape-map-sites.ts'
 import {
   capsStats,
   seaStats,
@@ -157,6 +157,39 @@ export interface CompositionStats {
    * drifts and a road that drifts with nowhere to put a fence are the same
    * blank without it.
    */
+  /**
+   * The cart's day on this island's track.
+   *
+   * `worked` is the reading that matters and it is the one no still can give:
+   * it is the share of the year the round fits inside the daylight there is, and
+   * a round that grew a few metres past the longest day this latitude has is a
+   * system that draws nothing, in every frame, all year — while building,
+   * linting and typechecking exactly as it did. `round` is what it is measured
+   * against, `window` is today's share of the day, and `at` is where the cart
+   * actually is at the hour the map was taken, which is what makes a still
+   * explicable rather than surprising.
+   */
+  carter: {
+
+    /** Metres driven in a day: out to the shore and back. */
+    round: number
+
+    /** Share of the year the road is worked, 0..1. */
+    worked: number
+
+    /** Today's working window, as a share of the day. */
+    window: number
+
+    /** Loads the day will take, out and back. 0 is a road nobody works today. */
+    loads: number
+
+    /** Metres from the yard right now, or `null` when nobody is out. */
+    at: number | null
+
+    /** Whether the cart is between the two ends rather than standing at one. */
+    moving: boolean
+  }
+
   snowFence: {
 
     /** Metres of this island's cart track standing on a drifting face. */
@@ -859,7 +892,12 @@ function reliefCensus (landmass: LandmassSurvey, w: number, h: number): ReliefCe
   return { land, snowbound, drowned, peak }
 }
 
-function compositionStats (landmass: LandmassSurvey, w: number, h: number): CompositionStats {
+function compositionStats (
+  landmass: LandmassSurvey,
+  world:    HeightField,
+  w:        number,
+  h:        number,
+): CompositionStats {
   const { config, origin, survey }                         = landmass
   const { layout, field, places, landing, harbour, paths } = survey
   const { waterLevel, size }                               = config.terrain
@@ -934,6 +972,7 @@ function compositionStats (landmass: LandmassSurvey, w: number, h: number): Comp
     smokehouse: smokehouseOf(survey.smokehouse, worldX, worldZ),
     shieling:   shielingOf(survey.shieling, worldX, worldZ),
     howe:       howeOf(survey.howe, worldX, worldZ),
+    carter:     carterOf(landmass, world, config),
     snowFence:  snowFenceOf(survey.snowFence, worldX, worldZ),
     watermill:  watermillOf(survey.watermill, worldX, worldZ),
     dyke:       dykeOf(survey.dyke, worldX, worldZ),
@@ -1002,7 +1041,7 @@ export function surveyStats (
     id:      landmass.id,
     profile: landmass.profile,
     origin:  [ round(landmass.origin.x), round(landmass.origin.z) ] as [number, number],
-    ...compositionStats(landmass, w, h),
+    ...compositionStats(landmass, survey.field, w, h),
   }))
   const home = landmasses.find(landmass => landmass.id === survey.home.id)
 

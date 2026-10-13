@@ -2,6 +2,7 @@ import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
 import { buildLighthouse } from './beacon.ts'
 import { buildAitta, buildBarn, buildFarmhouse, buildSauna, buildWoodshed } from './buildings.ts'
+import { buildCarter } from './carter.ts'
 import { buildChapel, buildGraveMarker } from './chapel.ts'
 import { buildCreelBuoy, buildCreelStack } from './creel.ts'
 import { buildCroft } from './croft.ts'
@@ -98,6 +99,7 @@ export const PROPS = {
   flagpole:  buildFlagpole,
   bridge:    buildBridge,
   cart:      buildCart,
+  carter:    buildCarter,
   gate:      buildGate,
   rowboat:   buildRowboat,
   hayBale:   buildHayBale,
@@ -165,7 +167,7 @@ export const SCATTER_PROPS = [
   'erratic', 'talus', 'fieldStone', 'cobble', 'cairn',
   'bladderwrack', 'rockLichen', 'kelp',
   'hayBale', 'firewood', 'barrel', 'driftwood', 'mooringPost', 'hayPole', 'peatStack',
-  'creelBuoy',
+  'creelBuoy', 'carter',
   'sheep', 'lamb', 'seal', 'guillemot', 'floe',
 ] as const satisfies readonly PropName[]
 

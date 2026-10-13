@@ -1,6 +1,8 @@
 import type { AppModule } from 'threejs-scene'
 import { SCAPE_ARCH } from './config-arch.ts'
 import type { ArchConfig } from './config-arch.ts'
+import { SCAPE_CARTER } from './config-carter.ts'
+import type { CarterConfig } from './config-carter.ts'
 import { SCAPE_CRAG } from './config-crag.ts'
 import type { CragConfig } from './config-crag.ts'
 import { SCAPE_DUNES } from './config-dunes.ts'
@@ -289,7 +291,7 @@ export interface DressingBudget {
   lamb: number
 }
 
-export interface ScapeConfig extends CreelConfig, DykeConfig, ForceConfig, FrontConfig,
+export interface ScapeConfig extends CarterConfig, CreelConfig, DykeConfig, ForceConfig, FrontConfig,
   GuardConfig, HaarConfig, HaloConfig, HoweConfig, KelpConfig, LedgeConfig, MoleConfig, PackIceConfig, RoostConfig, ShaftsConfig, ShielingConfig,
   ShelterConfig, ShoalConfig, SnowFenceConfig, SwashConfig, TreelineConfig, WatermillConfig, WreckConfig {
   seed:    number
@@ -2774,6 +2776,7 @@ export const SCAPE_CONFIG = {
   ...SCAPE_SHELTER,
   ...SCAPE_SWASH,
   ...SCAPE_SHIELING,
+  ...SCAPE_CARTER,
   ...SCAPE_SNOW_FENCE,
   ...SCAPE_SHOAL,
   ...SCAPE_TREELINE,

@@ -98,6 +98,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a shingle bar out to the nearest rock, thirteen metres of it, standing a hand's breadth over mean water — dry ground you walk to the light on, and ground the spring tides close over for a third of the cycle while the neaps never reach it at all
 - a croft out on the islets — a boarded, turf-roofed hut with a stone flue and a pair of oars against its blind gable, on the nearest free rock to the harbour it is worked from, glazed on two walls and smoking
 - **a wreck out on the rocks the light was built against**: seven metres of surviving hull lying over on her bilge, a row of broken frames with the planking gone from the side that is up and weed-grown strakes still fastened to the side that is bedded, driven onto the *lowest* rock the ring has rather than the tallest — a ledge that stands eleven inches out of mean water and has five centimetres of itself left showing at a spring high tide, which is why it caught her
+- **a hand cart on the road of every island**: two wheels at the gauge the ruts were cut at, a load of cut peat, and somebody in the shafts — out of the yard at first light, down to the shore and home again as many times over as the day will take, on a road worked between 40 % and 87 % of the year depending on how long it is. the first person in the archipelago, and the first thing in it whose whole state is an answer to *what time is it*: the working window is the lit part of the day, which at 68° goes to exactly nothing at midwinter, so december has no cart anywhere in the scape and nobody had to write a december case
 - sheep on the rough grazing outside every farm: two flocks to a farm, sited by a search out from the yard, feeding on the open ground between the crop plots and the moor — and outside the hay meadow's wall, which is what the wall is for
 - gull colonies wheeling over every harbour mouth and over the outer rock, banking into the turn, down at night and mostly down in a squall
 - wood smoke standing over every farmhouse chimney and sauna flue in the archipelago, leaning on the same one wind as the grass and banked harder the colder the week
@@ -236,6 +237,7 @@ src/
     ├── config-wreck.ts             the wreck's own slice: how low a rock, how much of one, how flat a ledge
     ├── config-shoal.ts             the bank's own slice: the reach, the crest, and the room the sound leaves
     ├── config-snowfence.ts         the snow fence's own slice: the height, the setback, and the bite that earns one
+    ├── config-carter.ts            the cart's own slice: a day's haul, the longest working day, how it sits on the road
     ├── config-roost.ts             the race's own slice: how wide a gate still runs, and how white it gets
     ├── config-shelter.ts           the lee's own slice: how far upwind land counts, for the wind sea and for the swell
     ├── config-weir.ts              the fish trap's own slice: the reach, the pound, the mouth, the wall
@@ -329,6 +331,8 @@ src/
     │   ├── croft.ts                the free islet the croft is built on, and the row home that picked it
     │   ├── wreck.ts                the lowest rock in the ring, and the line a hull came to rest on it along
     │   ├── snowfence.ts            the stretch of cart track that drifts, and the line set back upwind of it
+    │   ├── carter.ts               the round up the cart track, and where the day's clock puts a cart on it
+    │   ├── carters.ts              every cart being worked, in one instanced draw
     │   ├── dyke.ts                 the contour the head dyke follows, where it stops, and where it is gated
     │   ├── mill.ts                 the exposed shoulder a windmill would stand on
     │   ├── mill-sails.ts           every mill's wheel, turning in one instanced draw
@@ -389,6 +393,7 @@ src/
         ├── weir.ts                 the fish weir — a wrack-stained wall on the bed, and the wattle on its pound
         ├── mole.ts                 the breakwater — five courses of tipped granite, a level capping, an armoured face
         ├── snowfence.ts            the snow fence — driven posts, two rails, and a bay of gapped laths between
+        ├── carter.ts               the cart under way — wheels, shafts, a load of peat, and somebody pulling it
         ├── croft.ts                the croft — boarded walls, turf roof, stone flue, oars at the gable
         ├── wreck.ts                the wreck — keel, broken frames, the strakes the bedded side kept
         ├── objects.ts              rowboat, bales, firewood, peat rick, barrel, mailbox, driftwood
@@ -421,6 +426,7 @@ scripts/
 ├── scape-poses-sky.ts              what the deck does: the shadow, the beams under it, the fog after it
 ├── scape-poses-tide.ts             what the sea's own level does: the swing, the race, the flat, the crossing
 ├── scape-poses-snow.ts             what the wind does with the winter, and the fence sited from it
+├── scape-poses-cart.ts             the one thing on these islands that walks, at four hours and one winter
 ├── scape-shot.ts                   headless stills, posed and pinned
 ├── scape-diff.ts                   what a change did to the picture, in numbers
 └── setup.ts                        what a run has before it starts thinking
@@ -2694,6 +2700,63 @@ the **bake is 36 ms** — 16 rays × 128² texels, walked one texel at a time ou
 at the 110 m harbour frame, **turning the entire surf system off** — `water.surf=0`, a system nobody would call invisible — moves 3.19 % of the frame's pixels by two levels of 255 and 0.92 % by ten. **switching this map off** at the same frame, `shelter.reach=0` against the authored 900, moves **11.45 % by two levels and 1.96 % by ten**. the change is three times the surf's and `scape:diff` calls both of them `same`. amplified twelve times, the difference image is black over every acre of land and bright in lobes behind the island, behind the skerries and inside the harbour — which is exactly where a lee is and nowhere else.
 
 so the set is a **switch rather than a wider net**, read in pairs. `lee-none` is the identical frame with both reaches at zero: the sea this scape had. `lee-veer` turns the *wind* rather than the camera, because the stored field is a function of bearing and a build that kept only the mean would come back identical to `lee`. `lee-blow` is the whitecaps' half, which no other frame can show — `STILL` zeroes the wind by definition.
+
+## the thing that made the ruts
+
+the cart track has had a pair of worn wheel lines down the middle of it for a long time, and until now nothing in the scape had ever driven down one. there is a **hand cart on the road of every island**: two wheels at the gauge the ruts were cut at, a bed of sawn boards with a load of cut peat in it, a pair of shafts, and somebody leaning into them — out of the yard at first light, down to the shore, and home again as many times over as the day will take. [`props/carter.ts`](src/scene/props/carter.ts) is the geometry, [`landscape/carter.ts`](src/scene/landscape/carter.ts) is the round and the day, [`landscape/carters.ts`](src/scene/landscape/carters.ts) is the one instanced draw they all share, and the three knobs are [`config-carter.ts`](src/scene/config-carter.ts).
+
+it is the first **person** in the archipelago. everything built here until now was a structure, an animal or a boat.
+
+### the cart integrates nothing, and that is why it can be photographed
+
+the ferries carry a departure clock, the mill carries a spin, the gulls carry a sweep and a wingbeat — better than a dozen systems in this scape own a rate, and every one of them has a line in `STILL` because a thing that is somewhere else in the next frame cannot be diffed. the cart has no line in `STILL` and needs none. **where it is on the road is a pure function of `daylight.time` and `season.time`**, the way the tide's level and the halo's ring already are: stopping the day stops the cart where the day left it, and naming an hour puts it back in exactly the same place.
+
+the cost of that choice is that a pace cannot be metres per second. the day runs at `daylight.speed`, so a pace in seconds would mean that scrubbing the sky slider faster got the cart further down the road before dark. `carter.reach` is therefore **metres per turn of the day clock** — the only unit in which the journey is the same journey at every speed the overlay can set, the clock's own zero included.
+
+### the working day is the sun's, not a pair of numbers
+
+the window is `dayLength(year, latitude, axialTilt)` — the solver the arc has used since the year learned what week it was — capped at `carter.day`. both halves of that are load-bearing and neither is authored:
+
+- **at midwinter `dayLength` returns exactly 0.** not nearly zero: at 68° the expression runs out of range and the window shuts. so there is a cart on the road for most of the year and **no cart anywhere in the scape in december**, and nobody had to write a december case.
+- **at midsummer it returns exactly 1**, which is the other end of the same range and the reason for the cap. without it the cart would be working the road at what is nominally midnight, which is astronomically true at this latitude and reads as a bug.
+
+between those two the fall-out is a season per island, and it is the road's own length that decides it. the round is walked when the day is at least as long as the round takes, so the meadow island's 31 m round is worked **87 % of the year**, the home island's 97.7 m **71 %** and the fell island's 191.6 m **40 %** — the long roads shut first, which is the right order, because they are the ones a short day cannot do.
+
+### a day is loads, not a journey
+
+the first cut sent the cart out once, and on four of the six islands that left it standing at the shore for most of the daylight — the walk took a third of the window and the rest was dwell. so the window is divided into as many whole out-and-backs as fit, and **what is left over inside each one is the loading**. the meadow island's 31 m round is six loads, the home island's 97.7 m is two, and the fell island's 191.6 m is one with no standing about in it at all. the refusal lives in the same expression: fewer than one whole load means the cart would not be home before dark, and a cart that would not be home before dark does not set off.
+
+### the road stops at the top of the beach
+
+the layout draws the track out to `landRadius`, which is the radius the ground is *reliably* dry inside — and the coast is warped, so on a bearing where the island is thin that last stretch of road is already in the sea. walking it to the end of the line put a cart in **seven metres of water** on the shield island. the round therefore stops at the last station standing 0.45 m clear of mean water, which is the top of the beach rather than the end of the drawing, and `carter.test.ts` states that as a fact about every station of every round.
+
+### what it found, and did not fix
+
+the cart is the first thing in the scape that has to *follow* the cart track, and following it turned up something that has been there since the track was first drawn. `buildTrack` lays down four control points — the shore, two swayed points at a third and two thirds of the way out from the yard, and the yard — and it pushes the two middle ones **in the wrong order**: `0.34` is measured from the yard and goes in ahead of `0.66`, so the middle of the road is behind its own far end. the spline joins them up in the order given. the home island's 27 m road is drawn as a **49 m Z with two one-metre hairpins in it**, and every island has one.
+
+the ruts, the footpath network, the snow fence and the harbour's own searches have all been reading that fold for as long as it has existed. nothing could drive the road, so nothing noticed.
+
+it is a one-token fix — `[ 0.34, 0.66 ]` becomes `[ 0.66, 0.34 ]`, and the road comes out as a clean S — and **it is deliberately not in this run**, because it is not a small change. with the fold taken out, the home island's track drops from 48.8 m to 32.3 m, both of the archipelago's **snow fences are refused** (`snowFence.bite` was calibrated against a road that crossed the wind at every bearing because it doubled back), the fell island **loses its watermill**, and `pier.test.ts` changes which islands build a trestle. that is a retune pass with a headline of its own, not a line smuggled into a run about a cart. the cart drives the road as drawn, hairpins and all, which is correct: it is in its own ruts.
+
+### what it costs
+
+**one draw call and at most six matrices a frame.** the cart and the person are one merged geometry rather than two — a figure between the shafts is never anywhere else, so modelling them apart would buy an articulation no camera here can resolve and cost a second instanced draw and a second matrix to keep in step with the first. a cart that is not out is written at zero scale rather than dropped from the count, so the instance order stays the round order.
+
+a frame that moved neither clock writes no matrix and uploads no buffer, which is what lets a capture be taken twice the same way.
+
+`quality.carterRounds` is the tier gate and it counts **rounds rather than objects**, because the cost is a matrix and not a triangle: mobile works three of the six roads, desktop and up all six, and the minimal tier builds no mesh at all. the absence is graceful by construction — a track with nobody on it is what this scape looked like until now.
+
+### `--poses cart`, the twenty-ninth set
+
+the subject is 3.46 m long and 1.71 m tall against a tour whose closest pose frames ten metres of yard facing the other way, so like the smokehouse and the chapel before it this is a thing that is either photographed on purpose or not photographed. `cart` is the road at a view size of 25 at the config's own hour; `cart-near` is the prop at 18, and it names an hour; `cart-dawn` and `cart-dusk` are the two ends of the working day on the same six metres of track, outbound at one and homeward at the other; and `cart-winter` is `cart` again in midwinter, the frame that has to be **empty** — the one claim in the set about the absence of geometry, and therefore the one that would silently stop being true.
+
+**three of those five frames had to be re-aimed before they showed anything**, and all three failures are the same failure: at a fixed dimetric azimuth, *where the camera is* decides whether a 3.46 m object exists in the picture.
+
+- **`zoom` is `camera.viewSize`, and the tilt is derived from it**, so a pulled-back frame sees far more ground than its own extent suggests. at 60 the whole 196 m island is in shot and the cart is four pixels of it. the road frames are 25 and the close ones 20.
+- **the road runs nearly square away from the eye**, so a cart going *away* projects its carter up the screen onto its own load — the first `cart-near` read as somebody standing on a wheelbarrow, and no shaft length fixes that. it names `time: 0.46`, the homeward leg on the straight above the yard, which is the bearing that puts the person in front of the cart.
+- **the cart is at the farmyard door at the boundary phases**, and the farmhouse stands between that spot and this camera. the first `cart-dawn` and `cart-dusk` came back with the road empty whether the arithmetic was right or wrong. they moved a few metres out onto open track at 0.21 and 0.79, and the exact-boundary claim went where it can actually be checked — two assertions in `carter.test.ts`.
+
+`scape-poses.ts` was a handful of lines under the 666-line ceiling again, so the set ships in [`scape-poses-cart.ts`](scripts/scape-poses-cart.ts) on the seam the coast, the ice, the sky, the tide and the snow already marked out.
 
 ## ground that casts
 

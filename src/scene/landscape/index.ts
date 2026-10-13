@@ -54,6 +54,9 @@ import type { IceFloe } from './packice.ts'
 import type { KelpSkirt } from './kelpbed.ts'
 import { yawAlong } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
+import { planCarterRounds } from './carter.ts'
+import { createCarters } from './carters.ts'
+import type { Carters } from './carters.ts'
 import { createMillSails } from './mill-sails.ts'
 import type { MillHub, MillSails } from './mill-sails.ts'
 import { createWaterWheels } from './mill-wheels.ts'
@@ -263,6 +266,7 @@ export function createLandscape (
   let materials: ScapeMaterials | null = null
   let dressing: Dressing | null        = null
   let fleet: BoatFleet | null          = null
+  let carters: Carters | null          = null
   let sails: MillSails | null          = null
   let wheels: WaterWheels | null       = null
   let seals: SealColony | null         = null
@@ -349,6 +353,12 @@ export function createLandscape (
   function advancePopulated (delta: number, week: number, now: SeasonState): void {
     fleet?.update(delta)
     sails?.update(delta, wind.strength)
+
+    // No delta, deliberately. The cart's place on the road is a function of the
+    // two clocks rather than an integral of its own — see `carter.ts` — so it is
+    // told to look at the time rather than told how much time has passed.
+    carters?.update()
+
     // What is left of the beck this week. The same function the water in the
     // channel reads, so the wheel stops on the week the channel does.
     wheels?.update(delta, 1 - beckFreeze(now.freeze))
@@ -370,7 +380,7 @@ export function createLandscape (
    */
   function releaseSystems (): void {
     const systems: readonly ({ dispose(): void } | null)[] =
-      [ dressing, fleet, sails, wheels, seals, kelp, creels, cliffs, pack, water, beck, force,
+      [ dressing, fleet, carters, sails, wheels, seals, kelp, creels, cliffs, pack, water, beck, force,
         tarns ]
 
     for (const system of systems)
@@ -548,6 +558,18 @@ export function createLandscape (
             turnLookAhead: config().boats.turnLookAhead,
           },
         })
+        // The rounds are planned here rather than beside the other surveys
+        // because they cost nothing to plan and `createLandscape` was at the
+        // lint config's statement ceiling. Which islands have a road long
+        // enough to be worth a journey is still a fact about the ground, and
+        // `quality.carterRounds` is still the tier's budget for how many of
+        // them carry traffic.
+        carters = createCarters({
+          config,
+          rounds:   planCarterRounds(archipelago, quality.carterRounds),
+          material: materials.ground,
+          field,
+        })
         sails = createMillSails({ config, hubs: millHubs, material: materials.ground })
         wheels = createWaterWheels({ config, quality, hubs: wheelHubs, material: materials.ground })
         seals = createSealColony({ config, haulouts, material: materials.ground, tide })
@@ -562,26 +584,15 @@ export function createLandscape (
         pack = createPackIce({ config, floes: packIce, material: materials.ground, tide })
         root.add(dressing.object, fleet.mesh)
 
-        if (sails)
-          root.add(sails.mesh)
-
-        if (wheels)
-          root.add(wheels.mesh)
-
-        if (seals)
-          root.add(seals.mesh)
-
-        if (kelp)
-          root.add(kelp.mesh)
-
-        if (creels)
-          root.add(creels.mesh)
-
-        if (cliffs)
-          root.add(cliffs.mesh)
-
-        if (pack)
-          root.add(pack.mesh)
+        // A list walked rather than a column of `if (x) root.add(x.mesh)`, for
+        // the reason `releaseSystems` is one: the ninth optional fleet is what
+        // took `build` past the lint config's complexity ceiling, and which
+        // fleets exist was never the interesting part of the build. Each is
+        // null on an archipelago that had nowhere to put one, or on a tier that
+        // asked for none.
+        for (const fleetMesh of [ carters, sails, wheels, seals, kelp, creels, cliffs, pack ])
+          if (fleetMesh)
+            root.add(fleetMesh.mesh)
       }
 
       ctx.scene.add(root)
@@ -648,6 +659,7 @@ export function createLandscape (
       root      = null
       dressing  = null
       fleet     = null
+      carters   = null
       sails     = null
       wheels    = null
       seals     = null
@@ -688,7 +700,8 @@ export function createLandscape (
 // perf: one merged terrain draw, one water draw, one beck draw, one force draw,
 // one tarn draw,
 // one merged settlement draw,
-// one moving fleet draw, one turning sail draw, one hauled colony draw, one
+// one moving fleet draw, one working cart draw, one turning sail draw, one
+// hauled colony draw, one
 // leaning kelp draw, one
 // frozen pack draw, and one
 // InstancedMesh per scattered prop type.

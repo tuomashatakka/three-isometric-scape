@@ -3,6 +3,7 @@ import { haloPeak } from '../src/scene/halo.ts'
 import { bowPeak } from '../src/scene/rainbow.ts'
 import { stormPeak } from '../src/scene/storm.ts'
 import { HAIL_CENTRE, HAIL_WIDTH } from '../src/scene/weather.ts'
+import { CART_TOURS } from './scape-poses-cart.ts'
 import { COAST_TOURS } from './scape-poses-coast.ts'
 import { ICE_TOURS } from './scape-poses-ice.ts'
 import { SKY_TOURS } from './scape-poses-sky.ts'
@@ -190,6 +191,11 @@ export const TOURS: Record<string, Pose[]> = {
 
   // And the frozen sound, out in `scape-poses-ice.ts` for the same reason.
   ...ICE_TOURS,
+
+  // And the one thing on these islands that walks, out in `scape-poses-cart.ts`
+  // on the same seam: a subject small enough that it is either photographed on
+  // purpose or not photographed at all.
+  ...CART_TOURS,
 
   // And what the deck overhead does — the shadow it lays, the light that gets
   // past it and the fog that fills the ground once it has gone — out in
