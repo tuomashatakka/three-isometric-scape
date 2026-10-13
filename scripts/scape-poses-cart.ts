@@ -15,11 +15,15 @@ import type { Pose } from './scape-poses.ts'
 /**
  * The home island's track, from the yard to the shore.
  *
- * Both hairpins and the yard end in one frame at 60 m. The subject is 3.2 m
- * long and 1.7 m tall, which is a tenth of what the tour's closest pose can
- * resolve and nothing at all at its widest — so like the smokehouse and the
- * chapel before it, this is a thing that is either photographed on purpose or
- * not photographed.
+ * The subject is 3.46 m long and 1.71 m tall, which is a tenth of what the
+ * tour's closest pose can resolve and nothing at all at its widest — so like
+ * the smokehouse and the chapel before it, this is a thing that is either
+ * photographed on purpose or not photographed.
+ *
+ * `zoom` is `camera.viewSize`, and the *tilt is derived from it*, so a pulled
+ * back frame sees far more ground than its own extent: at 60 the whole 196 m
+ * island is in shot and the cart is four pixels of it. 25 is the frame that
+ * holds the road.
  */
 const TRACK = [ 'camera.focusX=-30', 'camera.focusZ=-1' ]
 
@@ -35,8 +39,9 @@ export const CART_TOURS: Record<string, Pose[]> = {
    * cart is *somewhere else* at every hour and *nowhere at all* for part of the
    * year — neither of which a single still can carry.
    *
-   * `cart` is the default hour, with the cart outbound on the first of the
-   * day's loads. `cart-near` is 18 m, and it names an hour
+   * `cart` is the default hour, with the cart on the homeward
+   * leg of the first of the day's two loads, in a frame that holds the whole
+   * road. `cart-near` is 18 m, and it names an hour
    * rather than taking the default one, because at this camera *which way the
    * cart is going* decides whether the prop is legible at all: the road runs
    * almost square away from the eye for most of its length, and a cart going
@@ -62,15 +67,15 @@ export const CART_TOURS: Record<string, Pose[]> = {
    * arrangement the tide and the halo have.
    */
   cart: [
-    { name: 'cart', zoom: 60, set: TRACK },
+    { name: 'cart', zoom: 25, set: TRACK },
     {
       name: 'cart-near',
       zoom: 18,
       time: 0.46,
       set:  [ 'camera.focusX=-30', 'camera.focusZ=-4.7' ],
     },
-    { name: 'cart-dawn', zoom: 34, time: 0.19, set: YARD },
-    { name: 'cart-dusk', zoom: 34, time: 0.81, set: YARD },
-    { name: 'cart-winter', zoom: 60, season: 0.02, set: TRACK },
+    { name: 'cart-dawn', zoom: 20, time: 0.19, set: YARD },
+    { name: 'cart-dusk', zoom: 20, time: 0.81, set: YARD },
+    { name: 'cart-winter', zoom: 25, season: 0.02, set: TRACK },
   ],
 }
