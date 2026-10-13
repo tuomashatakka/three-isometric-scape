@@ -2748,7 +2748,13 @@ a frame that moved neither clock writes no matrix and uploads no buffer, which i
 
 ### `--poses cart`, the twenty-ninth set
 
-the subject is 3.46 m long and 1.71 m tall against a tour whose closest pose frames ten metres of yard facing the other way, so like the smokehouse and the chapel before it this is a thing that is either photographed on purpose or not photographed. `cart` and `cart-near` are the road at 60 m and the prop at 18 m; `cart-dawn` and `cart-dusk` are the two ends of the window, with the cart at the door at both; and `cart-winter` is the frame that has to be **empty**, which is the one claim in the set about the absence of geometry and therefore the one that would silently stop being true.
+the subject is 3.46 m long and 1.71 m tall against a tour whose closest pose frames ten metres of yard facing the other way, so like the smokehouse and the chapel before it this is a thing that is either photographed on purpose or not photographed. `cart` is the road at a view size of 25 at the config's own hour; `cart-near` is the prop at 18, and it names an hour; `cart-dawn` and `cart-dusk` are the two ends of the working day on the same six metres of track, outbound at one and homeward at the other; and `cart-winter` is `cart` again in midwinter, the frame that has to be **empty** — the one claim in the set about the absence of geometry, and therefore the one that would silently stop being true.
+
+**three of those five frames had to be re-aimed before they showed anything**, and all three failures are the same failure: at a fixed dimetric azimuth, *where the camera is* decides whether a 3.46 m object exists in the picture.
+
+- **`zoom` is `camera.viewSize`, and the tilt is derived from it**, so a pulled-back frame sees far more ground than its own extent suggests. at 60 the whole 196 m island is in shot and the cart is four pixels of it. the road frames are 25 and the close ones 20.
+- **the road runs nearly square away from the eye**, so a cart going *away* projects its carter up the screen onto its own load — the first `cart-near` read as somebody standing on a wheelbarrow, and no shaft length fixes that. it names `time: 0.46`, the homeward leg on the straight above the yard, which is the bearing that puts the person in front of the cart.
+- **the cart is at the farmyard door at the boundary phases**, and the farmhouse stands between that spot and this camera. the first `cart-dawn` and `cart-dusk` came back with the road empty whether the arithmetic was right or wrong. they moved a few metres out onto open track at 0.21 and 0.79, and the exact-boundary claim went where it can actually be checked — two assertions in `carter.test.ts`.
 
 `scape-poses.ts` was a handful of lines under the 666-line ceiling again, so the set ships in [`scape-poses-cart.ts`](scripts/scape-poses-cart.ts) on the seam the coast, the ice, the sky, the tide and the snow already marked out.
 
