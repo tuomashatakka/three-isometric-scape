@@ -16,6 +16,28 @@ the cart track has had a pair of worn wheel lines down the middle of it since th
 - **three knobs in the overlay**, under ground & water beside the lamplight because it is the same household at the other end of the same day: `carter.reach`, `carter.day`, `carter.lean`. there is deliberately no knob for *when* it sets off — that is the sun's.
 - **`scape:map` gains a `cart` line** and a per-island `cart <round>m <worked>%`, and `worked` is the field that moves: it is the only reading that catches the road going silent, because an empty frame is also the correct midwinter frame.
 - **`--poses cart`, the twenty-ninth set**, in [`scape-poses-cart.ts`](scripts/scape-poses-cart.ts) because `scape-poses.ts` was back under the line ceiling. five frames: the road at a view size of 25, the prop at 18, both ends of the working day on the same stretch of track, and `cart-winter`, which has to come back **empty** — the one claim in the set about the absence of geometry and therefore the one that would stop being true silently. three of the five had to be re-aimed before they showed anything, and all three failures were the same one: at a fixed dimetric azimuth, where the camera is decides whether a 3.46 m object is in the picture at all. `zoom` is `camera.viewSize` with the tilt derived from it, so 60 put the whole island in shot and the cart at four pixels; the road runs nearly square away from the eye, so a cart going away projects its carter onto its own load and `cart-near` has to name an hour; and the cart is at the farmyard door at the boundary phases with the farmhouse between that spot and the camera, so the two window-edge frames moved out onto open track and the boundary itself went into the tests.
+- **verification** one `bun run gate`, 797.6 s wall clock, all five green:
+
+  ```text
+  lint        ok     21.1s
+  typecheck   ok     14.1s
+  test        ok    797.6s
+  build       ok     16.3s
+  prop:audit  ok      0.6s
+  ```
+
+  `scape:map --stats` gains `cart  97.7m round  worked 71% of the year  window 0.62 of today, 2 loads  26.4m out, on the road` and a `cart <round>m <worked>%` per island; **no other line in the block moved**, and `scape:diff` reports `no structural change`. the tour is `same` at all six poses with `0.00%` changed — a 3.46 m object is sub-pixel at every frame in it, and `near` is pointed at the yard facing away from the road. the set built for it:
+
+  ```text
+  pose         changed   maxblock  verdict
+  cart          0.16%    44.4%  same
+  cart-near     0.30%    66.9%  same
+  cart-dawn     0.18%    42.0%  same
+  cart-dusk     0.15%    24.2%  same
+  cart-winter   0.00%     0.0%  same
+  ```
+
+  the four frames with a cart in them each move a block by a quarter to two thirds; **`cart-winter` is `0.00%` and `0.0%` against the same frame**, which is the midwinter claim stated as a number rather than as prose. thirty new tests across `landscape/carter.test.ts` and `props/carter.test.ts`.
 - **follow-ups:** the **fold in `buildTrack`**, with the retune of `snowFence.bite` and the watermill siting that has to come with it. the cart leaves **no wake of its own** — the ruts are painted from the yard outward and nothing deepens where the wheels actually run. and there is **no way to follow it**: the ferries are selectable and have a documented way back to manual control, and the cart is not.
 
 ## the lee the land throws
