@@ -248,6 +248,23 @@ export interface AtmosphereQuality {
   floeCount: number
 
   /**
+   * How many of the archipelago's cart tracks have a cart on them.
+   *
+   * A count of *rounds* rather than of objects, and the one tier knob in here
+   * whose cost is a matrix rather than a triangle: every cart in the scape is
+   * one instanced draw whatever this says, so what the number buys is how many
+   * of the six islands have traffic. It cuts from the far end, home island
+   * first, so a phone keeps the roads it is most likely to be pointed at and
+   * the outer tracks are simply quiet — which is a graceful absence rather than
+   * a cheap-looking version, because a track with nobody on it is what this
+   * scape looked like until now.
+   *
+   * 0 is a tier with no cart anywhere, and it builds no mesh at all rather than
+   * an empty one.
+   */
+  carterRounds: number
+
+  /**
    * Puffs in one chimney's plume. 0 is a tier whose hearths do not smoke.
    *
    * A count and not a density, and — like `birdCount` and unlike `starCount` —
@@ -643,6 +660,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     creelStrings:    0,
     cliffBirds:      0,
     floeCount:       0,
+    carterRounds:    0,
     beaconBlades:    0,
     lampSpill:       0,
     cursorLight:     false,
@@ -699,6 +717,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     creelStrings:    2,
     cliffBirds:      14,
     floeCount:       420,
+    carterRounds:    3,
     beaconBlades:    1,
     lampSpill:       2,
     cursorLight:     false,
@@ -771,6 +790,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     creelStrings:    3,
     cliffBirds:      30,
     floeCount:       620,
+    carterRounds:    6,
     beaconBlades:    2,
     lampSpill:       3,
     cursorLight:     true,
@@ -827,6 +847,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     creelStrings:    4,
     cliffBirds:      44,
     floeCount:       900,
+    carterRounds:    6,
     beaconBlades:    3,
     lampSpill:       4,
     cursorLight:     true,
@@ -900,6 +921,7 @@ const UNLOCKED_FLOOR = {
   creelStrings:   2,
   cliffBirds:     30,
   floeCount:      620,
+  carterRounds:   6,
   beaconBlades:   1,
   lampSpill:      2,
   cursorLight:    true,
@@ -954,6 +976,7 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
     creelStrings:   Math.max(quality.creelStrings, UNLOCKED_FLOOR.creelStrings),
     cliffBirds:     Math.max(quality.cliffBirds, UNLOCKED_FLOOR.cliffBirds),
     floeCount:      Math.max(quality.floeCount, UNLOCKED_FLOOR.floeCount),
+    carterRounds:   Math.max(quality.carterRounds, UNLOCKED_FLOOR.carterRounds),
     beaconBlades:   Math.max(quality.beaconBlades, UNLOCKED_FLOOR.beaconBlades),
     lampSpill:      Math.max(quality.lampSpill, UNLOCKED_FLOOR.lampSpill),
     cursorLight:    true,

@@ -735,6 +735,32 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
     },
     {
       group: 'ground & water',
+      title: 'the cart',
+
+      // Beside the lamplight, because it is the same household at the other end
+      // of the same day. How many islands have traffic is the tier's — see
+      // `quality.carterRounds` — and where the roads are is the layout's, so
+      // what is left here is how far a cart gets and how long it is let out
+      // for. Both are read per frame; neither needs a rebuild to be seen.
+      //
+      // There is no knob for *when* it sets off, deliberately. That is the
+      // sun's: the window is the lit part of the day, centred on the transit,
+      // so moving the latitude or the week moves the working day and midwinter
+      // closes the road by itself.
+      controls: [
+        toggled(
+          'carts',
+          range('carter.reach', 'a day’s haul (m)', 0, 600, 5, quality.carterRounds > 0),
+          240,
+          [
+            range('carter.day', 'longest working day', 0, 0.94, 0.01),
+            range('carter.lean', 'sits on the slope', 0, 1, 0.01),
+          ],
+        ),
+      ],
+    },
+    {
+      group: 'ground & water',
       title: 'lamplight',
 
       // Beside the hearth smoke, because it is the same five buildings seen at

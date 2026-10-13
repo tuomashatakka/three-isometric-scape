@@ -87,6 +87,18 @@ export const NORDIC_PALETTE = {
   ironRust:  '#7d4a33',
   canvas:    '#9a8c6b',
 
+  // The one person in the archipelago, and the only thing in this palette that
+  // is worn rather than built. Wadmal is the undyed, fulled wool a coat on this
+  // coast is actually made of, and the colour is chosen for *contrast with the
+  // ground* rather than for belonging: a figure a metre and a half tall has to
+  // be found from directly above, against heath, hayfield and bare track, and
+  // the one tone none of those three carries is a cold dark. It stays under
+  // `tarWood` so the cart it is pulling is never out-darkened by the person
+  // pulling it. `skin` is the single warm note on the whole figure and is the
+  // only reason a head reads as a head rather than as the top of a post.
+  wadmal: '#3f4653',
+  skin:   '#a8835f',
+
   // The flock. A fleece off the hill is not white — it is a dirty cream that
   // has stood in a year of rain — and `trimWhite` would have made the sheep the
   // brightest thing in the scape after the chapel's limewash.
