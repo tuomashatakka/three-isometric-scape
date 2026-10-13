@@ -255,6 +255,41 @@ describe('the working day', () => {
     expect(carterJourney(shuts, span, length, knobs.reach).distance).toBeCloseTo(0, 6)
   })
 
+  /**
+   * The two hours `--poses cart` names, stated as arithmetic. They are the one
+   * pair the window can get wrong: a phase written down as a decimal and the
+   * boundary derived from `span` differ in the last bit — `0.81 - 0.19` is
+   * `0.6200000000000001` against a span of `0.62` — and before the tolerance
+   * went in, the frame built to show the cart at the door photographed an empty
+   * road and reported `same`.
+   */
+  test('the hour the window opens and the hour it shuts both have a cart in them', () => {
+    const length = rounds[0].length
+
+    expect(span).toBeCloseTo(0.62, 6)
+
+    const dawn = carterJourney(0.19, span, length, knobs.reach)
+    const dusk = carterJourney(0.81, span, length, knobs.reach)
+
+    expect(dawn.out).toBe(true)
+    expect(dawn.distance).toBeCloseTo(0, 6)
+    expect(dawn.homeward).toBe(false)
+
+    expect(dusk.out).toBe(true)
+    expect(dusk.distance).toBeCloseTo(0, 6)
+
+    // And it is facing the house at the end of the day rather than setting off
+    // on a load it will never finish.
+    expect(dusk.homeward).toBe(true)
+  })
+
+  test('a minute either side of the window is a road with nobody on it', () => {
+    const length = rounds[0].length
+
+    expect(carterJourney(0.19 - 0.001, span, length, knobs.reach).out).toBe(false)
+    expect(carterJourney(0.81 + 0.001, span, length, knobs.reach).out).toBe(false)
+  })
+
   test('the round stops at the top of the beach rather than in the sea', () => {
     const dry = SCAPE_CONFIG.terrain.waterLevel
 

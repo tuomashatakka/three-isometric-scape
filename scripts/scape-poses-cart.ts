@@ -23,6 +23,9 @@ import type { Pose } from './scape-poses.ts'
  */
 const TRACK = [ 'camera.focusX=-30', 'camera.focusZ=-1' ]
 
+/** The yard end of the same road, which is where both ends of the day are spent. */
+const YARD = [ 'camera.focusX=-19', 'camera.focusZ=-1' ]
+
 export const CART_TOURS: Record<string, Pose[]> = {
 
   /**
@@ -36,9 +39,12 @@ export const CART_TOURS: Record<string, Pose[]> = {
    * day's loads. `cart-near` is the same instant at 18 m, which is the only
    * frame in the repository where a reviewer can see what the prop actually is
    * — the shafts, the load of peat and the person leaning into them. `cart-dawn`
-   * and `cart-dusk` are the two ends of the working window: the cart is at the
-   * door at both, going out at one and come home at the other, and between them
-   * they are what says the window is centred on the sun rather than authored.
+   * and `cart-dusk` are the two ends of the working window, on the yard end of
+   * the same road at 34 m: the cart is at the door at both, going out at one
+   * and come home at the other, and between them they are what says the window
+   * is centred on the sun rather than authored. Both land exactly on the
+   * boundary phase, which is deliberate — it is the one hour the arithmetic can
+   * get wrong, and it did until `carter.ts` grew an `EDGE`.
    *
    * `cart-winter` is the frame that has to be empty. At 68° the midwinter day
    * length is exactly zero, the window shuts, and the road is bare — which is
@@ -53,8 +59,8 @@ export const CART_TOURS: Record<string, Pose[]> = {
   cart: [
     { name: 'cart', zoom: 60, set: TRACK },
     { name: 'cart-near', zoom: 18, set: [ 'camera.focusX=-29', 'camera.focusZ=0' ]},
-    { name: 'cart-dawn', zoom: 60, time: 0.19, set: TRACK },
-    { name: 'cart-dusk', zoom: 60, time: 0.81, set: TRACK },
+    { name: 'cart-dawn', zoom: 34, time: 0.19, set: YARD },
+    { name: 'cart-dusk', zoom: 34, time: 0.81, set: YARD },
     { name: 'cart-winter', zoom: 60, season: 0.02, set: TRACK },
   ],
 }

@@ -39,11 +39,27 @@ export const CART_TYRE = 0.06
 /** Wheel radius, in metres. The axle rides at the same height. */
 export const CART_WHEEL = 0.46
 
-/** Metres from the axle to the tip of the shafts. */
-export const CART_SHAFT = 1.62
+/**
+ * Metres from the axle to the tip of the shafts.
+ *
+ * Long, and measured rather than chosen. This camera looks down the long axis
+ * of a cart travelling away from it, so the carter projects *up the screen*
+ * over the load — at the first length the figure's boots landed on the bed and
+ * the whole thing read as somebody standing on a wheelbarrow. The gap between
+ * the front of the bed and the carter's feet has to survive that projection,
+ * and 2.2 m of shaft is what does it. It is also about what a hand cart's
+ * shafts actually are.
+ */
+export const CART_SHAFT = 2.2
 
-/** Metres from the ground to the crown of the carter's head. */
-export const CARTER_HEIGHT = 1.71
+/**
+ * Metres from the ground to the crown of the carter's head.
+ *
+ * A *leaning* figure's height rather than a standing one's. The lean is the
+ * whole read at this size, and a figure drawn at full stature with a tilt on it
+ * reads as a post that has been knocked rather than as somebody pulling.
+ */
+export const CARTER_HEIGHT = 1.62
 
 /** How far the shafts stand either side of the person between them, in metres. */
 const SHAFT_HALF = 0.33
@@ -113,14 +129,16 @@ export function buildCarter (rng: SeededRng, palette: NordicPalette): BufferGeom
       rng,
     }))
 
-  // The shafts, running forward and down to the hands that are holding them.
-  // They tip because the carter's grip is below the axle, which is the whole
-  // reason a hand cart is drawn with its bed level and its shafts not.
+  // The shafts, running forward and down past the person between them. Drawn in
+  // the palette's lightest timber and at a full hundred millimetres, because
+  // they are the only thing in the prop that says the figure and the cart are
+  // one object: at the first section — 80 mm of `wood` — they disappeared into
+  // the track under them and left a person standing near a box.
   for (const sx of [ -1, 1 ])
-    parts.push(part(box(0.08, 0.08, CART_SHAFT), {
-      at:     [ sx * SHAFT_HALF, bed + 0.04, CART_SHAFT / 2 + 0.52 ],
-      rotate: [ deg(5), 0, 0 ],
-      color:  palette.wood,
+    parts.push(part(box(0.1, 0.1, CART_SHAFT), {
+      at:     [ sx * SHAFT_HALF, bed + 0.02, CART_SHAFT / 2 + 0.52 ],
+      rotate: [ deg(4), 0, 0 ],
+      color:  palette.woodLight,
       jitter: 0.1,
       rng,
     }))
@@ -161,7 +179,7 @@ function addCarter (parts: BufferGeometry[], rng: SeededRng, palette: NordicPale
     }))
 
   parts.push(part(box(0.38, 0.62, 0.26), {
-    at:     [ 0, hip + 0.3, foot + 0.1 ],
+    at:     [ 0, hip + 0.28, foot + 0.08 ],
     rotate: [ lean, 0, 0 ],
     color:  palette.wadmal,
     jitter: 0.12,
@@ -173,23 +191,23 @@ function addCarter (parts: BufferGeometry[], rng: SeededRng, palette: NordicPale
   // at a point: at this scale the silhouette is the line from shoulder to grip,
   // and a line is cheaper than an arm.
   for (const sx of [ -1, 1 ])
-    parts.push(part(cyl(0.055, 0.055, 0.72, 5), {
-      at:     [ sx * 0.21, hip + 0.42, foot - 0.2 ],
-      rotate: [ deg(70), 0, 0 ],
+    parts.push(part(cyl(0.055, 0.055, 0.78, 5), {
+      at:     [ sx * 0.22, hip + 0.34, foot - 0.14 ],
+      rotate: [ deg(104), 0, 0 ],
       color:  palette.wadmal,
       jitter: 0.1,
       rng,
     }))
 
   parts.push(part(ball(0.13, 6), {
-    at:     [ 0, CARTER_HEIGHT - 0.13, foot + 0.3 ],
+    at:     [ 0, CARTER_HEIGHT - 0.13, foot + 0.24 ],
     scale:  [ 0.92, 1, 0.92 ],
     color:  palette.skin,
     jitter: 0.12,
     rng,
   }))
   parts.push(part(cyl(0.18, 0.16, 0.08, 7), {
-    at:     [ 0, CARTER_HEIGHT - 0.06, foot + 0.3 ],
+    at:     [ 0, CARTER_HEIGHT - 0.07, foot + 0.26 ],
     color:  palette.wadmal,
     jitter: 0.1,
     rng,

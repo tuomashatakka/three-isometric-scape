@@ -126,6 +126,16 @@ const LOOK = 2.4
 const CEILING = 0.94
 
 /**
+ * How far outside the window a phase may land and still count as inside it.
+ *
+ * A thousandth of a second of the day clock. Named rather than inlined because
+ * what it defends against is not a rounding error in the *data* — it is the
+ * difference between `0.81 - 0.19` and `0.62`, which is the hour a pose asks
+ * for against the window it was derived from.
+ */
+const EDGE = 1e-9
+
+/**
  * The hours the road is worked, as a share of the day.
  *
  * The lit part of the day, capped at what a person will actually walk in one.
@@ -202,14 +212,28 @@ export function carterJourney (
     return idle
 
   const phase = time - Math.floor(time)
-  const since = phase - (0.5 - span / 2)
+  const open  = phase - (0.5 - span / 2)
 
-  if (since < 0 || since > span)
+  // Both edges inclusive, and the tolerance is not decoration. The window is
+  // `0.5 ± span/2`, so a pose that names the hour the road opens or shuts —
+  // which is exactly what `--poses cart` does, because the two ends are the
+  // claim that the window is the sun's — lands on the boundary with a phase
+  // that differs from it in the last bit. `0.81 - 0.19` is `0.6200000000000001`
+  // against a span of `0.62`, and without this the cart is simply not there in
+  // the frame built to show it at the door.
+  if (open < -EDGE || open > span + EDGE)
     return idle
 
+  const since  = Math.min(span, Math.max(0, open))
   const travel = length * 2 / reach
   const slot   = span / loads
-  const within = Math.max(0, since - Math.floor(since / slot) * slot)
+
+  // Which load, and how far into it. The last load is held rather than allowed
+  // to wrap, so the instant the window shuts is the *end* of the last homeward
+  // leg rather than the start of a load that will never happen: both put the
+  // cart at the door, and only one of them has it facing the house.
+  const load   = Math.min(loads - 1, Math.floor(since / slot))
+  const within = since - load * slot
   const half   = travel / 2
 
   if (within <= half)
