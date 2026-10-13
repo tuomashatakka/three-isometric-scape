@@ -36,9 +36,14 @@ export const CART_TOURS: Record<string, Pose[]> = {
    * year — neither of which a single still can carry.
    *
    * `cart` is the default hour, with the cart outbound on the first of the
-   * day's loads. `cart-near` is the same instant at 18 m, which is the only
-   * frame in the repository where a reviewer can see what the prop actually is
-   * — the shafts, the load of peat and the person leaning into them. `cart-dawn`
+   * day's loads. `cart-near` is 18 m, and it names an hour
+   * rather than taking the default one, because at this camera *which way the
+   * cart is going* decides whether the prop is legible at all: the road runs
+   * almost square away from the eye for most of its length, and a cart going
+   * away projects its carter up the screen onto its own load — the first cut of
+   * this frame read as somebody standing on a wheelbarrow. 0.46 is the homeward
+   * leg on the straight above the yard, coming toward the camera, which is the
+   * one bearing that puts the person in front of the cart where they belong. `cart-dawn`
    * and `cart-dusk` are the two ends of the working window, on the yard end of
    * the same road at 34 m: the cart is at the door at both, going out at one
    * and come home at the other, and between them they are what says the window
@@ -58,7 +63,12 @@ export const CART_TOURS: Record<string, Pose[]> = {
    */
   cart: [
     { name: 'cart', zoom: 60, set: TRACK },
-    { name: 'cart-near', zoom: 18, set: [ 'camera.focusX=-29', 'camera.focusZ=0' ]},
+    {
+      name: 'cart-near',
+      zoom: 18,
+      time: 0.46,
+      set:  [ 'camera.focusX=-30', 'camera.focusZ=-4.7' ],
+    },
     { name: 'cart-dawn', zoom: 34, time: 0.19, set: YARD },
     { name: 'cart-dusk', zoom: 34, time: 0.81, set: YARD },
     { name: 'cart-winter', zoom: 60, season: 0.02, set: TRACK },
