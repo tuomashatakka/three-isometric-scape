@@ -27,8 +27,16 @@ import type { Pose } from './scape-poses.ts'
  */
 const TRACK = [ 'camera.focusX=-30', 'camera.focusZ=-1' ]
 
-/** The yard end of the same road, which is where both ends of the day are spent. */
-const YARD = [ 'camera.focusX=-19', 'camera.focusZ=-1' ]
+/**
+ * The first stretch of road out of the yard, which both ends of the day cross.
+ *
+ * Not the yard itself, and the difference is occlusion rather than taste: the
+ * cart is at the farmyard door at the exact phases the window opens and shuts,
+ * and from this camera's azimuth the farmhouse stands between the eye and that
+ * spot. Both frames came back with the road empty and the claim unphotographed.
+ * A few metres out it is on open ground.
+ */
+const ROAD = [ 'camera.focusX=-23.5', 'camera.focusZ=-2.8' ]
 
 export const CART_TOURS: Record<string, Pose[]> = {
 
@@ -49,12 +57,19 @@ export const CART_TOURS: Record<string, Pose[]> = {
    * this frame read as somebody standing on a wheelbarrow. 0.46 is the homeward
    * leg on the straight above the yard, coming toward the camera, which is the
    * one bearing that puts the person in front of the cart where they belong. `cart-dawn`
-   * and `cart-dusk` are the two ends of the working window, on the yard end of
-   * the same road at 34 m: the cart is at the door at both, going out at one
-   * and come home at the other, and between them they are what says the window
-   * is centred on the sun rather than authored. Both land exactly on the
-   * boundary phase, which is deliberate — it is the one hour the arithmetic can
-   * get wrong, and it did until `carter.ts` grew an `EDGE`.
+   * and `cart-dusk` are the two ends of the working window on the first stretch
+   * of road out of the yard: the same six metres of track at the same distance,
+   * with the cart outbound at one and homeward at the other, which is what says
+   * the window is centred on the sun rather than authored.
+   *
+   * They sit a little *inside* the window rather than exactly on it, and that
+   * is a framing decision rather than a weakened claim. The cart is at the
+   * farmyard door at the boundary phases themselves and the farmhouse stands
+   * between that spot and this camera, so a frame pinned there photographs an
+   * empty road whether the arithmetic is right or wrong. The boundary is the
+   * one hour the arithmetic *can* get wrong — and did, until `carter.ts` grew
+   * an `EDGE` — so it is stated where it can actually be checked, as two
+   * assertions in `carter.test.ts`.
    *
    * `cart-winter` is the frame that has to be empty. At 68° the midwinter day
    * length is exactly zero, the window shuts, and the road is bare — which is
@@ -74,8 +89,8 @@ export const CART_TOURS: Record<string, Pose[]> = {
       time: 0.46,
       set:  [ 'camera.focusX=-30', 'camera.focusZ=-4.7' ],
     },
-    { name: 'cart-dawn', zoom: 20, time: 0.19, set: YARD },
-    { name: 'cart-dusk', zoom: 20, time: 0.81, set: YARD },
+    { name: 'cart-dawn', zoom: 20, time: 0.21, set: ROAD },
+    { name: 'cart-dusk', zoom: 20, time: 0.79, set: ROAD },
     { name: 'cart-winter', zoom: 25, season: 0.02, set: TRACK },
   ],
 }
