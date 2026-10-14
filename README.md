@@ -80,6 +80,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 ## what is in the scape
 
 - a deterministic procedural heightfield with editable seed, scale, waterline and palette
+- **a mainland coast on the far side of the water**: a wall of hills standing 808 to 1203 metres out, three headlands and three sounds, the tallest summit 103 metres over a sea whose islands peak at 23 — land that carries on outward past the corner of the widest frame the camera has, so the sea *ends* rather than closing again behind a reef. it is the one landform in the scape that nothing can reach: no height field, no route, nothing sited on it, and it stands clear of every terrain patch by fifty metres on every bearing because that is where it is defined to be
 - a mainland farmstead on a warped, non-circular coastline, ringed by fifteen offshore islets
 - chains of bare rock standing out in the open water between the islands, breaking white on whichever side the swell is running at — and the ferries route around them by the clearance test they were already running
 - a cobbled network of paths between every place the farm goes — planned as a graph, worn as desire lines, paved with stones sampled along the treads themselves
@@ -242,6 +243,7 @@ src/
     ├── config-shelter.ts           the lee's own slice: how far upwind land counts, for the wind sea and for the swell
     ├── config-weir.ts              the fish trap's own slice: the reach, the pound, the mouth, the wall
     ├── config-mole.ts              the breakwater's own slice: the fetch it answers, the depth it stops at, the batter
+    ├── config-farshore.ts          the far coast's own slice: how far out it stands, how high, and how open
     ├── config-front.ts             the front's own knobs: weather, the far squall, the lightning, the bow
     ├── config-palette.ts           every colour in the scape, schema and values together
     ├── config-kelp.ts              the weed's own slice: the depth window, the canopy, the clearings
@@ -299,6 +301,8 @@ src/
     │   ├── skerry.ts               the bare rocks standing in the water between the islands
     │   ├── shoal.ts                the drowned banks trailing off the islands' downdrift flanks
     │   ├── fjord.ts                the drowned valley cut through one island's coast
+    │   ├── farshore.ts             the coast on the other side of the water, solved a bearing at a time
+    │   ├── skyline.ts              that coast as one static mesh, swept round the ring
     │   ├── icecap.ts               the ice standing on the northern island, and what it buries
     │   ├── coast.ts                the waterline on every bearing, solved once for both coastal landforms
     │   ├── dunes.ts                the blown sand on the weather shore, solved against the coastline
@@ -417,6 +421,7 @@ scripts/
 ├── scape-map-render.ts             the picture half: the ramp, the layers and the grid
 ├── scape-map-format.ts             the stats block, as the run reads it
 ├── scape-map-landforms.ts          the bar, the guard, the fjords and the treeline, walked
+├── scape-map-farshore.ts           the far coast, and the clearance it keeps from the islands
 ├── scape-map-shelter.ts            the lee the archipelago throws, surveyed off the depth grid
 ├── scape-map-sites.ts              the sited features of one island, projected and measured
 ├── scape-map-weather.ts            the weather half of the stats block, and the type for it
@@ -2757,6 +2762,63 @@ the subject is 3.46 m long and 1.71 m tall against a tour whose closest pose fra
 - **the cart is at the farmyard door at the boundary phases**, and the farmhouse stands between that spot and this camera. the first `cart-dawn` and `cart-dusk` came back with the road empty whether the arithmetic was right or wrong. they moved a few metres out onto open track at 0.21 and 0.79, and the exact-boundary claim went where it can actually be checked — two assertions in `carter.test.ts`.
 
 `scape-poses.ts` was a handful of lines under the 666-line ceiling again, so the set ships in [`scape-poses-cart.ts`](scripts/scape-poses-cart.ts) on the seam the coast, the ice, the sky, the tide and the snow already marked out.
+
+## the land the islands are the fringe of
+
+every landform in this scape until now stood inside the archipelago plane, and the plane always ended in open water on every bearing. six islands, a sea four times the world wide to hide the edge of it, and behind them nothing. pull the camera out at any hour and the picture was an island group floating in the middle of an ocean — which is not what an island group is. an archipelago is the *fringe* of somewhere, and this one had no somewhere.
+
+there is a coast out there now. [`landscape/farshore.ts`](src/scene/landscape/farshore.ts) solves it, [`landscape/skyline.ts`](src/scene/landscape/skyline.ts) sweeps it into one mesh, and the ten knobs are [`config-farshore.ts`](src/scene/config-farshore.ts).
+
+### it is a ring in the world, not a flat on the camera
+
+the cheap build is a painted backdrop hung off the view. it is wrong here twice over: the camera is orthographic *and* the reader turns it, so a flat hung at a bearing is a flat the moment the view swings off it, and a flat hung at the view is land that slides when you zoom. the coast is a ring in world space, built once, standing still, and the camera is free to do whatever it likes with it. `farShore.reach` is a multiple of `archipelago.worldSize` for the same reason the stand-off exists — a world that grows takes the coast out with it rather than growing a sea with a mountain range in the middle of it.
+
+### three fields on one ring, and why they are not `valueNoise`
+
+an angle wraps, and a field that does not wrap with it leaves a seam at due east — on a ring of mountains, a cliff with nothing on the other side of it.
+
+the first draft read the scape's own `valueNoise` round a circle in noise space, on the reasoning that a closed path through a continuous field is continuous. it is, and it is useless here. a circle whose *circumference* is the wanted number of features has a *radius* of that number over two pi, so seven summits is a circle 1.1 lattice units across: every sample on it lands in the same two cells, the bilinear interpolation makes one smooth bump of them, and the coast came out as a single headland of 281° with one sound in it. the arc-length argument was right and the resolution was not.
+
+so the fields are a one-dimensional value noise over a whole number of control points, wrapped with a modulo — exactly periodic by construction rather than by geometry, with the feature count chosen directly instead of inferred from a radius. eleven lines, and the ring closes to the last bit.
+
+three readings of it, and the third is the one worth noting: the **standing distance** is read off the *same* field as the skyline, so the high ground is the headland and the low ground is the back of the bay. a separate noise would have put summits in the bays as often as not.
+
+### the archipelago decides where it is allowed to stand
+
+`reach` is a radius and the archipelago is a scatter of square patches, so a single distance either clears everything — and is then too far out to photograph — or runs a mountain range through the two southern islands, whose patch corners reach 882 m from the middle against a frame that sees about 900 m past the focus.
+
+so the radius is a floor rather than an answer. `patchReach` is the support function of the patches in a direction — for a square of half-size `h` at `o`, the furthest projection on a unit `d` is `o·d + h·(|dx| + |dz|)` — and the coast stands at the further of that plus `farShore.standOff` and the configured reach. the bearings the big islands occupy get a *wider sound* rather than a mountain in them. that is also the whole guarantee that this thing never intrudes: it is not checked afterwards, it is where the coast is defined to be. `scape:map` prints the clearance it achieved, and `farshore.test.ts` states it as a fact about the data.
+
+### a coast, not a reef
+
+the first build swept a prism — toe, crest, toe — and a prism is an island. the capture said so at once: a dark ribbon curled round the archipelago with open sea on both sides of it. what makes a far shore a far shore is not its height, it is that **the sea ends**, and a sea that closes again 160 m later has not ended.
+
+the cross-section is four rings now: a toe under the water, the coastal ridge, a vale behind it, and an outer rim past the corner of the widest frame the camera has. `farShore.hinterland` is how far that is, and it is the one number in the section sized against `camera.maxViewSize` rather than against the world — what it has to cover is the picture. it costs nothing: one more ring of vertices, two more triangles a bearing, and a quad that leaves an orthographic frustum is clipped rather than shaded.
+
+### the sounds cost a few triangles rather than a branch
+
+where the sea runs out there is no land, and the obvious build breaks the strip and starts a new one. instead the taper both **sinks and shrinks** the cross-section: every radial offset is scaled by the land amount and every height is pulled down toward the seabed, so an open bearing collapses to a single point on the crest line, on the bottom. the strip stays one unbroken ring, the index buffer stays a loop with no special case at either end of a headland, and the sea runs out through the gap to the edge of the picture because there is nothing standing in it.
+
+both halves of that were learned from captures:
+
+- **sinking to the toe was not deep enough.** three metres under mean water is inside the lake's own depth tint, and every sound drew as a pale bar straight across itself — a shoal nothing had surveyed, in the one place the coast has to be open. the collapse goes to the seabed.
+- **sinking without shrinking left ramps.** a half-tapered cross-section still reached its full 190 m inward, so each sound had a drowned ramp either side of it pointing in at the islands: three dark spikes in the noon frame. scaling the radii by the same taper closes a headland to a point instead.
+
+### it is made of the material everything else is made of
+
+the shared `ground` material, which is why this is as cheap as it is: no program of its own, no uniform of its own, no texture. it picks up the scape's linear fog, the snow line, the wet pass and the cloud shadow for nothing, because every one of those is already in the material every other static surface draws with. `atmosphere.fogDensity` is therefore the far coast's only live knob, and a second haze beside it would have been two answers to one question.
+
+the one thing baked rather than inherited is **aerial perspective across the range's own depth**. the scape's fog is linear in *view depth*, and the camera at the zoom that can see any of this looks down at fifty degrees — so the outer rim, a kilometre further across the water than the ridge, is barely further from the camera and the fog treats the two the same. distance through the air is radial here, not axial, so the rings are lerped toward the horizon colour by their radius. it is an albedo rather than a light, so a hazier rim is still a dark rim at night.
+
+### what it costs
+
+**one draw call and 2160 triangles, on every tier.** no texture, no uniform, no work in `update` — the land does not move, so it has no speed, and nothing of it goes in `STILL`. it casts no shadow and receives none: the sun's shadow camera is fitted to the ground the view can see, and a two-kilometre ring of mountains in the caster list would open that fit up and spend the islands' shadow resolution on a thing the air has half dissolved.
+
+there is no `AtmosphereQuality` number for it, for the reason there is none for the ice cap: a system that costs a phone exactly what it costs a workstation does not need a budget, and a tier knob that reads the same on all five tiers is a knob lying about having a choice in it.
+
+### what the tour saw
+
+`default`, `noon`, `night` and `winter` all moved — 3.3%, 3.8%, 25.8% and 9.8% — and `near` and `far` came back `same` to the pixel. that is the right answer rather than a shortfall: those two are the 10 m and 540 m view sizes, and the nearest the coast ever stands is 808 m. a run that wants to see this coast has to be looking at the whole world, and the four poses that are are the four that moved. `structural:` reported `no structural change`, which is the other half of it — nothing in the height field, the waterways or the fleet knows this exists.
 
 ## ground that casts
 

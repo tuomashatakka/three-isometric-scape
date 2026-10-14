@@ -16,6 +16,8 @@ import { formatStats } from './scape-map-format.ts'
 import { LEGEND, readLayers, renderGrid } from './scape-map-render.ts'
 import type { Window } from './scape-map-render.ts'
 import { shelterStats } from './scape-map-shelter.ts'
+import { farShoreStats } from './scape-map-farshore.ts'
+import type { FarShoreStats } from './scape-map-farshore.ts'
 import { archStats, cragStats, creelStats, duneStats, fjordStats, forceStats, hauloutStats, icecapStats, ledgeStats, kelpStats, packStats, roostStats, saltingsStats, shoalStats, skerryStats, stackStats, strandStats, treelineStats } from './scape-map-landforms.ts'
 import type { ArchStats, CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, SaltingsStats, ShoalStats, StackStats, TreelineStats } from './scape-map-landforms.ts'
 import { measureDrift } from '../src/scene/landscape/drift.ts'
@@ -482,6 +484,19 @@ export interface MapStats extends CompositionStats, WeatherStats {
    * the whole of the evidence that it is there and that it can be seen.
    */
   shoals: ShoalStats[]
+
+  /**
+   * The coast on the other side of the water.
+   *
+   * Last in the block and not like the rest of it: every other landform here
+   * is a reading of the height field, and this one is not in the height field
+   * at all. It is in the report for the thing a still cannot show — `clearance`
+   * is how much open water stands between the near toe of the range and the
+   * furthest corner of the nearest terrain patch, and a run that moves the
+   * world without moving the far shore finds out here rather than in a
+   * screenshot taken from the one bearing where it still looks right.
+   */
+  farShore: FarShoreStats
 
   /**
    * The tidal flats, one entry per island whose beck comes out on a free coast.
@@ -1095,6 +1110,7 @@ export function surveyStats (
     icecaps:  icecapStats(survey),
     dunes:    duneStats(survey),
     shoals:   shoalStats(survey, config),
+    farShore: farShoreStats(survey, config),
     saltings: saltingsStats(survey),
     crags:    cragStats(survey),
     stacks:   stackStats(survey, config),
