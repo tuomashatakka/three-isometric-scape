@@ -854,6 +854,21 @@ export function formatStats (stats: MapStats): string {
       (bank.crowded ? '  cut short by the sound' : '') +
       (bank.low <= 0 ? '  <- the bank dries: that is an islet, and nothing draws it' : '') +
       (bank.shelf <= 0 ? '  <- built under the mask: in the field and invisible' : '')),
+    `shore ${stats.farShore.land}% of the horizon  ` +
+    `${stats.farShore.headlands} headlands / ${stats.farShore.sounds} sounds  ` +
+    `summit ${stats.farShore.summit}m @ ${stats.farShore.at}°  ` +
+    `stands ${stats.farShore.nearest}..${stats.farShore.furthest}m  ` +
+    `widest sound ${stats.farShore.widest}°  ` +
+    `clears the islands by ${stats.farShore.clearance}m` +
+    (stats.farShore.land <= 0
+      ? '  <- nothing stands: the sea runs to the frame edge on every bearing'
+      : '') +
+    (stats.farShore.sounds <= 0 && stats.farShore.land > 0
+      ? '  <- no way out: the horizon is closed all the way round'
+      : '') +
+    (stats.farShore.clearance <= 0
+      ? '  <- the far coast is standing inside the archipelago'
+      : ''),
     ...stats.saltings.map(flat =>
       `marsh ${flat.id}  mouth ${flat.bearing}°  runs ${flat.length}m of coast  ` +
       `flat ${flat.tidal}m2 tidal / ${flat.turf}m2 turf  gutters ${flat.gutters}%  ` +

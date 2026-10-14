@@ -65,6 +65,7 @@ import { createSeabirdCliffs } from './seabirds.ts'
 import type { SeabirdCliffs } from './seabirds.ts'
 import { createSealColony } from './seals.ts'
 import type { SealColony } from './seals.ts'
+import { createFarShore } from './skyline.ts'
 import { swashState } from './swash.ts'
 import { advanceSwell } from './swell.ts'
 import { createTarnWater } from './tarn-water.ts'
@@ -505,6 +506,17 @@ export function createLandscape (
 
       surfaces.push(terrain)
       root.add(terrain)
+
+      // The land the archipelago is the fringe of. Built straight after the
+      // terrain because it is terrain — the same material, the same fog, the
+      // same snow line — and before the water, because the sea is what hides
+      // the three metres of it that stand under the waterline. It is not in
+      // `surfaces`: that list is the audit's set of injected programs, and this
+      // mesh brought no program of its own.
+      const skyline = createFarShore(config(), archipelago.farShore, materials.ground)
+
+      if (skyline)
+        root.add(skyline)
 
       // `?skip=water` and `?skip=dressing` each remove a whole program from the
       // scape — the water surface with its own injection, and every
