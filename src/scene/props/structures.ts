@@ -1,6 +1,6 @@
 import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
-import { ball, box, cyl, deg, hedron, mergeParts, part, spread } from 'threejs-scene/modules/assets'
+import { ball, box, cyl, deg, mergeParts, part, spread } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
 
 
@@ -224,48 +224,6 @@ export function buildFlagpole (rng: SeededRng, palette: NordicPalette): BufferGe
   }))
 
   return mergeParts(parts, { grime: 1.2, grimeFloor: 0.6 })
-}
-
-/** A plank bridge on stone abutments, long axis on `z`. */
-export function buildBridge (rng: SeededRng, palette: NordicPalette): BufferGeometry {
-  const parts: BufferGeometry[] = []
-  const length                  = 6
-  const width                   = 2.6
-
-  for (const sz of [ -1, 1 ])
-    parts.push(part(hedron(1.1, 0), {
-      at:     [ 0, 0.2, sz * (length / 2 - 0.3) ],
-      scale:  [ width / 2 + 0.3, 0.8, 0.8 ],
-      color:  palette.granite,
-      jitter: 0.17,
-      rng,
-    }))
-
-  for (const sx of [ -1, 1 ])
-    parts.push(part(box(0.2, 0.28, length), {
-      at: [ sx * (width / 2 - 0.25), 0.9, 0 ], color: palette.tarWood, jitter: 0.09, rng,
-    }))
-
-  for (const z of spread(12, length - 0.2))
-    parts.push(part(box(width, 0.11, (length - 0.2) / 12 * 0.88), {
-      at: [ 0, 1.08, z ], color: palette.plank, jitter: 0.14, rng,
-    }))
-
-  for (const sx of [ -1, 1 ]) {
-    parts.push(part(cyl(0.05, 0.05, length - 0.4, 5), {
-      at:     [ sx * (width / 2 - 0.12), 1.62, 0 ],
-      rotate: [ deg(90), 0, 0 ],
-      color:  palette.wood,
-      jitter: 0.11,
-      rng,
-    }))
-    for (const z of spread(3, length - 1))
-      parts.push(part(cyl(0.06, 0.07, 0.62, 5), {
-        at: [ sx * (width / 2 - 0.12), 1.38, z ], color: palette.tarWood, jitter: 0.1, rng,
-      }))
-  }
-
-  return mergeParts(parts, { grime: 1.5, grimeFloor: 0.45 })
 }
 
 /** A two-wheeled hand cart, tipped forward onto its shafts. */

@@ -5,6 +5,7 @@ import { stormPeak } from '../src/scene/storm.ts'
 import { HAIL_CENTRE, HAIL_WIDTH } from '../src/scene/weather.ts'
 import { CART_TOURS } from './scape-poses-cart.ts'
 import { COAST_TOURS } from './scape-poses-coast.ts'
+import { CROSSING_TOURS } from './scape-poses-crossing.ts'
 import { ICE_TOURS } from './scape-poses-ice.ts'
 import { SKY_TOURS } from './scape-poses-sky.ts'
 import { SNOW_TOURS } from './scape-poses-snow.ts'
@@ -196,6 +197,11 @@ export const TOURS: Record<string, Pose[]> = {
   // on the same seam: a subject small enough that it is either photographed on
   // purpose or not photographed at all.
   ...CART_TOURS,
+
+  // And the places those ways get over water, out in `scape-poses-crossing.ts`
+  // on the same seam, and for a sharper version of the same reason: every deck
+  // in the archipelago is on an island the tour never frames.
+  ...CROSSING_TOURS,
 
   // And what the deck overhead does — the shadow it lays, the light that gets
   // past it and the fog that fills the ground once it has gone — out in

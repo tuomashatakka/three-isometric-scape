@@ -92,6 +92,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - a walled upland hay meadow with a barn, a gate and drying poles
 - **a barrow on the skyline of five of the six islands**: seven metres of turf and field stone standing two and a half over the ground it was piled on, ringed with a kerb of set stones and opened at the crown by somebody who thought there was gold in it — sited not by what the ground is like underfoot but by what the mound *looks like from the farmyard door*, so the only tops it will take are the ones whose crest clears every shoulder between them and the farm. the ridge island gets none, because the whole of its dry ground outside the walk is either the farm's already or within a hand's breadth of the tide
 - **a snow fence upwind of the cart track on two of the six islands**: a run of driven posts, two rails and gapped laths standing square across the weather fifteen metres *upwind* of the stretch of road that drifts, so the bank it throws lands on the open fell between the two instead of on the track — the first thing in the scape sited from a season rather than from a shape, found where a lee face and a road lying across the wind coincide. four islands have a stretch worth fencing and two of them have nowhere to put one: the home island's setback stands in the sea and the meadow island's in its own farmyard, which the survey reports as metres of drifting road rather than as a blank
+- **a bridge wherever a worn way goes into water on five of the six islands**: a level deck of sawn boards on three stringers, set on a course of stone at each bank, with trestles driven into the stream once the gap outgrows a beam and a handrail on the footways and none on the road's — because a cart's hub is what takes a rail off. sited by *where people already walk* rather than by what a hillside is like, which is the one search in the scape that reads the paths instead of the ground, and sized by the water rather than baked: nine metres over the meadow island's drowned channel mouth, eleven over a sea gut on the sound, four and a half on the shield. the crossings it refuses are reported rather than dropped — a channel still tidal there, a cut too shallow to be a channel at all, a gap wider than a bridge, banks at two heights no level deck would reach between — and the home island, whose beck runs through a corner nothing walks to, honestly gets none
 - a limewashed chapel on a knoll above the farm — a bell tower with an open belfry and a spire, a stepped chancel, and a walled churchyard with twelve leaning markers in it
 - juniper bushes out on the dry upland heath — a low, spreading evergreen that reads apart from the conifers and answers to the same one wind
 - **a treeline drawn by the wind rather than by height**: two lines rather than one, mixed by how much open water lies upwind of a point — the wood gives out at about two metres over ground with the sea full on it and climbs to eight and a half in the lee of its own hill — with a margin of stunted spruce at the edge, salt keeping the trees back off every weather shore, birch thickest at the line and shaded out behind it, and juniper heath inheriting the bare tops the spruce gave up
@@ -238,6 +239,7 @@ src/
     ├── config-wreck.ts             the wreck's own slice: how low a rock, how much of one, how flat a ledge
     ├── config-shoal.ts             the bank's own slice: the reach, the crest, and the room the sound leaves
     ├── config-snowfence.ts         the snow fence's own slice: the height, the setback, and the bite that earns one
+    ├── config-crossing.ts          the bridge's own slice: the deck, the bay, the span, and the four refusals
     ├── config-carter.ts            the cart's own slice: a day's haul, the longest working day, how it sits on the road
     ├── config-roost.ts             the race's own slice: how wide a gate still runs, and how white it gets
     ├── config-shelter.ts           the lee's own slice: how far upwind land counts, for the wind sea and for the swell
@@ -335,6 +337,7 @@ src/
     │   ├── croft.ts                the free islet the croft is built on, and the row home that picked it
     │   ├── wreck.ts                the lowest rock in the ring, and the line a hull came to rest on it along
     │   ├── snowfence.ts            the stretch of cart track that drifts, and the line set back upwind of it
+    │   ├── crossing.ts             every place a way goes into water, the span across it, and why some get no deck
     │   ├── carter.ts               the round up the cart track, and where the day's clock puts a cart on it
     │   ├── carters.ts              every cart being worked, in one instanced draw
     │   ├── dyke.ts                 the contour the head dyke follows, where it stops, and where it is gated
@@ -343,6 +346,7 @@ src/
     │   ├── watermill.ts            the bank below the fall a mill stands on, and the mouth that feeds it
     │   ├── mill-wheels.ts          every watermill's wheel, turning in one instanced draw
     │   ├── dressing-watermill.ts   the mill and the lade, raised into the steading's one draw
+    │   ├── dressing-crossing.ts    the bridges, levelled again against the ground the tier actually drew
     │   ├── waterway.ts             the navigable water between the ports
     │   ├── boats.ts                the fleet, and the wake it leaves
     │   ├── boat-motion.ts          one shared departure clock, one leg each
@@ -381,7 +385,7 @@ src/
         ├── lamp.ts                 the pane in the reveal and the haze in front of it
         ├── timber.ts               cladding, gable, roof and window vocabulary
         ├── buildings.ts            barn, farmhouse, sauna, aitta, woodshed
-        ├── structures.ts           jetty, well, hay rack, gate, bridge, cart
+        ├── structures.ts           jetty, well, hay rack, gate, cart
         ├── vegetation.ts           spruce, pine, birch, grass, reeds, crops
         ├── upland.ts               meadow barn, hay drying poles
         ├── chapel.ts               the chapel, its tower, and the markers in its yard
@@ -397,6 +401,7 @@ src/
         ├── weir.ts                 the fish weir — a wrack-stained wall on the bed, and the wattle on its pound
         ├── mole.ts                 the breakwater — five courses of tipped granite, a level capping, an armoured face
         ├── snowfence.ts            the snow fence — driven posts, two rails, and a bay of gapped laths between
+        ├── crossing.ts             the footbridge — stone abutments, stringers, a board deck, trestles in the water
         ├── carter.ts               the cart under way — wheels, shafts, a load of peat, and somebody pulling it
         ├── croft.ts                the croft — boarded walls, turf roof, stone flue, oars at the gable
         ├── wreck.ts                the wreck — keel, broken frames, the strakes the bedded side kept
@@ -432,6 +437,7 @@ scripts/
 ├── scape-poses-tide.ts             what the sea's own level does: the swing, the race, the flat, the crossing
 ├── scape-poses-snow.ts             what the wind does with the winter, and the fence sited from it
 ├── scape-poses-cart.ts             the one thing on these islands that walks, at four hours and one winter
+├── scape-poses-crossing.ts         the three sizes of deck, on the three islands the tour never frames
 ├── scape-shot.ts                   headless stills, posed and pinned
 ├── scape-diff.ts                   what a change did to the picture, in numbers
 └── setup.ts                        what a run has before it starts thinking
@@ -866,7 +872,7 @@ a beck springs on the highest interior ground the farm is not standing on, falls
 
 **the beck is resolved last, and routes around the farm.** teaching three searches the shape of a channel that does not exist yet is three chances to disagree about it; handing the beck one list of discs it has to miss says the same thing in one place. that is why adding a watercourse moved nothing that was already in the scape.
 
-**the channel is carved after the track, never before.** the road grade is sampled from a ground with no channel in it and then smoothed, so levelling the track second would fill the crossing back in. carved second, the beck cuts *under* the road, and `findCrossing` sits the bridge deck on the nearest track points the channel does not claim — a bridge sat on the carved ground under it is a bridge lying in the beck.
+**the channel is carved after the track, never before.** the road grade is sampled from a ground with no channel in it and then smoothed, so levelling the track second would fill the crossing back in. carved second, the beck cuts *under* the road, which is what leaves a gap for [`landscape/crossing.ts`](src/scene/landscape/crossing.ts) to measure a span across — a deck sat on the carved ground under it is a bridge lying in the beck.
 
 **the long profile is clamped to fall the whole way.** the descent obeys the raw fbm and the ground it is carved into is not that: the shore shelving lifts the bank, an islet across the mouth's path raises the seabed. left alone the scape gets a stream running up over a bar and back down. a running minimum over the smoothed profile is the one rule water has.
 
@@ -2114,7 +2120,7 @@ the crag gave this coast a cliff and the stack gave it the pillar left over when
 
 **the pillar and the hole are cut on different lines, and the config says how far apart.** both are worked out of `weaknessAt` — the same field that wanders the lip and punches the clefts — so left to themselves they site on the same line and the stack stands in the portal. `solveArch` is handed the pillar's own offset along the shore, one number rather than a landform, and takes the best line outside `arch.apart` of it. the arch is therefore always the *second* weakest rock on its headland, which is exactly right: the weakest is the one that already fell. the test states that as a fact about the pair, along with the other half of the sequence — the crown of the arch has to come out under the crown of the pillar, because the pillar is the later stage of the same rock and the weather has had longer at the top of it.
 
-**the refusals are what make the block worth printing.** `founded` is four metres of bare seabed under the outer leg: a shelf already deeper than that is a shelf a spur never reached across, and whatever stands out there is stack country. `drowned` is 0.6 m of water under the middle of the portal, which is the difference between an arch and a bridge — this scape already has a bridge, where the track crosses the beck. and the span has to carry at least 0.8 m of rock over its own opening or it is refused outright rather than drawn as a lintel, which is a landform that has already fallen. the crown is a *share* of the headland's lip for the stack's reason, so the fell's taller cliff carries a taller arch without a word being written about it.
+**the refusals are what make the block worth printing.** `founded` is four metres of bare seabed under the outer leg: a shelf already deeper than that is a shelf a spur never reached across, and whatever stands out there is stack country. `drowned` is 0.6 m of water under the middle of the portal, which is the difference between an arch and a bridge — this scape has bridges of its own, and they are built by measuring exactly this kind of gap. and the span has to carry at least 0.8 m of rock over its own opening or it is refused outright rather than drawn as a lintel, which is a landform that has already fallen. the crown is a *share* of the headland's lip for the stack's reason, so the fell's taller cliff carries a taller arch without a word being written about it.
 
 **`scape:map` prints two numbers no capture can reach.** `headroom` is the daylight under the middle of the span at high water *springs* — 3.66 m at the defaults — and at or under zero the rock is sitting on the sea, which from every pose this scape is ever drawn at is the same dark shape as a boulder. `floor ... wet` is the same question asked downward: the solve refuses a dry portal against the *bare* seabed, and the shore shelving runs after that, so an arch whose hole the drawn terrain filled in is a bridge that passed its own audit. the line says both in words when they break.
 
@@ -2819,6 +2825,182 @@ there is no `AtmosphereQuality` number for it, for the reason there is none for 
 ### what the tour saw
 
 `default`, `noon`, `night` and `winter` all moved — 3.3%, 3.8%, 25.8% and 9.8% — and `near` and `far` came back `same` to the pixel. that is the right answer rather than a shortfall: those two are the 10 m and 540 m view sizes, and the nearest the coast ever stands is 808 m. a run that wants to see this coast has to be looking at the whole world, and the four poses that are are the four that moved. `structural:` reported `no structural change`, which is the other half of it — nothing in the height field, the waterways or the fleet knows this exists.
+
+## the crossing the ways needed
+
+for thirty runs this scape had a bridge. it was a prop: six metres long, two
+point six wide, the same object on every island, dropped at whichever point of
+the cart track had the highest claim on the beck — or, failing that, at the
+lowest dip the road took below the waterline. it never measured the gap it
+spanned. it was not told how wide the water was, how deep the cut was, or
+whether its two ends were on ground at the same height. and it only ever
+watched the **road**: the twenty footpaths the network wears across each island
+could walk straight through running water and nothing in the scape noticed.
+
+this run replaces it with a crossing that is **measured**.
+
+### a crossing is a way with water in it
+
+the subject is not the beck. it is any place a way the farm wears goes into
+water it cannot step over, and on these islands that is two different waters:
+
+- **the beck** — running water in a cut channel, with a centreline to square a
+  deck across and a course position to ask questions about.
+- **the tide** — the sea itself, standing in a hollow the road to the landing
+  has to get through. no channel, no course, and the level to clear is the
+  waterline rather than a sheet lying on a bed.
+
+everything after the finding is the same for both, which is why they are one
+structure and not two: square the deck across whatever is running under it,
+walk out to the first ground on each hand that stands a freeboard clear of the
+water, and build between them.
+
+### the peak of the claim, not the edge of it
+
+the first cut of this looked for the step where a way's tread crossed from
+outside the channel's claim to inside it. that is the wrong point, and it is
+wrong by a lot. `Creek.clearanceAt` reports the edge of the channel's *claim* —
+the cut plus four or five metres of dry bank either side, which is the corridor
+the placement searches keep out of. on the fell island the cart road runs down
+the side of its beck for twenty metres before it crosses, so the first step
+inside the corridor was nowhere near the water, and the span measured from
+there came back as ten metres of estuary on a stream you could jump.
+
+so the crossing is the **peak** of `claimAt` along each contiguous stretch a way
+spends inside the channel. the claim is 1 on the centreline by construction, so
+the peak is in the water every time — and a way that crosses twice gives two
+peaks, because the stretch between them drops back out. it is the same
+instrument the old prop placement used, and that part of it was right.
+
+the threshold is what separates the two things a way can do near water: a tread
+that walks the bank for thirty metres and a tread that steps over the stream
+both spend time inside the claim, and only one of them needs a deck. **a
+crossing peaks; a towpath does not.**
+
+### the four refusals, and why each one is reported
+
+the useful half of this survey is the crossings that got **no** deck, and a
+blank cannot say which of four quite different things happened:
+
+- **`tidal`** — the channel down there is an inlet, salt twice a day and twenty
+  metres across. a farm keeps a boat for that. this is the survey working.
+- **`dry`** — the beck's cut ramps in over the first fifth of its course, so a
+  way that meets the channel up near the spring is crossing a damp crease
+  rather than a stream. the test is on the **cut** rather than on the span, and
+  it has to be: measuring a gap across a crease finds a bank on the uphill hand
+  and nothing at all on the downhill one, and comes back reading like an
+  estuary. a reading about the *course*, not about the crossing.
+- **`wide`** — past twelve metres a crossing is a causeway or a boat. this one
+  is a finding about the terrain. it is also how an open beach refuses itself
+  without anybody writing a rule about beaches: the seaward hand never finds
+  firm ground.
+- **`uneven`** — a plank bridge is a **level** deck, and a level deck between
+  banks at two different heights has one end standing in the air on an abutment
+  nobody could have built. without this the fell island put a three-metre
+  footbridge across a sea gut with one end nearly four metres over the other.
+- **`budget`** — `crossing.most` biting. a refusal about the farm rather than
+  about the ground, which is why it is counted separately: a `budget` that
+  climbs across runs is the network growing legs over one stream, and a `wide`
+  that climbs is a beck that grew.
+
+### two waters in one place is one place, and the beck wins it
+
+a drowned channel mouth is found **twice** — once as a stream and once as a
+hollow the sea is in — and on the meadow island the two sites are a metre and a
+half apart. the first version of this built both, which is two nine-metre decks
+side by side over one piece of water. so the grouping is on position alone and
+the beck takes the pair, because a channel has a line to be squared across
+where a hollow has only the road's.
+
+the same grouping settles the other collision: a cluster the road goes through
+is a **cart** crossing however many treads also use it, never the other way
+round. one deck gets built at a place and it has to carry the heaviest thing
+that goes over it — a plank bridge beside a ford the cart still drives through
+is two structures where a farm would have built one. and where a group spans a
+stretch of channel, the deck goes to the member whose **cut is deepest**: two
+ways can meet the beck a stride apart with one of them up where the cut has
+barely opened, and siting the shared bridge on whichever was found first
+refused the pair over a crease with a perfectly good gorge beside it.
+
+### the water is the higher of the stream and the sea
+
+the mouth of a beck is dredged *below* the waterline — that is what makes it an
+inlet rather than a stream running onto a beach. a freeboard measured from the
+bed plus the sheet's own depth therefore puts the water a metre under the tide
+that is actually standing in the channel, and the deck with it. the sheet a
+crossing has to clear is `max(bed + beck.depth, waterLevel)`, and it is stated
+that way in the survey, again in the dressing against the ground the tier
+actually tessellated, and once more in `crossing.test.ts` as a fact about every
+deck in the archipelago.
+
+### a span longer than a beam grows legs
+
+a sawn stringer carries about four and a half metres and then it carries a
+pier. `crossing.bay` divides the run into a whole number of bays and drives a
+trestle at each joint — two piles cut to the bed under them and a cap laid
+across, which is exactly what the pier's bents are. it is what lets the span
+limit be twelve metres rather than seven without the beams under the deck being
+a lie, and it is the difference between a nine-metre crossing that reads as a
+bridge and one that reads as a plank levitating over an estuary.
+
+### what it found
+
+six decks on five of the six islands, from four and a half metres to eleven:
+
+```
+ridge   foot/tide  4.3 m over 2.4 m wet, 1.59 m clear
+meadow  cart/beck  9.2 m over 6.4 m wet, 0.99 m clear, 3 ways over it
+sound   foot/tide 10.7 m over 8.5 m wet, 3.44 m clear
+fell    cart/beck  6.8 m over 4.6 m wet, 1.63 m clear
+fell    foot/tide  7.8 m over 5.5 m wet, 2.47 m clear
+shield  foot/tide  4.5 m over 2.6 m wet, 1.03 m clear
+```
+
+and the **home island gets none**, which is the finding rather than a gap. its
+beck comes off the high ground in the north-east corner, and nothing the farm
+walks to is on the far bank of it: twenty routes, and not one of them meets the
+water. the survey reports that as `bridges NONE  <- no worn way on this island
+goes into water` rather than as a blank, which is the difference between an
+island that fords its beck and an island whose paths never see it.
+
+the old prop found three crossings. this finds six, on different islands, and
+says why the rest were left.
+
+### what it costs
+
+**no draw call on any tier.** every deck merges into the steading's single hero
+geometry beside the piers, the dykes and the lades. six bridges is about 180
+boxes and 40 rocks across the whole archipelago, built once at generation and
+never touched in `update` — a bridge integrates no rate of its own, so there is
+nothing of it in `STILL`.
+
+the board density is `quality.pierBoards`, read by a second deck rather than
+given a budget of its own: a bridge and a pier are both a course of sawn boards
+over stringers, and a second number for the same timber is a second number to
+keep in step with the first. the cheapest tier gets a bridge planked in
+half-metre boards rather than no bridge at all, which is the graceful absence
+the brief asks for.
+
+`crossing.deck` is the switch and the only one: at 0 nothing is built, and the
+survey still settles and reports every crossing — a scape with wet feet rather
+than a scape with a blank in its instruments.
+
+### `--poses crossing`, the thirtieth set
+
+the tour cannot see any of this, and that is not a failure of the tour. the
+home island has no crossing, every deck is between a hundred and six hundred
+metres out, and the longest is twelve metres of timber — a third of a pixel at
+the tour's widest frame. so the set is five frames on three islands: the meadow
+island's cart deck at eighteen metres and again at fifty, where the track
+arrives at one end of it and leaves at the other; the sound island's gut; the
+shield island's four and a half metres; and `crossing-low`, which drops to a
+near-horizontal angle at the ebb, because the whole argument for a freeboard is
+invisible from above.
+
+`scape-poses.ts` is a handful of lines under the 666-line ceiling again, so the
+set ships in [`scape-poses-crossing.ts`](scripts/scape-poses-crossing.ts) on the
+seam the coast, the ice, the sky, the tide, the snow and the cart already marked
+out.
 
 ## ground that casts
 

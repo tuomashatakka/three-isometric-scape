@@ -26,7 +26,6 @@ import { buildShieling } from './shieling.ts'
 import { buildSmokehouse } from './smokehouse.ts'
 import { buildCairn, buildCobble, buildErratic, buildFieldStone, buildTalusBlock } from './stone.ts'
 import {
-  buildBridge,
   buildCart,
   buildFlagpole,
   buildGate,
@@ -97,7 +96,6 @@ export const PROPS = {
   hayRack:   buildHayRack,
   logPile:   buildLogPile,
   flagpole:  buildFlagpole,
-  bridge:    buildBridge,
   cart:      buildCart,
   carter:    buildCarter,
   gate:      buildGate,
@@ -157,7 +155,7 @@ export const HERO_PROPS = [
   'barn', 'farmhouse', 'sauna', 'aitta', 'woodshed', 'meadowBarn', 'windmill', 'lighthouse',
   'chapel', 'graveMarker', 'smokehouse', 'shieling', 'howe', 'watermill', 'croft', 'wreck',
   'jetty', 'boathouse', 'netRack', 'well', 'hayRack', 'logPile', 'flagpole',
-  'bridge', 'cart', 'gate', 'rowboat', 'mailbox', 'creelStack',
+  'cart', 'gate', 'rowboat', 'mailbox', 'creelStack',
 ] as const satisfies readonly PropName[]
 
 /** Stamped in quantity through a single `InstancedMesh` each. */

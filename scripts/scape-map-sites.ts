@@ -17,6 +17,7 @@ import type { HoweSite } from '../src/scene/landscape/howe.ts'
 import type { ShielingSite } from '../src/scene/landscape/shieling.ts'
 import type { WatermillSite } from '../src/scene/landscape/watermill.ts'
 import type { SmokehouseSite } from '../src/scene/landscape/smokehouse.ts'
+import type { CrossingSurvey } from '../src/scene/landscape/crossing.ts'
 import type { SnowFenceSurvey } from '../src/scene/landscape/snowfence.ts'
 import { tarnWetted } from '../src/scene/landscape/tarn.ts'
 import type { Tarn } from '../src/scene/landscape/tarn.ts'
@@ -169,6 +170,81 @@ export function watermillOf (
       x: round(worldX(site.intake.x)),
       z: round(worldZ(site.intake.z)),
     },
+  }
+}
+
+/**
+ * The bridges over the water, and the fords left unbridged.
+ *
+ * Two numbers that only mean anything together, and this is the one block in
+ * the survey where a blank is genuinely ambiguous without them. `fords` is how
+ * many places a worn way goes into water — a fact about the network, which
+ * moves whenever a building moves. `bridges` is how many of them got a deck.
+ * `fords` climbing while `bridges` holds is a scape growing wet crossings;
+ * both at zero is an island whose ways simply never meet its beck or its sea,
+ * which is a different thing entirely from an island that fords them.
+ *
+ * `refused` says which of the five reasons the rest were left: the channel was
+ * tidal there, it was a damp crease rather than a stream, it was wider than a
+ * bridge will span, its two banks stand at heights no level deck would reach
+ * between, or the farm had already built its two.
+ */
+export interface CrossingStats {
+  fords:   number
+  bridges: {
+    kind:      'foot' | 'cart'
+    over:      'beck' | 'tide'
+    x:         number
+    z:         number
+    span:      number
+    wet:       number
+    deck:      number
+    freeboard: number
+    course:    number | null
+    routes:    number
+  }[]
+  refused: { tidal: number, dry: number, wide: number, uneven: number, budget: number }
+}
+
+/**
+ * The bridges, and the crossings that were left wet.
+ *
+ * The one block here whose interesting number is the *refusal*, and it is
+ * reported as three counts rather than one blank because the three mean
+ * entirely different things. `tidal` is the survey working correctly — the
+ * channel down there is an inlet and a farm keeps a boat for it. `dry` is a
+ * way meeting the beck up where the cut has not opened yet, which is a reading
+ * about the *course* rather than about the crossing. `wide` is a beck that has
+ * outgrown a plank, which is a finding about the terrain. `budget` is
+ * `crossing.most` biting, and a `budget` that climbs across runs is the
+ * network growing legs over one stream.
+ */
+export function crossingsOf (
+  survey: CrossingSurvey,
+  worldX: Project,
+  worldZ: Project,
+): CrossingStats {
+  const refused = { tidal: 0, dry: 0, wide: 0, uneven: 0, budget: 0 }
+
+  for (const ford of survey.fords)
+    if (ford.refused)
+      refused[ford.refused] += 1
+
+  return {
+    fords:   survey.fords.length,
+    refused,
+    bridges: survey.bridges.map(bridge => ({
+      kind:      bridge.kind,
+      x:         round(worldX(bridge.x)),
+      z:         round(worldZ(bridge.z)),
+      span:      round(bridge.span, 2),
+      wet:       round(bridge.wet, 2),
+      deck:      round(bridge.deck, 2),
+      freeboard: round(bridge.freeboard, 2),
+      over:      bridge.over,
+      course:    bridge.course === null ? null : round(bridge.course, 3),
+      routes:    bridge.routes,
+    })),
   }
 }
 
