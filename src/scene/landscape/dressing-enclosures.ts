@@ -72,6 +72,16 @@ export interface Walling {
 
   /** Laths per bay on a snow fence — see `AtmosphereQuality.fencePalings`. */
   fencePalings: number
+
+  /**
+   * Deck boards per metre of footbridge, from the device tier.
+   *
+   * The pier's own handle, read by a second deck — see
+   * `AtmosphereQuality.pierBoards`. A bridge and a pier are both a course of
+   * sawn boards over stringers, and a second budget for the same timber is a
+   * second number to keep in step with the first.
+   */
+  bridgeBoards: number
 }
 
 const TAU = Math.PI * 2

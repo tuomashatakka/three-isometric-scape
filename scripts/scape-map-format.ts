@@ -391,6 +391,7 @@ function sitedLines (stats: MapStats): string[] {
     howeLine(stats.howe),
     watermillLine(stats.watermill),
     carterLine(stats.carter),
+    crossingLine(stats.crossings),
     snowFenceLine(stats.snowFence),
     wreckLine(stats.wreck),
   ]
@@ -478,6 +479,39 @@ function carterLine (survey: MapStats['carter']): string {
 
   return `cart  ${survey.round}m round  worked ${Math.round(survey.worked * 100)}% of the year  ` +
     `window ${survey.window} of today, ${survey.loads} loads  ${where}`
+}
+
+/**
+ * The bridges, as one line.
+ *
+ * The refusals are spelled out rather than summed, because a run that turned
+ * two bridges into two `wide` fords and a run that turned them into two
+ * `budget` fords read identically as a count and mean opposite things — the
+ * first is a beck that grew, the second is a network that did.
+ */
+function crossingLine (survey: MapStats['crossings']): string {
+  const { tidal, dry, wide, uneven, budget } = survey.refused
+  const left                                 = [
+    tidal > 0 ? `${tidal} tidal` : '',
+    dry > 0 ? `${dry} a dry crease` : '',
+    wide > 0 ? `${wide} too wide` : '',
+    uneven > 0 ? `${uneven} banks too uneven` : '',
+    budget > 0 ? `${budget} over budget` : '',
+  ].filter(Boolean).join(', ')
+
+  if (survey.bridges.length === 0)
+    return survey.fords === 0
+      ? 'bridges NONE  <- no worn way on this island goes into water'
+      : `bridges NONE  <- ${survey.fords} wet crossings and every one refused (${left})`
+
+  const built = survey.bridges
+    .map(bridge =>
+      `${bridge.kind}/${bridge.over} (${bridge.x},${bridge.z}) ${bridge.span}m deck over ${bridge.wet}m wet  ` +
+      `top ${bridge.deck}m, +${bridge.freeboard}m clear, ${bridge.routes} ways`)
+    .join('  ')
+
+  return `bridges ${survey.bridges.length}/${survey.fords} crossings  ${built}` +
+    (left ? `  left wet: ${left}` : '')
 }
 
 function snowFenceLine (survey: MapStats['snowFence']): string {
@@ -810,7 +844,8 @@ export function formatStats (stats: MapStats): string {
         : 'NONE'} drifts ${landmass.snowFence.drifts}m  ` +
       `cart ${landmass.carter.worked > 0
         ? `${landmass.carter.round}m ${Math.round(landmass.carter.worked * 100)}%`
-        : 'NONE'}`),
+        : 'NONE'}  ` +
+      `bridges ${landmass.crossings.bridges.length}/${landmass.crossings.fords}`),
     `waterways ${stats.waterways.legs} legs ${stats.waterways.length}m  ` +
       `connected ${stats.waterways.connected ? 'OK' : 'BROKEN'}  ` +
       `wet ${stats.waterways.wet ? 'OK' : 'DRY'}  ` +

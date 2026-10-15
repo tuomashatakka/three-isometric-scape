@@ -44,6 +44,8 @@ import { WATERMILL_FOOTING, findWatermillSite } from './watermill.ts'
 import type { WatermillSite } from './watermill.ts'
 import { STEADING_BUILDINGS, doorstepOf, steadingPlaces } from './steading.ts'
 import type { SteadingPlaces } from './steading.ts'
+import { solveCrossings } from './crossing.ts'
+import type { CrossingSurvey } from './crossing.ts'
 import { solveSnowFence } from './snowfence.ts'
 import type { SnowFenceSurvey } from './snowfence.ts'
 import { solveSaltings } from './saltings.ts'
@@ -197,6 +199,15 @@ export interface ScapeSurvey {
    * upwind of it, and those are two different refusals.
    */
   snowFence: SnowFenceSurvey
+
+  /**
+   * The bridges over the beck, and the fords left unbridged.
+   *
+   * The only thing in the survey sited by the *paths* rather than by the
+   * ground. It has to be settled after `paths`, because the thing it looks for
+   * is a tread already worn into the water — see `crossing.ts`.
+   */
+  crossings: CrossingSurvey
 }
 
 /**
@@ -932,6 +943,36 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
       distanceToTrack(layout, x, z) < layout.track.width * 1.3,
   })
 
+  // Last of all, and it has to be: everything else in the survey is sited
+  // against ground, and this is sited against the treads — which do not exist
+  // until the tracer has been run over the routes the network planned. A
+  // bridge is the one structure here that could not have been placed first.
+  const crossings = solveCrossings({
+    creek: layout.creek,
+    // Both kinds of way, and the road is in here rather than left out because
+    // the finding that put it here is the whole of this structure's reach: on
+    // this seed the treads meet the beck on one island and the cart track
+    // meets it on two. A survey that only watched the footpaths would have
+    // reported the road driving through a stream as a clean result.
+    ways:  [
+      ...paths.paths.map(path => ({ points: path.points, kind: 'foot' as const })),
+      { points: layout.track.points, kind: 'cart' as const },
+    ],
+    heightAt:   field.heightAt,
+    // The sheet the beck lays in its own channel, which is what a deck has to
+    // stand clear of. Read off the beck's own section rather than restated, so
+    // a deeper stream raises every bridge over it.
+    water:      config.beck.depth,
+    // The sea, for the hollows the road to the landing goes through.
+    waterLevel: config.terrain.waterLevel,
+    landing:    config.crossing.landing,
+    span:       config.crossing.span,
+    least:      config.crossing.least,
+    step:       config.crossing.step,
+    freeboard:  config.crossing.freeboard,
+    most:       config.crossing.deck > 0 ? config.crossing.most : 0,
+  })
+
   return {
     layout,
     field,
@@ -956,6 +997,7 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     saltings: marsh,
     network,
     paths,
+    crossings,
     // The one consumer of the claim list that is handed it without the barrow
     // in it. A head dyke is a line somebody walked along a contour laying
     // stone, and the thing it does when it meets a mound already standing on

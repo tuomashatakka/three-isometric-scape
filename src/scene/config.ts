@@ -5,6 +5,8 @@ import { SCAPE_CARTER } from './config-carter.ts'
 import type { CarterConfig } from './config-carter.ts'
 import { SCAPE_CRAG } from './config-crag.ts'
 import type { CragConfig } from './config-crag.ts'
+import { SCAPE_CROSSING } from './config-crossing.ts'
+import type { CrossingConfig } from './config-crossing.ts'
 import { SCAPE_DUNES } from './config-dunes.ts'
 import type { DuneBeltConfig } from './config-dunes.ts'
 import { SCAPE_DYKE } from './config-dyke.ts'
@@ -293,7 +295,7 @@ export interface DressingBudget {
   lamb: number
 }
 
-export interface ScapeConfig extends CarterConfig, CreelConfig, DykeConfig, FarShoreConfig, ForceConfig, FrontConfig,
+export interface ScapeConfig extends CarterConfig, CreelConfig, CrossingConfig, DykeConfig, FarShoreConfig, ForceConfig, FrontConfig,
   GuardConfig, HaarConfig, HaloConfig, HoweConfig, KelpConfig, LedgeConfig, MoleConfig, PackIceConfig, RoostConfig, ShaftsConfig, ShielingConfig,
   ShelterConfig, ShoalConfig, SnowFenceConfig, SwashConfig, TreelineConfig, WatermillConfig, WreckConfig {
   seed:    number
@@ -2780,6 +2782,7 @@ export const SCAPE_CONFIG = {
   ...SCAPE_SHIELING,
   ...SCAPE_CARTER,
   ...SCAPE_SNOW_FENCE,
+  ...SCAPE_CROSSING,
   ...SCAPE_FAR_SHORE,
   ...SCAPE_SHOAL,
   ...SCAPE_TREELINE,

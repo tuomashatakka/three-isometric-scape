@@ -24,7 +24,8 @@ import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
 import { measureSwash } from '../src/scene/landscape/swash.ts'
 import type { SwashSurvey } from '../src/scene/landscape/swash.ts'
-import { carterOf, causewayOf, croftOf, dykeOf, howeOf, moleOf, peatOf, pierOf, shielingOf, smokehouseOf, snowFenceOf, tarnOf, watermillOf, weirOf, wreckOf } from './scape-map-sites.ts'
+import { carterOf, causewayOf, croftOf, crossingsOf, dykeOf, howeOf, moleOf, peatOf, pierOf, shielingOf, smokehouseOf, snowFenceOf, tarnOf, watermillOf, weirOf, wreckOf } from './scape-map-sites.ts'
+import type { CrossingStats } from './scape-map-sites.ts'
 import {
   capsStats,
   seaStats,
@@ -191,6 +192,9 @@ export interface CompositionStats {
     /** Whether the cart is between the two ends rather than standing at one. */
     moving: boolean
   }
+
+  /** The bridges, and the crossings left wet — see `crossingsOf`. */
+  crossings: CrossingStats
 
   snowFence: {
 
@@ -988,6 +992,7 @@ function compositionStats (
     shieling:   shielingOf(survey.shieling, worldX, worldZ),
     howe:       howeOf(survey.howe, worldX, worldZ),
     carter:     carterOf(landmass, world, config),
+    crossings:  crossingsOf(survey.crossings, worldX, worldZ),
     snowFence:  snowFenceOf(survey.snowFence, worldX, worldZ),
     watermill:  watermillOf(survey.watermill, worldX, worldZ),
     dyke:       dykeOf(survey.dyke, worldX, worldZ),

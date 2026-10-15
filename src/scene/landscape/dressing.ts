@@ -18,10 +18,11 @@ import type { TiltWeight } from './align.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from './archipelago.ts'
 import { BEACON_FOOTING } from './beacon.ts'
 import { CROFT_FOOTING } from './croft.ts'
-import { createGroundContact, findCrossing, isFoliage, raiseArch, raiseHillSites, raiseWreck, trackPointNear } from './dressing-helpers.ts'
+import { createGroundContact, isFoliage, raiseArch, raiseHillSites, raiseWreck, trackPointNear } from './dressing-helpers.ts'
 import { raiseWaterfront } from './dressing-harbour.ts'
 import { raiseEnclosures } from './dressing-enclosures.ts'
 import type { Walling } from './dressing-enclosures.ts'
+import { raiseCrossings } from './dressing-crossing.ts'
 import { raiseWatermill } from './dressing-watermill.ts'
 import { createDressingSampling } from './dressing-sampling.ts'
 import { createScatterRules, createZoneTests } from './dressing-zones.ts'
@@ -557,19 +558,6 @@ export function createDressing (
       reserve: (x, z, radius) => solver.reserve(x, z, radius),
       heroes,
     })
-
-    // A bridge only earns its place where the track has something to cross.
-    const crossing = findCrossing(layout, survey.field, localConfig)
-    if (crossing) {
-      placeHeroAt(
-        'bridge',
-        crossing.x + ox,
-        crossing.deck,
-        crossing.z + oz,
-        crossing.angle,
-      )
-      solver.reserve(crossing.x + ox, crossing.z + oz, 4)
-    }
   }
 
   /**
@@ -615,13 +603,24 @@ export function createDressing (
     raiseBuilding,
     dykeSpacing:  quality.dykeSpacing,
     fencePalings: quality.fencePalings,
+    bridgeBoards: quality.pierBoards,
   }
 
-  for (const landmass of archipelago.landmasses) {
+  /**
+   * Everything one island carries, in the order it was built in.
+   *
+   * The yard first, then what stands away from it, then what is walled or
+   * fenced, and the bridges last — a crossing is sited on treads that are worn
+   * between places, so there is nothing to bridge until the places are there.
+   */
+  function raiseLandmass (landmass: LandmassSurvey): void {
     raiseSteading(landmass)
     raiseOutlying(landmass)
     raiseEnclosures(landmass, walling)
+    raiseCrossings(landmass, walling)
   }
+
+  archipelago.landmasses.forEach(raiseLandmass)
   mergeSteading()
 
   // ---- structural scatter --------------------------------------------------
