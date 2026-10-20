@@ -52,7 +52,9 @@ import { SCAPE_ROOST } from './config-roost.ts'
 import type { RoostConfig } from './config-roost.ts'
 import { SCAPE_FAR_SHORE } from './config-farshore.ts'
 import type { FarShoreConfig } from './config-farshore.ts'
+import type { ShoreLightsConfig } from './config-shorelights.ts'
 import { SCAPE_SHOAL } from './config-shoal.ts'
+import { SCAPE_SHORE_LIGHTS } from './config-shorelights.ts'
 import type { ShoalConfig } from './config-shoal.ts'
 import { SCAPE_STACK } from './config-stack.ts'
 import type { StackConfig } from './config-stack.ts'
@@ -297,7 +299,7 @@ export interface DressingBudget {
 
 export interface ScapeConfig extends CarterConfig, CreelConfig, CrossingConfig, DykeConfig, FarShoreConfig, ForceConfig, FrontConfig,
   GuardConfig, HaarConfig, HaloConfig, HoweConfig, KelpConfig, LedgeConfig, MoleConfig, PackIceConfig, RoostConfig, ShaftsConfig, ShielingConfig,
-  ShelterConfig, ShoalConfig, SnowFenceConfig, SwashConfig, TreelineConfig, WatermillConfig, WreckConfig {
+  ShelterConfig, ShoalConfig, ShoreLightsConfig, SnowFenceConfig, SwashConfig, TreelineConfig, WatermillConfig, WreckConfig {
   seed:    number
   terrain: {
     size:       number
@@ -2784,6 +2786,7 @@ export const SCAPE_CONFIG = {
   ...SCAPE_SNOW_FENCE,
   ...SCAPE_CROSSING,
   ...SCAPE_FAR_SHORE,
+  ...SCAPE_SHORE_LIGHTS,
   ...SCAPE_SHOAL,
   ...SCAPE_TREELINE,
   ...SCAPE_WATERMILL,

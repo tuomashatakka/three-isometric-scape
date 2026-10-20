@@ -800,6 +800,32 @@ function haarLine (haar: MapStats['haar']): string {
           : '')
 }
 
+/**
+ * The places on the far coast, after dark.
+ *
+ * `refused` and `over` are the two findings. A shortfall means `spread` has
+ * outgrown the standing coast and the search stopped seating places before the
+ * count was spent — a number that climbs across runs is the land mask closing.
+ * `over` is the one thing this system can get silently wrong and is a count
+ * rather than an assertion: a light above the crest of its own bearing is a
+ * lamp hanging in the sky, and from the default pose it looks exactly like a
+ * light on a hill.
+ */
+function shoreLightLine (lights: MapStats['shoreLights']): string {
+  if (lights.places <= 0)
+    return 'lights NONE  <- nobody lives on the far coast, or there is no far coast to live on'
+
+  return `lights ${lights.lights} windows in ${lights.places} places  ` +
+    `largest ${lights.most}  over ${lights.spread}° of coast  ` +
+    `standing ${lights.lowest}..${lights.highest}m over the water` +
+    (lights.refused > 0
+      ? `  ${lights.refused} refused: the spread floor ran out of standing coast`
+      : '') +
+    (lights.over > 0
+      ? `  <- ${lights.over} lights are over their own crest: lamps in the sky`
+      : '')
+}
+
 /** The stats block, as the run reads it. */
 export function formatStats (stats: MapStats): string {
   const steading = Object.entries(stats.steading)
@@ -904,6 +930,7 @@ export function formatStats (stats: MapStats): string {
     (stats.farShore.clearance <= 0
       ? '  <- the far coast is standing inside the archipelago'
       : ''),
+    shoreLightLine(stats.shoreLights),
     ...stats.saltings.map(flat =>
       `marsh ${flat.id}  mouth ${flat.bearing}°  runs ${flat.length}m of coast  ` +
       `flat ${flat.tidal}m2 tidal / ${flat.turf}m2 turf  gutters ${flat.gutters}%  ` +

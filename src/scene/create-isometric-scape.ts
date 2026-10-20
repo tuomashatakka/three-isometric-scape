@@ -35,6 +35,7 @@ import { createRuntime } from './runtime.ts'
 import { createSquallCurtains } from './squall.ts'
 import { createStormFlashes } from './storm.ts'
 import { createVitals } from './vitals.ts'
+import { createShoreLights } from './shore-lights.ts'
 import { createWindowLamps } from './windows.ts'
 import type { VitalsSample } from './vitals.ts'
 import { createTide } from './tide.ts'
@@ -398,6 +399,12 @@ function hangOverTheGround (
       config,
       quality,
       panes: landscape.windows,
+      daylight,
+    })),
+    unless(skip, 'shorelights', () => createShoreLights({
+      config,
+      quality,
+      lights: landscape.archipelago.shoreLights.lights,
       daylight,
     })),
   ].filter((module): module is ScapeModule => module !== null)

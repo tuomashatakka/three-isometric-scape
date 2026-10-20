@@ -295,6 +295,7 @@ async function main (): Promise<void> {
       '                        dyke (4, the wall between the farm and the hill)',
       '                        saltings (4, the tidal flat, low and high water)',
       '                        wreck (4, the hull on the low rock, at both ends of a spring tide)',
+      '                        shore (4, the lights of the places on the far coast)',
       '                        quick (1)',
       '  --rot 45 --zoom 70    camera yaw, and view size (tilt is derived from zoom)',
       '  --time 0.42           the day, 0..1',

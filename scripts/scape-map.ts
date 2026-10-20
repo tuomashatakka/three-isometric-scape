@@ -16,8 +16,8 @@ import { formatStats } from './scape-map-format.ts'
 import { LEGEND, readLayers, renderGrid } from './scape-map-render.ts'
 import type { Window } from './scape-map-render.ts'
 import { shelterStats } from './scape-map-shelter.ts'
-import { farShoreStats } from './scape-map-farshore.ts'
-import type { FarShoreStats } from './scape-map-farshore.ts'
+import { farShoreStats, shoreLightStats } from './scape-map-farshore.ts'
+import type { FarShoreStats, ShoreLightStats } from './scape-map-farshore.ts'
 import { archStats, cragStats, creelStats, duneStats, fjordStats, forceStats, hauloutStats, icecapStats, ledgeStats, kelpStats, packStats, roostStats, saltingsStats, shoalStats, skerryStats, stackStats, strandStats, treelineStats } from './scape-map-landforms.ts'
 import type { ArchStats, CragStats, DuneStats, FjordStats, ForceStats, IcecapStats, SaltingsStats, ShoalStats, StackStats, TreelineStats } from './scape-map-landforms.ts'
 import { measureDrift } from '../src/scene/landscape/drift.ts'
@@ -500,7 +500,8 @@ export interface MapStats extends CompositionStats, WeatherStats {
    * world without moving the far shore finds out here rather than in a
    * screenshot taken from the one bearing where it still looks right.
    */
-  farShore: FarShoreStats
+  farShore:    FarShoreStats
+  shoreLights: ShoreLightStats
 
   /**
    * The tidal flats, one entry per island whose beck comes out on a free coast.
@@ -1103,28 +1104,29 @@ export function surveyStats (
       conflicts:  scheduleSeparation + 1e-6 < config.boats.separation ? 1 : 0,
     },
     strand,
-    skerries: skerryStats(survey, config),
-    roost:    roostStats(survey, config),
-    shelter:  shelterStats(survey, config),
-    haulout:  hauloutStats(survey, config),
-    ledges:   ledgeStats(survey, config),
-    pack:     packStats(survey, config),
-    kelp:     kelpStats(survey, config),
-    creels:   creelStats(survey, config),
-    fjords:   fjordStats(survey),
-    icecaps:  icecapStats(survey),
-    dunes:    duneStats(survey),
-    shoals:   shoalStats(survey, config),
-    farShore: farShoreStats(survey, config),
-    saltings: saltingsStats(survey),
-    crags:    cragStats(survey),
-    stacks:   stackStats(survey, config),
-    arches:   archStats(survey, config),
-    forces:   forceStats(survey),
-    treeline: treelineStats(survey, config),
-    drift:    measureDrift(survey.field, config, survey.landmasses, config.archipelago.worldSize),
-    swash:    measureSwash(survey.field, config, config.archipelago.worldSize),
-    grazing:  {
+    skerries:    skerryStats(survey, config),
+    roost:       roostStats(survey, config),
+    shelter:     shelterStats(survey, config),
+    haulout:     hauloutStats(survey, config),
+    ledges:      ledgeStats(survey, config),
+    pack:        packStats(survey, config),
+    kelp:        kelpStats(survey, config),
+    creels:      creelStats(survey, config),
+    fjords:      fjordStats(survey),
+    icecaps:     icecapStats(survey),
+    dunes:       duneStats(survey),
+    shoals:      shoalStats(survey, config),
+    farShore:    farShoreStats(survey, config),
+    shoreLights: shoreLightStats(survey),
+    saltings:    saltingsStats(survey),
+    crags:       cragStats(survey),
+    stacks:      stackStats(survey, config),
+    arches:      archStats(survey, config),
+    forces:      forceStats(survey),
+    treeline:    treelineStats(survey, config),
+    drift:       measureDrift(survey.field, config, survey.landmasses, config.archipelago.worldSize),
+    swash:       measureSwash(survey.field, config, config.archipelago.worldSize),
+    grazing:     {
       count: flocks.length,
       asked: survey.landmasses.length * config.grazing.flocks,
 

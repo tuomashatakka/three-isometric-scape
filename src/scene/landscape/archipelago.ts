@@ -2,6 +2,8 @@ import { landmassDetail, landmassLayout, landmassTerrain } from '../config.ts'
 import type { LandmassProfile, LandmassSpec, ScapeConfig } from '../config.ts'
 import { surveyFarShore } from './farshore.ts'
 import type { FarShore } from './farshore.ts'
+import { surveyShoreLights } from './shore-lights.ts'
+import type { ShoreLighting } from './shore-lights.ts'
 import type { Footpath, Footpaths } from './footpath.ts'
 import { surfaceQueries } from './height.ts'
 import type { HeightField } from './height.ts'
@@ -90,13 +92,24 @@ export interface ArchipelagoSurvey {
    * contain: it stands *outside* the plane, it is in no height field, nothing
    * is sited on it and no route may reach it. See `landscape/farshore.ts`.
    */
-  farShore:   FarShore
-  field:      ArchipelagoField
-  paths:      Footpaths
-  ports:      readonly WorldPort[]
-  waterways:  WaterwayNetwork
-  size:       number
-  waterLevel: number
+  farShore: FarShore
+
+  /**
+   * The places on that coast, and the windows they have lit after dark.
+   *
+   * Beside the coast rather than inside it because the two are different
+   * subjects on one ring: `farShore` is land, solved from the config alone and
+   * merged into a static mesh, and this is what stands on it — a search over
+   * the ring the coast has already been solved on. See
+   * `landscape/shore-lights.ts`.
+   */
+  shoreLights: ShoreLighting
+  field:       ArchipelagoField
+  paths:       Footpaths
+  ports:       readonly WorldPort[]
+  waterways:   WaterwayNetwork
+  size:        number
+  waterLevel:  number
 }
 
 function landmassConfig (config: ScapeConfig, spec: LandmassSpec): ScapeConfig {
@@ -314,10 +327,15 @@ export function surveyArchipelago (config: ScapeConfig): ArchipelagoSurvey {
   // against the terrain patches' own extents, which are a fact about the config
   // rather than about anything the survey has just worked out.
   const farShore  = surveyFarShore(config)
-  const field     = createCompositeField(config, landmasses, strand, skerries, shoals)
-  const paths     = createWorldPaths(landmasses)
-  const ports     = projectPorts(config, field, landmasses)
-  const waterways = createWaterways(config, field, ports)
+
+  // On the far coast and nothing else, so it comes straight after it and
+  // before anything that is about the islands. The one survey in here that
+  // depends on another survey's output rather than on the config.
+  const shoreLights = surveyShoreLights(config, farShore)
+  const field       = createCompositeField(config, landmasses, strand, skerries, shoals)
+  const paths       = createWorldPaths(landmasses)
+  const ports       = projectPorts(config, field, landmasses)
+  const waterways   = createWaterways(config, field, ports)
 
   return {
     landmasses,
@@ -326,6 +344,7 @@ export function surveyArchipelago (config: ScapeConfig): ArchipelagoSurvey {
     skerries,
     shoals,
     farShore,
+    shoreLights,
     field,
     paths,
     ports,
