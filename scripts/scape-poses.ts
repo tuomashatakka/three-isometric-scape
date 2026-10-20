@@ -7,6 +7,7 @@ import { CART_TOURS } from './scape-poses-cart.ts'
 import { COAST_TOURS } from './scape-poses-coast.ts'
 import { CROSSING_TOURS } from './scape-poses-crossing.ts'
 import { ICE_TOURS } from './scape-poses-ice.ts'
+import { SHORE_TOURS } from './scape-poses-shore.ts'
 import { SKY_TOURS } from './scape-poses-sky.ts'
 import { SNOW_TOURS } from './scape-poses-snow.ts'
 import { TIDE_TOURS } from './scape-poses-tide.ts'
@@ -202,6 +203,12 @@ export const TOURS: Record<string, Pose[]> = {
   // on the same seam, and for a sharper version of the same reason: every deck
   // in the archipelago is on an island the tour never frames.
   ...CROSSING_TOURS,
+
+  // And the lights of the places on the land behind all of it, out in
+  // `scape-poses-shore.ts` on the same seam, for the sharpest version of the
+  // reason yet: the tour opens on the middle of the world and this subject is
+  // a kilometre outside it.
+  ...SHORE_TOURS,
 
   // And what the deck overhead does — the shadow it lays, the light that gets
   // past it and the fog that fills the ground once it has gone — out in

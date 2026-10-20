@@ -783,6 +783,18 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
             range('windows.unsteady', 'guttering depth', 0, 1, 0.01),
           ],
         ),
+        // The same subject seen at the other end of the water, and here rather
+        // than in a section of its own because the two share a dusk and a
+        // bedtime: `shoreLightLevel` multiplies by the very `householdWake`
+        // the four knobs above drive. Where the places on that coast *are* is
+        // the survey's and is build-time; what is left live is how hard they
+        // burn and how big a light is drawn.
+        toggled(
+          'lights on the far shore',
+          range('shoreLights.glow', 'lamps', 0, 2, 0.01),
+          1,
+          [ range('shoreLights.size', 'size', 1, 7, 0.1) ],
+        ),
       ],
     },
     {

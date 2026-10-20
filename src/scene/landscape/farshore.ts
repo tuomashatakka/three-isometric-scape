@@ -280,8 +280,14 @@ export function patchReach (config: ScapeConfig, bearing: number): number {
  * its neighbour — which is the one-dimensional case of the same chamfer the
  * roost's gate search runs. `Infinity` for every sample on a coast with no
  * sounds in it at all, which is what makes that case taper nothing.
+ *
+ * Exported for `shore-lights.ts`, which asks the ring the same question for a
+ * different reason: the taper wants to know where a headland ends, and a
+ * village wants to know how far it is to the way out to sea. One chamfer and
+ * not two, because a second implementation of this is a second answer to
+ * "where are the sounds" that can drift from the one the geometry used.
  */
-function openDistance (land: readonly boolean[]): number[] {
+export function openDistance (land: readonly boolean[]): number[] {
   const steps = land.length
   const step  = 360 / steps
   const far   = Number.POSITIVE_INFINITY

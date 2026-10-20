@@ -246,6 +246,7 @@ src/
     ├── config-weir.ts              the fish trap's own slice: the reach, the pound, the mouth, the wall
     ├── config-mole.ts              the breakwater's own slice: the fetch it answers, the depth it stops at, the batter
     ├── config-farshore.ts          the far coast's own slice: how far out it stands, how high, and how open
+    ├── config-shorelights.ts       the places on that coast: how many, how far apart, and how hard they burn
     ├── config-front.ts             the front's own knobs: weather, the far squall, the lightning, the bow
     ├── config-palette.ts           every colour in the scape, schema and values together
     ├── config-kelp.ts              the weed's own slice: the depth window, the canopy, the clearings
@@ -269,6 +270,7 @@ src/
     ├── birds.ts                     the gulls, and the rings they wheel on
     ├── hearth.ts                   the smoke over the farmsteads, and the year that banks it
     ├── windows.ts                  lamplight in the farmstead windows, and the household that lights it
+    ├── shore-lights.ts             the far coast's lit windows, as one camera-facing points draw
     ├── lut.ts                      cached cinematic colour-grade recipes
     ├── mist.ts                     ground-mist sheets, and the sea smoke off the coast
     ├── haar.ts                     the night fog bank: level sheets, and the four gates that make one
@@ -305,6 +307,7 @@ src/
     │   ├── fjord.ts                the drowned valley cut through one island's coast
     │   ├── farshore.ts             the coast on the other side of the water, solved a bearing at a time
     │   ├── skyline.ts              that coast as one static mesh, swept round the ring
+    │   ├── shore-lights.ts        where the people on that coast live, and where their windows are
     │   ├── icecap.ts               the ice standing on the northern island, and what it buries
     │   ├── coast.ts                the waterline on every bearing, solved once for both coastal landforms
     │   ├── dunes.ts                the blown sand on the weather shore, solved against the coastline
@@ -426,7 +429,7 @@ scripts/
 ├── scape-map-render.ts             the picture half: the ramp, the layers and the grid
 ├── scape-map-format.ts             the stats block, as the run reads it
 ├── scape-map-landforms.ts          the bar, the guard, the fjords and the treeline, walked
-├── scape-map-farshore.ts           the far coast, and the clearance it keeps from the islands
+├── scape-map-farshore.ts           the far coast, the clearance it keeps, and the places lit on it
 ├── scape-map-shelter.ts            the lee the archipelago throws, surveyed off the depth grid
 ├── scape-map-sites.ts              the sited features of one island, projected and measured
 ├── scape-map-weather.ts            the weather half of the stats block, and the type for it
@@ -438,6 +441,7 @@ scripts/
 ├── scape-poses-snow.ts             what the wind does with the winter, and the fence sited from it
 ├── scape-poses-cart.ts             the one thing on these islands that walks, at four hours and one winter
 ├── scape-poses-crossing.ts         the three sizes of deck, on the three islands the tour never frames
+├── scape-poses-shore.ts            the lights of the places on the far coast, which the tour cannot reach
 ├── scape-shot.ts                   headless stills, posed and pinned
 ├── scape-diff.ts                   what a change did to the picture, in numbers
 └── setup.ts                        what a run has before it starts thinking
@@ -3001,6 +3005,68 @@ invisible from above.
 set ships in [`scape-poses-crossing.ts`](scripts/scape-poses-crossing.ts) on the
 seam the coast, the ice, the sky, the tide, the snow and the cart already marked
 out.
+
+## the lights of the places on the far coast
+
+the run that built the mainland left a note for the next one: nothing out there is lit, and a scattering of shore lights across a sound would be the cheapest thing in the scape and the one that would most make it a place. this is that. there are **43 windows in 14 places** along the far coast now, strung over 298° of it and standing 1.2 to 10.6 m over the water, coming up on the same dusk the farmhouse lamps do and banking down when the households turn in. [`landscape/shore-lights.ts`](src/scene/landscape/shore-lights.ts) sites them, [`shore-lights.ts`](src/scene/shore-lights.ts) draws them, and the seven knobs are [`config-shorelights.ts`](src/scene/config-shorelights.ts).
+
+### a search with no ground under it
+
+every other search in this survey probes a height field. the mill wants a head, the chapel a knoll, the smokehouse a bank dry enough to keep a fire on, and all three walk a grid of samples and measure what they find. the far coast is not in a height field at all — it is a ring of 360 samples, a bearing and a distance and a crest and a taper, swept into a cross-section by `skyline.ts`. so this search asks the only three questions the ring can answer, and they turn out to be the three that matter:
+
+- **how low is it.** a coastal settlement is in the gap between two headlands, not on the summit. `shelter` is 1 at the lowest standing bearing and 0 at the summit, and on a range with a hundred metres of relief in it that is most of the answer.
+- **how near is the way out.** a place on this coast is a place with boats. `shoreLights.harbour` weighs an exponential falloff over 26° of arc to the nearest sound against the shelter term, and it is what moved the villages off the cols of the range and down to the mouths: **five of the fourteen sit two degrees from open water**.
+- **is there a hill to stand on at all.** this one was not in the first draft and `scape:map` found it on the first run. the shelter term is largest exactly where the crest is *smallest*, so an unconstrained search puts every village on the last sliver of land before a sound — nine places standing between 0.63 m and 3.67 m over the water, which is a string of lights along the waterline rather than nine places. the score is multiplied by how much of the village's own climb the crest can carry, so **a bearing that cannot hold the roofline is not a place**, however sheltered it is. the fourteen now stand on crests of 27 to 87 m.
+
+nothing else. no prominence term and no view term, because the far coast is looked *at* rather than from, and a term no instrument in this repository can check is a term that can be wrong for a year.
+
+### the places are taken greedily, and the spread is why
+
+both score terms are smooth around a col, so the nine highest-scoring samples on an unconstrained ring are nine neighbours of one another — one village drawn nine times, and eight bearings of coast left dark. the sites are taken best-first with `shoreLights.spread` degrees of horizon kept clear around each, which is the same greedy-with-a-floor the roost's gates and the footpath junctions already use. a coast that cannot seat what it was asked for reports the **shortfall** rather than going quiet: at `spread` 90 only two of the fourteen fit, and the line says so.
+
+### a light is placed on the face, not on the bearing
+
+the thing that could silently go wrong here is a light that is *near* the coast rather than on it. the seaward face is a slope between a toe three metres under the water and a crest a hundred metres over it, and the two are at **different radii** — so a light at the right height and the wrong radius floats off the coast, and from the default pose that is indistinguishable from a light on it.
+
+so the placement inverts the same cross-section `skyline.ts` sweeps: toe radius and toe height, ridge radius and ridge height, both scaled by the bearing's own taper, and the share of the way up in *height* is the share of the way out in *radius*. `shore-lights.test.ts` states the result as three facts about every light rather than as a comment — over the water, under the crest of its own bearing, and between the toe radius and the ridge radius.
+
+one of those tests paid for itself immediately. the ceiling a light may climb to was taken from the crest at the **middle** of its place, and a cluster scatters up to 30% of the spread either side of that: the crest falls away fast toward a sound, and the harbour term puts most of these places two degrees from one. ask for a taller village and the outer lights hung forty-five metres over ground that stood nine. the ceiling is read at the light's own bearing now.
+
+### points, not quads
+
+every other lit thing in this scape is geometry at a known orientation — a pane is in a wall, a lantern is in a tower — and is drawn as a quad facing the way the thing it is set into faces. nothing out here has a wall. a window a kilometre off subtends a fraction of a pixel; what is drawn is not the window, it is the **glare** of it, and glare faces the eye from every bearing the reader can put the camera at.
+
+so it is one `Points` draw, camera-facing by construction, one vertex a light. the alternative — an `InstancedMesh` of quads oriented inward at the middle of the world — looks identical from the bearings that face them and turns edge-on from the ones that do not, and this camera turns all the way round. the fragment is a hard core inside a soft halo rather than a single falloff, because a lamp seen through a kilometre of sea air has both and one smoothstep gives a dot of paint.
+
+### it answers to the clocks the farmstead already has
+
+`shoreLightLevel` is `shoreLights.glow` times the same squared dusk the lighthouse and the window lamps come up on, times the very `householdWake` the four `windows.*` sliders drive. that reuse is the point rather than a convenience: two coasts in one frame disagreeing about when dusk was, or about when a household turns in, would be the more obvious of the two bugs. what it does *not* share is the occupancy roll and the guttering — at this range a lit window is one sample of additive light, and a flicker nobody can resolve is a buffer write a still scape should not be making.
+
+so it **integrates nothing**. where the coast is in its evening is a pure function of `daylight.time`, the way the tide's level and the cart's round on the road already are, which means there is no rate to add to `STILL` and no capture needs a new switch to hold it.
+
+### what it costs
+
+**one draw call and 43 vertices, on every tier.** no texture, no geometry update, no per-frame buffer write — the lights do not move and their colours are written once at build. the whole per-frame cost is one comparison against zero and, on the frames the coast is lit, two uniform writes. it is skipped outright while the sun is up.
+
+there is no `AtmosphereQuality` number for it, for the reason there is none for the far coast it stands on or for the ice cap: a system that costs a phone exactly what it costs a workstation does not need a budget, and a tier knob reading the same on all four tiers is a knob lying about having a choice in it. what the tier does change is one constant — `SHORE_BLOOM` is dropped to 1 where there is no bloom to cross.
+
+### the new `scape:map` line
+
+```text
+lights 43 windows in 14 places  largest 6  over 298° of coast  standing 1.19..10.58m over the water
+```
+
+`refused` appends to it when the spread floor could not seat what it was asked for, and `over` appends the one finding a still cannot make: a count of lights standing above the crest of their own bearing, which is a lamp hanging in the sky and from a kilometre away at night looks exactly like a light on a hill.
+
+### `--poses shore`, and why the tour cannot see any of it
+
+every pose in `tour` opens on the middle of the world. the far coast stands 808 to 1203 m out from it, and the widest frame the camera has — `camera.maxViewSize` 1600 — reaches about 800 m to an edge and 1130 m to a corner. so at the one tour pose that is both wide and dark, the coast is two wedges in opposite corners of a frame that is otherwise ice.
+
+**the first capture of this system ran at 3.4 px a light and `scape:diff` correctly reported `same` at all six poses.** that is the finding rather than a shortfall, and it bought two things: the size is 6 px now, read off that capture rather than reasoned from the physics of a distant window, and there is a pose set that moves the camera out to the coast. `shore` is an 1100 m view of the north-western quarter of the ring late on a winter evening; `shore-near` is 420 m, where a place is a cluster of separate windows climbing off the water rather than a mark on a silhouette; `shore-none` is the switch, the identical frame at `shoreLights.glow=0`, which comes back **byte-identical** to the coast this scape had; and `shore-noon` is the second control, the same camera at midday, which has to stay identical at any setting of the glow because the lamps are gated on `1 - day` squared.
+
+the hour is 0.9 rather than the tour's 0.02 on purpose. `householdWake` banks every lamp in the scape down to `windows.banked` outside the household's day, so at four in the morning the whole coast burns at three tenths — the right picture of four in the morning, and the wrong one to argue a new system from.
+
+a last reading, from the tour: `winter` moved more than `night` did. that is the sun arc working rather than a bug. midwinter at 68° has no daylight in it at all, so the lamps on that coast are lit at midday.
 
 ## ground that casts
 

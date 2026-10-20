@@ -29,6 +29,49 @@ export interface FarShoreStats {
   clearance: number
 }
 
+/**
+ * The places on that coast, after dark.
+ *
+ * Three readings a still cannot make, and the run that added the lights wanted
+ * all three. `refused` is the count the spread floor could not seat and is the
+ * one that moves when the coast or the knobs change under it. `highest` is the
+ * claim this system can silently break — a light over the crest of its own
+ * bearing is a lamp hanging in the sky — stated against the geometry rather
+ * than against the arithmetic. And `lowest` says the lights are out of the
+ * water, which is the other half of the same claim.
+ */
+export interface ShoreLightStats {
+  places:  number
+  lights:  number
+  refused: number
+  most:    number
+  spread:  number
+  lowest:  number
+  highest: number
+  over:    number
+}
+
+export function shoreLightStats (survey: ArchipelagoSurvey): ShoreLightStats {
+  const { settlements, lights, refused } = survey.shoreLights
+  const bearings                         = settlements.map(site => site.bearing * 180 / Math.PI)
+  const heights                          = lights.map(light => light.height)
+  const crests                           = new Map(survey.farShore.samples.map(sample => [ sample.bearing, sample.crest ]))
+
+  return {
+    places:  settlements.length,
+    lights:  lights.length,
+    refused,
+    most:    settlements.reduce((top, site) => Math.max(top, site.lights), 0),
+    spread:  bearings.length > 1 ? round(Math.max(...bearings) - Math.min(...bearings)) : 0,
+    lowest:  heights.length ? round(Math.min(...heights), 2) : 0,
+    highest: heights.length ? round(Math.max(...heights), 2) : 0,
+
+    // The lamps-in-the-sky check, counted rather than asserted: a light may
+    // stand on the face of its own bearing and nowhere above it.
+    over: lights.filter(light => light.height > (crests.get(light.bearing) ?? 0)).length,
+  }
+}
+
 export function farShoreStats (survey: ArchipelagoSurvey, config: ScapeConfig): FarShoreStats {
   const shore = survey.farShore
   const gaps  = shore.sounds.map(sound => sound.arc)
