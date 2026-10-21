@@ -321,6 +321,22 @@ export interface AtmosphereQuality {
    */
   terrainSegments: number
 
+  /**
+   * Cross-sections along one cultivation rig.
+   *
+   * A count rather than a spacing, because what length-wise resolution buys on
+   * a *straight* strip is only the unevenness of its crown and the taper at
+   * its ends — a rig is not a route and has no corners to round. 0 is a tier
+   * whose fields stay the flat brown the terrain painter already drew, which
+   * is a graceful absence rather than a broken cheap version: the plots are
+   * still there and still read as worked ground, they simply have no corduroy
+   * on them.
+   *
+   * The whole field pattern merges into the terrain's one draw whatever this
+   * says, so what the number costs is vertices and nothing else.
+   */
+  rigCuts: number
+
   /** Multiplier on every dressing budget. */
   scatterScale: number
 
@@ -666,6 +682,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     cursorLight:     false,
     hearthPuffs:     0,
     terrainSegments: 60,
+    rigCuts:         0,
     scatterScale:    0.16,
     ao:              false,
     ssr:             false,
@@ -723,6 +740,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     cursorLight:     false,
     hearthPuffs:     8,
     terrainSegments: 84,
+    rigCuts:         7,
     scatterScale:    0.32,
     ao:              false,
     ssr:             false,
@@ -796,6 +814,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     cursorLight:     true,
     hearthPuffs:     14,
     terrainSegments: 208,
+    rigCuts:         18,
     scatterScale:    1,
     ao:              false,
     ssr:             false,
@@ -853,6 +872,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     cursorLight:     true,
     hearthPuffs:     20,
     terrainSegments: 288,
+    rigCuts:         26,
     scatterScale:    1.5,
     ao:              true,
     ssr:             true,

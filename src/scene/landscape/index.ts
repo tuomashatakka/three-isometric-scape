@@ -502,6 +502,7 @@ export function createLandscape (
         archipelago,
         materials.ground,
         quality.terrainSegments,
+        quality.rigCuts,
       )
 
       surfaces.push(terrain)

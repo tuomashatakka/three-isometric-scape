@@ -152,6 +152,19 @@ describe('the stats', () => {
     expect(stats.landing).not.toBeNull()
   })
 
+  /**
+   * The claim the rigs make: every field the farm levelled is a field it
+   * ploughed. A plot that lost its rigs is still a brown rectangle in a still
+   * and a count that went to zero here, which is the only place it shows.
+   */
+  test('every plot is worked, on every inhabited island', () => {
+    expect(stats.rigs.count).toBeGreaterThanOrEqual(stats.plots)
+    expect(stats.rigs.length).toBeGreaterThan(stats.rigs.count * config.rigs.headland)
+
+    for (const landmass of stats.landmasses)
+      expect(landmass.rigs.count).toBeGreaterThanOrEqual(landmass.plots)
+  })
+
   test('reports every inhabited landmass, all distinct', () => {
     expect(stats.landmasses).toHaveLength(ISLANDS)
     expect(new Set(stats.landmasses.map(landmass => landmass.id)).size).toBe(ISLANDS)

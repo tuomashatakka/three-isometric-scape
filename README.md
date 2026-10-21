@@ -242,6 +242,7 @@ src/
     ├── config-crossing.ts          the bridge's own slice: the deck, the bay, the span, and the four refusals
     ├── config-carter.ts            the cart's own slice: a day's haul, the longest working day, how it sits on the road
     ├── config-roost.ts             the race's own slice: how wide a gate still runs, and how white it gets
+    ├── config-rigs.ts              the field pattern's own slice: the spacing, the crown, the headland, the crop
     ├── config-shelter.ts           the lee's own slice: how far upwind land counts, for the wind sea and for the swell
     ├── config-weir.ts              the fish trap's own slice: the reach, the pound, the mouth, the wall
     ├── config-mole.ts              the breakwater's own slice: the fetch it answers, the depth it stops at, the batter
@@ -294,6 +295,7 @@ src/
     │   ├── network.ts              the farm's street plan: places, tree, shortcuts
     │   ├── footpath.ts             a planned leg traced into a worn line
     │   ├── cart-ruts.ts            the wheel lines worn down the cart track
+    │   ├── rigs.ts                 the ridge-and-furrow strips ploughed across the field plots
     │   ├── creek.ts                the beck: descent trace, channel, tidal mouth
     │   ├── beck.ts                 the water standing in that channel, and the white it breaks
     │   ├── knickpoint.ts           the step gathered into that channel's long profile
@@ -432,6 +434,7 @@ scripts/
 ├── scape-map-farshore.ts           the far coast, the clearance it keeps, and the places lit on it
 ├── scape-map-shelter.ts            the lee the archipelago throws, surveyed off the depth grid
 ├── scape-map-sites.ts              the sited features of one island, projected and measured
+├── scape-map-steading.ts           the chimneys and the panes of the buildings, with their clearances
 ├── scape-map-weather.ts            the weather half of the stats block, and the type for it
 ├── scape-poses.ts                  every named pose set, and the clocks a capture stops
 ├── scape-poses-coast.ts            the hard shore's three ages: crag, arch, stack, folded back into TOURS
@@ -442,6 +445,7 @@ scripts/
 ├── scape-poses-cart.ts             the one thing on these islands that walks, at four hours and one winter
 ├── scape-poses-crossing.ts         the three sizes of deck, on the three islands the tour never frames
 ├── scape-poses-shore.ts            the lights of the places on the far coast, which the tour cannot reach
+├── scape-poses-rigs.ts             the plough pattern, under two lights and across two seasons
 ├── scape-shot.ts                   headless stills, posed and pinned
 ├── scape-diff.ts                   what a change did to the picture, in numbers
 └── setup.ts                        what a run has before it starts thinking
@@ -3067,6 +3071,99 @@ every pose in `tour` opens on the middle of the world. the far coast stands 808 
 the hour is 0.9 rather than the tour's 0.02 on purpose. `householdWake` banks every lamp in the scape down to `windows.banked` outside the household's day, so at four in the morning the whole coast burns at three tenths — the right picture of four in the morning, and the wrong one to argue a new system from.
 
 a last reading, from the tour: `winter` moved more than `night` did. that is the sun arc working rather than a bug. midwinter at 68° has no daylight in it at all, so the lamps on that coast are lit at midday.
+
+## the pattern the plough leaves
+
+the farm has had fields since the layout had `plots` in it, but only as a colour. a plot is a levelled rectangle and the terrain painter lerps it toward `palette.tilled` — so from the pulled-out zoom the infield read as four brown rectangles, and from the close one it read as four brown rectangles seen from nearer. nothing in them said a plough had ever been through, and a field with no direction in it was the one piece of this farm that did not look worked.
+
+the **rigs** are the direction. ridge-and-furrow is what a single-furrow plough leaves when it is turned always the same way down a strip: the soil walks inward year on year, the middle stands proud, the hollow between two rigs carries the water off. [`landscape/rigs.ts`](src/scene/landscape/rigs.ts) lays the strips and builds the geometry, [`config-rigs.ts`](src/scene/config-rigs.ts) is the five knobs, and [`landscape/terrain.ts`](src/scene/landscape/terrain.ts) is where it all merges.
+
+### a ribbon, for the reason the cart ruts are one
+
+the ruts' note already stated this case and the rigs are the second instance of it: the terrain's colours live on its vertices, and those sit 0.68 m apart on the home island at the finest tier and 2.3 m apart on mobile. a furrow is 2.1 m from its neighbour. painting that into the grid gives a stripe that is aliased on desktop and gone on a phone, and — the part the ruts did not need — painting it gives no *shape* at all.
+
+shape is the whole claim here. what makes ridge-and-furrow legible from four hundred metres up is not that it is striped, it is that it is **corduroy**: a row of parallel crowns lit down one flank and shaded on the other. a painted stripe looks identical at dawn and at noon. a raised one does not, which is why `--poses rigs` photographs the same camera at both hours — that pair is the argument for building this out of geometry.
+
+so each rig is a `createSurfaceRibbon` five vertices across, laid on the drawn surface, with the two outer vertices sitting in the furrow at the ground's own colour and the middle standing `rigs.crown` above it. the outer edges hide the seam exactly as the ruts' do, and a rig abuts its neighbour's furrow rather than ending in mid-air. everything merges into the terrain's one draw, so the whole field pattern costs **no draw call**.
+
+### the height function is only told an x and a z
+
+`createSurfaceRibbon` hands its `heightAt` a world point and nothing else — no cross-section index, no lateral offset. a crowned profile needs the offset.
+
+a *straight* strip is what makes that recoverable. two dot products against the rig's own direction and normal give the distance along and the distance across for any point in the plane, so `rigProfile` is called with both and the ribbon never has to pass anything down. that is the one reason `Rig` carries a direction and a half-length rather than two endpoints.
+
+and the strips genuinely are straight. a footpath wanders because the person walking it chose every step; a rig is the line a plough was *held* on for the length of a field, and the pattern only reads as worked ground because every strip in a plot is parallel to every other one. curved independently, the field turns into scrub.
+
+### the strips run the long way
+
+the one decision in the module that is not arithmetic. a team ploughing a rectangle turns at the end of every strip and turning is the expensive part of the day, so the strips go the long way round — always, in every field pattern anybody ever worked with an animal. run them across the short axis and the field is still striped and still wrong, in a way that is hard to name and easy to see.
+
+the **headland** is the other half of that: `rigs.headland` metres of unploughed turning ground at each end of every rig, which is also what keeps a raised rig end from poking through a fence post. `rigs.margin` is its sideways twin, and smaller, because the sides only need the outermost furrow not to be the field boundary itself.
+
+each rig also **tapers out of its headland** over the last 0.9 m rather than starting at full height on its first cross-section — without it, every rig in the field ends in a 0.17 m wall across flat turning ground.
+
+### the cuts are authored, not stepped
+
+a ribbon traced at `length / cuts` lands on `cuts` or `cuts + 1` cross-sections depending on which way the last floating-point division rounded, so two rigs a metre different in length come out with different vertex counts. stable, but impossible to state as a fact about the data — and `rigs.test.ts` states exactly that fact. so the path is authored as `cuts + 1` points and the `step` handed over is deliberately longer than any of them, which makes the section count exact.
+
+### the year owns the crop, and this section owns none of it
+
+the crop is painted one green — `palette.crop`, a substance of its own rather than a yellower `meadow`, for the reason `moss` and `pasture` have entries — and the year does the rest.
+
+`props/material.ts` weighs its seasonal tint by **how far a fragment's albedo leans green**, which is the trick that separates a birch canopy from a spruce. a sown rig is green, so it goes straw in the turn, takes lying snow on its crown while the furrow beside it stays dark, and comes back in spring, without `config-rigs.ts` owning a single second of time. `rigs-turn` and `rigs-winter` are the two frames that would catch a future run authoring a harvest colour here: a `cropSummer` beside a `cropWinter` would be a second opinion about the year, and the two would disagree on the first retune.
+
+only the crown leans. the furrow keeps whatever the terrain painter already decided, which is both what makes the ribbon's seam invisible and what makes a half-grown crop read as rows rather than as a lawn.
+
+### there is no flag, and every number turns off its own thing
+
+`rigs.spacing` is the switch, reached through the arithmetic: the strip count across a plot is its width divided by the spacing, so 0 is a farm that never ploughed. `rigs.crown` at 0 is a field ploughed flat — the crop still stands on it and the corduroy is gone. `rigs.crop` at 0 is fallow — the relief without anything growing, which is a real state for a third of any infield and the setting to use if the shape ever needs judging alone.
+
+all five are **metres, except the one that is a share**: a rig is a plough's width rather than an island's, so `spacing`, `crown`, `headland` and `margin` stay metres on an archipelago of any size and do not follow `archipelago.worldSize`. the one world-sized thing in the system is the plot the strips are cut into, and the plots were already sized that way.
+
+### what it costs
+
+`AtmosphereQuality.rigCuts` is the tier gate, and it is a count rather than a spacing because on a straight strip length-wise resolution buys exactly one thing — the unevenness of the crown's backbone and the taper at its ends. a rig is not a route and has no corners to round.
+
+| tier | cuts | vertices, whole archipelago |
+| --- | --- | --- |
+| minimal | 0 | 0 |
+| mobile | 7 | 2 320 |
+| desktop | 18 | 5 510 |
+| ultra | 26 | 7 830 |
+
+fifty-eight rigs across the six inhabited islands at the authored seed — fourteen of them on the home island, 668 m of furrow in all — five vertices to a cross-section, merged into the terrain's existing draw. **no draw call, no texture, no material, nothing per frame.** `minimal` is a graceful absence rather than a broken cheap version: the plots are still there, still read as worked ground, and simply have no corduroy on them.
+
+### the new `scape:map` line
+
+`plots 4   rigs 14, 168.3m   ridges 5` — the strips and the metres of furrow, beside the plot count they were cut from.
+
+it earns the space because it is exactly what a still cannot judge. a plot that shrank past twice the rig spacing stops carrying rigs **silently**: the field is still brown, still the right size and simply no longer worked. the only place that shows is a count that went to zero while `plots` stayed at four, and `scape-map.test.ts` states the claim — every plot, on every inhabited island, carries at least one rig.
+
+the line pushed `scape-map.ts` over the 666-line ceiling, so the chimney and window readouts moved into [`scape-map-steading.ts`](scripts/scape-map-steading.ts) on the seam `scape-map-sites.ts` already marked out.
+
+### `--poses rigs`, the thirty-first set
+
+six frames, and the set is the claim rather than any one of them. `rigs` is the four fields on the shoulder above the yard at 26 m, aimed at their centre of area. `rigs-near` is one field at 10 m, where a 0.17 m crown is a measurable number of pixels. `rigs-low` and `rigs-noon` are that identical camera an hour apart — the pair that says the corduroy is lit rather than painted. `rigs-turn` and `rigs-winter` are the year taking the crop.
+
+the close frames are aimed at the plot at (10.9, 10.2) rather than the larger one at (11.8, -2.9), and the difference is occlusion rather than taste — the same trap the cart set fell into at the farmyard door. this camera's ground depth is its view size over the sine of its tilt, so at close range it looks along forty metres of hillside, and the chapel stands on that line a little nearer the eye than the lower field. the first cut of this set photographed a chapel at three poses out of six. the weather phase is pinned dry for the reason the swell set pins one: the default phase parks a snow shower over the one surface the set is about.
+
+`scape-poses.ts` was a handful of lines under the ceiling again, so the set ships in [`scape-poses-rigs.ts`](scripts/scape-poses-rigs.ts) on the seam the coast, the cart, the crossing and the far shore already marked out.
+
+### what the set saw
+
+```text
+pose         changed   maxblock  verdict
+rigs          0.31%     8.9%  same
+rigs-near     0.90%    20.0%  CHANGED
+rigs-low      0.50%    18.0%  CHANGED
+rigs-noon     1.02%    23.7%  CHANGED
+rigs-turn     0.35%     9.9%  same
+rigs-winter   0.19%     5.7%  same
+```
+
+two readings worth keeping. the wide frames carry the same four fields and come back `same`, because the corduroy is a few hundred pixels of a 400 000-pixel frame — `maxBlock` at 8.9% is what says it is there at all, which is the same reason the shore lights needed that column and not the `changed` one.
+
+and **`rigs-noon` moved twice as far as `rigs-low`**, which is the opposite of what this set was written expecting. a low sun dims the whole field, so the absolute change is smaller even though the relief is doing more of the work in it. the pair still says what it was built to say — one geometry, two lights, two different frames — but the high sun is where the difference shows up hardest, not the low one, and the note is here rather than quietly dropped because the next run to touch the rigs will read the set's own comment first.
 
 ## ground that casts
 

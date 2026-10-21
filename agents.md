@@ -353,6 +353,7 @@ bun run scape:shot --poses roost                    # the race in the narrows, 6
 bun run scape:shot --poses hail                     # the stones and the cell they fall in, 8 frames, switched off, in rain, in winter and in a blow
 bun run scape:shot --poses cart                     # the cart on the track, 5 frames, four hours of a summer day and one midwinter with no cart in it
 bun run scape:shot --poses crossing                 # the decks over the water, 5 frames, three islands, three sizes, and one from under the deck at the ebb
+bun run scape:shot --poses rigs                     # the plough pattern on the infield, 6 frames, four fields and one, a low sun and a high one, the turn and the snow
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain

@@ -8,14 +8,14 @@ import { planColonies } from '../src/scene/landscape/colony.ts'
 import type { Creek } from '../src/scene/landscape/creek.ts'
 import type { HeightField } from '../src/scene/landscape/height.ts'
 import { planGrazing } from '../src/scene/landscape/grazing.ts'
-import { surveyHearths } from '../src/scene/landscape/hearths.ts'
-import { surveyWindows } from '../src/scene/landscape/windows.ts'
 import { pathLength } from '../src/scene/landscape/path.ts'
 import type { ScapeConfig } from '../src/scene/config.ts'
 import { formatStats } from './scape-map-format.ts'
 import { LEGEND, readLayers, renderGrid } from './scape-map-render.ts'
 import type { Window } from './scape-map-render.ts'
 import { shelterStats } from './scape-map-shelter.ts'
+import { hearthStats, windowStats } from './scape-map-steading.ts'
+import type { HearthStats, WindowStats } from './scape-map-steading.ts'
 import { farShoreStats, shoreLightStats } from './scape-map-farshore.ts'
 import type { FarShoreStats, ShoreLightStats } from './scape-map-farshore.ts'
 import { archStats, cragStats, creelStats, duneStats, fjordStats, forceStats, hauloutStats, icecapStats, ledgeStats, kelpStats, packStats, roostStats, saltingsStats, shoalStats, skerryStats, stackStats, strandStats, treelineStats } from './scape-map-landforms.ts'
@@ -24,8 +24,8 @@ import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
 import { measureSwash } from '../src/scene/landscape/swash.ts'
 import type { SwashSurvey } from '../src/scene/landscape/swash.ts'
-import { carterOf, causewayOf, croftOf, crossingsOf, dykeOf, howeOf, moleOf, peatOf, pierOf, shielingOf, smokehouseOf, snowFenceOf, tarnOf, watermillOf, weirOf, wreckOf } from './scape-map-sites.ts'
-import type { CrossingStats } from './scape-map-sites.ts'
+import { carterOf, causewayOf, croftOf, crossingsOf, dykeOf, howeOf, moleOf, peatOf, pierOf, rigsOf, shielingOf, smokehouseOf, snowFenceOf, tarnOf, watermillOf, weirOf, wreckOf } from './scape-map-sites.ts'
+import type { CrossingStats, RigStats } from './scape-map-sites.ts'
 import {
   capsStats,
   seaStats,
@@ -353,6 +353,7 @@ export interface CompositionStats {
   } | null
 
   plots:    number
+  rigs:     RigStats
   ridges:   number
   isles:    { total: number, surfacing: number }
   steading: Record<string, [ number, number ]>
@@ -757,10 +758,7 @@ export interface MapStats extends CompositionStats, WeatherStats {
    * the archipelago, and anything under about three metres means a mouth has
    * been placed against a floor it does not stand on.
    */
-  hearths: {
-    count:  number
-    lowest: number
-  }
+  hearths: HearthStats
 
   /**
    * Every glazed pane, and the two ways a lamp goes wrong that a still cannot
@@ -774,54 +772,10 @@ export interface MapStats extends CompositionStats, WeatherStats {
    * inside of the wall it belongs to. From the default pose that is
    * indistinguishable from the lamps simply not working.
    */
-  windows: {
-    count:  number
-    lowest: number
-    inward: number
-  }
+  windows: WindowStats
 }
 
 const round = (value: number, places = 1): number => Number(value.toFixed(places))
-
-type HearthStats = MapStats['hearths']
-type WindowStats = MapStats['windows']
-
-/**
- * Every hearth in the archipelago, and the tightest clearance among them.
- *
- * The stacks are surveyed rather than drawn — see `landscape/hearths.ts` — so
- * this asks the same pure function the scape does and reports what it got.
- */
-function hearthStats (survey: ArchipelagoSurvey): HearthStats {
-  const stacks = surveyHearths(survey)
-  const clear  = stacks.map(stack => stack.y - survey.field.heightAt(stack.x, stack.z))
-
-  return {
-    count:  stacks.length,
-    lowest: round(clear.length ? Math.min(...clear) : 0, 2),
-  }
-}
-
-/**
- * Every pane in the archipelago, its tightest clearance, and its sign.
- *
- * Surveyed rather than drawn — see `landscape/windows.ts` — so this asks the
- * same pure function the scape does and reports what it got.
- */
-function windowStats (survey: ArchipelagoSurvey): WindowStats {
-  const panes = surveyWindows(survey)
-  const clear = panes.map(pane => pane.y - survey.field.heightAt(pane.x, pane.z))
-
-  const inward = panes.filter(pane =>
-    Math.sin(pane.angle) * (pane.x - pane.centre.x) +
-    Math.cos(pane.angle) * (pane.z - pane.centre.z) <= 0)
-
-  return {
-    count:  panes.length,
-    lowest: round(clear.length ? Math.min(...clear) : 0, 2),
-    inward: inward.length,
-  }
-}
 
 /**
  * The water standing in one island's channel, measured rather than assumed.
@@ -1011,6 +965,7 @@ function compositionStats (
       isle:      survey.beacon.isle,
     },
     plots:  layout.plots.length,
+    rigs:   rigsOf(layout.plots, config.rigs),
     ridges: layout.ridges.length,
     isles:  {
       total:     config.terrain.isles.length,
