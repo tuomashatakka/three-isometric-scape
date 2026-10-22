@@ -8,6 +8,9 @@ import type { CroftSite } from '../src/scene/landscape/croft.ts'
 import type { HeadDyke } from '../src/scene/landscape/dyke.ts'
 import type { HeightField } from '../src/scene/landscape/height.ts'
 import { peatFaceStanding } from '../src/scene/landscape/peat.ts'
+import { layoutRigs, rigLength } from '../src/scene/landscape/rigs.ts'
+import type { RigLayout } from '../src/scene/landscape/rigs.ts'
+import type { Plot } from '../src/scene/landscape/layout.ts'
 import { moleHead } from '../src/scene/landscape/mole.ts'
 import type { Mole } from '../src/scene/landscape/mole.ts'
 import { pierHead } from '../src/scene/landscape/pier.ts'
@@ -537,3 +540,24 @@ export function carterOf (
 
 /** Samples of the year the working season is counted over. One a week. */
 const WEEKS = 52
+
+
+/**
+ * The field pattern: ploughed strips and metres of furrow.
+ *
+ * On the readout rather than left to the picture because it is exactly the
+ * kind of thing a still cannot judge. A plot that shrank past twice the rig
+ * spacing stops carrying rigs at all, silently — the field is still brown,
+ * still the right size and simply no longer worked — and the only place that
+ * shows is a count that went to zero while `plots` stayed at four.
+ */
+export interface RigStats {
+  count:  number
+  length: number
+}
+
+export function rigsOf (plots: readonly Plot[], layout: RigLayout): RigStats {
+  const rigs = layoutRigs(plots, layout)
+
+  return { count: rigs.length, length: round(rigLength(rigs), 1) }
+}

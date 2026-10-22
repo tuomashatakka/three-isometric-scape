@@ -155,7 +155,21 @@ export interface ScapePalette {
   trodden: number
   track:   number
   tilled:  number
-  yard:    number
+
+  /**
+   * Standing cereal on a rig.
+   *
+   * Its own entry rather than a yellower {@link meadow}, and for the reason
+   * `moss` and `pasture` have one: a sown crop is a different plant community
+   * from a wild sward and from a mown one — one species, planted in one week,
+   * ripening together — and what makes it read as sown rather than as grass is
+   * that it is both lighter and less blue than anything growing wild beside
+   * it. It is deliberately green rather than gold: the year's own tint turns it
+   * (see `config-rigs.ts`), and a colour authored at harvest would have no
+   * spring to come back from.
+   */
+  crop: number
+  yard: number
 
   /** Lying snow. The one colour the year adds that the scape has no other use for. */
   snow: number
@@ -277,6 +291,7 @@ export const SCAPE_PALETTE: SCAPE_PALETTEType = {
     trodden:      0x6c6049,
     track:        0x7d6a4f,
     tilled:       0x6d5a44,
+    crop:         0x7c8a3d,
     yard:         0x8a8560,
     snow:         0xe6ecf0,
     autumn:       0xb4762f,

@@ -21,6 +21,7 @@ import { distanceToTrack, pastureInfluence, plotInfluence } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
 import type { Vec2 } from './path.ts'
 import type { PeatBank } from './peat.ts'
+import { layoutRigs, rigGeometry } from './rigs.ts'
 import type { Strand } from './strand.ts'
 
 
@@ -468,35 +469,64 @@ function terrainGeometry (
 }
 
 /**
- * The rut ribbon for one island, in that island's local space.
+ * The ribbons laid on one island, in that island's local space.
  *
- * It shares the terrain's painter rather than a second opinion about the ground
- * colour, which is what lets its outer edge sit invisibly on the surface it
- * lies on.
+ * The ruts down the track and the rigs across the fields, and they are built
+ * together because they want exactly the same two things: the surface *as
+ * drawn*, and the terrain's own painter rather than a second opinion about the
+ * ground colour. Sharing the painter is what lets either one's outer edge sit
+ * invisibly on the surface it lies on, and building them once is what keeps
+ * the island from painting itself twice.
+ *
+ * Both are here for the same reason, too. They are the two pieces of the
+ * island whose detail is finer than the terrain grid — a rut is 0.34 m across
+ * and a furrow 2.1 m apart, against vertices that sit 0.68 m apart at best and
+ * 2.3 m apart on mobile. Neither survives being painted into that grid, and
+ * both merge into the same single draw as geometry.
  */
-function cartRutPatch (
+function laidPatches (
   config:   ScapeConfig,
   layout:   ScapeLayout,
   field:    HeightField,
   paths:    Footpaths,
   segments: number,
+  rigCuts:  number,
   peat:     PeatBank | null,
   dunes:    DuneBelt | null,
   crag:     Crag | null,
   marsh:    Saltings | null,
-): BufferGeometry | null {
-  const painter = createTerrainPainter(config, layout, paths, field, peat, dunes, crag, marsh)
-  const surface = drawnSurfaceOf(field, config.terrain.size, segments)
+): BufferGeometry[] {
+  const painter  = createTerrainPainter(config, layout, paths, field, peat, dunes, crag, marsh)
+  const surface  = drawnSurfaceOf(field, config.terrain.size, segments)
+  const groundAt = (x: number, z: number, target: Color): Color =>
+    painter.paint(field.heightAt(x, z), field.slopeAt(x, z), x, z, target)
 
-  return cartRutGeometry({
+  const ruts = cartRutGeometry({
     ...config.cartRuts,
     track:     layout.track.points,
     yard:      layout.yard,
     rut:       new Color(config.palette.track).multiplyScalar(0.4),
     surfaceAt: surface,
-    groundAt:  (x, z, target) =>
-      painter.paint(field.heightAt(x, z), field.slopeAt(x, z), x, z, target),
+    groundAt,
   })
+
+  // Spelled out rather than spread, because one name means two things across
+  // the seam: `rigs.crop` is the config's *share*, and the builder's `crop` is
+  // the colour that share leans toward.
+  const rigs = rigGeometry({
+    rigs:       layoutRigs(layout.plots, config.rigs),
+    spacing:    config.rigs.spacing,
+    headland:   config.rigs.headland,
+    margin:     config.rigs.margin,
+    crown:      config.rigs.crown,
+    cropAmount: config.rigs.crop,
+    crop:       new Color(config.palette.crop),
+    cuts:       rigCuts,
+    surfaceAt:  surface,
+    groundAt,
+  })
+
+  return [ ruts, rigs ].filter((piece): piece is BufferGeometry => piece !== null)
 }
 
 /**
@@ -737,6 +767,7 @@ export function createArchipelagoTerrain (
   archipelago:  ArchipelagoSurvey,
   material:     Material,
   baseSegments: number,
+  rigCuts:      number,
 ): Mesh {
   const pieces: BufferGeometry[] = []
   const seabed                   = new PlaneGeometry(archipelago.size, archipelago.size, 1, 1)
@@ -789,24 +820,23 @@ export function createArchipelagoTerrain (
     geometry.translate(landmass.origin.x, 0, landmass.origin.z)
     pieces.push(geometry)
 
-    // The ruts are the one piece of the island whose density is its own rather
-    // than the terrain grid's, which is the whole reason they exist as geometry.
-    // They still merge into the same draw.
-    const ruts = cartRutPatch(
+    // The ruts and the rigs carry their own density rather than the terrain
+    // grid's, which is the whole reason they exist as geometry. They still
+    // merge into the same draw.
+    for (const laid of laidPatches(
       landmass.config,
       landmass.survey.layout,
       landmass.survey.field,
       landmass.survey.paths,
       segments,
+      rigCuts,
       landmass.survey.peat,
       landmass.survey.dunes,
       landmass.survey.crag,
       landmass.survey.saltings,
-    )
-
-    if (ruts) {
-      ruts.translate(landmass.origin.x, 0, landmass.origin.z)
-      pieces.push(ruts)
+    )) {
+      laid.translate(landmass.origin.x, 0, landmass.origin.z)
+      pieces.push(laid)
     }
   }
 
