@@ -7,6 +7,8 @@ import type { ArchipelagoSurvey } from './archipelago.ts'
 import { dampBand, faceAmount, shadeDirection } from './aspect.ts'
 import { cartRutGeometry, trafficAt } from './cart-ruts.ts'
 import { cragFoot } from './crag.ts'
+import { cropShare, crownShare, grassShare, swardShare } from './cropping.ts'
+import type { Course } from './cropping.ts'
 import { guanoClaim, isBirdCliff } from './ledges.ts'
 import type { Crag } from './crag.ts'
 import { duneClaim } from './dunes.ts'
@@ -21,7 +23,7 @@ import { distanceToTrack, pastureInfluence, plotInfluence } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
 import type { Vec2 } from './path.ts'
 import type { PeatBank } from './peat.ts'
-import { layoutRigs, rigGeometry } from './rigs.ts'
+import { courseRigs, rigGeometry } from './rigs.ts'
 import type { Strand } from './strand.ts'
 
 
@@ -71,6 +73,29 @@ function bandAt (bands: readonly Band[], relative: number, target: Color): Color
   return target.copy(lower.color).lerp(upper.color, mix)
 }
 
+/**
+ * The ground a field in one course shows between its rigs.
+ *
+ * Three courses, three soils, and that is the whole of the rotation at the far
+ * zoom — where the corduroy is sub-pixel and the only thing left to tell two
+ * fields apart is what colour they are. The fallow is the reference: this
+ * year's bare tilth, the colour every plot used to be. The corn leans the way
+ * its own crowns lean, less far, because a crop is thicker on the ridge than
+ * in the furrow and the ground between the drills still shows. The ley has had
+ * the grass take the tilth back, and that one is barely soil at all.
+ */
+function courseSoil (course: Course, config: ScapeConfig): Color {
+  const soil = new Color(config.palette.tilled)
+
+  if (course === 'ley')
+    return soil.lerp(new Color(config.palette.pasture), grassShare(config.cropping))
+
+  if (course === 'corn')
+    return soil.lerp(new Color(config.palette.crop), swardShare(config.cropping))
+
+  return soil
+}
+
 export function createTerrainPainter (
   config: ScapeConfig,
   layout: ScapeLayout,
@@ -97,7 +122,6 @@ export function createTerrainPainter (
 
   const scree     = new Color(palette.scree)
   const track     = new Color(palette.track)
-  const tilled    = new Color(palette.tilled)
   const yard      = new Color(palette.yard)
   const pasture   = new Color(palette.pasture)
   const streambed = new Color(palette.streambed)
@@ -110,6 +134,15 @@ export function createTerrainPainter (
   const marshTurf = new Color(palette.saltings)
   const wetRock   = new Color(palette.seaRock)
   const whitewash = new Color(palette.guano)
+
+  /**
+   * Every field with the soil its course leaves on it, resolved once.
+   *
+   * Paired up here rather than decided in `paint` for the reason `stainAt` is
+   * a closure: the course a field is in is settled at build, and the ground
+   * rule below sits exactly on the complexity ceiling the lint config sets.
+   */
+  const fields = layout.plots.map(plot => ({ plot, soil: courseSoil(plot.course, config) }))
 
   /**
    * The birds' mark on the rock, resolved to a function once.
@@ -215,11 +248,11 @@ export function createTerrainPainter (
       // read — they are painted over this rather than tinted by it.
       turned(target, relative, x, z)
 
-      for (const plot of layout.plots) {
-        const claim = plotInfluence(plot, x, z)
+      for (const field of fields) {
+        const claim = plotInfluence(field.plot, x, z)
 
         if (claim > 0 && height > waterLevel + 0.4)
-          target.lerp(tilled, claim * 0.72)
+          target.lerp(field.soil, claim * 0.72)
       }
 
       // Mown ground, painted over the altitude bands rather than under them.
@@ -510,23 +543,30 @@ function laidPatches (
     groundAt,
   })
 
+  // One call per course the island has a field in, because the crown and the
+  // crop are properties of the course rather than of the strip — a ley's rigs
+  // have slumped and have grass on them, a fallow's are this year's and have
+  // nothing. Three geometries rather than one, merged into the same single
+  // draw by the caller, and not one vertex more than the single call made.
+  //
   // Spelled out rather than spread, because one name means two things across
   // the seam: `rigs.crop` is the config's *share*, and the builder's `crop` is
   // the colour that share leans toward.
-  const rigs = rigGeometry({
-    rigs:       layoutRigs(layout.plots, config.rigs),
+  const crop = new Color(config.palette.crop)
+  const rigs = courseRigs(layout.plots, config.rigs).map(group => rigGeometry({
+    rigs:       group.rigs,
     spacing:    config.rigs.spacing,
     headland:   config.rigs.headland,
     margin:     config.rigs.margin,
-    crown:      config.rigs.crown,
-    cropAmount: config.rigs.crop,
-    crop:       new Color(config.palette.crop),
+    crown:      config.rigs.crown * crownShare(group.course, config.cropping),
+    cropAmount: config.rigs.crop * cropShare(group.course),
+    crop,
     cuts:       rigCuts,
     surfaceAt:  surface,
     groundAt,
-  })
+  }))
 
-  return [ ruts, rigs ].filter((piece): piece is BufferGeometry => piece !== null)
+  return [ ruts, ...rigs ].filter((piece): piece is BufferGeometry => piece !== null)
 }
 
 /**

@@ -8,6 +8,7 @@ import { COAST_TOURS } from './scape-poses-coast.ts'
 import { CROSSING_TOURS } from './scape-poses-crossing.ts'
 import { ICE_TOURS } from './scape-poses-ice.ts'
 import { RIG_TOURS } from './scape-poses-rigs.ts'
+import { ROTATION_TOURS } from './scape-poses-rotation.ts'
 import { SHORE_TOURS } from './scape-poses-shore.ts'
 import { SKY_TOURS } from './scape-poses-sky.ts'
 import { SNOW_TOURS } from './scape-poses-snow.ts'
@@ -210,6 +211,14 @@ export const TOURS: Record<string, Pose[]> = {
   // reason: the subject is everywhere the farm is and nowhere the tour looks
   // closely enough to see it.
   ...RIG_TOURS,
+
+  // And which course each of those fields is in, out in
+  // `scape-poses-rotation.ts` on the same seam. A separate set rather than two
+  // more frames in the rig one, because the rig set is argued on a single
+  // field and this one is a difference between two of them — they cannot share
+  // a camera, and a set whose frames disagree about what they are of is a set
+  // nobody reads twice.
+  ...ROTATION_TOURS,
 
   // And the lights of the places on the land behind all of it, out in
   // `scape-poses-shore.ts` on the same seam, for the sharpest version of the

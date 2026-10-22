@@ -297,6 +297,7 @@ async function main (): Promise<void> {
       '                        wreck (4, the hull on the low rock, at both ends of a spring tide)',
       '                        shore (4, the lights of the places on the far coast)',
       '                        rigs (6, the plough pattern on the infield, two lights and two seasons)',
+      '                        rotation (6, the course each field is in, one each and two together)',
       '                        quick (1)',
       '  --rot 45 --zoom 70    camera yaw, and view size (tilt is derived from zoom)',
       '  --time 0.42           the day, 0..1',

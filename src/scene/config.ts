@@ -48,6 +48,8 @@ import { SCAPE_SHELTER } from './config-shelter.ts'
 import type { ShelterConfig } from './config-shelter.ts'
 import { SCAPE_SWASH } from './config-swash.ts'
 import type { SwashConfig } from './config-swash.ts'
+import { SCAPE_CROPPING } from './config-cropping.ts'
+import type { CroppingConfig } from './config-cropping.ts'
 import { SCAPE_RIGS } from './config-rigs.ts'
 import type { RigsConfig } from './config-rigs.ts'
 import { SCAPE_ROOST } from './config-roost.ts'
@@ -299,7 +301,7 @@ export interface DressingBudget {
   lamb: number
 }
 
-export interface ScapeConfig extends CarterConfig, CreelConfig, CrossingConfig, DykeConfig, FarShoreConfig, ForceConfig, FrontConfig,
+export interface ScapeConfig extends CarterConfig, CreelConfig, CroppingConfig, CrossingConfig, DykeConfig, FarShoreConfig, ForceConfig, FrontConfig,
   GuardConfig, HaarConfig, HaloConfig, HoweConfig, KelpConfig, LedgeConfig, MoleConfig, PackIceConfig, RigsConfig, RoostConfig, ShaftsConfig, ShielingConfig,
   ShelterConfig, ShoalConfig, ShoreLightsConfig, SnowFenceConfig, SwashConfig, TreelineConfig, WatermillConfig, WreckConfig {
   seed:    number
@@ -2768,6 +2770,7 @@ export const SCAPE_CONFIG = {
     halfWidth: 3.4,
   },
   ...SCAPE_CREEL,
+  ...SCAPE_CROPPING,
   ...SCAPE_DYKE,
   ...SCAPE_FORCE,
   ...SCAPE_FRONT,

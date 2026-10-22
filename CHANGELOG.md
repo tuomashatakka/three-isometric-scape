@@ -2,6 +2,50 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the courses the fields turn in
+
+the infield has had the plough's pattern on it since the rigs landed and every field was doing the same thing with it — fifteen plots across the archipelago, each levelled, each painted toward `palette.tilled`, each carrying rigs crowned the same height with the same crop standing on them. the one thing that did not look like was a farm, because no farm in the north ever cropped the same ground two years running and lived. the fields are now each in a different year of one **rotation**: the home island's four plots are standing corn, a field down to grass, a second field of corn and a field of bare turned earth lying fallow, and all six inhabited islands carry more than one course. the arithmetic is [`landscape/cropping.ts`](src/scene/landscape/cropping.ts), the five knobs are [`config-cropping.ts`](src/scene/config-cropping.ts), the course is dealt in [`landscape/layout.ts`](src/scene/landscape/layout.ts) and spent in [`landscape/terrain.ts`](src/scene/landscape/terrain.ts).
+
+- **three states and not a number.** corn, ley, fallow are not three points on one scale — a fallow is bare earth at full relief, a ley is green ground over old relief, corn is bare earth with a crop standing on it — and any ordering of the three is a lie about one of the pairs. a per-plot `cropAmount` would have been one number and would have given a ley that was bare soil with no grass on it.
+- **what grows on a field is the course, and that is where the visible work turned out to be.** the first two cuts of this were paint — three grounds, then three grounds with the corn's leaning further — and `scape:diff` reported `same` at every pose in two different pose sets. the readout was right and the reasoning was wrong: **a plot's ground is almost entirely hidden under what stands on it.** `dressing.ts` scattered `crop` on any plot claiming a point by more than 0.35, so every field in the archipelago carried standing corn and a fallow with a crop on it is a fallow nobody can see. the two scatters ask the course now — `zones.onCourse`, beside `onPlot` rather than replacing it, because everything kept *off* a field wants the plot whatever it is doing and everything that *grows* on one wants the course. corn stands on a field under corn and nowhere else, the sward closes over a ley at full density and stays a one-in-four weed elsewhere, and a fallow carries neither.
+- **three courses, three grounds.** the fallow is the reference — this year's bare tilth, the colour every plot used to be. the corn's ground leans the way its own crowns lean, `cropping.cornSward` of the way, because a cereal is thicker on the ridge than in the furrow and the soil between the drills still shows. the ley is painted toward `palette.pasture` by `cropping.leyGrass` with rigs at `cropping.leyCrown` of their height — 0.45, a few years of soil creeping back down into its own furrow.
+- **the resting years are spread through the corn rather than stacked after it, and the small islands are why.** the norfolk four-course alternates — cereal, fallow, cereal, ley — because the point of a rest year is to come *between* two crops. the picture agrees for a reason the agronomy does not mention: an island's fields are dealt consecutive courses off one cycle and most of these islands site two or three plots, so with the resting years together at the end, three of the six came out with grass and fallow and **no standing crop anywhere on them**. none of that is visible in a still of the home island, which is the one the tour photographs. `cropping.test.ts` states the fixed cycle as a fact and `scape-map.test.ts` states it again about every island on the map.
+- **dealt round the cycle rather than rolled per field.** rolling independently gives a farm that is all corn one seed and all fallow the next; dealing guarantees what a rotation guarantees, that over any `courses` consecutive fields every course appears exactly once. the only thing the seed touches is the shift, drawn from a dozen rather than from the cycle's own length so a rotation of 2, 3, 4 or 6 years is not quietly biased toward its own start.
+- **the course lives on the plot.** `Plot.course`, set once when the field is sited and read by both the terrain painter and `rigs.ts`. two copies of the same arithmetic in two modules is one retune away from a green field with corn standing on it.
+- **three calls to the rig builder, and not one vertex more than the one call made.** `courseRigs` gathers an island's strips by what their field is doing, in a fixed course order rather than in siting order, and `laidPatches` builds each group with its own crown and crop. the alternative was teaching the geometry builder to look a plot up per vertex.
+- **no season in it.** a course is what a field does this *year*; the year is `season.ts` and it tints the corn exactly as it tints everything else green. a field that ploughed itself at midwinter would be the first thing in the scape to break the rule that the year is a surface response and never a change of shape.
+- **cost: nothing added, and a little given back.** no draw call, no texture, no material, nothing per frame, and three calls to the rig builder produce the vertex count one call produced. the ground colour is one `Color` resolved per field at painter creation rather than a branch per vertex, which is also what keeps `paint` under the lint config's complexity ceiling. the one number that moves is the crop scatter, and it moves down: the same `dressing.crop` budget now has half the island to land on. `scape:shot` reports **69 draws and 3.13M triangles on both sides of the diff** — the same instanced mesh with fewer instances in it. `minimal`, which has no rigs at all, shows the rotation anyway in what stands on the fields.
+- **the instrument reads a colour change badly, and that is worth knowing.** every ground colour here is a muted northern one, so the browns and greens sit within a few levels of each other in luma and differ in chroma. pixelmatch weighs luma at 0.5 against 0.3 and 0.2 for the chroma axes, so the colour-only cut measured **0.06% at the default `--tolerance 0.1` and 1.10% at `0.03`** on the identical frame. `--tolerance 0.03` is the reading to take for anything whose claim is a colour rather than a shape.
+- **`scape:map` gains `courses corn 2 ley 1 fallow 1`** beside the rig count, counted off the plots rather than off the rig groups so that a field too small to carry a strip still shows up in a course. two claims as facts about the data: every infield has a crop standing somewhere on it on every inhabited island, and the home island carries the whole rotation at once, a field to a course.
+- **`--poses rotation`, the thirty-second set**, in [`scape-poses-rotation.ts`](scripts/scape-poses-rotation.ts). a separate set rather than two more frames in the rig one, because the rig set is argued on a *single* field and this one is a difference between two of them: they cannot share a camera. three frames are the three courses at 12 m, one each; three are the ley and the corn field together at 26 m, dry, and then through the turn and the snow. every frame pins the weather, and the rig set's wide half is what taught it to — the default phase parks a snow shower over the scape, and the infield at 26 m under falling snow is a picture of a shower rather than of a farm.
+- **verification** one `bun run gate`, all five green — lint 18.7s, typecheck 13.4s, test 777.6s, build 14.5s, prop:audit 0.5s. `scape:diff --ref origin/main --poses rotation`, all six moved:
+
+  ```text
+  pose         changed   maxblock  verdict
+  rotation      5.55%    43.6%  CHANGED
+  rotation-corn  8.25%    63.2%  CHANGED
+  rotation-ley  5.76%    56.3%  CHANGED
+  rotation-fallow  7.97%    59.4%  CHANGED
+  rotation-turn  4.84%    39.3%  CHANGED
+  rotation-winter  2.42%    32.1%  CHANGED
+  structural: ... no structural change
+  ```
+
+  and `--poses tour`, where only the close farm frame moved and the structural line is clean:
+
+  ```text
+  pose         changed   maxblock  verdict
+  default       0.04%     2.0%  same
+  near         11.38%    79.7%  CHANGED
+  far           0.14%     6.2%  same
+  noon          0.04%     2.1%  same
+  night         0.01%     0.6%  same
+  winter        0.01%     1.1%  same
+  structural: ... no structural change
+  ```
+
+  the diff image for `near` is the answer on its own: every changed pixel is a crop tuft standing on the field that is lying fallow this year, and nothing else in the frame moved at all.
+
 ## the pattern the plough leaves
 
 for thirty-one runs this farm had fields and none of them looked worked. a plot is a levelled rectangle and the terrain painter lerps it toward `palette.tilled`, so the infield read as four brown rectangles from the far zoom and as four brown rectangles from the near one — nothing in them said a plough had ever been through. there are **58 ridge-and-furrow strips across the six inhabited islands** now, 668 m of furrow in all, crowned 0.17 m above their furrows, running the long way down each plot with a headland left at either end to turn on, and carrying a crop the year ripens. [`landscape/rigs.ts`](src/scene/landscape/rigs.ts) lays them and builds them, [`landscape/terrain.ts`](src/scene/landscape/terrain.ts) merges them, and the five knobs are [`config-rigs.ts`](src/scene/config-rigs.ts).

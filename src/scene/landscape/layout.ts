@@ -3,6 +3,8 @@ import type { ScapeConfig } from '../config.ts'
 import { coastWarp, sampleHeight, valueNoise } from '../noise.ts'
 import { CHAPEL_FOOTING, findChapelSite } from './chapel.ts'
 import type { ChapelSite } from './chapel.ts'
+import { courseRun } from './cropping.ts'
+import type { Course } from './cropping.ts'
 import { createCreek } from './creek.ts'
 import type { Creek } from './creek.ts'
 import { carveFjord } from './fjord.ts'
@@ -25,6 +27,17 @@ export interface Plot extends Vec2 {
   halfD:    number
   rotation: number
   level:    number
+
+  /**
+   * What the field is doing this year.
+   *
+   * Carried on the plot rather than derived twice, because both readers of it
+   * — the terrain painter, which decides whether the ground is tilth or sward,
+   * and `rigs.ts`, which decides how proud the crowns stand and what grows on
+   * them — have to agree exactly. Two copies of the same arithmetic in two
+   * modules is one retune away from a green field with corn on it.
+   */
+  course: Course
 }
 
 /** A wooded high point — conifers cluster toward these. */
@@ -403,9 +416,13 @@ function buildTrack (config: ScapeConfig, yard: Yard, wander: number): Vec2[] {
 }
 
 function buildPlots (config: ScapeConfig, yard: Yard, seed: number): Plot[] {
-  const rng           = createSeededRng(seed)
-  const plots: Plot[] = []
-  const extent        = landRadiusOf(config)
+  const rng    = createSeededRng(seed)
+  const extent = landRadiusOf(config)
+
+  // Sited without a course on them: which year of the rotation a field is in
+  // is a fact about the farm rather than about the ground, and it is not
+  // knowable until the trials below have settled how many fields there are.
+  const plots: Omit<Plot, 'course'>[] = []
 
   // Fields sit between the yard and the middle of the map, never out past the
   // rim — a plot that runs off the edge of the world reads as a bug, not a farm.
@@ -435,7 +452,15 @@ function buildPlots (config: ScapeConfig, yard: Yard, seed: number): Plot[] {
     plots.push({ x, z, halfW, halfD, rotation: angle + rng.range(-0.3, 0.3), level })
   }
 
-  return plots
+  // Dealt round the rotation rather than rolled per field, and dealt from a
+  // fork so that the island's place in the cycle does not move if the siting
+  // trials above ever draw a different number of samples. A dozen because
+  // every rotation length a person is likely to type divides it, so the island
+  // the shift lands on is not quietly biased toward the start of a cycle whose
+  // length is 2, 3, 4 or 6.
+  const run = courseRun(plots.length, config.cropping, rng.fork('course').int(0, 11))
+
+  return plots.map((plot, index) => ({ ...plot, course: run[index] }))
 }
 
 function findRidges (config: ScapeConfig, yard: Yard): Ridge[] {

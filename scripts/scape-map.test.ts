@@ -165,6 +165,29 @@ describe('the stats', () => {
       expect(landmass.rigs.count).toBeGreaterThanOrEqual(landmass.plots)
   })
 
+  /**
+   * The claim the rotation makes, and it is about the *small* islands. The
+   * fields of an island are dealt consecutive courses from one cycle, and most
+   * of these islands site two or three plots rather than four — so a cycle
+   * whose resting years sat together at the end of it gave three of the six an
+   * infield with grass and fallow on it and no standing crop anywhere. Nothing
+   * about that is visible in a still of the home island, which is the one the
+   * tour photographs.
+   */
+  test('every infield has a crop standing somewhere on it, on every inhabited island', () => {
+    for (const landmass of stats.landmasses) {
+      const courses = landmass.rigs.courses
+
+      expect(courses.corn + courses.ley + courses.fallow).toBe(landmass.plots)
+      expect(courses.corn).toBeGreaterThan(0)
+    }
+  })
+
+  test('the home island carries the whole rotation at once, a field to a course', () => {
+    expect(stats.plots).toBe(config.cropping.courses)
+    expect(stats.rigs.courses).toEqual({ corn: 2, ley: 1, fallow: 1 })
+  })
+
   test('reports every inhabited landmass, all distinct', () => {
     expect(stats.landmasses).toHaveLength(ISLANDS)
     expect(new Set(stats.landmasses.map(landmass => landmass.id)).size).toBe(ISLANDS)

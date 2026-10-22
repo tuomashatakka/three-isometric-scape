@@ -845,6 +845,7 @@ export function formatStats (stats: MapStats): string {
       ? `pasture (${stats.pasture.x},${stats.pasture.z}) r${stats.pasture.radius}`
       : 'pasture NONE') +
       `   plots ${stats.plots}   rigs ${stats.rigs.count}, ${stats.rigs.length}m   ` +
+      `courses corn ${stats.rigs.courses.corn} ley ${stats.rigs.courses.ley} fallow ${stats.rigs.courses.fallow}   ` +
       `ridges ${stats.ridges}   ` +
       `isles ${stats.isles.surfacing}/${stats.isles.total} surfacing`,
     ...sitedLines(stats),

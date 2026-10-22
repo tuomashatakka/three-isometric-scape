@@ -8,6 +8,8 @@ import type { CroftSite } from '../src/scene/landscape/croft.ts'
 import type { HeadDyke } from '../src/scene/landscape/dyke.ts'
 import type { HeightField } from '../src/scene/landscape/height.ts'
 import { peatFaceStanding } from '../src/scene/landscape/peat.ts'
+import { COURSES } from '../src/scene/landscape/cropping.ts'
+import type { Course } from '../src/scene/landscape/cropping.ts'
 import { layoutRigs, rigLength } from '../src/scene/landscape/rigs.ts'
 import type { RigLayout } from '../src/scene/landscape/rigs.ts'
 import type { Plot } from '../src/scene/landscape/layout.ts'
@@ -554,10 +556,32 @@ const WEEKS = 52
 export interface RigStats {
   count:  number
   length: number
+
+  /**
+   * Fields in each course, in {@link COURSES} order.
+   *
+   * On the readout for the same reason the count is, one question further on.
+   * The rotation is dealt round the plots in the order they were *sited*, and
+   * nothing about the siting knows the cycle exists — so a seed that happens
+   * to place one field is a seed whose whole infield is in one course, and a
+   * rotation shorter or longer than the farm has fields is a farm that never
+   * shows one of them. Both are legitimate worlds and both are invisible in a
+   * still, which is exactly the shape of thing this block is for.
+   */
+  courses: Record<Course, number>
 }
 
 export function rigsOf (plots: readonly Plot[], layout: RigLayout): RigStats {
   const rigs = layoutRigs(plots, layout)
 
-  return { count: rigs.length, length: round(rigLength(rigs), 1) }
+  // Counted off the plots rather than off the rig groups, because a field too
+  // small to carry a strip is still a field in a course, and the one place
+  // that would show is this line disagreeing with `plots` beside it.
+  return {
+    count:   rigs.length,
+    length:  round(rigLength(rigs), 1),
+    courses: Object.fromEntries(
+      COURSES.map(course => [ course, plots.filter(plot => plot.course === course).length ]),
+    ) as Record<Course, number>,
+  }
 }

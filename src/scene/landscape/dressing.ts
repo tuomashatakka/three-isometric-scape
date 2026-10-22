@@ -232,8 +232,8 @@ export function createDressing (
 
   // ---- feature tests -------------------------------------------------------
 
-  const zones                                                                                  = createZoneTests(archipelago)
-  const { onTrack, onPath, onPlot, onPasture, atTarnMargin, onIce, onDune, onSaltings, clear } = zones
+  const zones                                                                                            = createZoneTests(archipelago)
+  const { onTrack, onPath, onPlot, onCourse, onPasture, atTarnMargin, onIce, onDune, onSaltings, clear } = zones
 
   // ---- hero props ----------------------------------------------------------
 
@@ -794,7 +794,7 @@ export function createDressing (
       const height = heightAt(x, z)
       return height > water + 0.2 && !onTrack(x, z) && !onPath(x, z) && !onIce(x, z) &&
         onDune(x, z) < SWARD_SMOTHERED &&
-        (onPlot(x, z) === 0 || rng.next() > 0.75) &&
+        (onPlot(x, z) === 0 || onCourse('ley', x, z) > 0.35 || rng.next() > 0.75) &&
         onSaltings(x, z) < SWARD_DROWNED
     }, 0.6, 1.5, 0, 16, true, sampleSpot, TILT.rooted)
 
@@ -858,8 +858,14 @@ export function createDressing (
       return height < water - 0.3 && height > water - 1.8
     }, 0.8, 1.4, water + 0.02, 30)
 
+    // The standing crop, and it stands on a field *under* corn rather than on
+    // any field at all. This is where the rotation does most of its visible
+    // work: a plot's own ground colour is almost entirely hidden under what
+    // grows on it, so a fallow that keeps its crop is a fallow nobody can see.
+    // A field resting is bare, a field down to grass is covered by the sward
+    // rule above, and only the corn carries this.
     scatterCover('crop', config.dressing.crop, (x, z) =>
-      onPlot(x, z) > 0.35 && heightAt(x, z) > water + 0.6, 0.85, 1.15, 0, 90, true, sampleSpot, TILT.rooted)
+      onCourse('corn', x, z) > 0.35 && heightAt(x, z) > water + 0.6, 0.85, 1.15, 0, 90, true, sampleSpot, TILT.rooted)
 
     // The tidal band on the rocks out in the open water. Its own sampler for the
     // reason the paving has one, and its own scale for the reason `budget` now

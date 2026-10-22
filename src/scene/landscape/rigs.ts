@@ -1,6 +1,8 @@
 import { smoothstep, valueNoise1d } from 'threejs-scene'
 import { createSurfaceRibbon, mergeGeometryList } from 'threejs-scene/modules/assets'
 import type { BufferGeometry, Color } from 'three'
+import { COURSES } from './cropping.ts'
+import type { Course } from './cropping.ts'
 import type { Plot } from './layout.ts'
 
 
@@ -193,6 +195,38 @@ export function plotRigs (plot: Plot, layout: RigLayout): Rig[] {
 /** Every strip on an island, in the order its plots were sited. */
 export function layoutRigs (plots: readonly Plot[], layout: RigLayout): Rig[] {
   return plots.flatMap(plot => plotRigs(plot, layout))
+}
+
+/** The strips of one course, and the fields they came off. */
+export interface RigCourse {
+  course: Course
+  plots:  number
+  rigs:   Rig[]
+}
+
+/**
+ * An island's strips, gathered by what the field they are in is doing.
+ *
+ * The grouping exists because a crown and a crop are properties of the
+ * *course* rather than of the strip: a ley's rigs are lower and bare, a
+ * fallow's are full height and bare, a corn field's are full height with the
+ * crop on them. Three groups is three calls to {@link rigGeometry} with three
+ * sets of numbers, and still one merged draw at the end of it, against the
+ * alternative of teaching the geometry builder to look a plot up per vertex.
+ *
+ * Walked in {@link COURSES} order rather than in plot order, so that the
+ * geometry an island produces does not depend on which field happened to be
+ * sited first — the same claim `rigs.test.ts` makes about cross-sections, one
+ * level up. Courses no field is in are left out rather than returned empty.
+ */
+export function courseRigs (plots: readonly Plot[], layout: RigLayout): RigCourse[] {
+  return COURSES
+    .map(course => {
+      const fields = plots.filter(plot => plot.course === course)
+
+      return { course, plots: fields.length, rigs: fields.flatMap(plot => plotRigs(plot, layout)) }
+    })
+    .filter(group => group.rigs.length > 0)
 }
 
 /** Ploughed length, in metres — the figure `scape:map` reports. */
