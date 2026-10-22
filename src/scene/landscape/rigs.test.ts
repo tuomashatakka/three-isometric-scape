@@ -4,7 +4,8 @@ import type { BufferGeometry } from 'three'
 import { SCAPE_CONFIG } from '../config.ts'
 import { createScapeLayout, plotInfluence } from './layout.ts'
 import type { Plot } from './layout.ts'
-import { layoutRigs, plotRigs, rigGeometry, rigLength, rigProfile } from './rigs.ts'
+import { COURSES } from './cropping.ts'
+import { courseRigs, layoutRigs, plotRigs, rigGeometry, rigLength, rigProfile } from './rigs.ts'
 import type { Rig, RigGeometryOptions, RigLayout } from './rigs.ts'
 
 
@@ -20,7 +21,7 @@ const GROUND = new Color(0x6d5a44)
 const CROP   = new Color(0x7c8a3d)
 
 /** A plot square to the axes, so a local offset is readable straight off x and z. */
-const SQUARE: Plot = { x: 0, z: 0, halfW: 8, halfD: 6, rotation: 0, level: 3 }
+const SQUARE: Plot = { x: 0, z: 0, halfW: 8, halfD: 6, rotation: 0, level: 3, course: 'corn' }
 
 function options (over: Partial<RigGeometryOptions> = {}): RigGeometryOptions {
   return {
@@ -255,5 +256,46 @@ describe('the rig geometry', () => {
     const geometry    = rigGeometry(options({ rigs }))!
 
     expect(geometry.getAttribute('position').count).toBe(rigs.length * 19 * ACROSS)
+  })
+})
+
+describe('gathering the strips by what their field is doing', () => {
+  const plots = createScapeLayout(SCAPE_CONFIG).plots
+
+  test('every strip on the island lands in exactly one course, and none is lost', () => {
+    const gathered = courseRigs(plots, SCAPE_CONFIG.rigs)
+    const total    = gathered.reduce((count, group) => count + group.rigs.length, 0)
+
+    expect(total).toBe(layoutRigs(plots, SCAPE_CONFIG.rigs).length)
+    expect(gathered.reduce((count, group) => count + group.plots, 0)).toBe(plots.length)
+  })
+
+  test('every field the farm levelled is still ploughed, whatever course it is in', () => {
+    for (const course of COURSES) {
+      const fields = plots.filter(plot => plot.course === course)
+
+      for (const plot of fields)
+        expect(plotRigs(plot, SCAPE_CONFIG.rigs).length).toBeGreaterThan(0)
+    }
+  })
+
+  test('the groups come back in course order rather than in siting order', () => {
+    const gathered = courseRigs(plots, SCAPE_CONFIG.rigs).map(group => group.course)
+
+    expect(gathered).toEqual(COURSES.filter(course => gathered.includes(course)))
+  })
+
+  test('a course no field is in is left out rather than returned empty', () => {
+    const corn = courseRigs(plots.map(plot => ({ ...plot, course: 'corn' as const })), SCAPE_CONFIG.rigs)
+
+    expect(corn.map(group => group.course)).toEqual([ 'corn' ])
+    expect(courseRigs([], SCAPE_CONFIG.rigs)).toEqual([])
+  })
+
+  test('it is the same gathering every time, down to the order of the strips', () => {
+    const once  = courseRigs(plots, SCAPE_CONFIG.rigs)
+    const again = courseRigs(plots, SCAPE_CONFIG.rigs)
+
+    expect(again).toEqual(once)
   })
 })

@@ -4,6 +4,7 @@ import type { ArchipelagoSurvey } from './archipelago.ts'
 import type { HeightField } from './height.ts'
 import { BEACON_FOOTING } from './beacon.ts'
 import { cragFoot } from './crag.ts'
+import type { Course } from './cropping.ts'
 import { duneClaim } from './dunes.ts'
 import { saltingsTurf } from './saltings.ts'
 import { iceClaim } from './icecap.ts'
@@ -40,6 +41,20 @@ export interface DressingZones {
   onTrack(x: number, z: number): boolean
   onPath(x: number, z: number): boolean
   onPlot(x: number, z: number): number
+
+  /**
+   * The claim of a field *in one course*, 1 across its middle falling to 0 at
+   * its edge, and 0 everywhere a field in some other course stands.
+   *
+   * Beside {@link onPlot} rather than replacing it, because the two answer
+   * different questions and both get asked. Everything that is kept *off* a
+   * field — a tree, a boulder, a snow fence line — wants the plot whatever it
+   * is doing this year. Everything that *grows* on one wants the course: corn
+   * stands on a field under corn and nowhere else, and grass closes over a
+   * field down to grass and stays a weed on the other two.
+   */
+  onCourse(course: Course, x: number, z: number): number
+
   onPasture(x: number, z: number): number
 
   /** Inside the light's footing — its plinth, and the storm boulders round it. */
@@ -150,6 +165,21 @@ export function createZoneTests (archipelago: ArchipelagoSurvey): DressingZones 
     const localZ = z - landmass.origin.z
     return landmass.survey.layout.plots.reduce(
       (claim, plot) => Math.max(claim, plotInfluence(plot, localX, localZ)),
+      0,
+    )
+  }
+
+  const onCourse = (course: Course, x: number, z: number): number => {
+    const landmass = archipelago.field.landmassAt(x, z)
+    if (!landmass)
+      return 0
+
+    const localX = x - landmass.origin.x
+    const localZ = z - landmass.origin.z
+    return landmass.survey.layout.plots.reduce(
+      (claim, plot) => plot.course === course
+        ? Math.max(claim, plotInfluence(plot, localX, localZ))
+        : claim,
       0,
     )
   }
@@ -310,6 +340,7 @@ export function createZoneTests (archipelago: ArchipelagoSurvey): DressingZones 
     onTrack,
     onPath,
     onPlot,
+    onCourse,
     onPasture,
     onBeacon,
     onTarn,
