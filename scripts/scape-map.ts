@@ -24,7 +24,7 @@ import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
 import { measureSwash } from '../src/scene/landscape/swash.ts'
 import type { SwashSurvey } from '../src/scene/landscape/swash.ts'
-import { carterOf, causewayOf, croftOf, crossingsOf, dykeOf, howeOf, moleOf, peatOf, pierOf, rigsOf, shielingOf, smokehouseOf, snowFenceOf, tarnOf, watermillOf, weirOf, wreckOf } from './scape-map-sites.ts'
+import { carterOf, causewayOf, croftOf, crossingsOf, dykeOf, hjellOf, howeOf, moleOf, peatOf, pierOf, rigsOf, shielingOf, smokehouseOf, snowFenceOf, tarnOf, watermillOf, weirOf, wreckOf } from './scape-map-sites.ts'
 import type { CrossingStats, RigStats } from './scape-map-sites.ts'
 import {
   capsStats,
@@ -113,6 +113,30 @@ export interface CompositionStats {
    * and a screenshot at the default pose never shows.
    */
   smokehouse: { x: number, z: number, fromBank: number } | null
+
+  /**
+   * The line of racks the catch dries on, end to end, and what the ground cost
+   * to put it there.
+   *
+   * A structural line rather than a decorative one, and the only site in the
+   * survey whose refusal is about the *weather* rather than the shape of the
+   * ground: `NONE` on an island that has a harbour means every candidate line
+   * near it was either too steep for the legs `hjell.fall` will cut or shut off
+   * from the wind inside `hjell.fetch`. Neither is visible in a still, and a
+   * retuned falloff moves both.
+   */
+  hjell: {
+    x:        number
+    z:        number
+    toX:      number
+    toZ:      number
+    bays:     number
+    length:   number
+    deck:     number
+    fall:     number
+    fetch:    number
+    fromBank: number
+  } | null
 
   /**
    * The hut on the summer grazing, how far up the hill it is, and how far it
@@ -944,6 +968,7 @@ function compositionStats (
       fromYard:   round(layout.chapel.fromYard),
     },
     smokehouse: smokehouseOf(survey.smokehouse, worldX, worldZ),
+    hjell:      hjellOf(survey.hjell, worldX, worldZ),
     shieling:   shielingOf(survey.shieling, worldX, worldZ),
     howe:       howeOf(survey.howe, worldX, worldZ),
     carter:     carterOf(landmass, world, config),

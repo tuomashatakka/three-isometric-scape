@@ -38,6 +38,8 @@ import { HOWE_FOOTING, findHoweSite } from './howe.ts'
 import type { HoweSite } from './howe.ts'
 import { SHIELING_FOOTING, findShielingSite } from './shieling.ts'
 import type { ShielingSite } from './shieling.ts'
+import { findHjellRun } from './hjell.ts'
+import type { HjellRun } from './hjell.ts'
 import { SMOKEHOUSE_FOOTING, findSmokehouseSite } from './smokehouse.ts'
 import type { SmokehouseSite } from './smokehouse.ts'
 import { WATERMILL_FOOTING, findWatermillSite } from './watermill.ts'
@@ -83,6 +85,18 @@ export interface ScapeSurvey {
 
   /** The bank above the harbour the smokehouse stands on, or `null` if none is dry. */
   smokehouse: SmokehouseSite | null
+
+  /**
+   * The line of ground above the harbour the catch is dried on, or `null` when
+   * nothing near the boats is both level and open to the weather.
+   *
+   * The only site in the survey chosen by what the *wind* does on the ground
+   * rather than by the shape of it — see `hjell.ts`. `null` on an island that
+   * has a harbour means every candidate line near it was either too steep to lay
+   * a rail across or shut off from the weather inside `hjell.fetch`, which is
+   * exactly the sort of thing a retuned falloff does and a still never shows.
+   */
+  hjell: HjellRun | null
 
   /** The hut on the summer grazing, or `null` on an island with no hill to put one on. */
   shieling: ShielingSite | null
@@ -515,6 +529,53 @@ function hillReach (layout: ScapeLayout): number {
 }
 
 /**
+ * The line of racks the catch dries on, or the reason the harbour has none.
+ *
+ * A function of its own for the reason {@link strandAHull} is one, and for the
+ * same extra one: the harbour it is sited from is optional and so is the hut it
+ * has to miss, so inlining it put two more branches into `surveyScape` and took
+ * that function past the lint config's complexity ceiling. The survey holds the
+ * order; the argument lists live out here.
+ *
+ * The racks are never handed to anything as an obstacle in turn. They are a line
+ * of poles with daylight between them, and a footpath worn under a drying rack
+ * is a footpath.
+ */
+function dryTheCatch (
+  config:     ScapeConfig,
+  field:      HeightField,
+  harbour:    Spot | null,
+  standing:   readonly Obstacle[],
+  smokehouse: SmokehouseSite | null,
+): HjellRun | null {
+  if (!harbour)
+    return null
+
+  return findHjellRun(
+    {
+      ground:     field.heightAt,
+      waterLevel: config.terrain.waterLevel,
+      bearing:    config.wind.bearing,
+      height:     config.hjell.height,
+      bays:       config.hjell.bays,
+      spacing:    config.hjell.spacing,
+      setback:    config.hjell.setback,
+      reach:      config.hjell.reach,
+      freeboard:  config.hjell.freeboard,
+      fall:       config.hjell.fall,
+      fetch:      config.hjell.fetch,
+    },
+    harbour,
+    [
+      ...standing,
+      { ...boathouseSpot(harbour), radius: BOATHOUSE_FOOTING },
+      { ...netRackSpot(harbour), radius: NET_RACK_FOOTING },
+      ...claim(smokehouse, SMOKEHOUSE_FOOTING),
+    ],
+  )
+}
+
+/**
  * The hull on the low rock, or the reason the ring has none.
  *
  * A function of its own for the reason {@link grazeTheHill} is one, and for one
@@ -850,6 +911,10 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     ],
   )
 
+  // Against the harbour like the smokehouse, and after it, because the hut is
+  // one of the things the racks have to miss.
+  const hjell = dryTheCatch(config, field, harbour, standing, smokehouse)
+
   const pier = reachDeepWater(config, field, harbour)
   const weir = trapTheFlat(config, field, harbour)
   const mole = shelterTheLanding(config, field, landing)
@@ -982,6 +1047,7 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     beacon,
     croft,
     smokehouse,
+    hjell,
     shieling,
     howe,
     watermill,

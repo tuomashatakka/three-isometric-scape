@@ -21,6 +21,7 @@ import type { PeatBank } from '../src/scene/landscape/peat.ts'
 import type { HoweSite } from '../src/scene/landscape/howe.ts'
 import type { ShielingSite } from '../src/scene/landscape/shieling.ts'
 import type { WatermillSite } from '../src/scene/landscape/watermill.ts'
+import type { HjellRun } from '../src/scene/landscape/hjell.ts'
 import type { SmokehouseSite } from '../src/scene/landscape/smokehouse.ts'
 import type { CrossingSurvey } from '../src/scene/landscape/crossing.ts'
 import type { SnowFenceSurvey } from '../src/scene/landscape/snowfence.ts'
@@ -55,6 +56,42 @@ const round = (value: number, places = 1): number => Number(value.toFixed(places
 /** Carrying a local coordinate into world metres. See `compositionStats`. */
 type Project = (value: number) => number
 
+
+/**
+ * The drying racks above the harbour, and the four numbers that say whether the
+ * search did its job.
+ *
+ * `fetch` is the one worth reading first and the one no still can show: it is
+ * metres of open ground measured upwind of the windward trestle, capped at
+ * `hjell.fetch`, so a run that comes back at the cap is a run standing in the
+ * weather and a `NONE` beside a harbour is a coast that had nowhere out of the
+ * lee. `fall` is how much extra leg the slope cost, `length` is how much rack
+ * the line could hold, and `fromBank` is how far the catch is carried.
+ */
+export function hjellOf (
+  run:    HjellRun | null,
+  worldX: Project,
+  worldZ: Project,
+): CompositionStats['hjell'] {
+  const root = run?.stations[0]
+  const head = run?.stations[run.stations.length - 1]
+
+  if (!run || !root || !head)
+    return null
+
+  return {
+    x:        round(worldX(root.x)),
+    z:        round(worldZ(root.z)),
+    toX:      round(worldX(head.x)),
+    toZ:      round(worldZ(head.z)),
+    bays:     run.stations.length - 1,
+    length:   round(run.length, 1),
+    deck:     round(run.deck, 2),
+    fall:     round(run.fall, 2),
+    fetch:    round(run.fetch, 1),
+    fromBank: round(run.fromBank, 1),
+  }
+}
 
 /** The harbour's hut, and how far up the bank it stands. */
 export function smokehouseOf (

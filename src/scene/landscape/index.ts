@@ -44,6 +44,9 @@ import { planCliffColonies } from './ledges.ts'
 import type { CliffColony } from './ledges.ts'
 import { createPackIce } from './floes.ts'
 import type { PackIce } from './floes.ts'
+import { planHjellCatch } from './hjell.ts'
+import { createHjellCatch } from './hjells.ts'
+import type { HjellCatch } from './hjells.ts'
 import { planHaulouts } from './haulout.ts'
 import type { Haulout } from './haulout.ts'
 import { createKelpForest } from './kelp.ts'
@@ -271,14 +274,20 @@ export function createLandscape (
   let sails: MillSails | null          = null
   let wheels: WaterWheels | null       = null
   let seals: SealColony | null         = null
-  let cliffs: SeabirdCliffs | null     = null
-  let kelp: KelpForest | null          = null
-  let creels: CreelMarks | null        = null
-  let pack: PackIce | null             = null
-  let water: Water | null              = null
-  let beck: Beck | null                = null
-  let force: Force | null              = null
-  let tarns: TarnWater | null          = null
+  // Declared together rather than on two `let`s, and that is the lint config's
+  // statement ceiling rather than taste: `createLandscape` sits on it, and one
+  // more optional system is what took it over. The pairing is not
+  // arbitrary — both are a colony of small instances that the *year* fills and
+  // empties, and both are advanced from the same week in `advancePopulated`.
+  let cliffs: SeabirdCliffs | null = null,
+    hjells: HjellCatch | null      = null
+  let kelp: KelpForest | null      = null
+  let creels: CreelMarks | null    = null
+  let pack: PackIce | null         = null
+  let water: Water | null          = null
+  let beck: Beck | null            = null
+  let force: Force | null          = null
+  let tarns: TarnWater | null      = null
 
   /**
    * Every mill's wheel, in world space.
@@ -367,6 +376,7 @@ export function createLandscape (
     kelp?.update(delta)
     creels?.update(delta, wind)
     cliffs?.update(week)
+    hjells?.update(week)
     pack?.update(now, wind)
   }
 
@@ -381,8 +391,8 @@ export function createLandscape (
    */
   function releaseSystems (): void {
     const systems: readonly ({ dispose(): void } | null)[] =
-      [ dressing, fleet, carters, sails, wheels, seals, kelp, creels, cliffs, pack, water, beck, force,
-        tarns ]
+      [ dressing, fleet, carters, sails, wheels, seals, kelp, creels, cliffs, hjells, pack, water,
+        beck, force, tarns ]
 
     for (const system of systems)
       system?.dispose()
@@ -594,6 +604,16 @@ export function createLandscape (
           tide,
         })
         cliffs = createSeabirdCliffs({ config, colonies: cliffColonies, material: materials.ground })
+        // The seats are dealt here rather than beside the other surveys for the
+        // reason the carter's rounds are: they cost nothing to deal — the survey
+        // already settled which harbours carry a rack — and `createLandscape`
+        // was at the lint config's statement ceiling. `quality.hjellFish` is
+        // still the tier's budget for how many of them hold a fish.
+        hjells = createHjellCatch({
+          config,
+          fish:     planHjellCatch(archipelago, config(), quality.hjellFish),
+          material: materials.ground,
+        })
         pack = createPackIce({ config, floes: packIce, material: materials.ground, tide })
         root.add(dressing.object, fleet.mesh)
 
@@ -603,7 +623,7 @@ export function createLandscape (
         // fleets exist was never the interesting part of the build. Each is
         // null on an archipelago that had nowhere to put one, or on a tier that
         // asked for none.
-        for (const fleetMesh of [ carters, sails, wheels, seals, kelp, creels, cliffs, pack ])
+        for (const fleetMesh of [ carters, sails, wheels, seals, kelp, creels, cliffs, pack, hjells ])
           if (fleetMesh)
             root.add(fleetMesh.mesh)
       }
@@ -677,6 +697,7 @@ export function createLandscape (
       wheels    = null
       seals     = null
       cliffs    = null
+      hjells    = null
       kelp      = null
       creels    = null
       pack      = null

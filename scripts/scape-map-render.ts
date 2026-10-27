@@ -1,5 +1,6 @@
 import type { ScapeConfig } from '../src/scene/config.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from '../src/scene/landscape/archipelago.ts'
+import type { HjellRun } from '../src/scene/landscape/hjell.ts'
 import type { HeadDyke } from '../src/scene/landscape/dyke.ts'
 import { distanceToTrack } from '../src/scene/landscape/layout.ts'
 import { createPathQuery } from '../src/scene/landscape/path.ts'
@@ -40,7 +41,7 @@ export const LEGEND =
   '~ deep  - shallow  . shore  : low  = mid  + upper  * high  # peak\n' +
   ', footpath  ≡ track  · waterway  b boat  s beck  ≈ tarn  T peat  ' +
   'F/B/A/W/S steading  o well  J jetty  H harbour  V smokehouse  P pier  Q weir  ' +
-  'W mill  M watermill  K chapel  L light  C croft  X wreck  Y shieling  p plot  ^ ridge  x dyke  g gate'
+  'W mill  M watermill  K chapel  L light  C croft  X wreck  Y shieling  p plot  ^ ridge  x dyke  g gate  h hjell'
 
 export interface Layers {
   height:    boolean
@@ -118,6 +119,28 @@ function stampDyke (
 
   for (const gate of dyke.gates)
     stamp(worldX(gate.x), worldZ(gate.z), 'g')
+}
+
+/**
+ * The racks above the harbour, as a line of trestles.
+ *
+ * Its own function for the reason {@link stampDyke} is one — it is the third
+ * thing the grid draws that is a line rather than a point, and `renderGrid` is
+ * at the lint config's complexity ceiling again.
+ *
+ * Lower case, like the wall's run: the only thing worth reading off the grid
+ * here is whether the line fits between the hut and the water without crossing
+ * either, and a line that overwrote what it runs between would hide exactly the
+ * collision it is there to show.
+ */
+function stampHjell (
+  hjell:  HjellRun | null,
+  stamp:  (x: number, z: number, glyph: string) => void,
+  worldX: (x: number) => number,
+  worldZ: (z: number) => number,
+): void {
+  for (const station of hjell?.stations ?? [])
+    stamp(worldX(station.x), worldZ(station.z), 'h')
 }
 
 /**
@@ -266,7 +289,7 @@ export function renderGrid (
   if (layers.buildings)
     for (const landmass of archipelago.landmasses) {
       const { layout, places, landing, harbour, beacon, croft, dyke, pier, weir } = landmass.survey
-      const { shieling, smokehouse, watermill, wreck }                            = landmass.survey
+      const { hjell, shieling, smokehouse, watermill, wreck }                     = landmass.survey
       const worldX                                                                = (x: number): number => x + landmass.origin.x
       const worldZ                                                                = (z: number): number => z + landmass.origin.z
 
@@ -275,6 +298,8 @@ export function renderGrid (
       // than a point, and a line that overwrote the things it runs between would
       // hide the very collision it is worth reading the grid for.
       stampDyke(dyke, stamp, worldX, worldZ)
+
+      stampHjell(hjell, stamp, worldX, worldZ)
 
       for (const ridge of layout.ridges)
         stamp(worldX(ridge.x), worldZ(ridge.z), '^')
