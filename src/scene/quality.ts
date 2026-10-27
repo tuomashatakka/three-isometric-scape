@@ -215,6 +215,31 @@ export interface AtmosphereQuality {
   cliffBirds: number
 
   /**
+   * Fish hanging on the drying racks, over the whole archipelago.
+   *
+   * A count for the *world* rather than per island, like the pack's and for the
+   * pack's reason: the racks stand on whichever harbours have open ground, and
+   * which of the seats they offer are actually stamped is `planHjellCatch`'s own
+   * deal — so a phone's coast is a thinning of a workstation's rather than two
+   * full racks and four bare ones.
+   *
+   * Zero is a graceful absence and a cheap one: the *timber* is merged into the
+   * steading draw and stays at every tier, so a mobile harbour still reads as a
+   * fish harbour. What a fish buys is the season — a rack that is pale and full
+   * in spring and bare poles in October.
+   *
+   * It is a budget of seats, and how many of them are loaded in any week is the
+   * year's. At the authored `hjell.hung` the racks are full for about a third of
+   * the year and empty for the rest of it, so this is also the only count in
+   * this file that costs nothing at all in two seasons out of four.
+   *
+   * The cost is instances in one shared draw, not draws: a four-part fish of
+   * about 48 triangles, stamped once per seat, with one scale and one position
+   * per fish per frame.
+   */
+  hjellFish: number
+
+  /**
    * Plates of pack ice on the whole archipelago. 0 is a sound that freezes flat.
    *
    * A count for the *world* rather than per island, and the one place it differs
@@ -675,6 +700,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     kelpCount:       0,
     creelStrings:    0,
     cliffBirds:      0,
+    hjellFish:       0,
     floeCount:       0,
     carterRounds:    0,
     beaconBlades:    0,
@@ -733,6 +759,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     kelpCount:       100,
     creelStrings:    2,
     cliffBirds:      14,
+    hjellFish:       260,
     floeCount:       420,
     carterRounds:    3,
     beaconBlades:    1,
@@ -807,6 +834,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     kelpCount:       250,
     creelStrings:    3,
     cliffBirds:      30,
+    hjellFish:       680,
     floeCount:       620,
     carterRounds:    6,
     beaconBlades:    2,
@@ -865,6 +893,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     kelpCount:       340,
     creelStrings:    4,
     cliffBirds:      44,
+    hjellFish:       960,
     floeCount:       900,
     carterRounds:    6,
     beaconBlades:    3,
@@ -940,6 +969,7 @@ const UNLOCKED_FLOOR = {
   kelpCount:      100,
   creelStrings:   2,
   cliffBirds:     30,
+  hjellFish:      680,
   floeCount:      620,
   carterRounds:   6,
   beaconBlades:   1,
@@ -995,6 +1025,7 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
     kelpCount:      Math.max(quality.kelpCount, UNLOCKED_FLOOR.kelpCount),
     creelStrings:   Math.max(quality.creelStrings, UNLOCKED_FLOOR.creelStrings),
     cliffBirds:     Math.max(quality.cliffBirds, UNLOCKED_FLOOR.cliffBirds),
+    hjellFish:      Math.max(quality.hjellFish, UNLOCKED_FLOOR.hjellFish),
     floeCount:      Math.max(quality.floeCount, UNLOCKED_FLOOR.floeCount),
     carterRounds:   Math.max(quality.carterRounds, UNLOCKED_FLOOR.carterRounds),
     beaconBlades:   Math.max(quality.beaconBlades, UNLOCKED_FLOOR.beaconBlades),

@@ -239,6 +239,7 @@ src/
     ├── config-wreck.ts             the wreck's own slice: how low a rock, how much of one, how flat a ledge
     ├── config-shoal.ts             the bank's own slice: the reach, the crest, and the room the sound leaves
     ├── config-snowfence.ts         the snow fence's own slice: the height, the setback, and the bite that earns one
+    ├── config-hjell.ts             the drying rack's own slice: the rack, the fetch it needs, and the weeks it is loaded
     ├── config-crossing.ts          the bridge's own slice: the deck, the bay, the span, and the four refusals
     ├── config-carter.ts            the cart's own slice: a day's haul, the longest working day, how it sits on the road
     ├── config-roost.ts             the race's own slice: how wide a gate still runs, and how white it gets
@@ -324,6 +325,8 @@ src/
     │   ├── seals.ts                the colony, in one instanced draw the tide takes back
     │   ├── ledges.ts               which headlands carry birds, where each one stands, and the whitewash under them
     │   ├── seabirds.ts             the cliffs, in one instanced draw the year empties
+    │   ├── hjell.ts                the line above the harbour a catch dries on, and every fish hung on it
+    │   ├── hjells.ts               the catch, in one instanced draw the year loads and strips
     │   ├── packice.ts              which water carries a floe, how big it is, and the week its sheet closes
     │   ├── floes.ts                the pack, in one instanced draw the year builds and takes back
     │   ├── kelpbed.ts              which water grows weed, and how long every plant in it is
@@ -419,6 +422,7 @@ src/
         ├── creel.ts                the pot marker — the float, the staff, the flag — and the stack ashore
         ├── livestock.ts            the ewe with her head down, and the lamb with hers up
         ├── seabird.ts              the guillemot standing on its ledge, dark over white
+        ├── hjell.ts                the drying rack as a run of trestles, and the split cod hung over it
         ├── ice.ts                  the unit plate of rafted sea ice, scaled into a field
         └── wildlife.ts             the grey seal hauled out, head up and hind flippers raised
 
@@ -449,6 +453,7 @@ scripts/
 ├── scape-poses-shore.ts            the lights of the places on the far coast, which the tour cannot reach
 ├── scape-poses-rigs.ts             the plough pattern, under two lights and across two seasons
 ├── scape-poses-rotation.ts         the course each field is in, one frame each and two of them together
+├── scape-poses-harbour.ts          what the settlement builds beside the boats: the smokehouse, and the racks
 ├── scape-shot.ts                   headless stills, posed and pinned
 ├── scape-diff.ts                   what a change did to the picture, in numbers
 └── setup.ts                        what a run has before it starts thinking
@@ -3203,6 +3208,96 @@ a **rotation** is what it did instead, and it is the whole of this section. the 
 **what the tour saw.** `--poses tour` moved exactly one of its six frames: `near`, the close look at the farm, at 11.38% changed and 79.7% in its worst block, with `default`, `far`, `noon`, `night` and `winter` all under a tenth of a percent and the structural line clean. the diff image is the argument on its own — every changed pixel in it is a crop tuft standing on the field that is lying fallow this year, and nothing else in the frame moved at all.
 
 **`--poses rotation`, the thirty-second set**, in [`scape-poses-rotation.ts`](scripts/scape-poses-rotation.ts). a separate set rather than two more frames in the rig one, because the rig set is argued on a *single* field and this one is a difference between two of them: they cannot share a camera, and a set whose frames disagree about what they are of is a set nobody reads twice. three frames are the three courses at 12 m, one each, where what separates them is partly shape; three are the ley and the corn field together at 26 m, where the corduroy is sub-pixel and colour is the only thing left, taken dry and then through the turn and the snow. every frame in it pins the weather, and the rig set's wide half is what taught it to: the default phase parks a snow shower over the scape, and the infield at 26 m under falling snow is a picture of a shower rather than of a farm.
+
+## what the harbour hangs out to dry
+
+five of the six islands now carry a **hjell**: six bays of split timber standing in the open above the boat harbour, with the winter's catch hung over its rails from spring to early summer and nothing on it at all for the rest of the year. [`landscape/hjell.ts`](src/scene/landscape/hjell.ts) is the search and the seats, [`landscape/hjells.ts`](src/scene/landscape/hjells.ts) is the one draw the fish cost, [`props/hjell.ts`](src/scene/props/hjell.ts) is the timber and the fish, and the eleven knobs are [`config-hjell.ts`](src/scene/config-hjell.ts).
+
+the harbour already had a net rack — a fixed frame with cloth on it, built at a surveyed spot and merged into the steading. this is the other thing a fishing farm builds beside the water, and the difference is not the shape. a net rack looks the same in february as in august. a hjell is a frame the *year* fills and empties, and that is the whole of why it is here: everything else at ground level on these islands is a thing that is simply there, and this is a thing that is there for a third of the year and bare poles for the rest of it.
+
+### it is sited from the weather, not from the ground
+
+every other building on these islands was placed by a fact about the shape of the land. the mill takes the exposed shoulder, the chapel the knoll the yard can see, the smokehouse the first dry patch up the bank. the snow fence was the first thing sited from a *season*. this is the first sited from the **wind itself**, and it has to be, because still air does not dry fish.
+
+so the run has no bearing of its own to choose. it is laid along `wind.bearing` — the same base heading the drift and the lee read — because air goes *down* a rack rather than around it, and a rack laid across the weather is a fence. what the search picks is only where that line sits: a sweep of twenty bearings and eight rings out from the harbour bank, laying the whole run through each candidate and keeping the one that is nearest the boats.
+
+the exposure is a **refusal rather than a term in the score**, and that is the one decision in the search worth arguing with. a rack that half sees the weather is not half a rack; it is a rack that does not dry fish. scored, the search would trade exposure for a shorter carry on every coast with a shoulder on it, and the first cut of this did exactly that — it returned a line with fourteen metres of fetch at five metres from the bank in preference to a fully open one twenty metres further out, which is a structure placed where it is convenient rather than where it works. gated, every line that gets scored already has its fetch, and what is left to choose between them is the walk.
+
+`fetch` is **walked rather than sampled**, in metre-and-a-half steps upwind from the windward trestle, and it stops at the distance the config asks for. what shuts a rack off from the weather is not a far hill but the first shoulder, and a single probe at the far end steps straight over it. the walk is capped because a site with open sea upwind and a site with a hundred metres of flat machair upwind are the same answer and both are right — which is also why the gate almost never fires on a real island in this archipelago and fires every time on a shelf with a wall round it, as `hjell.test.ts` builds one to show.
+
+### the rails are level and the legs are what follows the ground
+
+the first cut of this put the rails on the mean of the two ends and refused any line whose feet differed by more than 0.9 m. it found one island. a shore bank is the steepest ground anything in this scape is built on — the home island's harbour shelves at about a metre in four — so a straight fifteen-metre line near the boats is almost never level, and a search demanding one is a search that reports `NONE` five times and calls it honesty.
+
+a real rack does not want level ground. it wants a level **rail**, which is a different thing: the legs are cut longer downhill and the poles lie flat across the heads of them, because a rail that followed the slope would tip its load off the low end. so `HjellRun.deck` is one number for the whole run — the highest foot plus `hjell.height` — the trestles are each cut to reach it, and `hjell.fall` stopped being a flatness requirement and became what it should always have been: **how much extra timber the farm will cut**. at 2.2 m it buys five islands out of six, and the island it does not buy is the smallest one in the archipelago, which is a real answer.
+
+the deck is carried on the run rather than recomputed by each reader, for the reason a station's level is: the geometry stands the timber under it and the catch hangs off it, and two answers to where the rail is would be a row of cod floating beside its own pole.
+
+### the catch is a year, and it is not the bird cliff's year
+
+the fish are one `InstancedMesh` over the whole archipelago, placed once and scaled per frame against `season.time` — the same week the ground takes its snow from and the cliff takes its colony from. nothing here integrates and nothing here remembers: a still taken with every clock stopped shows the racks that week actually has on them.
+
+what differs from the colony is the **shape of the window**. `colonyAshore` is centred on midsummer, because an auk's year is symmetric about the longest day — it comes to the rock to lay and for nothing else. a fishing year is not symmetric about anything astronomical: the catch is hung out of the winter fishery and taken in before the weather turns warm enough to spoil it. so `hjellHung` takes a `peak` as well as a width, and at the authored 0.3 the racks are fullest in spring and empty through midsummer — which is exactly when the cliff is fullest. two things on one coast keyed to the same clock at *different* phases of it is most of what makes a year read as a year rather than as a single slider.
+
+the loading is dealt across the run rather than applied to all of it at once, the way the cliff's tiers are: the windward bays carry fish a fortnight before the lee ones and are stripped a fortnight after, so the coast fills and empties rather than blinking. four hundred fish appearing between two frames is the sort of thing a diff catches and a reader never forgives.
+
+### there is no flag, and every number turns off its own thing
+
+`hjell.height` at 0 is a coast with no racks on it — every length in the section is measured against the rack's height, so the arithmetic takes the timber out rather than a boolean. `hjell.hung` at 0 is a coast of bare poles all year; `hjell.fill` at 0 is the same thing reached from the other end. `hjell.fetch` raised past what a coast offers refuses it one island at a time, and `hjell.bays` is the sharpest gate of all: a run is a *straight* line and the ground it has to cross grows with every bay, so eight bays takes the rack off three of these six islands and six leaves it on five.
+
+### what it costs
+
+**one draw call for the whole archipelago, and it is the fish.** the timber is a parametric world-space run pushed into the steading's existing merged hero geometry, exactly as the pier and the weir are, so a coast full of racks costs no draw on any tier. the catch is one `InstancedMesh` of a four-part, 36-triangle fish, with one scale and one position per fish per frame and none of that in the two seasons the racks are bare.
+
+the seats are a budget: a trestle carries four poles — two at each height, one either side of the legs — so five runs × six bays × eight fish a bay × four rails is 960, which is what `ultra` is given. `desktop` takes 680 and `mobile` 260, thinned by stride across the flattened list rather than by island, so a phone gets a thinner coast rather than two loaded racks and three bare ones. `minimal` gets none, and that is a graceful absence rather than a cheap version: the timber is merged and stays at every tier, so a mobile harbour still reads as a fish harbour and what a fish buys is the season.
+
+**the first cut of the catch was invisible, and the instrument is what said so.** the fish were 0.085 m across and hung 0.085 m either side of the run's centreline — while the rails lie at 0.21. so four rows of cod hung in the *air between* the poles they were supposed to be over, which from directly above is four rows of cod and from a thirty-degree camera is nothing at all. `scape:diff` reported the loaded week and the bare week within 0.16 percentage points of each other, which is the readout the brief calls a real failure rather than a clean result: a change claiming something visible that photographs as nothing. the rail offset is `HJELL_BEARER` now, exported from the survey, laid by the geometry and hung from by the planner, and the fish is wide enough to be a fish.
+
+each trestle reserves 1.9 m of ground against the scatter, for the reason the pier's bents do — this is open ground a short walk from the yard, which is exactly where the dressing seeds juniper.
+
+### the new `scape:map` line
+
+```
+hjell (-18.7,3.6)->(-23,-11.4) 15.6m of 6 bays  rail 3.89m  legs +0.22m  fetch 16m  25m from the bank
+```
+
+end to end rather than as a centre, because a run is the one site in that block whose whole claim is a *length* of ground: a centre says nothing about whether the line fits, and the two ends are what a reader can put a ruler between on the grid above, where the trestles stamp as `h`. `legs` is the extra timber the slope cost and `fetch` is the one number no still can show — a run that comes back at the cap is standing in the weather, and a `NONE` beside a harbour is a coast that had nowhere out of the lee. the per-island summary carries `hjell 6 bays fetch 16m`.
+
+### `--poses hjell`, the thirty-third set
+
+in [`scape-poses-harbour.ts`](scripts/scape-poses-harbour.ts), which is also where the smokehouse's set moved to — `scape-poses.ts` sits a handful of lines under its ceiling and the two subjects are the same subject, a hut and a rack both sited off the harbour bank and both for keeping a catch.
+
+four frames. `hjell` and `hjell-bare` are the same camera at the week the racks are fullest and at the week they are empty, and the second is the half of this that no other capture in the scape can reach: the claim the feature makes is that the coast *empties*, and a set with only the loaded week in it would show a decorated rack rather than a working one. `hjell-harbour` pulls back to the claim the siting makes — the racks, the hut and the water they both work for in one frame. `hjell-winter` is the control the ground supplies: the loading begins before the snow has gone, so it is the one frame where the fish and the drift are in the same picture.
+
+the pair is at a **13 m view rather than the 26 m the set opened at**, and the instrument chose the number. at 26 m a fish is a few pixels on a rail: the loaded week came back at 3.40% and the bare one at 3.14%, a quarter of a percentage point apart on two frames whose entire job is to differ. at 13 m they are 5.18% and 4.55%, and the difference between them is the catch rather than the rounding.
+
+### what it measured
+
+`bun run gate`, all five green — lint 17.6s, typecheck 12.7s, test 718.9s, build 13.6s, prop:audit 0.3s. `scape:diff --ref origin/main --poses tour` moved exactly one frame, and it is the close look at the farm:
+
+```text
+pose         changed   maxblock  verdict
+default       0.04%     1.7%  same
+near          5.82%    89.6%  CHANGED
+far           0.14%     4.8%  same
+noon          0.04%     1.7%  same
+night         0.01%     0.6%  same
+winter        0.02%     0.8%  same
+structural: ... no structural change
+```
+
+and `--poses hjell`, where all four moved and the loaded week stands clear of the bare one:
+
+```text
+pose         changed   maxblock  verdict
+hjell         5.18%    76.8%  CHANGED
+hjell-bare    4.55%    76.6%  CHANGED
+hjell-harbour  2.63%    41.7%  CHANGED
+hjell-winter  3.04%    43.8%  CHANGED
+structural: ... no structural change
+```
+
+`scape:shot` on the working side reports **63 draws and 3.14M triangles** at a 9 m frame on the home island's rack. the before/after draw count was not measured with the same command on both sides, so what is quoted here is the structural budget rather than a comparison: one `InstancedMesh` added, and the timber in a geometry that already existed.
 
 ## ground that casts
 

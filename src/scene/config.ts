@@ -34,6 +34,8 @@ import { SCAPE_PACK_ICE } from './config-packice.ts'
 import type { PackIceConfig } from './config-packice.ts'
 import { SCAPE_HOWE } from './config-howe.ts'
 import type { HoweConfig } from './config-howe.ts'
+import { SCAPE_HJELL } from './config-hjell.ts'
+import type { HjellConfig } from './config-hjell.ts'
 import { SCAPE_SNOW_FENCE } from './config-snowfence.ts'
 import type { SnowFenceConfig } from './config-snowfence.ts'
 import { SCAPE_SHIELING } from './config-shieling.ts'
@@ -302,7 +304,7 @@ export interface DressingBudget {
 }
 
 export interface ScapeConfig extends CarterConfig, CreelConfig, CroppingConfig, CrossingConfig, DykeConfig, FarShoreConfig, ForceConfig, FrontConfig,
-  GuardConfig, HaarConfig, HaloConfig, HoweConfig, KelpConfig, LedgeConfig, MoleConfig, PackIceConfig, RigsConfig, RoostConfig, ShaftsConfig, ShielingConfig,
+  GuardConfig, HaarConfig, HaloConfig, HjellConfig, HoweConfig, KelpConfig, LedgeConfig, MoleConfig, PackIceConfig, RigsConfig, RoostConfig, ShaftsConfig, ShielingConfig,
   ShelterConfig, ShoalConfig, ShoreLightsConfig, SnowFenceConfig, SwashConfig, TreelineConfig, WatermillConfig, WreckConfig {
   seed:    number
   terrain: {
@@ -2790,6 +2792,7 @@ export const SCAPE_CONFIG = {
   ...SCAPE_SHIELING,
   ...SCAPE_CARTER,
   ...SCAPE_SNOW_FENCE,
+  ...SCAPE_HJELL,
   ...SCAPE_CROSSING,
   ...SCAPE_FAR_SHORE,
   ...SCAPE_SHORE_LIGHTS,

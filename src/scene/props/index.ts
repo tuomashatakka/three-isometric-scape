@@ -6,6 +6,7 @@ import { buildCarter } from './carter.ts'
 import { buildChapel, buildGraveMarker } from './chapel.ts'
 import { buildCreelBuoy, buildCreelStack } from './creel.ts'
 import { buildCroft } from './croft.ts'
+import { buildStockfish } from './hjell.ts'
 import { buildKelp } from './kelp.ts'
 import { buildWindmill } from './mill.ts'
 import { buildBladderwrack, buildRockLichen } from './littoral.ts'
@@ -125,6 +126,7 @@ export const PROPS = {
   bladderwrack: buildBladderwrack,
   rockLichen:   buildRockLichen,
   kelp:         buildKelp,
+  stockfish:    buildStockfish,
 
   erratic:    buildErratic,
   talus:      buildTalusBlock,
@@ -163,7 +165,7 @@ export const SCATTER_PROPS = [
   'spruce', 'pine', 'birch', 'deadSpruce', 'sapling', 'stump', 'juniper',
   'grass', 'marram', 'cordgrass', 'heather', 'wildflower', 'reeds', 'lilyPads', 'crop',
   'erratic', 'talus', 'fieldStone', 'cobble', 'cairn',
-  'bladderwrack', 'rockLichen', 'kelp',
+  'bladderwrack', 'rockLichen', 'kelp', 'stockfish',
   'hayBale', 'firewood', 'barrel', 'driftwood', 'mooringPost', 'hayPole', 'peatStack',
   'creelBuoy', 'carter',
   'sheep', 'lamb', 'seal', 'guillemot', 'floe',

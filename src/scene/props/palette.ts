@@ -150,6 +150,17 @@ export const NORDIC_PALETTE = {
   buoy:     '#c2602f',
   buoyBand: '#d9c7a4',
 
+  // The catch on the drying racks, and the one family in this palette that is
+  // *food* rather than a material. A stockfish is a cod that has lost four
+  // fifths of its water to the wind: the flesh side goes a dry oatmeal, the skin
+  // side a dull olive-grey, and nothing about either is the silver a fish is in
+  // the water. `stockfish` stays under `trimWhite` so a loaded rack never
+  // out-burns the limewash on the chapel, and `stockfishBack` stays well clear
+  // of `wood` so a fish never disappears into the rail it hangs on — which is
+  // the whole read of the structure at the zoom most of the coast is seen at.
+  stockfish:     '#d2c3a0',
+  stockfishBack: '#6f6b55',
+
   /** A burning wick behind glass — the lamp in the lantern room, and its beams. */
   lampWarm: '#ffdca8',
   flagBlue: '#2f5d8f',

@@ -354,6 +354,7 @@ function sitedLines (stats: MapStats): string[] {
       ? `smokehouse (${stats.smokehouse.x},${stats.smokehouse.z}) ` +
         `${stats.smokehouse.fromBank}m up the bank`
       : 'smokehouse NONE  <- no dry ground behind the harbour',
+    hjellLine(stats.hjell),
     stats.pier
       ? `pier (${stats.pier.x},${stats.pier.z}) ${stats.pier.length}m out  ` +
         `${stats.pier.bents} bents  berth ${stats.pier.depth}m  deck ${stats.pier.deck}m`
@@ -451,6 +452,22 @@ function howeLine (howe: MapStats['howe']): string {
 
   return `howe (${howe.x},${howe.z}) stands ${howe.stands}m over its prospect  ` +
     `seen ${howe.skyline}m clear  ${howe.fromYard}m from the yard`
+}
+
+/**
+ * The drying racks above the harbour, as one line.
+ *
+ * End to end rather than as a centre, because a run is the one site in this
+ * block whose whole claim is a *length* of ground: a centre says nothing about
+ * whether the line fits, and the two ends are what a reader can put a ruler
+ * between on the grid above.
+ */
+function hjellLine (run: MapStats['hjell']): string {
+  if (!run)
+    return 'hjell NONE  <- no line near the boats was long enough, level enough and out of the lee'
+
+  return `hjell (${run.x},${run.z})->(${run.toX},${run.toZ}) ${run.length}m of ${run.bays} bays  ` +
+    `rail ${run.deck}m  legs +${run.fall}m  fetch ${run.fetch}m  ${run.fromBank}m from the bank`
 }
 
 /**
@@ -867,6 +884,9 @@ export function formatStats (stats: MapStats): string {
       `shieling ${landmass.shieling ? `rise ${landmass.shieling.rise}m` : 'NONE'}  ` +
       `howe ${landmass.howe ? `seen ${landmass.howe.skyline}m` : 'NONE'}  ` +
       `watermill ${landmass.watermill ? `head ${landmass.watermill.head}m lade ${landmass.watermill.lade}m` : 'NONE'}  ` +
+      `hjell ${landmass.hjell
+        ? `${landmass.hjell.bays} bays fetch ${landmass.hjell.fetch}m`
+        : 'NONE'}  ` +
       `fence ${landmass.snowFence.run
         ? `${landmass.snowFence.run.length}m bite ${landmass.snowFence.run.bite}`
         : 'NONE'} drifts ${landmass.snowFence.drifts}m  ` +

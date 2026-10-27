@@ -7,6 +7,7 @@ import { CART_TOURS } from './scape-poses-cart.ts'
 import { COAST_TOURS } from './scape-poses-coast.ts'
 import { CROSSING_TOURS } from './scape-poses-crossing.ts'
 import { ICE_TOURS } from './scape-poses-ice.ts'
+import { HARBOUR_TOURS } from './scape-poses-harbour.ts'
 import { RIG_TOURS } from './scape-poses-rigs.ts'
 import { ROTATION_TOURS } from './scape-poses-rotation.ts'
 import { SHORE_TOURS } from './scape-poses-shore.ts'
@@ -210,6 +211,7 @@ export const TOURS: Record<string, Pose[]> = {
   // `scape-poses-rigs.ts` on the same seam, for the inverse of the cart's
   // reason: the subject is everywhere the farm is and nowhere the tour looks
   // closely enough to see it.
+  ...HARBOUR_TOURS,
   ...RIG_TOURS,
 
   // And which course each of those fields is in, out in
@@ -841,34 +843,6 @@ export const TOURS: Record<string, Pose[]> = {
       zoom:   46,
       season: 0.02,
       set:    [ 'camera.focusX=26.8', 'camera.focusZ=15.1' ],
-    },
-  ],
-
-  /**
-   * The smokehouse, and the plume that is the whole point of it.
-   *
-   * Added for the reason `chapel` was, and it is the same reason again: the hut
-   * is 3.4 m long against the chapel's fourteen, so at the tour's default frame
-   * it is a smudge and at `near`'s ten metres the camera is standing beside it
-   * facing the other way. A building this small is either photographed on
-   * purpose or not photographed.
-   *
-   * `smokehouse` reads the building — turf roof, log courses, the billets
-   * against the blind gable — and the cowl the smoke leaves through. `harbour`
-   * pulls back to the claim the siting is actually about: the hut and the water
-   * it works for in one frame, so a reviewer can see whether the search put it
-   * with the boats or wandered off up the hill. `smokehouse-still` is the
-   * same close frame on a windless day, because the plume is laid over by the
-   * wind and a column that only reads when it is bent is a column that vanishes
-   * the first calm morning.
-   */
-  smokehouse: [
-    { name: 'smokehouse', zoom: 30, set: [ 'camera.focusX=-8.5', 'camera.focusZ=-10.3' ]},
-    { name: 'harbour', zoom: 40, set: [ 'camera.focusX=-13', 'camera.focusZ=-21' ]},
-    {
-      name: 'smokehouse-still',
-      zoom: 30,
-      set:  [ 'camera.focusX=-8.5', 'camera.focusZ=-10.3', 'wind.strength=0' ],
     },
   ],
 

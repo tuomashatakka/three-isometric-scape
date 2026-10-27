@@ -4,6 +4,7 @@ import type { ScapeConfig } from '../config.ts'
 import type { FencePoint } from '../props/fence.ts'
 import type { PropName } from '../props/index.ts'
 import type { NordicPalette } from '../props/palette.ts'
+import { buildHjellRun } from '../props/hjell.ts'
 import { buildMoleRun } from '../props/mole.ts'
 import { PIER_WIDTH, buildPierRun } from '../props/pier.ts'
 import { buildWeirRun } from '../props/weir.ts'
@@ -17,6 +18,7 @@ import {
   netRackSpot,
 } from './landing.ts'
 import type { Spot } from './landing.ts'
+import { HJELL_BEARER, HJELL_CLEARING, HJELL_LOWER_RAIL } from './hjell.ts'
 import { yawAlong } from './layout.ts'
 import type { Vec2 } from './layout.ts'
 import type { ScapeSurvey } from './survey.ts'
@@ -302,6 +304,50 @@ const JETTY_CLEARING = 7
  * chosen for shelter. An island can have one and not the other, so each half is
  * guarded on the bank it actually needs.
  */
+/**
+ * The run of drying racks above the harbour, raised on the line the survey laid.
+ *
+ * Built rather than plopped, like the pier and the weir, and for their reason:
+ * the line came from the ground and every leg was cut to the level under its own
+ * foot. The *levels* come back out of the survey rather than being re-sampled
+ * here, which is the one thing worth saying about this function — the catch is
+ * hung a fixed height over the same numbers, and two answers to where the ground
+ * is would be a row of cod floating beside its own rail.
+ *
+ * Every trestle is reserved against the scatter, for the reason the pier's bents
+ * are: this is open ground a short walk from the yard, which is exactly where
+ * the dressing seeds juniper, and a rack with a bush growing through it is the
+ * one place the settlement and the hillside are drawn on top of each other.
+ */
+function raiseHjell (dressing: WaterfrontDressing): void {
+  const { survey, origin, config, rng, palette, heroes, reserve } = dressing
+  const { hjell }                                                 = survey
+
+  if (!hjell)
+    return
+
+  const stations = hjell.stations.map(station => ({
+    x:     station.x + origin.x,
+    z:     station.z + origin.z,
+    level: station.level,
+  }))
+
+  heroes.push(buildHjellRun({
+    stations,
+    angle:  hjell.angle,
+    deck:   hjell.deck,
+    height: config.hjell.height,
+    lower:  HJELL_LOWER_RAIL,
+    bearer: HJELL_BEARER,
+    rng:    rng.fork('hjell'),
+    palette,
+  }))
+
+  for (const station of stations)
+    reserve(station.x, station.z, HJELL_CLEARING)
+}
+
+
 export function raiseWaterfront (dressing: WaterfrontDressing): void {
   const { survey, origin, water, placeHeroAt, reserve } = dressing
   const shore                                           = survey.landing
@@ -319,4 +365,10 @@ export function raiseWaterfront (dressing: WaterfrontDressing): void {
 
   if (survey.harbour)
     raiseHarbour({ bank: survey.harbour, ...dressing })
+
+  // Outside that branch although it is a harbour structure, because it asks the
+  // survey for its own line rather than for the bank: a run is `null` on every
+  // island with no harbour, so the test is already made and making it twice is
+  // a second place to get it wrong.
+  raiseHjell(dressing)
 }
