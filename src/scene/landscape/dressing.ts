@@ -14,10 +14,12 @@ import { BEACON_SINK } from '../props/beacon.ts'
 import { CROFT_SINK } from '../props/croft.ts'
 import { MILL_SINK } from '../props/mill.ts'
 import type { AtmosphereQuality } from '../quality.ts'
+import { PLOP_SINK } from './fixtures.ts'
 import type { TiltWeight } from './align.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from './archipelago.ts'
 import { BEACON_FOOTING } from './beacon.ts'
 import { CROFT_FOOTING } from './croft.ts'
+import { KILN_FOOTING, kilnSill } from './kiln.ts'
 import { createGroundContact, isFoliage, raiseArch, raiseHillSites, raiseWreck, trackPointNear } from './dressing-helpers.ts'
 import { raiseWaterfront } from './dressing-harbour.ts'
 import { raiseEnclosures } from './dressing-enclosures.ts'
@@ -472,6 +474,22 @@ export function createDressing (
       const { x, z, angle } = survey.smokehouse
 
       raiseBuilding('smokehouse', x + ox, z + oz, angle)
+    }
+
+    // The lime kiln, cut into the brae along the same bank. Merged at the sill
+    // rather than plopped, and it is the one building here that could not be
+    // plopped: a `Ploppable` levels on the high side of its footprint and grows
+    // a foundation down to the low side, and on a kiln that foundation walls up
+    // the draw arch — the one opening the building has. So it is set down at the
+    // ground under its own arch and the bank behind it swallows whatever it
+    // reaches of the back of the drum, which is what being cut into a brae looks
+    // like and costs no draw call at all.
+    if (survey.kiln) {
+      const { x, z, angle } = survey.kiln
+      const sill            = kilnSill(survey.kiln)
+
+      placeHeroAt('kiln', x + ox, heightAt(sill.x + ox, sill.z + oz) - PLOP_SINK, z + oz, angle)
+      solver.reserve(x + ox, z + oz, KILN_FOOTING)
     }
 
     // The hut and the barrow, which are the two things out on the open fell.

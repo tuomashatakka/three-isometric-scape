@@ -1,5 +1,5 @@
 import { STEADING_BUILDINGS } from '../src/scene/landscape/steading.ts'
-import type { MapStats } from './scape-map.ts'
+import type { LandmassMapStats, MapStats } from './scape-map.ts'
 
 
 /**
@@ -354,6 +354,10 @@ function sitedLines (stats: MapStats): string[] {
       ? `smokehouse (${stats.smokehouse.x},${stats.smokehouse.z}) ` +
         `${stats.smokehouse.fromBank}m up the bank`
       : 'smokehouse NONE  <- no dry ground behind the harbour',
+    stats.kiln
+      ? `kiln (${stats.kiln.x},${stats.kiln.z}) brae ${stats.kiln.fall}m  ` +
+        `sill ${stats.kiln.sill}m  ${stats.kiln.fromBank}m up the bank`
+      : 'kiln NONE  <- no brae behind the harbour steep enough to cut one into',
     hjellLine(stats.hjell),
     stats.pier
       ? `pier (${stats.pier.x},${stats.pier.z}) ${stats.pier.length}m out  ` +
@@ -844,6 +848,17 @@ function shoreLightLine (lights: MapStats['shoreLights']): string {
 }
 
 /** The stats block, as the run reads it. */
+/**
+ * The kiln's cell in an island's summary row.
+ *
+ * Its own function rather than a seventeenth ternary inline: the row was one
+ * conditional under the lint config's complexity ceiling before this line, and
+ * the branches were never the interesting part of it.
+ */
+function kilnCell (kiln: LandmassMapStats['kiln']): string {
+  return kiln ? `brae ${kiln.fall}m sill ${kiln.sill}m` : 'NONE'
+}
+
 export function formatStats (stats: MapStats): string {
   const steading = Object.entries(stats.steading)
     .filter(([ name ]) => (STEADING_BUILDINGS as readonly string[]).includes(name))
@@ -887,6 +902,7 @@ export function formatStats (stats: MapStats): string {
       `hjell ${landmass.hjell
         ? `${landmass.hjell.bays} bays fetch ${landmass.hjell.fetch}m`
         : 'NONE'}  ` +
+      `kiln ${kilnCell(landmass.kiln)}  ` +
       `fence ${landmass.snowFence.run
         ? `${landmass.snowFence.run.length}m bite ${landmass.snowFence.run.bite}`
         : 'NONE'} drifts ${landmass.snowFence.drifts}m  ` +

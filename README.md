@@ -240,6 +240,8 @@ src/
     ├── config-shoal.ts             the bank's own slice: the reach, the crest, and the room the sound leaves
     ├── config-snowfence.ts         the snow fence's own slice: the height, the setback, and the bite that earns one
     ├── config-hjell.ts             the drying rack's own slice: the rack, the fetch it needs, and the weeks it is loaded
+    ├── config-kiln.ts              the lime kiln's own slice: the brae it needs, and the weeks it is fired
+    ├── config-season.ts            the year's own slice: the phase, the speed, and the snow, turn and ice it derives
     ├── config-crossing.ts          the bridge's own slice: the deck, the bay, the span, and the four refusals
     ├── config-carter.ts            the cart's own slice: a day's haul, the longest working day, how it sits on the road
     ├── config-roost.ts             the race's own slice: how wide a gate still runs, and how white it gets
@@ -340,6 +342,7 @@ src/
     │   ├── fixtures.ts            carrying a point out of a raised building's own frame
     │   ├── chapel.ts               the knoll a chapel would stand on, and the yaw its door is turned by
     │   ├── smokehouse.ts           the patch of bank above the harbour the smokehouse is built on
+    │   ├── kiln.ts                 the brae above the harbour the lime kiln is cut into, and the weeks it burns
     │   ├── shieling.ts             the patch of hill above the head dyke the summer hut is built on
     │   ├── pier.ts                 the line off the harbour a trestle is carried out on, bent by bent
     │   ├── weir.ts                 the intertidal flat off the harbour, and the leader and pound laid on it
@@ -405,6 +408,7 @@ src/
         ├── beacon.ts               the lighthouse tower, and the optic that turns in it
         ├── shore.ts                boathouse and slipway, net rack, mooring stakes
         ├── smokehouse.ts           the smokehouse — log walls, turf roof, ridge cowl
+        ├── kiln.ts                 the lime kiln — a battered drum, a draw arch, a charging stage and the heap
         ├── shieling.ts             the shieling — drystone room, turf roof, and the fold on its back
         ├── arch.ts                 the sea arch — two legs cut to their beds, and the rock over the hole
         ├── pier.ts                 the pier — driven piles, a level deck, bollards and a ladder
@@ -453,7 +457,7 @@ scripts/
 ├── scape-poses-shore.ts            the lights of the places on the far coast, which the tour cannot reach
 ├── scape-poses-rigs.ts             the plough pattern, under two lights and across two seasons
 ├── scape-poses-rotation.ts         the course each field is in, one frame each and two of them together
-├── scape-poses-harbour.ts          what the settlement builds beside the boats: the smokehouse, and the racks
+├── scape-poses-harbour.ts          what the settlement builds beside the boats: the smokehouse, the racks, the kiln
 ├── scape-shot.ts                   headless stills, posed and pinned
 ├── scape-diff.ts                   what a change did to the picture, in numbers
 └── setup.ts                        what a run has before it starts thinking
@@ -3298,6 +3302,72 @@ structural: ... no structural change
 ```
 
 `scape:shot` on the working side reports **63 draws and 3.14M triangles** at a 9 m frame on the home island's rack. the before/after draw count was not measured with the same command on both sides, so what is quoted here is the structural budget rather than a comparison: one `InstancedMesh` added, and the timber in a geometry that already existed.
+
+## the bank they burned the shells in
+
+all six islands now carry a **lime kiln**: a battered drum of dry granite cut into the brae above the boat harbour, charged from a plank stage level with the ground behind it, drawn through an arch at the foot, with the quicklime heaped clear of the mouth and a column of smoke standing off the rim for a fortnight at the end of every summer. [`landscape/kiln.ts`](src/scene/landscape/kiln.ts) is the search and the burn window, [`props/kiln.ts`](src/scene/props/kiln.ts) is the stonework, and the eight knobs are [`config-kiln.ts`](src/scene/config-kiln.ts).
+
+this is the one piece of *industry* on the archipelago. everything else these farms built is a shelter for a thing — a hut for a fire, a rack for a catch, a wall for a flock. a kiln is a machine for changing one material into another, and it is the only structure in the scape whose whole reason is a process rather than a place to put something.
+
+### it is sited from a slope, and it is the first thing here that is
+
+every search on this shore until now wanted ground that was *level enough*. the smokehouse refuses anything with more than 0.8 m of drop across its sill. the hjell refuses anything with more than `hjell.fall` across its run. the mill wants a shoulder but it wants a flat one at the top of it.
+
+a kiln wants the opposite, and not as a preference. the charge goes in at the top in alternating courses of shell sand and peat and the quicklime is raked out at the bottom four days later, so the two ends of the building have to be at two different heights or somebody is digging the difference out by hand. so `kiln.brae` is a **floor** rather than a ceiling: a site with less than a metre of fall across the drum is refused outright, exactly the way the hjell refuses a site with no weather on it. `kiln.scarp` is the other end of the same gate, and it is a fact about dry stone rather than about taste — a drum is a ring of unmortared block holding a fire in, and a bank steeper than the drum is tall gives the uphill half of that ring nothing to bear on.
+
+two buildings on one bank wanting opposite ground is most of the point. the smokehouse takes the level shelf, the kiln takes the brae twenty metres along it, and neither is competing for the other's patch — which is what stops a harbour reading as a row of sheds all facing the same way.
+
+the **racks go in before the kiln**, and that order is a judgement about which site is scarcer rather than about which building matters. a hjell is a straight fifteen-metre line that has to be level, near the boats and open to the weather all at once, and these islands offer one or two such lines; a kiln wants a brae with a metre of fall in it, and a shore bank is mostly brae. the first cut of this sited the kiln first and took the shield island's rack away with it. the run is then handed to the kiln as obstacles, a trestle at a time — and it is the only thing in the survey that is given them, because a *footpath* worn under a drying rack is a footpath, while a kiln standing inside one burns the winter's food. a building is not a path.
+
+### the arch looks downhill, and that took a sweep rather than a gradient
+
+the drum is modelled with its draw arch on local `+z`, like every door in the kit, so the same `faceToward` that aims a farmhouse aims this. what it is aimed at is not the water, though — it is the way the ground falls, which on a cove shore is often a quarter circle away from the bearing of the sea.
+
+finding that direction is a **sixteen-bearing sweep at the drum's own radius**, not a two-sample gradient. the gradient of a height field on a shore bank is as likely to name the lip of a gully as the line of the brae, and the building is 3.7 m through — asking the question at that scale is the only scale that answers it for this building. the probe returns a *yaw* rather than a bearing, which is the reflection the design record has had to write down once per structure since the farmhouse first stood with its door in the hedge: `rotateY(θ)` carries local `+z` to `(sin θ, cos θ)`, so the answer is `atan2(dx, dz)` and never `atan2(dz, dx)`. a kiln that gets it wrong is a kiln drawn into the hillside, and from the default pose that reads as a drum with no arch at all. `kiln.test.ts` states it as a fact about the data: a slope on each axis, where the two conventions disagree, and the answer in yaw for both.
+
+`freeboard` is asked at the **sill** rather than at the axis, for the same reason. the arch is the downhill end by construction, so a centre a metre clear of the sea says nothing about the floor the lime lands on — and quicklime slakes on contact with water hard enough to boil, so a kiln mouth a spring tide reaches is a kiln nobody stands in front of.
+
+### it is merged at its own sill, and that is not a stylistic choice
+
+the five farmstead buildings and the smokehouse are **plopped**: a `Ploppable` resolves its floor from its own footprint and grows a stone skirt down onto whatever is under it. that is the right answer for a hut on a shelving bank and it is exactly the wrong one here. `plop` levels on the *high* side — it has to, or the uphill half of a floor ends up under the turf — and then bridges the drop with a closed band of masonry. do that to a kiln and the band walls up the draw arch, which is the one opening the building has.
+
+so the kiln is set down at the ground under its own arch and merged into the steading's existing hero geometry, the way the pier, the weir and the hjell's timber are. `KILN_SILL` is the one number `landscape/` is allowed to know about the geometry: how far forward of the axis that arch is, so the dressing and the hearth survey agree about which patch of ground this building stands on.
+
+the consequence is the nicest thing about it. the geometry is one fixed drum and the bank behind it swallows however much of the back of it the site's fall reaches — a metre on the ridge, two and a half on the sound — so how deeply a kiln is buried is the *site's* answer rather than the geometry's, and nothing in the prop takes the fall as a parameter. the revetment wings running back on either side of the charging floor are what stays above the turf on the shallow ones.
+
+### a kiln is not a hearth, and the smoke had to learn the difference
+
+the plume comes out of `scene/hearth.ts`, which until now had one claim: a house fire is lit every day of the year and banked harder as the cold comes on. `hearthDensity` never reaches zero, because there is a meal to cook in july.
+
+that is the wrong curve for a kiln by a mile. a kiln is charged, fired for four or five days, drawn, and then stands cold until next summer's peat is dry — so `kilnBurn` is a window round `kiln.peak`, ramped at both ends, and it is **zero for most of the year**. late summer rather than midsummer, and that is downstream of the fuel rather than of the lime: peat is cut off the moor in spring and is not fit to fire a kiln with until the end of a dry summer. which puts the burn almost exactly half a year from the hjell's spring peak and at half its width, so the two structures on this shore are never busy in the same week and never busy for the same length of time.
+
+the smoke system carries both curves as **two lanes rather than two systems**. a stack says which lane it is in with one flag, `hearthGeometry` writes it as a float per vertex, and the fragment stage picks between `uOpacity` and `uBurn` with a `mix`. every chimney in the archipelago still draws in one pass off one static buffer, which a per-stack strength would have cost — that would have meant a uniform per plume or a re-upload per frame, to buy a difference between two house fires that are never seen beside each other.
+
+`kiln.draw` is deliberately over one and is **headroom rather than brightness**: `kilnDensity` clamps at 1 the way `hearthDensity` does, so a draw above one does not make the column denser, it makes the burn come up faster and hold at full across the whole window instead of peaking for a single week. which is what a kiln actually does — it is lit once, it runs, and it is let out.
+
+### there is no flag, and every number turns off its own thing
+
+`kiln.brae` asked higher than `kiln.scarp` is an archipelago with no kiln on it, refused in the search rather than around it. `kiln.freeboard` raised past what the bank offers is the same answer by the other route. `kiln.burn` at 0 is six cold kilns standing all year, and `kiln.draw` at 0 is a kiln that is fired and shows nothing for it. there is no `enabled` anywhere in the section, for the reason there is none anywhere in this document.
+
+### what it costs
+
+**no draw call at all.** the kiln is merged into the hero geometry the steading already draws, exactly as the pier and the weir are — 570 triangles an island, which `prop:map` measures: less than the smokehouse's 812 twenty metres along the same bank, and half the farmhouse's. the smoke gains one stack per island on top of the four each holding already had, and one `float` attribute across the whole hearth buffer; at the desktop tier's 14 puffs that is 56 extra vertices for the archipelago.
+
+the **mobile tier already answers for it**: `quality.hearthPuffs` is 0 there, so the smoke module is absent rather than cheap, and a phone gets six kilns in stone and no plume — a graceful absence, which is the rule. the stonework itself costs the mobile tier nothing it was not already paying, because it is merged into a draw that existed.
+
+`config.ts` went over its 850-line ceiling on the three lines this section's import cost, so **the year moved out whole** into [`config-season.ts`](src/scene/config-season.ts) — the twelfth slice, and the first that is a clock rather than a place. nothing about the section changed in the move. it moved to here rather than anywhere else because the burn window is read against `season.phase`, and writing down why a kiln's year is not a hearth's year meant reading the two sections side by side rather than nine hundred lines apart.
+
+### the new `scape:map` lines
+
+**`kiln (x,z) brae 2.25m  sill 0.28m  32.7m up the bank`**, and `kiln brae …m sill …m` in each island's summary row. `brae` is the measurement the search actually scored on, so it is the field worth reading first: a kiln whose fall has crept toward `kiln.scarp` is a kiln standing *against* a bank rather than sitting in one, and a harbour whose brae has flattened out reports `NONE` rather than a kiln on the level. `sill` is the ground under the draw arch, which is the end the freeboard is asked at and the end a retuned falloff drowns first. the grid glyph is `N`.
+
+### `--poses kiln`, the thirty-fourth set
+
+in [`scape-poses-harbour.ts`](scripts/scape-poses-harbour.ts), beside the smokehouse's and the hjell's, because a kiln, a hut and a rack are three things one harbour built on one bank and a reviewer reading any of them wants the other two.
+
+every frame in the set is taken at **`rot: 225`**, and that is the one decision in it worth writing down. the arch faces whichever way the ground falls, which on the home island is southwest — at the tour's default heading the camera stands behind the kiln and photographs a drum with no mouth in it. a structure whose whole read is an opening has to be photographed from the side the opening is on, and the pose set is where that is decided rather than the siting. the weather is pinned on all four for the reason the rotation set pins it: the default phase parks a shower over the scape, and a three-metre drum at 15 m under falling snow is a picture of a shower.
+
+four frames. `kiln` and `kiln-cold` are the same 15 m frame at the fullest week of the burn and at midwinter, and the pair is the whole claim: the feature's argument is that a kiln is *out* for most of the year, and a set with only the burn in it would show a chimney. `kiln-bank` pulls back to 46 m for the claim the siting makes — the kiln, the hut and the water they both work for in one frame, where a reviewer can see whether the search found a brae or walled a drum up against a flat shelf. `kiln-blow` is the burning frame with the wind *put back*, and it is there instead of a `-still` twin because of what the first cut of the set measured: `STILL` already zeroes `wind.strength`, so every capture this scape takes is taken in a dead calm and `kiln` and `kiln-still` came back identical to two decimal places. The column laid over by a real blow is the half of the plume no other capture can reach.
 
 ## ground that casts
 

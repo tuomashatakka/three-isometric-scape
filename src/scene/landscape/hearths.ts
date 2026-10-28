@@ -2,9 +2,11 @@ import type { HearthStack } from '../hearth.ts'
 import { FARMHOUSE_CHIMNEY, SAUNA_FLUE } from '../props/buildings.ts'
 import type { StackMouth } from '../props/buildings.ts'
 import { CROFT_SINK, CROFT_VENT } from '../props/croft.ts'
+import { KILN_MOUTH } from '../props/kiln.ts'
 import { SMOKEHOUSE_VENT } from '../props/smokehouse.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
-import { fixtureAt, mergedFloor } from './fixtures.ts'
+import { PLOP_SINK, fixtureAt, mergedFloor } from './fixtures.ts'
+import { kilnSill } from './kiln.ts'
 import type { HeightField } from './height.ts'
 import type { Vec2 } from './path.ts'
 import type { Standing } from './steading.ts'
@@ -18,16 +20,22 @@ import type { Standing } from './steading.ts'
  * plume that rises out of these lives in `scene/hearth.ts`, and neither of them
  * has to know how the other works.
  *
- * Four stacks a holding — the farmhouse's brick chimney, the sauna's iron flue,
- * the ridge cowl on the smokehouse down at the harbour and the croft's stone
- * flue out on the islets — because those are the four buildings in the kit that
- * were modelled with one. The barn, the aitta and the woodshed have no fire in
- * them, and giving them a plume apiece would be smoke coming out of a hay loft.
+ * Five stacks a holding — the farmhouse's brick chimney, the sauna's iron flue,
+ * the ridge cowl on the smokehouse down at the harbour, the rim of the lime kiln
+ * cut into the bank beside it and the croft's stone flue out on the islets —
+ * because those are the five things in the kit that were modelled with one. The
+ * barn, the aitta and the woodshed have no fire in them, and giving them a plume
+ * apiece would be smoke coming out of a hay loft.
  *
- * The last two are conditional where the first two are not, and that is a fact
+ * The last three are conditional where the first two are not, and that is a fact
  * about the ground rather than about the buildings: a harbour with no dry bank
- * behind it has no smokehouse to smoke, and a ring with no free islet in it has
- * nobody living out there.
+ * behind it has no smokehouse to smoke, one with no brae behind it has no kiln,
+ * and a ring with no free islet in it has nobody living out there.
+ *
+ * The kiln is also the only one of the five that is not alight all year. That is
+ * not decided here — where a flue *is* is this module's business and what comes
+ * out of it is `scene/hearth.ts`'s — so all this does is mark the lane, and the
+ * burn window is read per frame one layer up.
  *
  * The transform out of the prop's frame is [`fixtures.ts`](fixtures.ts), shared
  * with the lamplight in the windows of the same two buildings.
@@ -55,12 +63,27 @@ export function surveyHearths (archipelago: ArchipelagoSurvey): HearthStack[] {
   const { field } = archipelago
 
   return archipelago.landmasses.flatMap(landmass => {
-    const { croft, places, smokehouse } = landmass.survey
+    const { croft, kiln, places, smokehouse } = landmass.survey
 
     return [
       stackAt(field, places.farmhouse, FARMHOUSE_CHIMNEY, landmass.origin),
       stackAt(field, places.sauna, SAUNA_FLUE, landmass.origin),
       ...smokehouse ? [ stackAt(field, smokehouse, SMOKEHOUSE_VENT, landmass.origin) ] : [],
+      // The kiln, and the only stack in the archipelago that is out for most of
+      // the year — see `kilnDensity`. Merged at its own sill rather than plopped,
+      // so like the croft it names the floor it was translated to instead of
+      // taking the plopped default: the rim is three and a half metres over the
+      // ground under the *arch*, which on a brae is most of a metre below the
+      // ground under the axis.
+      ...kiln
+        ? [{
+          ...stackAt(
+            field, kiln, KILN_MOUTH, landmass.origin,
+            mergedFloor(field, kilnSill(kiln), landmass.origin, PLOP_SINK),
+          ),
+          kiln: true,
+        }]
+        : [],
       // The croft is merged rather than plopped, so it names the floor it was
       // actually translated to instead of taking the plopped default.
       ...croft

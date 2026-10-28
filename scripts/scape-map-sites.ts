@@ -22,6 +22,7 @@ import type { HoweSite } from '../src/scene/landscape/howe.ts'
 import type { ShielingSite } from '../src/scene/landscape/shieling.ts'
 import type { WatermillSite } from '../src/scene/landscape/watermill.ts'
 import type { HjellRun } from '../src/scene/landscape/hjell.ts'
+import type { KilnSite } from '../src/scene/landscape/kiln.ts'
 import type { SmokehouseSite } from '../src/scene/landscape/smokehouse.ts'
 import type { CrossingSurvey } from '../src/scene/landscape/crossing.ts'
 import type { SnowFenceSurvey } from '../src/scene/landscape/snowfence.ts'
@@ -90,6 +91,28 @@ export function hjellOf (
     fall:     round(run.fall, 2),
     fetch:    round(run.fetch, 1),
     fromBank: round(run.fromBank, 1),
+  }
+}
+
+/**
+ * The kiln on the bank, the brae it was cut into, and the walk to the boats.
+ *
+ * `fall` is the line the site search actually scored on, so it is the field
+ * worth reading first: a kiln whose fall has crept toward `kiln.scarp` is a kiln
+ * standing against a bank it no longer sits in, and a harbour whose brae has
+ * flattened out reports `NONE` rather than a kiln on level ground.
+ */
+export function kilnOf (
+  site:   KilnSite | null,
+  worldX: Project,
+  worldZ: Project,
+): CompositionStats['kiln'] {
+  return site && {
+    x:        round(worldX(site.x)),
+    z:        round(worldZ(site.z)),
+    fall:     round(site.fall, 2),
+    sill:     round(site.level, 2),
+    fromBank: round(site.fromBank, 1),
   }
 }
 

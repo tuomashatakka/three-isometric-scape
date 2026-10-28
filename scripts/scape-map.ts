@@ -24,7 +24,7 @@ import { measureDrift } from '../src/scene/landscape/drift.ts'
 import type { DriftSurvey } from '../src/scene/landscape/drift.ts'
 import { measureSwash } from '../src/scene/landscape/swash.ts'
 import type { SwashSurvey } from '../src/scene/landscape/swash.ts'
-import { carterOf, causewayOf, croftOf, crossingsOf, dykeOf, hjellOf, howeOf, moleOf, peatOf, pierOf, rigsOf, shielingOf, smokehouseOf, snowFenceOf, tarnOf, watermillOf, weirOf, wreckOf } from './scape-map-sites.ts'
+import { carterOf, causewayOf, croftOf, crossingsOf, dykeOf, hjellOf, howeOf, kilnOf, moleOf, peatOf, pierOf, rigsOf, shielingOf, smokehouseOf, snowFenceOf, tarnOf, watermillOf, weirOf, wreckOf } from './scape-map-sites.ts'
 import type { CrossingStats, RigStats } from './scape-map-sites.ts'
 import {
   capsStats,
@@ -113,6 +113,18 @@ export interface CompositionStats {
    * and a screenshot at the default pose never shows.
    */
   smokehouse: { x: number, z: number, fromBank: number } | null
+
+  /**
+   * The lime kiln, the brae it is cut into, and how far up the bank it stands.
+   *
+   * A structural line rather than a decorative one, and the inverse of the hut's
+   * above: `NONE` here on an island that has a harbour means the shore behind it
+   * never came up *steep* enough to build a kiln into — which is the failure a
+   * smoothed falloff produces and a screenshot at the default pose never shows.
+   * `fall` is the measurement the search scored on and `sill` is the ground
+   * under the draw arch, which is the end the freeboard is asked at.
+   */
+  kiln: { x: number, z: number, fall: number, sill: number, fromBank: number } | null
 
   /**
    * The line of racks the catch dries on, end to end, and what the ground cost
@@ -968,6 +980,7 @@ function compositionStats (
       fromYard:   round(layout.chapel.fromYard),
     },
     smokehouse: smokehouseOf(survey.smokehouse, worldX, worldZ),
+    kiln:       kilnOf(survey.kiln, worldX, worldZ),
     hjell:      hjellOf(survey.hjell, worldX, worldZ),
     shieling:   shielingOf(survey.shieling, worldX, worldZ),
     howe:       howeOf(survey.howe, worldX, worldZ),

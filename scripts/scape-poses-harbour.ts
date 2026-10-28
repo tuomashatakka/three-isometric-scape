@@ -11,9 +11,21 @@ import type { Pose } from './scape-poses.ts'
  * are the same subject — a hut and a rack, both sited off the harbour bank,
  * both for keeping a catch — and a reviewer reading one wants the other.
  *
- * Folded back into `TOURS` at its definition, so `--poses hjell` and
- * `--poses smokehouse` read exactly as every other set does.
+ * Folded back into `TOURS` at its definition, so `--poses hjell`,
+ * `--poses kiln` and `--poses smokehouse` read exactly as every other set does.
  */
+
+/**
+ * The home island's kiln, with the weather held off it.
+ *
+ * `weather.time` is pinned for the reason the rotation set pins it: the default
+ * phase parks a shower over the scape, and a three-metre drum at 15 m under
+ * falling snow is a picture of a shower rather than of a kiln. The hour is left
+ * alone, because the burn is a summer thing and the set is argued on what comes
+ * off the rim rather than on the light.
+ */
+const AT_THE_KILN = [ 'camera.focusX=15', 'camera.focusZ=-11', 'weather.time=0.62' ]
+
 
 export const HARBOUR_TOURS: Record<string, Pose[]> = {
 
@@ -86,6 +98,52 @@ export const HARBOUR_TOURS: Record<string, Pose[]> = {
       zoom:   26,
       season: 0.12,
       set:    [ 'camera.focusX=-21', 'camera.focusZ=-4' ],
+    },
+  ],
+
+  /**
+   * The lime kiln on the brae, burning and cold.
+   *
+   * The thirty-fourth set, and the second whose subject is a week of the year as
+   * much as a place. It belongs in this file for the reason the racks do: a
+   * kiln, a hut and a rack are three things the harbour built on one bank, and a
+   * reviewer reading any of them wants the other two.
+   *
+   * `kiln` reads the stonework at the week the burn is fullest — the battered
+   * drum, the draw arch, the quicklime heaped clear of it and the column coming
+   * off the rim. 15 m rather than the set's wider frames for the reason the
+   * racks are 13: the arch is a metre across, and at 30 m a mouth and a shadow
+   * are the same handful of pixels. `kiln-cold` is the same frame at midwinter
+   * and it is the half of this that nothing else in the scape can reach — the
+   * claim the feature makes is that a kiln is *out* for most of the year, and a
+   * set with only the burn in it would show a chimney rather than a kiln.
+   * `kiln-bank` pulls back to the claim the siting makes: the kiln, the hut and
+   * the water they both work for in one frame, so a reviewer can see whether the
+   * search found a brae or walled a drum up against a flat shelf.
+   * `kiln-blow` is the burning frame with the wind *put back*, and it is here
+   * rather than a `-still` twin because of what the first cut of this set
+   * measured. A still frame is what every capture in this scape already is —
+   * `STILL` zeroes `wind.strength` — so `kiln` and `kiln-still` came back
+   * identical to two decimal places, which is a pose that cannot tell a reader
+   * anything. The column laid over by a real blow is the half of the plume no
+   * other capture can reach.
+   */
+  kiln: [
+    { name: 'kiln', rot: 225, zoom: 15, season: 0.62, set: AT_THE_KILN },
+    { name: 'kiln-cold', rot: 225, zoom: 15, season: 0.1, set: AT_THE_KILN },
+    {
+      name:   'kiln-bank',
+      rot:    225,
+      zoom:   46,
+      season: 0.62,
+      set:    [ 'camera.focusX=2', 'camera.focusZ=-16', 'weather.time=0.62' ],
+    },
+    {
+      name:   'kiln-blow',
+      rot:    225,
+      zoom:   15,
+      season: 0.62,
+      set:    [ ...AT_THE_KILN, 'wind.strength=2.4' ],
     },
   ],
 }

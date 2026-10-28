@@ -161,6 +161,18 @@ export const NORDIC_PALETTE = {
   stockfish:     '#d2c3a0',
   stockfishBack: '#6f6b55',
 
+  // The lime kiln on the harbour bank, and the one pair in this palette that
+  // belongs to a *process* rather than to a material. Quicklime drawn out of a
+  // burn is the palest thing anybody on this coast makes — paler than the
+  // limewash on the chapel, because the limewash is this slaked and thinned —
+  // so `quicklime` is the one entry allowed over `trimWhite`, and it is allowed
+  // it because a heap of it is three metres across and the chapel is fourteen.
+  // `kilnSoot` is the other end of the same fire: the inside of the drum and the
+  // scorch over the draw arch, and it stays under `tarWood` so the mouth reads
+  // as a hole rather than as a dark door.
+  quicklime: '#ece8dc',
+  kilnSoot:  '#2e2823',
+
   /** A burning wick behind glass — the lamp in the lantern room, and its beams. */
   lampWarm: '#ffdca8',
   flagBlue: '#2f5d8f',
