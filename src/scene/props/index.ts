@@ -8,6 +8,7 @@ import { buildCreelBuoy, buildCreelStack } from './creel.ts'
 import { buildCroft } from './croft.ts'
 import { buildStockfish } from './hjell.ts'
 import { buildKelp } from './kelp.ts'
+import { buildKiln } from './kiln.ts'
 import { buildWindmill } from './mill.ts'
 import { buildBladderwrack, buildRockLichen } from './littoral.ts'
 import { buildLamb, buildSheep } from './livestock.ts'
@@ -84,6 +85,7 @@ export const PROPS = {
   chapel:      buildChapel,
   graveMarker: buildGraveMarker,
   smokehouse:  buildSmokehouse,
+  kiln:        buildKiln,
   shieling:    buildShieling,
   howe:        buildHowe,
   watermill:   buildWatermill,
@@ -155,7 +157,7 @@ export type PropName = keyof typeof PROPS
 /** Placed once, by hand, then merged into the steading draw. */
 export const HERO_PROPS = [
   'barn', 'farmhouse', 'sauna', 'aitta', 'woodshed', 'meadowBarn', 'windmill', 'lighthouse',
-  'chapel', 'graveMarker', 'smokehouse', 'shieling', 'howe', 'watermill', 'croft', 'wreck',
+  'chapel', 'graveMarker', 'smokehouse', 'kiln', 'shieling', 'howe', 'watermill', 'croft', 'wreck',
   'jetty', 'boathouse', 'netRack', 'well', 'hayRack', 'logPile', 'flagpole',
   'cart', 'gate', 'rowboat', 'mailbox', 'creelStack',
 ] as const satisfies readonly PropName[]

@@ -356,6 +356,7 @@ bun run scape:shot --poses crossing                 # the decks over the water, 
 bun run scape:shot --poses rigs                     # the plough pattern on the infield, 6 frames, four fields and one, a low sun and a high one, the turn and the snow
 bun run scape:shot --poses rotation                 # the course each field is in, 6 frames, the three courses one each and the ley beside the corn, dry, through the year
 bun run scape:shot --poses hjell                    # the drying racks above the harbour, 4 frames, loaded, bare, pulled back, and under snow
+bun run scape:shot --poses kiln                     # the lime kiln on the brae, 4 frames, burning, cold, pulled back, and with the wind put back
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain
@@ -556,6 +557,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `shore.ts` | boathouse and slipway, net rack, mooring stakes |
 | `smokehouse.ts` | the smokehouse — log walls, turf roof, ridge cowl, and `SMOKEHOUSE_VENT` |
 | `hjell.ts` | the drying rack as a parametric run of trestles on surveyed ground, and the split cod hung over its rails — the one prop in the roster that hangs from `y = 0` rather than standing on it |
+| `kiln.ts` | the lime kiln — a battered drum of dry block, a draw arch with a soot recess in it, iron bands, a charging stage at the rim, and the quicklime heaped clear of the mouth, plus `KILN_MOUTH` and `KILN_SILL`. the one prop in the roster whose base is its *arch* rather than its axis, because the dressing merges it at the low end of its own site |
 | `shieling.ts` | the shieling — drystone room, turf roof, smoke hole, and the half-circle fold walled onto its back |
 | `howe.ts` | the howe — six frusta on a cosine slump, a kerb of set stones round the foot, and the hole the diggers left in the crown |
 | `croft.ts` | the croft — boarded walls, turf roof, stone flue, oars at the blind gable, and `CROFT_VENT` / `CROFT_WINDOWS` / `CROFT_SINK` |
@@ -601,6 +603,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `chapel.ts` | the knoll a chapel stands on, its doorstep, and `chapelYaw` — the one yaw `yawAlong` cannot give |
 | `smokehouse.ts` | the patch of bank above the harbour a smokehouse is built on |
 | `hjell.ts` | the line of ground above the harbour the catch dries on — laid along `wind.bearing` rather than searched for a heading, gated on an upwind fetch walk, plus `HJELL_CLEARING` / `HJELL_LOWER_RAIL` / `hjellHung` / `fishHung` / `planHjellCatch` |
+| `kiln.ts` | the brae above the harbour a lime kiln is cut into — the one search in the survey that refuses ground for being *flat*, with freeboard asked at the draw sill rather than at the axis, plus `downhillYaw` / `kilnBurn` / `KILN_FOOTING` |
 | `shieling.ts` | the patch of hill above the head dyke a summer hut is built on — scored on rise, level sill and nearness to the burn, and `SHIELING_FOOTING` |
 | `howe.ts` | the top a barrow stands on — the one search here scored on a *sightline* rather than on ground, swept as a grid rather than as rings, plus `skylineClearance` / `kerbFall` / `HOWE_FOOTING` / `HOWE_RADIUS` / `HOWE_HEIGHT` |
 | `croft.ts` | the free islet a croft is built on — scored on the row home from the harbour, and never the rock the light is already on |

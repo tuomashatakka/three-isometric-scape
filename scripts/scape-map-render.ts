@@ -41,7 +41,7 @@ export const LEGEND =
   '~ deep  - shallow  . shore  : low  = mid  + upper  * high  # peak\n' +
   ', footpath  ≡ track  · waterway  b boat  s beck  ≈ tarn  T peat  ' +
   'F/B/A/W/S steading  o well  J jetty  H harbour  V smokehouse  P pier  Q weir  ' +
-  'W mill  M watermill  K chapel  L light  C croft  X wreck  Y shieling  p plot  ^ ridge  x dyke  g gate  h hjell'
+  'W mill  M watermill  K chapel  L light  C croft  X wreck  Y shieling  N kiln  p plot  ^ ridge  x dyke  g gate  h hjell'
 
 export interface Layers {
   height:    boolean
@@ -289,7 +289,7 @@ export function renderGrid (
   if (layers.buildings)
     for (const landmass of archipelago.landmasses) {
       const { layout, places, landing, harbour, beacon, croft, dyke, pier, weir } = landmass.survey
-      const { hjell, shieling, smokehouse, watermill, wreck }                     = landmass.survey
+      const { hjell, kiln, shieling, smokehouse, watermill, wreck }               = landmass.survey
       const worldX                                                                = (x: number): number => x + landmass.origin.x
       const worldZ                                                                = (z: number): number => z + landmass.origin.z
 
@@ -321,6 +321,7 @@ export function renderGrid (
         [ layout.mill, 'W' ],
         [ layout.chapel, 'K' ],
         [ smokehouse, 'V' ],
+        [ kiln, 'N' ],
         [ shieling, 'Y' ],
         [ watermill, 'M' ],
         [ beacon, 'L' ],

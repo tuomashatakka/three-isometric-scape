@@ -4,6 +4,9 @@ import { SCAPE_CONFIG } from './config.ts'
 import { hearthDensity, hearthGeometry, plumeLean } from './hearth.ts'
 import type { HearthStack } from './hearth.ts'
 import { surveyHearths } from './landscape/hearths.ts'
+import { PLOP_SINK, mergedFloor } from './landscape/fixtures.ts'
+import { kilnSill } from './landscape/kiln.ts'
+import { KILN_MOUTH } from './props/kiln.ts'
 import { surveyArchipelago } from './landscape/archipelago.ts'
 import { LADDER, atmosphereQuality, unlockEffects } from './quality.ts'
 
@@ -21,14 +24,16 @@ describe('where the smoke comes from', () => {
   test('is a stack for every fire in the archipelago', () => {
     // Two unconditional — the farmhouse chimney and the sauna flue — plus the
     // smokehouse's ridge cowl on each island whose harbour had a dry bank
-    // behind it, plus the croft's stone flue on each island whose ring of
-    // islets had a rock free to build on. The last two are conditional because
-    // the *buildings* are: see `landscape/smokehouse.ts` and `landscape/croft.ts`.
+    // behind it, the lime kiln's rim on each whose harbour had a brae, and the
+    // croft's stone flue on each whose ring of islets had a rock free to build
+    // on. The last three are conditional because the *buildings* are: see
+    // `landscape/smokehouse.ts`, `landscape/kiln.ts` and `landscape/croft.ts`.
     const smoking = survey.landmasses.filter(landmass => landmass.survey.smokehouse).length
+    const burning = survey.landmasses.filter(landmass => landmass.survey.kiln).length
     const crofted = survey.landmasses.filter(landmass => landmass.survey.croft).length
 
     expect(stacks.length)
-      .toBe(SCAPE_CONFIG.archipelago.landmasses.length * 2 + smoking + crofted)
+      .toBe(SCAPE_CONFIG.archipelago.landmasses.length * 2 + smoking + burning + crofted)
   })
 
   /**
@@ -44,9 +49,38 @@ describe('where the smoke comes from', () => {
    * can do inside a yard the layout has already flattened.
    */
   test('every mouth stands clear of the ground under it', () => {
-    const buried = stacks.filter(stack => stack.y - survey.field.heightAt(stack.x, stack.z) < 3)
+    // The kiln is the one stack that is cut into a bank on purpose. Its rim
+    // stands 3.8 m over the sill the dressing set it on and only a metre or so
+    // over the brae behind it, and that gap *is* the feature — see
+    // `landscape/kiln.ts`. A chimney has no such excuse.
+    const buried = stacks.filter(stack =>
+      stack.y - survey.field.heightAt(stack.x, stack.z) < (stack.kiln ? 1 : 3))
 
     expect(buried).toEqual([])
+  })
+
+  /**
+   * The kiln's own half of the claim above, which the relaxed threshold would
+   * otherwise let through: the rim is published off the *sill*, so a kiln whose
+   * floor was resolved at its axis instead would put the mouth most of a metre
+   * into its own stonework.
+   */
+  test('the kiln rim stands a full drum over the ground it was set on', () => {
+    const rims = survey.landmasses.flatMap(landmass => {
+      const kiln = landmass.survey.kiln
+
+      if (!kiln)
+        return []
+
+      const sill = mergedFloor(survey.field, kilnSill(kiln), landmass.origin, 0)
+
+      return [ stacks.find(stack => stack.kiln &&
+        Math.hypot(stack.x - kiln.x - landmass.origin.x, stack.z - kiln.z - landmass.origin.z) < 0.5)!.y - sill ]
+    })
+
+    expect(rims.length).toBeGreaterThan(0)
+    for (const over of rims)
+      expect(over).toBeCloseTo(KILN_MOUTH.y - PLOP_SINK, 4)
   })
 
   test('every stack is over dry land', () => {
@@ -65,7 +99,7 @@ describe('where the smoke comes from', () => {
    */
   test('every stack sits on its own building', () => {
     const places = survey.landmasses.flatMap(landmass => {
-      const { croft, places: steading, smokehouse } = landmass.survey
+      const { croft, kiln, places: steading, smokehouse } = landmass.survey
 
       // In the order `surveyHearths` publishes them, so the pairing below is
       // the identity rather than a lookup — a stack that has strayed onto its
@@ -74,6 +108,7 @@ describe('where the smoke comes from', () => {
         steading.farmhouse,
         steading.sauna,
         ...smokehouse ? [ smokehouse ] : [],
+        ...kiln ? [ kiln ] : [],
         ...croft ? [ croft ] : [],
       ]
         .map(place => ({

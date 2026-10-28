@@ -731,6 +731,22 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
             range('hearth.winter', 'banked in winter', 0, 2, 0.01),
           ],
         ),
+
+        // The kiln's own lane, and its own toggle, because it is not a chimney:
+        // turning the house fires out leaves the burn standing and turning the
+        // burn out leaves the house fires alight. The three that are here are
+        // the three this section reads per frame — where the kiln *stands* is
+        // the survey's, and those knobs stay out for the reason the smokehouse's
+        // do.
+        toggled(
+          'the lime burn',
+          range('kiln.draw', 'draw', 0, 3, 0.05, quality.hearthPuffs > 0),
+          1.8,
+          [
+            range('kiln.burn', 'weeks of the year', 0, 1, 0.01),
+            range('kiln.peak', 'when it is fired', 0, 1, 0.01),
+          ],
+        ),
       ],
     },
     {

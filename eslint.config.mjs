@@ -52,6 +52,11 @@ export default [
     // to: a subject at a time, schema and numbers together, spread back into
     // `SCAPE_CONFIG` here.
     //
+    // It has held. The run that added the lime kiln went one line over this
+    // ceiling and moved the *year* out into `config-season.ts` rather than
+    // raising it — the twelfth slice, and the first that is a clock rather than
+    // a place.
+    //
     // `error` rather than `warn` because `lint` runs `--max-warnings 0`, so a
     // warning here would fail the gate exactly like an error while reading as
     // though it were advisory. Still a real ceiling, just a higher one.

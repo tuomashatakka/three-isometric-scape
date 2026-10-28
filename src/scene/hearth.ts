@@ -13,6 +13,7 @@ import type { DaylightState } from './daylight.ts'
 import type { AtmosphereQuality } from './quality.ts'
 import type { SeasonState } from './season.ts'
 import type { WindState } from './wind.ts'
+import { kilnBurn } from './landscape/kiln.ts'
 import { LAYER } from './layers.ts'
 
 
@@ -28,6 +29,21 @@ export interface HearthStack {
   x: number
   y: number
   z: number
+
+  /**
+   * True for a flue that only draws while the lime kiln is being fired.
+   *
+   * The one thing this module needs to know about a stack beyond where it is,
+   * and it is a *lane* rather than a strength: every hearth in the archipelago
+   * shares one density and every kiln shares another, so the whole archipelago
+   * is still one draw call off one static buffer. A per-stack number would have
+   * meant a uniform per plume or a re-upload per frame, and the difference it
+   * would buy is between two fires neither of which is ever seen beside the
+   * other.
+   *
+   * Absent is a house fire, which is what all but one flue on an island is.
+   */
+  kiln?: boolean
 }
 
 export interface HearthOptions {
@@ -106,6 +122,25 @@ const SIZE_SPREAD = 0.4
  * opacity is scaled by, and an opacity past 1 is a plume that stops answering
  * its own knob.
  */
+/**
+ * How dense the kiln smoke stands, 0..1.
+ *
+ * Pure, and the second claim this module makes: a kiln is not a hearth. The
+ * house fires above never reach zero — there is a meal to cook in July — and
+ * this one is zero for most of the year and full for a fortnight of it.
+ *
+ * Clamped at 1 for the reason {@link hearthDensity} is, which makes `kiln.draw`
+ * headroom rather than brightness: a draw over one does not make the plume
+ * denser than an opacity of one, it makes the burn come up faster and hold at
+ * full across the whole window instead of peaking for a single week. That is
+ * what a kiln actually does — it is lit once, it runs, and it is let out.
+ */
+export function kilnDensity (config: ScapeConfig, phase: number): number {
+  const draw = Math.max(0, config.kiln.draw)
+
+  return Math.min(1, draw * kilnBurn(phase, config.kiln.burn, config.kiln.peak))
+}
+
 export function hearthDensity (config: ScapeConfig, growth: number): number {
   const smoke = Math.max(0, config.hearth.smoke)
   const cold  = Math.min(1, Math.max(0, 1 - growth))
@@ -141,8 +176,9 @@ export function plumeLean (config: ScapeConfig, strength: number): number {
  * the one thing a puff of smoke has to do to read as round.
  */
 const HEARTH_VERTEX = /* glsl */`
-  attribute vec3 aStack;
-  attribute vec4 aPuff;
+  attribute vec3  aStack;
+  attribute vec4  aPuff;
+  attribute float aKiln;
 
   uniform float uCycle;
   uniform float uRise;
@@ -152,6 +188,7 @@ const HEARTH_VERTEX = /* glsl */`
 
   varying vec2  vOffset;
   varying float vAge;
+  varying float vKiln;
 
   void main () {
     // Evenly spaced along one shared climb, so a count is continuity rather
@@ -190,6 +227,7 @@ const HEARTH_VERTEX = /* glsl */`
 
     vOffset = position.xy;
     vAge    = age;
+    vKiln   = aKiln;
 
     gl_Position = projectionMatrix * view;
   }
@@ -207,9 +245,11 @@ const HEARTH_VERTEX = /* glsl */`
 const HEARTH_FRAGMENT = /* glsl */`
   uniform vec3  uColor;
   uniform float uOpacity;
+  uniform float uBurn;
 
   varying vec2  vOffset;
   varying float vAge;
+  varying float vKiln;
 
   void main () {
     float puff = 1.0 - smoothstep(0.15, 1.0, length(vOffset));
@@ -220,7 +260,9 @@ const HEARTH_FRAGMENT = /* glsl */`
     // left the top two thirds too thin for the diff to see at all.
     float life = smoothstep(0.0, 0.08, vAge) * (1.0 - smoothstep(0.45, 1.0, vAge));
 
-    float alpha = uOpacity * puff * life;
+    // The two lanes. A house fire answers to the cold and never goes out; a
+    // kiln answers to the burn window and is out for most of the year.
+    float alpha = mix(uOpacity, uBurn, vKiln) * puff * life;
 
     if (alpha < 0.004)
       discard;
@@ -252,6 +294,7 @@ export function hearthGeometry (
   const position = new Float32Array(total * 4 * 3)
   const stack    = new Float32Array(total * 4 * 3)
   const puff     = new Float32Array(total * 4 * 4)
+  const lane     = new Float32Array(total * 4)
   const index    = new Uint32Array(total * 6)
   const corners  = [ -1, -1, 1, -1, 1, 1, -1, 1 ]
 
@@ -278,6 +321,8 @@ export function hearthGeometry (
 
         for (let part = 0; part < 4; part += 1)
           puff[vertex * 4 + part] = habits[part]
+
+        lane[vertex] = mouth.kiln ? 1 : 0
       }
 
       const triangles = [ base, base + 1, base + 2, base, base + 2, base + 3 ]
@@ -291,6 +336,7 @@ export function hearthGeometry (
   geometry.setAttribute('position', new BufferAttribute(position, 3))
   geometry.setAttribute('aStack', new BufferAttribute(stack, 3))
   geometry.setAttribute('aPuff', new BufferAttribute(puff, 4))
+  geometry.setAttribute('aKiln', new BufferAttribute(lane, 1))
   geometry.setIndex(new BufferAttribute(index, 1))
 
   return geometry
@@ -342,6 +388,7 @@ export function createHearthSmoke ({
       uSway:    { value: 0 },
       uColor:   { value: new Color() },
       uOpacity: { value: 0 },
+      uBurn:    { value: 0 },
     },
   })
 
@@ -373,9 +420,11 @@ export function createHearthSmoke ({
     update (_state, frame) {
       const live    = config()
       const density = hearthDensity(live, season.growth)
+      const burn    = kilnDensity(live, season.phase)
 
       material.uniforms.uOpacity.value = density
-      mesh.visible                     = density > 0.004
+      material.uniforms.uBurn.value    = burn
+      mesh.visible                     = Math.max(density, burn) > 0.004
 
       if (!mesh.visible)
         return

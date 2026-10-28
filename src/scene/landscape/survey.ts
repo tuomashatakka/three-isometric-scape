@@ -38,8 +38,10 @@ import { HOWE_FOOTING, findHoweSite } from './howe.ts'
 import type { HoweSite } from './howe.ts'
 import { SHIELING_FOOTING, findShielingSite } from './shieling.ts'
 import type { ShielingSite } from './shieling.ts'
-import { findHjellRun } from './hjell.ts'
+import { HJELL_CLEARING, findHjellRun } from './hjell.ts'
 import type { HjellRun } from './hjell.ts'
+import { KILN_FOOTING, findKilnSite } from './kiln.ts'
+import type { KilnSite } from './kiln.ts'
 import { SMOKEHOUSE_FOOTING, findSmokehouseSite } from './smokehouse.ts'
 import type { SmokehouseSite } from './smokehouse.ts'
 import { WATERMILL_FOOTING, findWatermillSite } from './watermill.ts'
@@ -85,6 +87,9 @@ export interface ScapeSurvey {
 
   /** The bank above the harbour the smokehouse stands on, or `null` if none is dry. */
   smokehouse: SmokehouseSite | null
+
+  /** The brae the lime kiln is cut into, or `null` if the harbour has no slope. */
+  kiln: KilnSite | null
 
   /**
    * The line of ground above the harbour the catch is dried on, or `null` when
@@ -541,6 +546,52 @@ function hillReach (layout: ScapeLayout): number {
  * of poles with daylight between them, and a footpath worn under a drying rack
  * is a footpath.
  */
+/**
+ * The brae the kiln is cut into, or the reason this harbour has none.
+ *
+ * Out of `surveyScape` for the same reason `dryTheCatch` is, and it is the same
+ * two optional arguments that put it here: the harbour it is sited from may not
+ * exist and neither may the hut it has to miss, so inlining it took that
+ * function past the lint config's complexity ceiling. The survey holds the
+ * order; the argument list lives out here.
+ */
+function burnTheShells (
+  config:     ScapeConfig,
+  field:      HeightField,
+  harbour:    Spot | null,
+  standing:   readonly Obstacle[],
+  smokehouse: SmokehouseSite | null,
+  hjell:      HjellRun | null,
+): KilnSite | null {
+  if (!harbour)
+    return null
+
+  return findKilnSite(
+    {
+      ground:     field.heightAt,
+      waterLevel: config.terrain.waterLevel,
+      freeboard:  config.kiln.freeboard,
+      setback:    config.kiln.setback,
+      reach:      config.kiln.reach,
+      brae:       config.kiln.brae,
+      scarp:      config.kiln.scarp,
+    },
+    harbour,
+    [
+      ...standing,
+      { ...boathouseSpot(harbour), radius: BOATHOUSE_FOOTING },
+      { ...netRackSpot(harbour), radius: NET_RACK_FOOTING },
+      ...claim(smokehouse, SMOKEHOUSE_FOOTING),
+      // The racks, a trestle at a time. They are a line of poles with daylight
+      // between them and a *footpath* worn under one is a footpath, which is why
+      // nothing else in the survey is handed them — but a kiln standing inside a
+      // drying rack is a kiln that burns the winter's food, and a building is
+      // not a path.
+      ...hjell?.stations.map(station => ({ ...station, radius: HJELL_CLEARING })) ?? [],
+    ],
+  )
+}
+
 function dryTheCatch (
   config:     ScapeConfig,
   field:      HeightField,
@@ -915,6 +966,20 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
   // one of the things the racks have to miss.
   const hjell = dryTheCatch(config, field, harbour, standing, smokehouse)
 
+  // Last of the three on this bank, and that order is a judgement about which
+  // site is scarcer rather than about which building matters. A rack is a
+  // *straight* fifteen-metre line that has to be level, near the boats and open
+  // to the weather all at once, and these islands offer one or two such lines;
+  // a kiln wants a brae with a metre of fall in it, and a shore bank is mostly
+  // brae. Letting the kiln go first took the shield island's rack away and left
+  // the kiln three metres from where it stands now.
+  //
+  // It also wants the opposite ground to the smokehouse — that search refuses
+  // anything with a slope across it and this one refuses anything without one —
+  // so the hut takes the level shelf and the kiln takes the brae, and the two
+  // are never competing for the same patch.
+  const kiln = burnTheShells(config, field, harbour, standing, smokehouse, hjell)
+
   const pier = reachDeepWater(config, field, harbour)
   const weir = trapTheFlat(config, field, harbour)
   const mole = shelterTheLanding(config, field, landing)
@@ -954,6 +1019,9 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     ...standing,
     // The hut, for the same reason as the chapel and at a fifth of the size.
     ...claim(smokehouse, SMOKEHOUSE_FOOTING),
+    // The kiln with its apron and its heap — quicklime is caustic enough that a
+    // path worn across the draw floor is a path nobody walked twice.
+    ...claim(kiln, KILN_FOOTING),
     // The shieling with its fold, which is the largest claim on the island after
     // the farmyard's own — a leg that cut the corner off it would be a path
     // through a sheep pen.
@@ -1047,6 +1115,7 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     beacon,
     croft,
     smokehouse,
+    kiln,
     hjell,
     shieling,
     howe,
