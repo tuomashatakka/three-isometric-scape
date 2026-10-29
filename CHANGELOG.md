@@ -2,6 +2,20 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the tile that was still there
+
+the default frame had a regular grid of pale "3"-shaped figures across the whole sea, about forty to the frame, and the ground beside it carried sixteen rows of the same cloud print. that was the sun shafts and the cloud shadow each reading the 92 m cloud tile once, on one lattice. now [`textures/untile.ts`](src/scene/textures/untile.ts) reads every one of those maps on two lattices that never meet inside a frame (the second is turned 23.5° and scaled 0.73). the wallpaper is gone, and the shafts read as broken curtains of light instead of a printed pattern.
+
+- **one GLSL function, four callers:** the cloud shadow (all four ground programs), the shafts (which must stand in the holes the ground is lit through), the sea's albedo sheen (both lake programs) and the two ripple-normal reads (full lake only).
+- **variance-preserving, not averaged:** the two reads are summed around the mean and divided by √2. an average would have thinned every cloud by about a third of its spread.
+- **the claim is a test:** `untile.test.ts` asserts that within 8 tiles the pair never comes within 1/8 of a tile of repeating, and never within 1/16 across the 16 cloud tiles the world holds. it uses the identity lattice as its control, and checks that the GLSL matrix is the one the pure function uses.
+- **cost: no draw call, no texture, no upload.** it adds one fetch per untiled read, all off samplers that are already bound:
+  - ground programs: +1
+  - lite (phone) lake: +2
+  - full lake: +4
+  - each shaft sheet fragment: +1 (3 sheets on the mobile tier)
+- **left for the next run:** the cloud deck stores a pre-cut alpha, so the sum has no mean to work around. the whitecaps are held to one read by their own budget test.
+
 ## what comes off the face
 
 the bird cliff has been a place birds *are* since the run that put them on it — four rows of guillemots standing on a seven-metre face, on five of the six islands, and not one of them ever left the rock. every headland the colony gate takes now throws a **wheel of birds off its face**: a ring sited over the water on the crag's own bearing, pinned to the air between its lowest ledge and the sky over its lip, and gone from that air in the same weeks the rock goes bare. [`landscape/colony.ts`](src/scene/landscape/colony.ts) sites it, [`scene/birds.ts`](src/scene/birds.ts) flies it, and the two new knobs are in [`config-ledges.ts`](src/scene/config-ledges.ts) rather than in `birds` — because how far over a clifftop a guillemot turns is a fact about the colony and not about the gulls.

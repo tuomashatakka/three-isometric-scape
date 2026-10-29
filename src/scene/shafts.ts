@@ -15,6 +15,7 @@ import type { DaylightState } from './daylight.ts'
 import type { Vec2 } from './landscape/path.ts'
 import type { AtmosphereQuality } from './quality.ts'
 import type { TextureCatalogue } from './textures/catalogue.ts'
+import { UNTILE_GLSL } from './textures/untile.ts'
 import type { WindState } from './wind.ts'
 import { LAYER } from './layers.ts'
 
@@ -346,10 +347,15 @@ const SHAFT_FRAGMENT = /* glsl */`
   varying vec2 vGround;
   varying float vLift;
   varying float vWeight;
-
+${UNTILE_GLSL}
   void main () {
+    // The same untiled read the shadow takes, so a beam stands in the hole the
+    // ground is lit through. A single read here was the loudest lattice in the
+    // scape: every sheet of the stack stamped the same 92 m comma in rows across
+    // the whole sea, and the ground's own fix would have moved the holes out
+    // from under the beams.
     vec2 uv     = vGround * uScale + uDrift - uThrow * vLift;
-    float field = texture2D(uCloudMap, uv).r;
+    float field = scapeUntiled(uCloudMap, uv);
     float beam  = 1.0 - smoothstep(
       ${(CLOUD_CUT - CLOUD_EDGE * BEAM_OPEN).toFixed(4)},
       ${(CLOUD_CUT - CLOUD_EDGE * BEAM_INSET).toFixed(4)},
@@ -497,7 +503,7 @@ export function createShaftsLayer ({
 
 // perf: one additive draw call for the whole stack — three sheets on a phone,
 // eight on a workstation — over one shared 256² map the cloud shadow already
-// uploaded, drawn only on a daylit frame under a broken sky. One texture fetch
-// and one smoothstep a fragment, and nothing per frame but two `Vector2`s, a
+// uploaded, drawn only on a daylit frame under a broken sky. Two texture
+// fetches — the untiled pair — and one smoothstep a fragment, and nothing per frame but two `Vector2`s, a
 // colour and five floats. Nothing is allocated in `update` and nothing but the
 // stack's own geometry is freed in `dispose`.

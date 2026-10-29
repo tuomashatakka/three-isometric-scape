@@ -388,7 +388,8 @@ src/
     │   └── index.ts                the scene module, and what raycasts
     ├── textures/
     │   ├── catalogue.ts            every texture in the scape, in one list
-    │   └── normals.ts              a height field's gradient, baked once instead of differenced per fragment
+    │   ├── normals.ts              a height field's gradient, baked once instead of differenced per fragment
+    │   └── untile.ts               a tiling map read twice, on two lattices that never meet, so the tile stops showing
     └── props/
         ├── index.ts                the roster, hero vs scattered
         ├── palette.ts              the nordic colour vocabulary
@@ -603,6 +604,24 @@ a tier is a bundle of decisions taken from what the device says about itself, an
 **`moleArmour` is the newest, and the third variation on the same theme.** the breakwater's mound is the same on every tier, because it is merged into a draw that already exists and a wedge of stone is what the structure *is*. what the tier decides is the apron of larger blocks tipped against the seaward face: `minimal` gets **zero**, which is an arm nobody has re-armoured since it was built — a thing that exists on every coast of this kind — and mobile gets one block every 2.4 m against ultra's 1.15. it is *not* in `UNLOCKED_FLOOR`, and that is deliberate and shared with `weirStakes` and `fencePalings`: those three are spacings in metres where smaller means more, so the floor's `Math.max` would turn unlocking into stripping, and a zero there is a real structure rather than a missing one.
 
 **`haloArcs` is the newest count, and the one that went the other way.** the three paragraphs above are all a cheap tier being given less; this is a phone being given everything. the halo's second grant is the two mock suns and the shaft — two gaussians and a column on fragments one quad already covers — and withholding it from mobile would have been free, except that the capture harness pins `--tier mobile`. a grant the harness cannot reach is a sight no still in this repository can ever show, and the mock suns are the half of this system that *moves*. so `minimal` gets 0 — no quad, no program, no ring — the unlocked floor gets the ring on its own, and every detected tier gets both.
+
+## the tile that was still there
+
+the weather bank stopped the *cover* repeating, and the section above took that as the sky no longer repeating. it was not true, and the default frame said so to anyone who looked: under the bank, every comma it let through was still the same 92 m tile on the same perfect lattice. the ground carried sixteen rows of identical prints, and the sea carried a regular grid of pale "3"-shaped figures, about forty across the frame. that grid turned out to be the **sun shafts**: every sheet in the stack reads the cloud map once, so every sheet stamped the tile's holes onto the sea in rows. finding it took eight captures, each with one family switched off (`--set atmosphere.mistAmount=0`, `atmosphere.cloudShadow=0`, `water.whitecap=0`, `water.waveHeight=0`, `terrain.detailGrain=0`, then `--skip rain`, `--skip shafts,squall,clouds`, `--skip shafts`). it is written down because the next lattice will be found the same way.
+
+[`textures/untile.ts`](src/scene/textures/untile.ts) is the fix, and it is one GLSL function. `scapeUntiled(map, uv)` reads the map where it always did, and once more on a second lattice **turned 23.5° and scaled 0.73**, starting from a shifted origin. the sum of two periodic fields repeats only where both lattices come back together. the turn and the ratio were picked by search to keep that from happening inside a frame: `nearestRepeat(8)` is 0.127 of a tile, and across the sixteen cloud tiles the world holds it never drops below a sixteenth. `untile.test.ts` states this as a fact about the lattices, with the identity as its control.
+
+**summed around the mean and divided by √2, not averaged.** averaging two independent noises keeps the mean and loses about a third of the spread. that would quietly thin every cloud the shadow cuts, because the cut would be crossed less often. this is the cheap half of Heitz & Neyret's histogram-preserving blend, and for a roughly gaussian field it is the half that matters, so coverage did not move.
+
+**four places read through it:**
+- the cloud shadow's detail, in all four ground programs
+- the shafts, which have to stand in the same holes the ground is lit through, so they cannot keep a single read once the shadow drops it
+- the sea's albedo sheen, in both lake programs
+- the two ripple-normal reads in the full lake
+
+the chunk is guarded with `#ifndef SCAPE_UNTILED` because the lake compiles both the cloud shadow's chunk and its own.
+
+**what it did not touch, on purpose:** the cloud deck bakes the cut into its alpha, so there is no field left up there to sum around a mean. the whitecaps are a cut on `water.wave` with a measured percentile table and a test that holds them to one read on the phone's budget. both are follow-ups, not oversights.
 
 ## every texture, in one list
 
