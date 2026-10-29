@@ -10,6 +10,7 @@ import type { OrthographicCamera } from 'three'
 import { createSeededRng, defineModule } from 'threejs-scene'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import type { Colony } from './landscape/colony.ts'
+import { colonyAshore } from './landscape/ledges.ts'
 import type { DaylightState } from './daylight.ts'
 import type { AtmosphereQuality } from './quality.ts'
 import type { WeatherState } from './weather.ts'
@@ -149,6 +150,7 @@ const DUSK_OUT = 0.42
 const BIRD_VERTEX = /* glsl */`
   attribute vec4 aOrbit;
   attribute vec4 aBird;
+  attribute vec2 aPerch;
 
   uniform float uSweep;
   uniform float uBeat;
@@ -158,6 +160,7 @@ const BIRD_VERTEX = /* glsl */`
 
   varying float vSpan;
   varying float vChord;
+  varying float vCliff;
 
   void main () {
     float span  = position.x;
@@ -184,8 +187,13 @@ const BIRD_VERTEX = /* glsl */`
     float lift      = (${DIHEDRAL.toFixed(3)} + ${BEAT.toFixed(3)} * sin(uBeat + aBird.z)) * reach;
     vec3 local      = vec3(span * 0.5, lift, chord * halfChord - ${SWEEP_BACK.toFixed(3)} * reach);
 
+    // Two ways to be at a height, and a bird uses exactly one of them. A flock
+    // over open water takes a share of the live ceiling, so the slider still
+    // moves it. A flock off a face is pinned in metres to the band its own
+    // cliff gave it, and aBird.y is zero for every bird in it — see the band on
+    // a Colony.
     float wing   = uWingspan * aBird.w;
-    float height = uWaterLevel + uCeiling * aBird.y +
+    float height = uWaterLevel + aPerch.x + uCeiling * aBird.y +
       ${BOB.toFixed(3)} * sin(angle * 2.0 + aOrbit.w);
 
     vec3 world = vec3(centre.x + radial.x * aOrbit.z, height, centre.y + radial.y * aOrbit.z) +
@@ -193,6 +201,7 @@ const BIRD_VERTEX = /* glsl */`
 
     vSpan  = reach;
     vChord = chord;
+    vCliff = aPerch.y;
 
     gl_Position = projectionMatrix * modelViewMatrix * vec4(world, 1.0);
   }
@@ -211,9 +220,11 @@ const BIRD_FRAGMENT = /* glsl */`
   uniform vec3 uPlumage;
   uniform vec3 uLight;
   uniform float uOpacity;
+  uniform float uAshore;
 
   varying float vSpan;
   varying float vChord;
+  varying float vCliff;
 
   void main () {
     vec3 tone = mix(uPlumage, uPlumage * 0.55, smoothstep(0.18, 0.62, vSpan));
@@ -224,7 +235,10 @@ const BIRD_FRAGMENT = /* glsl */`
     // fading the trailing and leading edges is what lets it settle into one.
     float edge = 1.0 - 0.45 * vChord * vChord;
 
-    gl_FragColor = vec4(tone * uLight, uOpacity * edge);
+    // The cliff's own year on top of the day's. An auk is on this coast for
+    // the weeks it breeds and at sea for the rest, so the ring off a face goes
+    // with the rock it came off; the gulls over the harbour stay all winter.
+    gl_FragColor = vec4(tone * uLight, uOpacity * edge * mix(1.0, uAshore, vCliff));
 
     if (gl_FragColor.a < 0.004)
       discard;
@@ -236,6 +250,7 @@ interface FlockBuffers {
   position: Float32Array
   orbit:    Float32Array
   bird:     Float32Array
+  perch:    Float32Array
   index:    Uint32Array
 }
 
@@ -251,6 +266,7 @@ function writeWing (
   side:  number,
   ring:  readonly number[],
   flier: readonly number[],
+  perch: readonly number[],
   into:  FlockBuffers,
 ): void {
   const corners = [ 0, -1, 0, 1, side, 1, side, -1 ]
@@ -267,6 +283,9 @@ function writeWing (
       into.orbit[vertex * 4 + part] = ring[part]
       into.bird[vertex * 4 + part]  = flier[part]
     }
+
+    into.perch[vertex * 2]     = perch[0]
+    into.perch[vertex * 2 + 1] = perch[1]
   }
 
   const triangles = [ base, base + 1, base + 2, base, base + 2, base + 3 ]
@@ -288,6 +307,73 @@ function writeWing (
  * count is a count: twelve birds and three colonies are four birds each, and a
  * colony the survey could not site takes no birds with it.
  */
+/**
+ * How many of `count` birds each ring gets, by weight.
+ *
+ * Largest remainder, which is the only part of this worth an argument: the
+ * shares have to be whole birds and they have to add up to the budget exactly,
+ * because a deal that loses one to rounding loses a *different* one on the next
+ * island the scape gains and the flock counts stop being reproducible. Ties go
+ * to the earlier colony, so the answer is a function of the survey's order
+ * rather than of a sort's stability.
+ *
+ * Weights that are all equal give back the flat deal this scape had before the
+ * cliffs were given rings, to the bird — `birds.test.ts` states that as a fact
+ * rather than leaving it to be noticed.
+ */
+export function dealFlock (weights: readonly number[], count: number): number[] {
+  const budget = Math.max(0, Math.floor(count))
+  const total  = weights.reduce((sum, weight) => sum + Math.max(0, weight), 0)
+
+  if (weights.length === 0 || budget === 0)
+    return weights.map(() => 0)
+
+  // Every ring refused a share is a ring with no birds over it, which is a
+  // legitimate answer — but all of them refused is `ledges.flock` at zero on an
+  // archipelago of nothing but cliffs, and that is a budget with nowhere to go
+  // rather than an instruction to empty the sky.
+  const spread = total > 0 ? weights.map(weight => Math.max(0, weight) / total) : weights.map(() => 1 / weights.length)
+  const exact  = spread.map(share => share * budget)
+  const share  = exact.map(Math.floor)
+  const order  = exact
+    .map((value, index) => ({ index, rest: value - Math.floor(value) }))
+    .sort((a, b) => b.rest - a.rest || a.index - b.index)
+
+  let left = budget - share.reduce((sum, birds) => sum + birds, 0)
+
+  for (let step = 0; left > 0; step += 1, left -= 1)
+    share[order[step % order.length].index] += 1
+
+  return share
+}
+
+/**
+ * Which ring each bird in the flock belongs to, in the order they are built.
+ *
+ * Round-robin across the colonies that still have a share left, rather than one
+ * colony's birds laid down before the next one's. The deal is the same either
+ * way; the *order* is what keeps an equal-weighted archipelago dealing exactly
+ * what `which % colonies.length` dealt before there were weights at all.
+ */
+export function flockSeats (weights: readonly number[], count: number): number[] {
+  const share           = dealFlock(weights, count)
+  const left            = [ ...share ]
+  const seats: number[] = []
+
+  // One pass of the robin per bird in the largest share, which is the worst
+  // case and is reached when a single ring holds the whole budget.
+  const rounds = left.reduce((most, birds) => Math.max(most, birds), 0)
+
+  for (let round = 0; round < rounds; round += 1)
+    for (let which = 0; which < left.length; which += 1)
+      if (left[which] > 0) {
+        seats.push(which)
+        left[which] -= 1
+      }
+
+  return seats
+}
+
 export function birdGeometry (
   colonies: readonly Colony[],
   count:    number,
@@ -299,32 +385,48 @@ export function birdGeometry (
   const position = new Float32Array(total * 8 * 3)
   const orbit    = new Float32Array(total * 8 * 4)
   const bird     = new Float32Array(total * 8 * 4)
+  const perch    = new Float32Array(total * 8 * 2)
   const index    = new Uint32Array(total * 12)
 
   // Which way each colony turns. A flock all going one way reads as a flock;
   // mixed bearings read as a swarm of flies, whatever the bird is shaped like.
-  const turn = colonies.map(() => rng.next() < 0.5 ? -1 : 1)
+  const turn  = colonies.map(() => rng.next() < 0.5 ? -1 : 1)
+  const seats = flockSeats(colonies.map(colony => colony.wheel), total)
 
-  for (let which = 0; which < total; which += 1) {
-    const colony = colonies[which % colonies.length]
+  for (const [ which, seat ] of seats.entries()) {
+    const colony = colonies[seat]
     const ring   = [
       colony.x,
       colony.z,
       colony.radius * (RING_INNER + (1 - RING_INNER) * rng.next()),
       rng.next() * TAU,
     ]
+    const lift  = FLOOR_SHARE + (1 - FLOOR_SHARE) * rng.next()
     const flier = [
-      turn[which % colonies.length] * (Math.floor(rng.next() * RATE_STEPS) + 3) / RATE_STEPS,
-      FLOOR_SHARE + (1 - FLOOR_SHARE) * rng.next(),
+      turn[seat] * (Math.floor(rng.next() * RATE_STEPS) + 3) / RATE_STEPS,
+
+      // A share of the live ceiling for a ring over open water, and nothing at
+      // all for one pinned to a face — the height of those is in `aPerch`, in
+      // metres, and the two terms are added rather than chosen between.
+      colony.band ? 0 : lift,
       rng.next() * TAU,
       1 - SIZE_SPREAD * 0.5 + SIZE_SPREAD * rng.next(),
     ]
+    // The same draw, stretched back over the whole band. `FLOOR_SHARE` exists
+    // to keep a gull off the sea it is fishing over; a cliff's band already has
+    // its floor built into it — the lowest row of ledges — so a flock that kept
+    // the share would leave the bottom two fifths of its own face empty.
+    const across = (lift - FLOOR_SHARE) / (1 - FLOOR_SHARE)
+    const height = colony.band
+      ? [ colony.band.low + (colony.band.high - colony.band.low) * across, 1 ]
+      : [ 0, 0 ]
 
     for (let wing = 0; wing < 2; wing += 1)
-      writeWing(which * 2 + wing, wing === 0 ? -1 : 1, ring, flier, {
+      writeWing(which * 2 + wing, wing === 0 ? -1 : 1, ring, flier, height, {
         position,
         orbit,
         bird,
+        perch,
         index,
       })
   }
@@ -332,6 +434,7 @@ export function birdGeometry (
   geometry.setAttribute('position', new BufferAttribute(position, 3))
   geometry.setAttribute('aOrbit', new BufferAttribute(orbit, 4))
   geometry.setAttribute('aBird', new BufferAttribute(bird, 4))
+  geometry.setAttribute('aPerch', new BufferAttribute(perch, 2))
   geometry.setIndex(new BufferAttribute(index, 1))
 
   return geometry
@@ -361,10 +464,17 @@ export function birdsAloft (flight: number, day: number, fall: number): number {
  * per frame.
  *
  * Where the flocks *are* is the survey's answer, not this module's — see
- * `landscape/colony.ts`. What arrives here is a list of centres and radii over
- * open water, and everything metre-sized about the birds themselves — how wide
- * a wing is, how high they cruise — stays in metres whatever the world or the
- * frame does, because a gull is a gull at any zoom.
+ * `landscape/colony.ts`. What arrives here is a list of centres and radii, and
+ * everything metre-sized about the birds themselves — how wide a wing is, how
+ * high they cruise — stays in metres whatever the world or the frame does,
+ * because a gull is a gull at any zoom.
+ *
+ * Two kinds of ring, and one buffer. A ring over open water hangs at a share of
+ * the live `birds.ceiling`; a ring off a bird cliff is pinned in metres to the
+ * band between its lowest ledge and the air over its lip, and fades with the
+ * same year that empties the rock under it. The difference is two floats per
+ * vertex and a `mix` in the fragment stage — not a second mesh, a second
+ * program or a second draw.
  */
 export function createBirdFlocks ({
   camera,
@@ -402,6 +512,7 @@ export function createBirdFlocks ({
       uPlumage:    { value: plumage },
       uLight:      { value: new Color() },
       uOpacity:    { value: 0 },
+      uAshore:     { value: 0 },
     },
   })
 
@@ -453,6 +564,12 @@ export function createBirdFlocks ({
       )
       material.uniforms.uCeiling.value    = birds.ceiling
       material.uniforms.uWaterLevel.value = config().terrain.waterLevel
+
+      // The cliff rings only. Read off the published year the same way
+      // `landscape/seabirds.ts` reads it for the birds standing on the rock, so
+      // the two halves of one colony arrive and leave together rather than each
+      // keeping a clock.
+      material.uniforms.uAshore.value = colonyAshore(config().season.time, config().ledges.ashore)
 
       plumage.set(config().palette.gull)
 

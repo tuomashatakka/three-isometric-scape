@@ -346,6 +346,8 @@ bun run scape:shot --poses shade                    # the cloud shadow, 5 frames
 bun run scape:shot --poses haar                     # the night fog bank, 5 frames, near and far, switched off, blown away and at noon
 bun run scape:shot --poses shafts                   # the beams under the deck, 5 frames, switched off, a clear sky, an overcast and a low sun
 bun run scape:shot --poses ledge                    # the birds on the headland, 4 frames, midsummer, midwinter and a bare cliff
+bun run scape:shot --poses wheel                    # the flock off the headland, 4 frames, midsummer, close, midwinter and a colony that never flies
+                                                    #   (the set pins its own tier: `birdCount` is 0 on mobile, which every capture defaults to)
 bun run scape:shot --poses swash                    # the band the sea wets, 5 frames, a beach, a crag, a blow, half a swell on, and switched off
 bun run scape:shot --poses lee                      # the lee the land throws, 4 frames, the harbour, the switch at zero, the wind veered, and a blow
 bun run scape:shot --poses pack                     # the ice on the sound, 6 frames, shut, half in, switched off and in summer
@@ -440,9 +442,10 @@ near   ok   6.2s  fps  11.4  draws   77  tris 0.47M  f  43  err 0  -> .scape/sho
 
 three defaults are load-bearing:
 
-- **the tier is pinned, not detected** (`--tier mobile` by default). two stills at two tiers are not a comparison.
+- **the tier is pinned, not detected** (`--tier mobile` by default). two stills at two tiers are not a comparison. a pose whose subject does not exist on mobile — `birds`, whose `quality.birdCount` is 0 there — carries `tier` of its own, a floor the `--tier` flag still outranks. `skip` works the same way, and both ride `poseDigest` so a reference taken without the ask is never reused for a run that makes it.
 - **it renders on swiftshader, not the gpu.** slower, exactly reproducible. `--gpu` trades that back when nobody will diff the result.
 - **the shutter waits on a frame count** (`--frames 40`), not a clock. measured: a fixed 900 ms settle gave 50 draws on one run and 108 on the next, because the cloud deck and the mist fade in over *frames*.
+- **a capture has 150 s to come ready**, and the shutter is given the same. it is a hang detector rather than a figure tuned to today's world, because `shoot` photographs whatever is on screen when it runs out and an overrun is a plate of the loading spinner. `SCAPE_READY_BUDGET=<ms>` moves it. `scape:diff` retakes a pose that did not come ready once and then prints `NEVER READY` rather than a percentage, and never writes such a plate into its reference cache.
 
 `--set a.b=1` reaches any dotted config path — the same paths the overlay and the settings snapshot use — so a knob added to [`config.ts`](src/scene/config.ts) is reachable from a url the day it lands.
 
@@ -595,7 +598,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `boats.ts` | one dynamic `InstancedMesh`, plus stable live pose and wake records |
 | `creek.ts` | the beck: descent trace, channel, tidal mouth |
 | `beacon.ts` | the outermost rock broad and dry enough to carry a light, and the footing probe that proves it |
-| `colony.ts` | the open water off a harbour or an outer rock that a flock can wheel over without crossing land |
+| `colony.ts` | the open water off a harbour, an outer rock or a bird cliff that a flock can wheel over without crossing land, plus `anchorsOf` and the band a cliff ring is pinned to |
 | `grazing.ts` | the rough ground each farm turns stock out onto, and the one predicate that both sites a flock and accepts a sheep |
 | `hearths.ts` | every chimney, flue and ridge cowl in the archipelago, carried from the prop's own frame out to the mouth |
 | `windows.ts` | every glazed pane, carried out the same way and turned to its wall's outward bearing |

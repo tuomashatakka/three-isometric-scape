@@ -234,7 +234,7 @@ src/
     ├── config-arch.ts              the arch's own slice: the span, the headroom, and the three refusals
     ├── config-dyke.ts              the head dyke's own slice: how far up the hill, and how wide a gate
     ├── config-shieling.ts          the summer hut's own slice: how far up, how far out, how near the burn
-    ├── config-ledges.ts            the bird cliff's own slice: the band, the berth, the stain, the weeks ashore
+    ├── config-ledges.ts            the bird cliff's own slice: the band, the berth, the stain, the weeks ashore, the air over the lip
     ├── config-packice.ts           the pack's own slice: the gate, the draught, the plate, the lead kept open
     ├── config-wreck.ts             the wreck's own slice: how low a rock, how much of one, how flat a ledge
     ├── config-shoal.ts             the bank's own slice: the reach, the crest, and the room the sound leaves
@@ -272,7 +272,7 @@ src/
     ├── storm.ts                    the lightning in that same front, out on the far islands
     ├── rainbow.ts                  the bow that same front leaves, drawn about the antisolar point
     ├── halo.ts                     the ring the cold puts round the sun ahead of that same front
-    ├── birds.ts                     the gulls, and the rings they wheel on
+    ├── birds.ts                     the gulls and the cliff flocks, and the rings they wheel on
     ├── hearth.ts                   the smoke over the farmsteads, and the year that banks it
     ├── windows.ts                  lamplight in the farmstead windows, and the household that lights it
     ├── shore-lights.ts             the far coast's lit windows, as one camera-facing points draw
@@ -335,7 +335,7 @@ src/
     │   ├── kelp.ts                 the beds, in one instanced draw the tide leans over
     │   ├── creel.ts                which contour a harbour shoots gear on, and where every pot of it lies
     │   ├── creels.ts               the floats, in one instanced draw the tide carries and the wind lies over
-    │   ├── colony.ts              the open water a flock can wheel over without crossing land
+    │   ├── colony.ts              the open water a flock can wheel over without crossing land, and the band a cliff ring is pinned to
     │   ├── grazing.ts             the rough ground a farm turns its stock out onto
     │   ├── hearths.ts             every chimney and flue, at the mouth and in world space
     │   ├── windows.ts             every glazed pane, in world space and facing out
@@ -1296,7 +1296,7 @@ a boathouse stands in the next cove along from the landing, a net rack dries gea
 
 ## the gulls
 
-over every harbour mouth in the archipelago, and over the rock the light stands on, a flock of gulls wheels. where a flock can hang is [`landscape/colony.ts`](src/scene/landscape/colony.ts); the birds themselves are [`scene/birds.ts`](src/scene/birds.ts).
+over every harbour mouth in the archipelago, over the rock the light stands on, and off every bird cliff the sea cut, a flock wheels. where a flock can hang is [`landscape/colony.ts`](src/scene/landscape/colony.ts); the birds themselves are [`scene/birds.ts`](src/scene/birds.ts).
 
 **a colony is sited by a ring, not by a point.** the obvious version walks one step seaward off the bank, finds deep water, and puts the flock there — and half the circle is then over the beach, because a centre over water is a different claim from a *ring* clear of the land. every candidate is tested all the way round before it is accepted, at one bearing every metre and a half rather than at a fixed count of them: sixteen bearings around a ring the width of a harbour mouth is four metres between samples, which steps clean over a skerry. the test in `colony.test.ts` states it as a fact about the ground — sixty-four bearings on every ring, all of them under the waterline.
 
@@ -2152,7 +2152,7 @@ the crag gave this coast a cliff and the stack gave it the pillar left over when
 
 ## the cliff the birds took over
 
-the crag has been bare rock since the run that cut it. seventy degrees of granite standing over a wave-cut platform, on five of the six islands, with a stack off one end of it and a hole through the other — and nothing on any of it had ever been alive. on this coast that is the one thing a face like that never is: a cliff too steep for anything that walks, standing in water deep enough to feed in, is the most contested nesting ground a northern sea has. [`landscape/ledges.ts`](src/scene/landscape/ledges.ts) is the colony that takes it, [`landscape/seabirds.ts`](src/scene/landscape/seabirds.ts) is the one draw it costs, [`props/seabird.ts`](src/scene/props/seabird.ts) is the bird, and the eight knobs are [`config-ledges.ts`](src/scene/config-ledges.ts).
+the crag has been bare rock since the run that cut it. seventy degrees of granite standing over a wave-cut platform, on five of the six islands, with a stack off one end of it and a hole through the other — and nothing on any of it had ever been alive. on this coast that is the one thing a face like that never is: a cliff too steep for anything that walks, standing in water deep enough to feed in, is the most contested nesting ground a northern sea has. [`landscape/ledges.ts`](src/scene/landscape/ledges.ts) is the colony that takes it, [`landscape/seabirds.ts`](src/scene/landscape/seabirds.ts) is the one draw it costs, [`props/seabird.ts`](src/scene/props/seabird.ts) is the bird, and the ten knobs are [`config-ledges.ts`](src/scene/config-ledges.ts) — the last two of which are the flock that comes off the face, and arrived a run later.
 
 **it is two systems that share a cliff and nothing else, and that split is the whole design.** the birds are a *count* — instances, dealt from the tier's budget, present for about five months of the year. the whitewash is a *colour* — terrain vertices, free at every tier, there in February as well as in June. they have separate strengths (`ledges.ashore` and `ledges.stain`), separate switches, and a test that turns each off and requires the other to survive. the reason is range: at the zoom `tour` pulls back to, a hundred and fifty birds on a headland are a hundred and fifty pixels of nothing, and the stain is what carries — a bird cliff is visible from the sea as a pale stripe long before a single bird on it can be made out. a mobile tier that cannot afford one instance still gets a cliff that reads as a bird cliff.
 
@@ -3368,6 +3368,70 @@ in [`scape-poses-harbour.ts`](scripts/scape-poses-harbour.ts), beside the smokeh
 every frame in the set is taken at **`rot: 225`**, and that is the one decision in it worth writing down. the arch faces whichever way the ground falls, which on the home island is southwest — at the tour's default heading the camera stands behind the kiln and photographs a drum with no mouth in it. a structure whose whole read is an opening has to be photographed from the side the opening is on, and the pose set is where that is decided rather than the siting. the weather is pinned on all four for the reason the rotation set pins it: the default phase parks a shower over the scape, and a three-metre drum at 15 m under falling snow is a picture of a shower.
 
 four frames. `kiln` and `kiln-cold` are the same 15 m frame at the fullest week of the burn and at midwinter, and the pair is the whole claim: the feature's argument is that a kiln is *out* for most of the year, and a set with only the burn in it would show a chimney. `kiln-bank` pulls back to 46 m for the claim the siting makes — the kiln, the hut and the water they both work for in one frame, where a reviewer can see whether the search found a brae or walled a drum up against a flat shelf. `kiln-blow` is the burning frame with the wind *put back*, and it is there instead of a `-still` twin because of what the first cut of the set measured: `STILL` already zeroes `wind.strength`, so every capture this scape takes is taken in a dead calm and `kiln` and `kiln-still` came back identical to two decimal places. The column laid over by a real blow is the half of the plume no other capture can reach.
+
+## what comes off the face
+
+the bird cliff has been a place birds *are* since the run that put them on it. four rows of guillemots standing on a seven-metre face, on five of the six islands, with the whitewash of decades under them — and not one of them ever left the rock. the run that landed it said so in its own follow-up: `birds.ts` already flies a flock on a ring, and it had only ever been handed harbours. every headland the colony gate takes now carries a **wheel of birds off its face**, pinned to the air between its lowest ledge and the sky over its lip, and gone from that air in the same weeks the rock goes bare. [`landscape/colony.ts`](src/scene/landscape/colony.ts) is where the ring is sited, [`scene/birds.ts`](src/scene/birds.ts) is what flies it, and the two new knobs are in [`config-ledges.ts`](src/scene/config-ledges.ts) rather than in `birds` — because how far over a clifftop a guillemot turns is a fact about the colony and not about the gulls.
+
+### a third anchor, and it is the one most of the birds were on
+
+`anchorsOf` offered two places a flock could hang: the harbour an island lands its boats at, and the outer rock it built its light on. those are the two places on a coast a *gull* has a reason to be, and the reasoning was right as far as it went. it went as far as the fishing. the single densest concentration of bird on any northern coast is a breeding cliff, and this scape had five of them with nothing in the air over any one.
+
+the anchor is the waterline under the middle of the headland, walked out to sea on the crag's **own** bearing — the same line the ledges themselves are dealt along, so the ring hangs off the face the birds are standing on rather than off whichever stretch of coast happened to be nearest the island's centre. everything after that is the search the harbours already pass: step seaward, fit the widest ring the coast will hold, shrink it rather than move it, refuse it outright where no radius clears the land. the home island's comes back at **r13.2** against the asked twenty-eight, which is the stack standing in the way of the full wheel and is exactly the answer that search exists to give.
+
+### a flock is pinned to a band, or it is not pinned at all
+
+a ring over open water hangs at a share of `birds.ceiling`, read live, the way it always has. a ring off a face cannot: the whole claim of the thing is that the birds cross the rock they came off, and a slider in the overlay that could lift them into the sky over the island behind it would be a slider that breaks the feature. so `Colony` gained a **band** — two numbers in metres over mean water, `null` for every ring over the sea — running from the lowest row of ledges to `ledges.wheel` above the lip.
+
+two ways to be at a height, and a bird uses exactly one. `aPerch.x` is metres and `aBird.y` is a share of the live ceiling, and the vertex stage **adds** them rather than choosing between them, because one of the two is always zero. the consequence worth having is that `birds.ceiling` still does precisely what the overlay says it does — to the gulls, who are the birds it was written for — and cannot reach a colony at all.
+
+the band is also the reason `FLOOR_SHARE` stops applying. a gull's ring keeps its lowest bird at 45 % of the ceiling so nothing flies into the sea it is fishing over; a cliff's band already has its floor built into it, and a flock that kept the share would leave the bottom two fifths of its own face empty. the same draw is stretched back over the whole band instead, so the rng stream is unchanged in shape and a cliff ring crosses the face at every height the face has.
+
+### the deal stopped being flat, and the budget was scaled so nothing was taken
+
+`quality.birdCount` is one budget for every ring in the scape, and the deal was `which % colonies.length` — twelve birds over three colonies were four birds each. five cliffs added to seven sea rings under a flat deal is a bird cliff dealt a dozen gulls in front of thirty standing ones, which reads as nothing at all; worse, it would have taken those birds *out of the harbours*, which is a change to seven frames nobody asked to change.
+
+`ledges.flock` is what a cliff ring is worth against a harbour ring, and `dealFlock` is **largest remainder**: whole birds, summing to the budget exactly, ties to the earlier colony. the exactness is not fussiness — a deal that drops one to rounding drops a *different* one on the next island the archipelago gains, and the flock counts stop being reproducible between runs. `flockSeats` then lays the shares out one round of the robin at a time rather than one colony's birds before the next one's; the deal is the same either way, and the order is what makes an equal-weighted archipelago deal byte-for-byte what the flat version dealt. `birds.test.ts` states that as a fact rather than leaving it to be noticed.
+
+the other half is arithmetic on the ladder. seven rings at weight 1 became twelve rings in twenty-two parts, so **every tier's `birdCount` was multiplied by 22/7** — 90 to 280, 260 to 820, 420 to 1320. each harbour keeps the flock it had to the bird (37 at the desktop tier, where 260 over seven rings was also 37) and each cliff is *added* at three times it. that is written into the knob's own documentation, because a tier retuned without it is a tier that quietly empties every harbour in the scape. `--poses wheel` carries the control either way: `ledges.flock=0` is every ring back to the flat deal and the cliffs simply never flying.
+
+### the year is the colony's, not the birds' own
+
+an auk is on this coast for the weeks it breeds and at sea for the rest, and `colonyAshore` has said so since the ledges landed — it is what empties the rock in `landscape/seabirds.ts`. the flock reads the **same function off the same published `season.time`**, so the two halves of one colony arrive and leave together instead of each keeping a clock. one uniform, one flag per vertex, and a `mix` in the fragment stage: `uAshore` fades the pinned rings and leaves the harbour gulls alone, so the winter frame is a bare cliff under empty air and the boats still have their gulls.
+
+### there is no flag, and every number turns off its own thing
+
+`ledges.flock` at 0 is a colony that never flies — the rock is still occupied, which is a real colony in a real january and is also the control frame. `ledges.ashore` at 0 is a coast whose cliffs are never occupied at all, and empties the air by the same route it empties the rock. `ledges.face` past what any headland offers is an archipelago with no cliff rings on it and every harbour ring untouched. `ledges.wheel` at 0 flies the flock level with its own clifftop, which is still a flock. `birds.flight` at 0 is a coast whose birds never leave the water, and it was already the only switch the module had.
+
+### what it costs
+
+**no draw call at all.** the cliff rings are drawn in the pass that already existed, from the same static buffer, with the same program and one more uniform. what it costs is geometry, and a bird is the cheapest thing in this scape: eight vertices and four triangles. the desktop tier went from 260 birds to 820 — **6 560 vertices and 3 280 triangles**, against the 3.1 M the same frame already draws, which is to say less than one spruce — plus `aPerch`, a `vec2` per vertex, at **13 120 floats, about 52 kB** of static buffer. nothing is instanced, nothing is uploaded per frame, and nothing was allocated that is not released in the same `dispose` that released the mesh.
+
+the **mobile tier answers for it by already being absent**: `quality.birdCount` is 0 there, so `createBirdFlocks` returns `null` and a phone has had no transparent bird pass at any point in this scape's history. it still gets the colony standing on the rock, which is `cliffBirds` and a different budget. that absence is also the reason this run's pose set had to learn to ask for a tier — see below.
+
+### the new `scape:map` line
+
+the `gulls` line gained the cliff rings and the air they are pinned to: **`home/ledge (54,-41) r13.2 air 2.24..12m`**, alongside the harbour and rock rings it already printed, with `asked` now counting the cliff anchors as well. `air` is the band, and it is the field worth reading first — a cliff flock that stopped crossing its own face is a band that collapsed or inverted, and that is invisible in a still taken from any pose but one. a ring over open water prints no `air`, because it has none: it is at the ceiling, live.
+
+### `--poses wheel`, the thirty-fifth set
+
+in [`scape-poses-coast.ts`](scripts/scape-poses-coast.ts), beside `ledge`, and at the same `SEAWARD` rotation for the same measured reason: the home island's crag stands on the 322.5° bearing, so at the camera's authored heading of 45 the face is the far side of the island and the flock is behind the hill.
+
+aimed at the ring's own centre, **(54,-41)**, off the `gulls` line rather than guessed. the first cut split the difference with the ledges at (46,-35) and put a third of the wheel outside the frame. `wheel` is the whole subject at 46 m; `wheel-near` is 20 m, where a bird crossing the face is a shape with a wingspan rather than a mark, and is the frame that says the band is against the rock and not over the island behind it; `wheel-winter` is the same 46 m at midwinter and carries half the claim — bare rock under empty air; `wheel-bare` is the control, `ledges.flock=0`.
+
+three things in the set are pinned, and each one was a frame this run wasted before it was. `weather.time=0.62` because the default phase parks a shower over the scape and `birdsAloft` keeps **seventy per cent of a flock on the water** through a squall — a capture at the default weather is a capture of three birds in ten, in falling snow. `tier: 'laptop'`, because `quality.birdCount` is **0 on mobile** and every capture this repository takes is pinned to mobile: the first cut photographed an empty sky four times and the table came back `same` at every frame, which is the one result the brief says to treat as a failure rather than a pass. and `skip: 'post'`, because the tier that has birds in it also runs the optical chain the mobile tier does not, and a depth-of-field pass over a subject a metre and a half across photographs the blur rather than the gull.
+
+### the instruments the set broke, and what was done about them
+
+four of them, all in the capture harness rather than in the scene, and every one of them was found by this run's own frames coming back wrong.
+
+**a pose can ask for a tier and for a chain to be skipped.** `Pose` gained `tier` and `skip`, floors rather than overrides — `--tier ultra` and `--skip` on the command line still win. the alternative was a pose set whose correct use is a flag the reader has to know to pass, and whose incorrect use reports `same` rather than an error.
+
+**`scape:diff` no longer reads a loading spinner as a change.** `shoot` has a budget to reach `ready` and photographs whatever is on screen either way, which is right for `scape:shot` — the row says `BOOTING` and the reader sees it. in a diff the picture is the only output, and a plate of the spinner against a real reference measures as **ninety-odd per cent of the frame changed, whole-plate**: a failed capture wearing the costume of the most alarming possible finding. it happened to three of this run's six tour frames on a loaded box, and the table said `CHANGED`. now a pose that did not come ready is retaken once and then reported as `NEVER READY` rather than as a percentage, and a reference plate that never came ready is **not written into the reference cache**, which every later run trusts without looking.
+
+**the ready budget is a hang detector again.** 40 s was the figure when this scape was one island. six islands, a waterway router and thirty-odd sited structures later it was about what a loaded box actually needs, and a budget that close to the truth does not fail honestly. it is 150 s, overridable with `SCAPE_READY_BUDGET`, and the shutter is given the same — playwright's own 30 s default is reached on the screenshot rather than on the boot by a heavier tier under a software rasteriser, and that one throws and takes the whole set with it.
+
+**the chromium finder knows both layouts.** playwright renamed the unpack directory partway through the revisions the finder walks: builds up to about r1200 land in `chrome-linux`, newer ones in `chrome-linux64`. a cache populated by a recent `playwright install` holds only the second, so a box with a perfectly good chromium in it reported `NOT FOUND` and cost the run its visual check.
 
 ## ground that casts
 

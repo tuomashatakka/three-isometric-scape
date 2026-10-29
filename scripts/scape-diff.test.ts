@@ -159,6 +159,12 @@ describe('what a cached reference is a reference *of*', () => {
       { ...before, time: 0.5 },
       { ...before, season: 0.02 },
       { ...before, rot: 90 },
+
+      // The two a pose carries on its own behalf. A set that asks for a tier
+      // builds different programs from one that does not, and the sentinel —
+      // one string for the whole run — has no way to say so.
+      { ...before, tier: 'laptop' },
+      { ...before, skip: 'post' },
     ])
       expect(poseDigest(after)).not.toBe(poseDigest(before))
 

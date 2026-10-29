@@ -1,6 +1,7 @@
 import type { ScapeConfig } from '../config.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from './archipelago.ts'
 import type { HeightField } from './height.ts'
+import { isBirdCliff, ledgeTiers } from './ledges.ts'
 import { toWorld } from './archipelago.ts'
 
 
@@ -12,7 +13,7 @@ import { toWorld } from './archipelago.ts'
  * say *why* a flock went missing — a harbour that lost its landing and a rock
  * that never carried a light fail for unrelated reasons.
  */
-export type ColonyKind = 'harbour' | 'rock'
+export type ColonyKind = 'harbour' | 'rock' | 'ledge'
 
 /**
  * One wheeling flock, in world metres.
@@ -33,6 +34,29 @@ export interface Colony {
 
   /** Metres from the centre to the outermost bird's ring. */
   radius: number
+
+  /**
+   * The air the flock is pinned to, in metres over mean water, or `null`.
+   *
+   * `null` is every ring over open sea, and it means *the gulls' own ceiling* —
+   * `birds.ceiling` read live, the way it always was, so the slider still moves
+   * the flock it was written for. A band is the other answer and the one a
+   * cliff gives: a colony that comes off a face flies between its lowest row of
+   * ledges and `ledges.wheel` over the lip, and no slider in the overlay should
+   * be able to lift it off the rock it belongs to.
+   */
+  band: { low: number, high: number } | null
+
+  /**
+   * How many of the archipelago's birds this ring is worth, against the others.
+   *
+   * The deal used to be flat and a count was a count: twelve birds over three
+   * colonies were four birds each. It still is a count — the total is the
+   * tier's `birdCount` whatever the weights are — but the shares are no longer
+   * equal, because a bird cliff and a fishing boat's attendant gulls are not
+   * the same quantity of bird. See `ledges.flock`.
+   */
+  wheel: number
 }
 
 /** Metres a search steps seaward while it looks for water to hang a flock over. */
@@ -175,19 +199,43 @@ function findColony (
   return best
 }
 
-/** The two anchors one landmass offers a flock, seaward bearing included. */
-function anchorsOf (landmass: LandmassSurvey): {
-  kind: ColonyKind, x: number, z: number, bearing: number
-}[] {
-  const { landing, beacon }                                                    = landmass.survey
-  const anchors: { kind: ColonyKind, x: number, z: number, bearing: number }[] = []
+/** One place a flock can be hung from, with the band it is pinned to if it has one. */
+interface ColonyAnchor {
+  kind:    ColonyKind
+  x:       number
+  z:       number
+  bearing: number
+  band:    { low: number, high: number } | null
+  wheel:   number
+}
+
+/**
+ * The anchors one landmass offers a flock, seaward bearing included.
+ *
+ * Three now rather than two: the harbour it lands its boats at, the outer rock
+ * it built its light on, and — where the sea left it a face tall enough for
+ * `ledges.face` — the headland its guillemots breed on. The first two are
+ * places a gull has a *reason* to be; the third is the place most of the birds
+ * on this coast actually are, and it was the one anchor the flocks did not know
+ * about.
+ */
+export function anchorsOf (landmass: LandmassSurvey, config: ScapeConfig): ColonyAnchor[] {
+  const { landing, beacon, crag } = landmass.survey
+  const anchors: ColonyAnchor[]   = []
 
   if (landing) {
     const world = toWorld(landmass, landing)
 
     // `landing.angle` is the bearing the shore search walked out on from the
     // yard, so following it further is following it out to sea.
-    anchors.push({ kind: 'harbour', x: world.x, z: world.z, bearing: landing.angle })
+    anchors.push({
+      kind:    'harbour',
+      x:       world.x,
+      z:       world.z,
+      bearing: landing.angle,
+      band:    null,
+      wheel:   1,
+    })
   }
 
   if (beacon) {
@@ -200,6 +248,44 @@ function anchorsOf (landmass: LandmassSurvey): {
       x:       world.x,
       z:       world.z,
       bearing: beacon.bearing + Math.PI,
+      band:    null,
+      wheel:   1,
+    })
+  }
+
+  // The island's own config for the water it stands in and the archipelago's
+  // for the colony, which is the split `planCliffColonies` already makes: how
+  // far up a face a ledge sits is a fact about the colony, and where mean water
+  // is on this island is a fact about its profile.
+  const local = { ...landmass.config, ledges: config.ledges }
+  const tiers = isBirdCliff(crag, local) ? ledgeTiers(crag, local) : []
+
+  if (crag && tiers.length > 0) {
+    const shore = crag.shoreAt(crag.bearing)
+    const world = toWorld(landmass, {
+      x: Math.cos(crag.bearing) * shore,
+      z: Math.sin(crag.bearing) * shore,
+    })
+
+    anchors.push({
+      kind: 'ledge',
+
+      // The waterline under the middle of the headland, walked out to sea on
+      // the crag's own bearing — the same line the ledges are dealt along, so
+      // the ring hangs off the face the birds are standing on rather than off
+      // whichever part of the coast happened to be nearest the island's centre.
+      x:       world.x,
+      z:       world.z,
+      bearing: crag.bearing,
+
+      // From the lowest row of ledges to `wheel` over the lip, in metres of air
+      // over the archipelago's one waterline — which is the datum the shader
+      // adds them to, and is not the island's own.
+      band: {
+        low:  tiers[0] - config.terrain.waterLevel,
+        high: crag.lip - config.terrain.waterLevel + Math.max(0, config.ledges.wheel),
+      },
+      wheel: Math.max(0, config.ledges.flock),
     })
   }
 
@@ -211,9 +297,10 @@ function anchorsOf (landmass: LandmassSurvey): {
  *
  * Pure, and a function of the survey rather than of anything drawn: the same
  * seed puts the same colonies in the same places whether the scape is being
- * rendered, mapped or tested. Two anchors per landmass at most — the harbour it
- * lands its boats at, and the outer rock it built its light on — because those
- * are the two places on a coast that a gull has a reason to be.
+ * rendered, mapped or tested. Three anchors per landmass at most — the harbour
+ * it lands its boats at, the outer rock it built its light on, and the bird
+ * cliff its guillemots breed on — because those are the three places on a coast
+ * that a bird has a reason to be.
  *
  * A landmass with neither simply contributes nothing. There is no fallback that
  * puts a flock somewhere arbitrary: birds over nothing are birds nobody can
@@ -230,7 +317,7 @@ export function planColonies (
     return []
 
   return archipelago.landmasses.flatMap(landmass =>
-    anchorsOf(landmass).flatMap(anchor => {
+    anchorsOf(landmass, config).flatMap(anchor => {
       const found = findColony(
         field,
         anchor.x,
@@ -243,6 +330,12 @@ export function planColonies (
       if (!found)
         return []
 
-      return [{ id: landmass.id, kind: anchor.kind, ...found }]
+      return [{
+        id:    landmass.id,
+        kind:  anchor.kind,
+        band:  anchor.band,
+        wheel: anchor.wheel,
+        ...found,
+      }]
     }))
 }

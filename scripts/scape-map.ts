@@ -4,7 +4,7 @@ import { surveyArchipelago } from '../src/scene/landscape/archipelago.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from '../src/scene/landscape/archipelago.ts'
 import { scheduledFleetMinimumSeparation } from '../src/scene/landscape/boat-motion.ts'
 import { beckGeometry } from '../src/scene/landscape/beck.ts'
-import { planColonies } from '../src/scene/landscape/colony.ts'
+import { anchorsOf, planColonies } from '../src/scene/landscape/colony.ts'
 import type { Creek } from '../src/scene/landscape/creek.ts'
 import type { HeightField } from '../src/scene/landscape/height.ts'
 import { planGrazing } from '../src/scene/landscape/grazing.ts'
@@ -639,7 +639,15 @@ export interface MapStats extends CompositionStats, WeatherStats {
   colonies: {
     count: number
     asked: number
-    sited: { id: string, kind: string, x: number, z: number, radius: number }[]
+    sited: {
+      id:     string
+      kind:   string
+      x:      number
+      z:      number
+      radius: number
+      low:    number
+      high:   number
+    }[]
   }
 
   /**
@@ -1151,12 +1159,12 @@ export function surveyStats (
     colonies: {
       count: colonies.length,
 
-      // What every landmass *offered* — a landing and, where it has one, an
-      // outer rock. The gap between this and the count is the finding: a coast
-      // that could not fit a ring over open water lost its flock silently.
+      // What every landmass *offered* — a landing, an outer rock where it has
+      // one, and a bird cliff where the sea left it a face tall enough. The gap
+      // between this and the count is the finding: a coast that could not fit a
+      // ring over open water lost its flock silently.
       asked: survey.landmasses.reduce(
-        (sum, landmass) =>
-          sum + (landmass.survey.landing ? 1 : 0) + (landmass.survey.beacon ? 1 : 0),
+        (sum, landmass) => sum + anchorsOf(landmass, config).length,
         0,
       ),
       sited: colonies.map(colony => ({
@@ -1165,6 +1173,12 @@ export function surveyStats (
         x:      Math.round(colony.x),
         z:      Math.round(colony.z),
         radius: round(colony.radius),
+
+        // Metres of air the ring is pinned to, and 0 for the rings that are
+        // not: a cliff flock that stopped crossing its own face is a band that
+        // collapsed, and it is invisible in a still taken from any other angle.
+        low:  round(colony.band?.low ?? 0, 2),
+        high: round(colony.band?.high ?? 0, 2),
       })),
     },
   }

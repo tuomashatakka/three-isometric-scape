@@ -136,6 +136,14 @@ export interface AtmosphereQuality {
    * in shows one. That is what a bird is, and it is why the number is dealt
    * across the colonies the survey found rather than scattered over the view.
    * The cost is eight vertices and four triangles each, in one shared draw.
+   *
+   * **Dealt by weight rather than evenly**, since the bird cliffs were given
+   * rings of their own: a cliff ring is worth `ledges.flock` harbour rings, so
+   * the archipelago's twelve rings share this budget in twenty-two parts rather
+   * than twelve. Every number on the ladder was multiplied by that ratio when
+   * the cliffs landed, so each harbour kept exactly the flock it had and the
+   * cliffs were *added* rather than taken out of them. A tier retuned without
+   * that in mind is a tier that quietly empties every harbour in the scape.
    */
   birdCount: number
 
@@ -754,7 +762,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     hailStones:      1_500,
     squallSheets:    1,
     stormFlashes:    1,
-    birdCount:       90,
+    birdCount:       280,
     sealCount:       5,
     kelpCount:       100,
     creelStrings:    2,
@@ -829,7 +837,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     hailStones:      3_000,
     squallSheets:    2,
     stormFlashes:    2,
-    birdCount:       260,
+    birdCount:       820,
     sealCount:       11,
     kelpCount:       250,
     creelStrings:    3,
@@ -888,7 +896,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     hailStones:      4_200,
     squallSheets:    3,
     stormFlashes:    3,
-    birdCount:       420,
+    birdCount:       1320,
     sealCount:       16,
     kelpCount:       340,
     creelStrings:    4,
@@ -964,7 +972,7 @@ const UNLOCKED_FLOOR = {
   hailStones:     1_500,
   squallSheets:   1,
   stormFlashes:   1,
-  birdCount:      90,
+  birdCount:      280,
   sealCount:      5,
   kelpCount:      100,
   creelStrings:   2,

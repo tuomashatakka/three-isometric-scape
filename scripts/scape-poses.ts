@@ -157,6 +157,34 @@ export interface Pose {
   time?:   number
   season?: number
   set?:    string[]
+
+  /**
+   * The quality tier this pose has to be photographed on, where the default
+   * will not do.
+   *
+   * `scape:shot` and `scape:diff` pin `mobile` unless told otherwise, because a
+   * *detected* tier is undiffable — and most of what this scape draws is on
+   * every tier, so the cheapest one is the honest default. A few systems are
+   * not: `quality.birdCount` is 0 on mobile, so a pose set about birds
+   * photographed at the default shows an empty sky and the table reports
+   * `same` at every frame. A set whose subject is absent on the default tier
+   * says so here rather than relying on a flag the reader has to know to pass.
+   *
+   * It is a floor and not an override: `--tier ultra` on the command line still
+   * wins, so a run can lift the whole set at once.
+   */
+  tier?: string
+
+  /**
+   * Modules this pose is photographed without, where the default will not do.
+   *
+   * The companion to {@link tier} and here for the same reason. Lifting a set
+   * off `mobile` to reach a system the cheap tier does not carry also buys the
+   * optical chain that tier does not run — and a depth-of-field pass over a
+   * subject a metre and a half across is a photograph of the blur rather than
+   * of the subject. `--skip` on the command line still wins.
+   */
+  skip?: string
 }
 
 /**
