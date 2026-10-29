@@ -5,6 +5,7 @@ import type { LiveConfig } from './config.ts'
 import { createDaylight } from './daylight.ts'
 import type { Vec2 } from './landscape/path.ts'
 import type { TextureCatalogue } from './textures/catalogue.ts'
+import { UNTILE_GLSL } from './textures/untile.ts'
 import type { WindState } from './wind.ts'
 
 
@@ -202,8 +203,9 @@ export const CLOUD_SHADOW_GLSL = /* glsl */`
   uniform float uCloudScale;
   uniform float uCloudStrength;
 ${WEATHER_BANK_GLSL}
+${UNTILE_GLSL}
   float scapeCloudShade (vec2 ground) {
-    float detail = texture2D(uCloudMap, ground * uCloudScale + uCloudOffset).r;
+    float detail = scapeUntiled(uCloudMap, ground * uCloudScale + uCloudOffset);
     float field  = clamp(detail + scapeWeatherBank(ground), 0.0, 1.0);
     float cloud  = smoothstep(${CLOUD_CUT.toFixed(2)}, ${(CLOUD_CUT + CLOUD_EDGE).toFixed(2)}, field);
     return mix(1.0, 1.0 - ${TAKEN.toFixed(2)} * cloud, uCloudStrength);
@@ -311,9 +313,10 @@ export function createCloudShadow (
   }
 }
 
-// perf: two texture fetches per fragment on four programs — the second is the
-// bank, off the same map and the same sampler, so it costs a fetch and no
-// upload — and nothing per frame but two `Vector2`s, four floats and one
+// perf: three texture fetches per fragment on four programs — two for the
+// detail, because a single read of it is a lattice (see `textures/untile.ts`),
+// and the bank, all off the same map and the same sampler, so the extra reads
+// cost fetches and no upload — and nothing per frame but two `Vector2`s, four floats and one
 // allocation-free sky sample. The map itself belongs to the catalogue, so
 // nothing here is uploaded or freed. Ungated on every tier on purpose: a mobile
 // sky that repeats sixteen times across the frame is the broken-looking cheap

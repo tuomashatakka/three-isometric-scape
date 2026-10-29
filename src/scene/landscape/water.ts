@@ -16,6 +16,7 @@ import { createDaylight, keyShare, sunHeight } from '../daylight.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import type { SeasonState } from '../season.ts'
 import type { TextureCatalogue } from '../textures/catalogue.ts'
+import { UNTILE_GLSL } from '../textures/untile.ts'
 import type { WeatherState } from '../weather.ts'
 import type { TideState } from '../tide.ts'
 import type { WindState } from '../wind.ts'
@@ -304,6 +305,7 @@ const WATER_SURF_ALPHA = /* glsl */`
 
 const WATER_PARS_FRAGMENT = /* glsl */`
 ${CLOUD_SHADOW_GLSL}
+${UNTILE_GLSL}
   uniform vec3 uSkyHorizon;
   uniform vec3 uSkyTop;
   uniform float uReflectionStrength;
@@ -451,7 +453,7 @@ ${WATER_CAUSTIC_FRAGMENT}
   // Texture the albedo, not just the normal. A normal-only ripple is invisible
   // wherever the specular lobe does not reach, so the sea reads as flat paint
   // from half the angles the camera can orbit to.
-  float sheen = texture2D(uRippleMap, vWaterGround * uRippleScale + uRippleOffset).r;
+  float sheen = scapeUntiled(uRippleMap, vWaterGround * uRippleScale + uRippleOffset);
   diffuseColor.rgb *= 0.93 + 0.15 * sheen;
 
   // And the swell, for the reason written directly above about the ripple. A
@@ -538,7 +540,7 @@ const WATER_COLOR_FRAGMENT_LITE = /* glsl */`
 
 ${WATER_CAUSTIC_FRAGMENT}
 
-  float sheen = texture2D(uRippleMap, vWaterGround * uRippleScale + uRippleOffset).r;
+  float sheen = scapeUntiled(uRippleMap, vWaterGround * uRippleScale + uRippleOffset);
   diffuseColor.rgb *= 0.93 + 0.15 * sheen;
 
   // And the swell, for the reason written directly above about the ripple. A
@@ -620,8 +622,12 @@ const WATER_NORMAL_FRAGMENT = /* glsl */`
   // pure luck — so it stays invisible until something moves the camera's
   // elevation, and then the whole sea blows out at once.
   vec2 rippleUv = vWaterGround * uRippleScale;
-  float ripplA = texture2D(uWaveMap, rippleUv + uRippleOffset).r;
-  float ripplB = texture2D(uWaveMap, rippleUv * 1.73 - uRippleOffset * 1.31).r;
+  //
+  // Both reads are untiled. A 34 m ripple tile on one lattice was the sea's half
+  // of the wallpaper — forty-five identical rows of the same normal from coast
+  // to coast, read off the specular as plainly as off the albedo.
+  float ripplA = scapeUntiled(uWaveMap, rippleUv + uRippleOffset);
+  float ripplB = scapeUntiled(uWaveMap, rippleUv * 1.73 - uRippleOffset * 1.31);
 
   // Everything the surface does to its own normal goes away under ice, in one
   // multiply: a shelf is flat, and a ripple normal on it is the giveaway that
