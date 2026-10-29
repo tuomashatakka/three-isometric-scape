@@ -689,6 +689,17 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
     },
     {
       group: 'ground & water',
+      title: 'the wash',
+
+      // The two numbers the wind works the cloth with. `wash.length`, `height`
+      // and `fill` decide what is strung and pegged, which takes a rebuild.
+      controls: [
+        range('wash.billow', 'blow-out (rad)', 0, 1.4, 0.01, quality.washCloths > 0),
+        range('wash.flutter', 'flaps a second', 0, 4, 0.05, quality.washCloths > 0),
+      ],
+    },
+    {
+      group: 'ground & water',
       title: 'the creels',
 
       // Filed under the water for the kelp's reason, and split the same way:

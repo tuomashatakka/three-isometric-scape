@@ -13,6 +13,7 @@ import type { Footprint } from '../props/ploppable.ts'
 import { BEACON_SINK } from '../props/beacon.ts'
 import { CROFT_SINK } from '../props/croft.ts'
 import { MILL_SINK } from '../props/mill.ts'
+import { buildWashLine } from '../props/wash.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import { PLOP_SINK } from './fixtures.ts'
 import type { TiltWeight } from './align.ts'
@@ -32,6 +33,7 @@ import { createGrazingTest } from './grazing.ts'
 import { yawAlong } from './layout.ts'
 import type { Plot, Vec2 } from './layout.ts'
 import { createSkerrySampler, createTreadSampler } from './samplers.ts'
+import { washLineFrame } from './wash.ts'
 
 
 export interface Dressing {
@@ -420,6 +422,16 @@ export function createDressing (
 
     for (const anchor of [ well, logPile ])
       solver.reserve(anchor.x + ox, anchor.z + oz, 4)
+
+    // The posts and rope; the cloth is `wash.ts`'s own draw. A line of zero
+    // height is a farm with no line, and keeps its ground for the trees.
+    const line = washLineFrame(landmass, heightAt)
+    if (config.wash.height > 0) {
+      heroes.push(buildWashLine({ ...config.wash, rng: rng.fork(`wash-line-${landmass.id}`), palette })
+        .rotateY(line.angle)
+        .translate(line.x, line.y, line.z))
+      solver.reserve(line.x, line.z, landmass.survey.places.washLine.radius)
+    }
 
     // The hay rack belongs beside a field, not in the yard.
     const firstPlot: Plot | undefined = landmass.survey.layout.plots[0]

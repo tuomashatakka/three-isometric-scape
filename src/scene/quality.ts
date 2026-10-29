@@ -248,6 +248,14 @@ export interface AtmosphereQuality {
   hjellFish: number
 
   /**
+   * Cloths on the farms' washing lines, over the whole archipelago — dealt by
+   * stride in `planWash`, so a phone thins every line rather than stripping one
+   * farm. Zero is a graceful absence: the posts and rope are merged into the
+   * steading and stay. A six-part cloth per instance in one shared draw.
+   */
+  washCloths: number
+
+  /**
    * Plates of pack ice on the whole archipelago. 0 is a sound that freezes flat.
    *
    * A count for the *world* rather than per island, and the one place it differs
@@ -709,6 +717,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     creelStrings:    0,
     cliffBirds:      0,
     hjellFish:       0,
+    washCloths:      0,
     floeCount:       0,
     carterRounds:    0,
     beaconBlades:    0,
@@ -768,6 +777,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     creelStrings:    2,
     cliffBirds:      14,
     hjellFish:       260,
+    washCloths:      42,
     floeCount:       420,
     carterRounds:    3,
     beaconBlades:    1,
@@ -843,6 +853,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     creelStrings:    3,
     cliffBirds:      30,
     hjellFish:       680,
+    washCloths:      64,
     floeCount:       620,
     carterRounds:    6,
     beaconBlades:    2,
@@ -902,6 +913,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     creelStrings:    4,
     cliffBirds:      44,
     hjellFish:       960,
+    washCloths:      64,
     floeCount:       900,
     carterRounds:    6,
     beaconBlades:    3,
@@ -978,6 +990,7 @@ const UNLOCKED_FLOOR = {
   creelStrings:   2,
   cliffBirds:     30,
   hjellFish:      680,
+  washCloths:     42,
   floeCount:      620,
   carterRounds:   6,
   beaconBlades:   1,
@@ -1034,6 +1047,7 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
     creelStrings:   Math.max(quality.creelStrings, UNLOCKED_FLOOR.creelStrings),
     cliffBirds:     Math.max(quality.cliffBirds, UNLOCKED_FLOOR.cliffBirds),
     hjellFish:      Math.max(quality.hjellFish, UNLOCKED_FLOOR.hjellFish),
+    washCloths:     Math.max(quality.washCloths, UNLOCKED_FLOOR.washCloths),
     floeCount:      Math.max(quality.floeCount, UNLOCKED_FLOOR.floeCount),
     carterRounds:   Math.max(quality.carterRounds, UNLOCKED_FLOOR.carterRounds),
     beaconBlades:   Math.max(quality.beaconBlades, UNLOCKED_FLOOR.beaconBlades),
