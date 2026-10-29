@@ -2,6 +2,16 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the first frame first
+
+after #95 a desktop Firefox profile still showed ~8.5 s before the first frame. dressing (~3.3 s) and the waterway router (~2 s, 23%) were the two biggest blocks, and neither is in the first picture.
+
+- **deferred:** the landscape now builds the land, the sea, the sky and the far shore, and draws that frame. its first `update` sets a timeout for `populate`, which runs once the frame is on screen and builds the dressing and the small fleets. `populate` hands the boats and the pack ice to a second task (`launch`), so a frame with the dressing in it is drawn before the route is solved.
+- **lazy route:** `ArchipelagoSurvey.waterways` is a memoized getter, solved on first read. only the boats and the pack ice read it. `latticeSurvey` is now a prototype view rather than a spread, so it no longer reads the route by accident.
+- **before the first frame (bun):** survey 3.0–3.6 s → 1.2–1.4 s, and none of the dressing.
+- **after the first frame:** dressing ~1.8 s on mobile and ~4.4 s on ultra, then the route ~2 s, each in its own task.
+- **the same scene:** the tour's draw counts and every mesh are unchanged once populated, and the dressing fingerprint is unchanged. `scape:shot`, `scape:diff` and the studio all wait for drawn frames, so their pictures include the populated scene. `Landscape.pack` (unread) is gone.
+
 ## the ground, read through a lattice
 
 the first load after #94 was still ~20 s on a desktop browser. the exact cuts had run out, so this one trades exactness for time where the trade is invisible. [`landscape/lattice.ts`](src/scene/landscape/lattice.ts) is a height field read through a lazily filled lattice: each lattice point asks the full field once, and everything between is bilinear.
