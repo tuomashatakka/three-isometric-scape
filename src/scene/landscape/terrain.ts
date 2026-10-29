@@ -448,6 +448,24 @@ export function drawnSurfaceOf (
   const cell = (value: number): number =>
     Math.min(segments - 1, Math.max(0, Math.floor((value + half) / step)))
 
+  // Every placed instance reads three or four lattice corners, and each one is
+  // a full survey of the ground — the largest share of a dressing's cost after
+  // the darts. Cached per corner, and per *spelling* of the corner: the far and
+  // right edges are written `near + step`, which is not always the same double
+  // as the next row's `near`, so each of the four is its own lattice and every
+  // answer is the one the uncached reader gave.
+  const span    = segments + 1
+  const corners = [ 0, 1, 2, 3 ].map(() => new Float64Array(span * span).fill(Number.NaN))
+
+  function lattice (spelling: number, column: number, row: number, x: number, z: number): number {
+    const slot   = row * span + column
+    const cached = corners[spelling][slot]
+
+    if (cached === cached)
+      return cached
+    return corners[spelling][slot] = field.heightAt(x, z)
+  }
+
   return (x, z) => {
     const column = cell(x)
     const row    = cell(z)
@@ -456,14 +474,14 @@ export function drawnSurfaceOf (
     const across = (x - left) / step
     const along  = (z - near) / step
 
-    const corner = field.heightAt(left, near)
-    const far    = field.heightAt(left, near + step)
-    const right  = field.heightAt(left + step, near)
+    const corner = lattice(0, column, row, left, near)
+    const far    = lattice(1, column, row, left, near + step)
+    const right  = lattice(2, column, row, left + step, near)
 
     if (across + along <= 1)
       return corner + (right - corner) * across + (far - corner) * along
 
-    const opposite = field.heightAt(left + step, near + step)
+    const opposite = lattice(3, column, row, left + step, near + step)
 
     return opposite + (far - opposite) * (1 - across) + (right - opposite) * (1 - along)
   }

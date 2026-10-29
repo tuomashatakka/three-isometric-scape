@@ -170,6 +170,46 @@ function segmentIsWet (
   return true
 }
 
+/**
+ * The hull's swept corridor between two grid nodes, for the router.
+ *
+ * `segmentIsWet` stands a full hull circle (twenty-five reads of the field) at
+ * every probe step, and the router asks it of every edge it opens — eleven of
+ * the twelve seconds the archipelago survey took, and most of the page's first
+ * load. Both ends of a grid edge are wet nodes, whose circles the grid has
+ * already read, so what is left between them is the corridor: the keel line and
+ * the two lines a hull radius either side of it, three reads a step. The route
+ * that comes out is still simplified with `segmentIsWet` and audited by
+ * `routeClearance` at its full resolution, so a narrower test here can cost a
+ * detour but never a grounding.
+ */
+function corridorIsWet (
+  field:     HeightField,
+  water:     number,
+  clearance: number,
+  from:      Vec2,
+  to:        Vec2,
+  probeStep: number,
+): boolean {
+  const ceiling  = water - clearance - CLEARANCE_MARGIN
+  const dx       = to.x - from.x
+  const dz       = to.z - from.z
+  const distance = hypot(dx, dz)
+  const steps    = Math.max(1, Math.ceil(distance / probeStep))
+  const nx       = -dz / distance * HULL_CLEARANCE
+  const nz       = dx / distance * HULL_CLEARANCE
+
+  for (let step = 1; step < steps; step += 1) {
+    const x = from.x + dx * step / steps
+    const z = from.z + dz * step / steps
+
+    if (field.heightAt(x, z) > ceiling || field.heightAt(x + nx, z + nz) > ceiling || field.heightAt(x - nx, z - nz) > ceiling)
+      return false
+  }
+
+  return true
+}
+
 export function createWorldPort (
   id:     string,
   jetty:  Vec2 & { angle: number },
@@ -304,7 +344,7 @@ function expandNode (
     const edge  = item.node * NEIGHBOURS.length + direction
 
     if (grid.edges[edge] < 0)
-      grid.edges[edge] = segmentIsWet(
+      grid.edges[edge] = corridorIsWet(
         field,
         config.terrain.waterLevel,
         config.boats.clearance,
@@ -314,6 +354,9 @@ function expandNode (
       )
         ? 1
         : 0
+
+    // The corridor is the same both ways, so the edge back is already answered.
+    grid.edges[next * NEIGHBOURS.length + NEIGHBOURS.length - 1 - direction] = grid.edges[edge]
 
     if (!grid.edges[edge])
       continue

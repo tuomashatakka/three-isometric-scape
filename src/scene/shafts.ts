@@ -144,6 +144,26 @@ export function shaftAmount (
   return clamp01(Math.max(0, strength) * broken * clamp01(day))
 }
 
+/** View sizes, metres, between which the beams fade out as the camera pulls back. */
+export const SHAFT_FADE = [ 220, 650 ] as const
+
+/**
+ * How much of the beams a frame of this size shows, 0..1.
+ *
+ * A shaft is a curtain of lit air a cloud's width across, and it is seen by
+ * looking *through* the air beside it. Pulled back to the whole archipelago the
+ * camera looks down through a few hundred metres of haze rather than along a
+ * kilometre of it, and the sheets read as a printed field of white ticks over
+ * the sea — the aerial perspective (`aerial.ts`) is what carries the light at
+ * that distance instead.
+ */
+export function shaftFade (viewSize: number): number {
+  const [ from, to ] = SHAFT_FADE
+  const t            = clamp01((viewSize - from) / (to - from))
+
+  return 1 - t * t * (3 - 2 * t)
+}
+
 /**
  * The world height the lit column reaches, in metres.
  *
@@ -449,8 +469,8 @@ export function createShaftsLayer ({
     },
 
     update () {
-      const { atmosphere, shafts, terrain } = config()
-      const amount                          = shaftAmount(shafts.strength, atmosphere.cloudCover, daylight.day)
+      const { atmosphere, camera, shafts, terrain } = config()
+      const amount                                  = shaftAmount(shafts.strength, atmosphere.cloudCover, daylight.day) * shaftFade(camera.viewSize)
 
       mesh.visible = amount > VISIBLE_AT
 

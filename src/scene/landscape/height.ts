@@ -72,6 +72,9 @@ const ISLE_PLATEAU  = 0.55
  * fraction so the warp can only reshape the skirt, never eat the crown.
  */
 const ISLE_REACH    = 0.34
+
+/** Metres of slack on the islet bound, far over any rounding in the warp. */
+const ISLE_SLACK    = 1e-6
 const TRACK_DEPTH   = 0.26
 const YARD_STRENGTH = 0.94
 const PLOT_STRENGTH = 0.9
@@ -272,10 +275,19 @@ export function createHeightField (
       // wavelength is sized for a coastline tens of metres long, and an islet is
       // a tenth of that — sampled at world scale it would return the same value
       // across the whole disc and move the shore nowhere.
-      const dx       = x - isle.x
-      const dz       = z - isle.z
+      const dx    = x - isle.x
+      const dz    = z - isle.z
+      const reach = hypot(dx, dz)
+
+      // The warp is bounded (|coastWarp| <= 1), so an islet further off than
+      // its radius plus the most the warp can pull it in cannot claim this
+      // point whatever the warp says — and every height read in the archipelago
+      // used to pay for the warp of every islet to learn that.
+      if (reach >= isle.radius * (1 + Math.abs(ISLE_REACH)) + ISLE_SLACK)
+        continue
+
       const warp     = coastWarp(dx * 7, dz * 7, isle.seed) * ISLE_REACH
-      const distance = hypot(dx, dz) - warp * isle.radius
+      const distance = reach - warp * isle.radius
 
       if (distance >= isle.radius)
         continue

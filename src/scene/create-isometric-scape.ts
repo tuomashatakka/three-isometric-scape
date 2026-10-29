@@ -1,5 +1,5 @@
 import { Vector2, Vector3 } from 'three'
-import type { Mesh, OrthographicCamera, Scene, WebGLRenderer } from 'three'
+import type { Camera, Mesh, OrthographicCamera, Scene, WebGLRenderer } from 'three'
 import { createApp, createIsoCamera, createRenderer, reportPrograms } from 'threejs-scene'
 import type { Store } from 'threejs-scene'
 import { NOTHING_SKIPPED } from './audit.ts'
@@ -56,7 +56,7 @@ export interface IsometricScape {
   store: Store<ScapeConfig>
 
   /** The scene and renderer, for the `?bridge` instruments only. See `src/bridge.ts`. */
-  ctx: { scene: Scene, renderer: WebGLRenderer }
+  ctx: { scene: Scene, renderer: WebGLRenderer, camera: Camera }
 
   dispose(): void
 }
@@ -467,10 +467,9 @@ export function createIsometricScape (
   const landscape  = createLandscape(readConfig, quality, wind.state, tide.state, skip)
   const atmosphere = createAtmosphereLayer({
     camera,
-    config:       readConfig,
+    config:    readConfig,
     quality,
-    groundRadius: config.archipelago.worldSize * 0.8,
-    shadowDue:    runtime.shadowDue,
+    shadowDue: runtime.shadowDue,
   })
 
   const skies = hangSkies({

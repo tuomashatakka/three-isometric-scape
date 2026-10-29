@@ -161,13 +161,14 @@ async function shell (command: string[]): Promise<string> {
 
 /**
  * Open pull requests, because the brief says to finish one before opening
- * another. Absent `gh`, that is a thing to check by hand rather than a failure.
+ * another. Absent `gh` (the cloud container has none), that is a check for the
+ * GitHub tools rather than a failure.
  */
 async function openPulls (): Promise<string> {
   const raw = await shell([ 'gh', 'pr', 'list', '--state', 'open', '--json', 'number,title,headRefName' ])
 
   if (!raw)
-    return 'gh unavailable — check open pull requests by hand'
+    return 'gh unavailable — list open pull requests with the GitHub MCP tools'
 
   const parsed = JSON.parse(raw) as { number: number; title: string; headRefName: string }[]
 
@@ -176,9 +177,22 @@ async function openPulls (): Promise<string> {
     : parsed.map(pr => `#${pr.number} ${pr.title} (${pr.headRefName})`).join('\n            ')
 }
 
+/**
+ * The map's headline: the world line, and one line per landmass. The full
+ * `--stats` (every site of every island, ~60 lines) is a section of its own,
+ * `--sections map`, because a run choosing a rendering theme rarely needs it.
+ */
+function mapSummary (map: string): string {
+  const lines = map.split('\n')
+
+  return [ ...lines.slice(0, 3), ...lines.filter(line => (/^\s*\w+\/\w+ @/).test(line)).map(line => line.trim()
+    .slice(0, 110)) ].join('\n')
+}
+
 const args    = parseArgs(Bun.argv.slice(2))
 const only    = args.list('sections').flatMap(name => name.split(','))
 const wants   = (name: string): boolean => only.length === 0 || only.includes(name)
+const fullMap = only.includes('map')
 const started = performance.now()
 
 const [ map, pulls ] = await Promise.all([
@@ -212,7 +226,7 @@ if (wants('prs'))
   row('open prs', pulls)
 
 if (wants('map') && map)
-  row('scape:map', map)
+  row('scape:map', fullMap ? map : mapSummary(map))
 
 if (wants('readme')) {
   out.push('', 'readme      the design record, by section — read the one you are about to change')

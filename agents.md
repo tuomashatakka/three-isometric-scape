@@ -305,10 +305,13 @@ bun run studio shot --poses tour [--census]           # .scape/studio/<pose>.png
 bun run studio shot --zoom 12 --set camera.focusX=-12 --name yard
 bun run studio shot --set archipelago.worldSize=1800 --rebuild
 bun run studio shot --tier desktop
+bun run studio shot --hide sun-shafts,cloud- --name bare  # the same look without those meshes
+bun run studio probe 0.5 0.2                          # which meshes are under that point of the frame
+bun run studio eval "scape.census(300)"               # any expression in the page, the bridge in scope
 bun run studio census | status | stop
 ```
 
-[`scripts/scape-studio.ts`](scripts/scape-studio.ts) keeps one chromium page open on vite's dev server (port 4175) and drives it through `?bridge` ([`src/bridge.ts`](src/bridge.ts)): `scape.write(path, value)`, `reset()`, `rebuild()`, `census()`, `info()`. every look resets to the opening config (`STILL` applied), applies the pose and the `--set`s, waits a few drawn frames and photographs. the page follows source edits by itself (vite reload), so the loop is edit → look. `camera.focusX/focusZ/viewSize/rotation` are live knobs now — the camera snaps to a change in them — which is what lets a look move the camera without a reload. the full how-to is the `scape-studio` skill in `.claude/skills/`.
+[`scripts/scape-studio.ts`](scripts/scape-studio.ts) keeps one chromium page open on vite's dev server (port 4175) and drives it through `?bridge` ([`src/bridge.ts`](src/bridge.ts)): `scape.write(path, value)`, `reset()`, `rebuild()`, `census()`, `info()`, `hide(names)`, `probe(x, y)`. **to find what paints something, `probe` the point, then `--hide` the suspects** — it is how the white tick field and the white decals over the wide sea were traced to the sun shafts and the whitecaps in one run, where reading screenshots had not. `census` counts points, lines and sprites too. every look resets to the opening config (`STILL` applied), applies the pose and the `--set`s, waits a few drawn frames and photographs. the page follows source edits by itself (vite reload), so the loop is edit → look. `camera.focusX/focusZ/viewSize/rotation` are live knobs now — the camera snaps to a change in them — which is what lets a look move the camera without a reload. the full how-to is the `scape-studio` skill in `.claude/skills/`.
 
 ### `bun run scape:shot` — a still
 

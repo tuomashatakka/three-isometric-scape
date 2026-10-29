@@ -680,7 +680,7 @@ export function createWater (
   // border, where the composite field is already deep seabed.
   //
   // How *far* past it is a tier decision. The plane only has to outrun the fog,
-  // and the fog closes within `groundRadius * 2` of the camera — so the cheap
+  // and the aerial haze (`aerial.ts`) has closed within a couple of kilometres of the focus — so the cheap
   // tiers can carry a third of the surface for the same horizon, which is a
   // third of the vertices in the one mesh that is guaranteed to fill the frame.
   const maskSpan = config().archipelago.worldSize * 1.02

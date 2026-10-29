@@ -208,7 +208,8 @@ src/
 │   ├── scape-controls.ts           which config paths it exposes, in grouped sections
 │   └── settings-store.ts           local-storage snapshot of those same paths
 └── scene/
-    ├── atmosphere.ts               gradient sky, linear fog, sun and fill rig
+    ├── aerial.ts                   aerial perspective: three's fog chunks, re-read as distance from the focus and thinning with height
+    ├── atmosphere.ts               gradient sky, the haze range, sun and fill rig
     ├── alpha-field.ts               the DataTexture the three sheet layers share
     ├── aurora.ts                   auroral veils over the dark half of the year
     ├── layers.ts                    the order the transparent half is painted in
@@ -226,6 +227,9 @@ src/
     ├── config-haar.ts              the night bank's own slice: the top, the band, and what takes it away
     ├── config-halo.ts              the ring's own slice: the lead ahead of the fall, the dogs, the shaft
     ├── config-shafts.ts            the beams' own slice: the brightness, the reach up the deck, the taper
+    ├── config-sites.ts             every holding's surveyed sites: creek, beck, tarn, peat, strand, causeway, paths, mill, chapel, smokehouse, pier, croft, beacon
+    ├── config-sea.ts               the sea surface and the tide
+    ├── config-lights.ts            the cursor lamp, the hearths and the windows
     ├── config-swash.ts             the wash's own slice: the run-up, the ceiling, and what the lee keeps
     ├── config-treeline.ts          the wood's own slice: the two lines, and the fetch between
     ├── config-dunes.ts             the sand's own slice: the profile, the arc, and the two vetoes
@@ -387,6 +391,7 @@ src/
     │   ├── dressing-sampling.ts    what the darts are thrown at, and each feature's quota
     │   ├── dressing-zones.ts       what the composition already claims the ground for
     │   ├── dressing-helpers.ts     the placement questions that are pure geometry
+    │   ├── claims.ts               the solver's claims bucketed by ground cell, so a dart asks a few cells rather than every claim
     │   ├── dressing-enclosures.ts  the pasture wall, the churchyard wall, the plot fences, the head dyke
     │   ├── dressing-harbour.ts     the waterfront: boathouse, net rack, the pots ashore, the trestle, the fish trap
     │   ├── dressing.ts             placement, hero merge, instanced scatter
@@ -523,7 +528,7 @@ this is why the five farmstead buildings are the only props that leave the merge
 
 **structural** props — trees, boulders, bales — go through `createPlacementField`, which owns the claims registry and enforces mutual spacing. the candidate loop lives in `dressing.ts` rather than in the solver: `place()` claims a spot the moment it satisfies the *query*, so a caller that then rejects it on its own rules leaves a claim behind that blocks everyone else. a few hundred of those and the field is saturated with nothing in it. the rules are tested first, and only an accepted spot is `reserve()`d.
 
-**ground cover** — grass, crops, cobbles — uses a plain jittered scatter with no mutual test. overlap is invisible at that density, and the solver's spacing check is `O(claims)` per attempt, so routing nine hundred grass tufts through it would cost more than the rest of the build put together.
+**ground cover** — grass, crops, cobbles — uses a plain jittered scatter with no mutual test. overlap is invisible at that density, and a spacing check costs a lookup per attempt even bucketed (`claims.ts` — it used to be `O(claims)`), so routing nine hundred grass tufts through it would cost more than the rest of the build put together.
 
 **where the darts are thrown matters as much as what accepts them**, and [`samplers.ts`](src/scene/landscape/samplers.ts) is the three answers to that. the island sampler draws from the mainland *or* an islet rather than uniformly over a field that is mostly open sea. the disc sampler narrows to one named feature: the pasture is a quarter of a percent of the island's disc, and the drying poles scattered through the island sampler landed, measurably, never. the tread sampler walks the traced path network itself, which is what turns a budget of nine hundred cobbles into nine hundred cobbles on the path rather than eleven.
 
