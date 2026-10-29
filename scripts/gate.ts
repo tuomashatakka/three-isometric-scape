@@ -6,7 +6,9 @@ import { parseArgs } from './args.ts'
  *
  * Two shapes:
  *
- * - **default, the light gate.** lint (cached) and typecheck side by side, then
+ * - **default, the light gate.** lint (only the files the diff touched — a
+ *   fresh cloud container has no eslint cache, and a cold lint of the whole
+ *   repository is most of a minute) and typecheck side by side, then
  *   only the tests the diff can reach (`bun test --changed=<base>`, which walks
  *   the import graph), then `vite build` without its second `tsc`, then the prop
  *   audit. Never more than two processes at once: five heavy ones in parallel is
@@ -54,10 +56,26 @@ const full = args.has('full')
 const base = args.str('base', 'origin/main')
 const only = args.list('only').flatMap(name => name.split(','))
 
+/** Source files changed against the base, committed or not — what the light lint reads. */
+async function changedSources (): Promise<string[] | 'all'> {
+  const child = Bun.spawn([ 'git', 'diff', '--name-only', '--diff-filter=ACMR', base ], { stdout: 'pipe' })
+  const names = (await new Response(child.stdout).text()).split('\n').filter(Boolean)
+
+  // A change to the lint config or the dependencies changes what every file means.
+  if (names.some(name => (/^(eslint\.config|package\.json|bun\.lock|tsconfig)/).test(name)))
+    return 'all'
+  return names.filter(name => (/\.(ts|mts|js|mjs)$/).test(name))
+}
+
+const changed = full ? 'all' : await changedSources()
+const lint    = changed === 'all'
+  ? [ 'bun', 'run', 'lint' ]
+  : [ 'bunx', 'eslint', '--max-warnings', '0', '--cache', '--cache-location', 'node_modules/.cache/eslint/', '--no-warn-ignored', ...changed ]
+
 /** Each stage runs its checks side by side; the stages run in order. */
 const STAGES: Check[][] = [
   [
-    { name: 'lint', argv: [ 'bun', 'run', 'lint' ]},
+    { name: 'lint', argv: changed === 'all' || changed.length > 0 ? lint : [ 'true' ]},
     { name: 'typecheck', argv: [ 'bun', 'run', 'typecheck' ]},
   ],
   [{ name: 'test', argv: full ? [ 'bun', 'test', '--only-failures' ] : [ 'bun', 'test', `--changed=${base}`, '--only-failures' ]}],

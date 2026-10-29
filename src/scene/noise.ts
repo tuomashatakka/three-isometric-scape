@@ -19,14 +19,48 @@ export function valueNoise (x: number, z: number, seed: number): number {
   const tx = smoothstep(0, 1, x - x0)
   const tz = smoothstep(0, 1, z - z0)
 
-  const a = hash2(x0 + seed * 0.013, z0 - seed * 0.017)
-  const b = hash2(x0 + 1 + seed * 0.013, z0 - seed * 0.017)
-  const c = hash2(x0 + seed * 0.013, z0 + 1 - seed * 0.017)
-  const d = hash2(x0 + 1 + seed * 0.013, z0 + 1 - seed * 0.017)
+  const a = corner(x0, z0, seed)
+  const b = corner(x0 + 1, z0, seed)
+  const c = corner(x0, z0 + 1, seed)
+  const d = corner(x0 + 1, z0 + 1, seed)
 
   const top    = a + (b - a) * tx
   const bottom = c + (d - c) * tx
   return top + (bottom - top) * tz
+}
+
+/**
+ * The lattice-corner hashes, remembered.
+ *
+ * `hash2` is a `Math.sin`, and every height read in the archipelago takes a
+ * few dozen of them — profiled in the browser it was over a third of the
+ * page's first load. Neighbouring reads share corners (a slope is four reads a
+ * few centimetres apart, an octave's cell is metres wide), so a direct-mapped
+ * table keyed on the exact integer corner and seed answers most of them. A
+ * miss computes `hash2` with the same arguments as before, so every value is
+ * bit-identical; a corner past the int32 range skips the table.
+ */
+const CORNER_BITS = 16
+const CORNER_X    = new Int32Array(1 << CORNER_BITS)
+const CORNER_Z    = new Int32Array(1 << CORNER_BITS)
+const CORNER_SEED = new Float64Array(1 << CORNER_BITS).fill(Number.NaN)
+const CORNER_HASH = new Float64Array(1 << CORNER_BITS)
+
+function corner (x0: number, z0: number, seed: number): number {
+  const slot = (Math.imul(x0, 73_856_093) ^ Math.imul(z0, 19_349_663) ^ Math.imul(seed, 83_492_791)) >>> 32 - CORNER_BITS
+
+  if (CORNER_SEED[slot] === seed && CORNER_X[slot] === x0 && CORNER_Z[slot] === z0)
+    return CORNER_HASH[slot]
+
+  const value = hash2(x0 + seed * 0.013, z0 - seed * 0.017)
+
+  if (x0 === (x0 | 0) && z0 === (z0 | 0)) {
+    CORNER_SEED[slot] = seed
+    CORNER_X[slot]    = x0
+    CORNER_Z[slot]    = z0
+    CORNER_HASH[slot] = value
+  }
+  return value
 }
 
 /**

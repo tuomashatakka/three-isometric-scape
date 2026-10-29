@@ -32,7 +32,15 @@ bun run studio shot --set archipelago.worldSize=1800 --rebuild --name wider   # 
 bun run studio shot --tier desktop --name desk          # reopens the page at that tier
 bun run studio shot --poses near --census               # picture + where the triangles go
 bun run studio census                                   # census of whatever is on screen now
+bun run studio shot --hide sun-shafts,cloud- --name bare  # the same look without those meshes
+bun run studio probe 0.5 0.2                            # the meshes under that point of the last look
+bun run studio eval "scape.read('season.time')"         # any expression in the page, `scape` is the bridge
 ```
+
+**What paints that?** `probe` the point (names, nearest first), then `--hide`
+the suspects one shot at a time — far cheaper than reasoning from pixels. Hidden
+meshes come back on the next look. A change to `scripts/scape-studio.ts` itself
+needs `studio stop` and `serve` again; a change under `src/` reloads by itself.
 
 - Captures land in `.scape/studio/<name>.png`. Read the png only when the numbers
   are not enough; one image costs far more tokens than the census line.

@@ -17,6 +17,9 @@ const DEGREES = Math.PI / 180
  */
 const FLOOR = 0.15
 
+/** Slack on a vigour bracket: far over a rounding ulp, far under any roll that matters. */
+const BRACKET = 1e-9
+
 /**
  * Where the wood stops, and how it gives out getting there.
  *
@@ -64,6 +67,13 @@ export interface Treeline {
    * trees at full density reads as a plantation.
    */
   vigourAt (x: number, z: number): number
+
+  /**
+   * Exactly `roll < odds(vigourAt(x, z))`, for `odds` linear or concave in the
+   * vigour (`peak` where a concave one tops out), reading only as much of the
+   * upwind walk as the answer needs.
+   */
+  rollUnder (roll: number, x: number, z: number, odds: (vigour: number) => number, peak?: number): boolean
 }
 
 /**
@@ -117,15 +127,10 @@ export function planTreeline (
     return exposed + (1 - exposureAt(x, z)) * (sheltered - exposed)
   }
 
-  function vigourAt (x: number, z: number): number {
-    const relative = field.heightAt(x, z) - waterLevel
-
-    if (relative <= 0)
-      return 0
-
-    const openness = exposureAt(x, z)
-    const limit    = exposed + (1 - openness) * (sheltered - exposed)
-    const above    = 1 - smoothstep(Math.max(FLOOR, limit - taper), limit + taper, relative)
+  /** Vigour at a height over the water and an exposure, the two things it is a function of. */
+  function vigourOf (relative: number, openness: number): number {
+    const limit = exposed + (1 - openness) * (sheltered - exposed)
+    const above = 1 - smoothstep(Math.max(FLOOR, limit - taper), limit + taper, relative)
 
     // The salt takes the bottom of the same range the wind takes the top of,
     // and only where the wind reaches: a sheltered shore grows birch to the
@@ -135,7 +140,51 @@ export function planTreeline (
     return above * (1 - salt)
   }
 
-  return { exposureAt, limitAt, vigourAt }
+  function vigourAt (x: number, z: number): number {
+    const relative = field.heightAt(x, z) - waterLevel
+
+    return relative <= 0 ? 0 : vigourOf(relative, exposureAt(x, z))
+  }
+
+  /**
+   * Exactly `roll < odds(vigourAt(x, z))`, walking upwind only as far as the
+   * answer needs. Vigour falls as exposure rises, so the samples not yet read
+   * bracket it — all of them sea, or none — and most darts are settled by the
+   * first few. `odds` is linear or concave in the vigour, with its top at
+   * `peak`. The open share is summed in `exposureAt`'s order, so a walk that
+   * runs to the end lands on the same number it would.
+   */
+  function rollUnder (roll: number, x: number, z: number, odds: (vigour: number) => number, peak = Infinity): boolean {
+    const relative = field.heightAt(x, z) - waterLevel
+
+    if (relative <= 0)
+      return roll < odds(0)
+
+    let open   = 0
+    let unread = weightTotal
+
+    for (let step = 1; step <= samples; step += 1) {
+      const most  = vigourOf(relative, open / weightTotal)
+      const least = vigourOf(relative, (open + unread) / weightTotal)
+      const ends  = [ odds(least), odds(most) ]
+
+      if (roll >= Math.max(...ends, odds(Math.min(most, Math.max(least, peak)))) + BRACKET)
+        return false
+      if (roll < Math.min(...ends) - BRACKET)
+        return true
+
+      const weight   = 1 - (step - 1) / samples
+      const distance = fetch * step / samples
+
+      unread -= weight
+      if (field.heightAt(x + upwindX * distance, z + upwindZ * distance) <= waterLevel)
+        open += weight
+    }
+
+    return roll < odds(vigourOf(relative, open / weightTotal))
+  }
+
+  return { exposureAt, limitAt, vigourAt, rollUnder }
 }
 
 /**

@@ -21,6 +21,14 @@ swiftshader is not a performance number; draws and triangles are.
 Reference (mobile tier, after the scatter LOD landed): default frame ~140 draws /
 0.95M tris; `near` ~84 draws / 0.9M tris.
 
+## the first load (CPU)
+
+`bun run scape:bench --tier ultra` times the archipelago survey and the
+dressing headless — the two things the page builds before its first frame. A
+browser trace (Performance panel, "Evaluate module") is the same work under V8;
+its bottom-up self times name the hot function. Before this tooling a desktop
+first load was ~27 s; see the changelog for where it went.
+
 ## levers that already exist
 
 - **`landscape/scatter-lod.ts`** — every scattered family is hidden when its

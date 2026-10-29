@@ -22,6 +22,9 @@ import { posesFrom, shotUrl } from './scape-shot.ts'
  *   bun run studio shot --poses tour           # photograph a named set
  *   bun run studio shot --zoom 10 --set wind.strength=0.6 --name yard
  *   bun run studio census                      # where the triangles and draws go
+ *   bun run studio shot --hide mist,haar       # the same look without those meshes
+ *   bun run studio probe 0.5 0.2               # which meshes are under that point
+ *   bun run studio eval "scape.census(200)"     # any expression, the bridge in scope
  *   bun run studio stop
  *
  * Captures land in `.scape/studio/`. Build-time knobs (`--set archipelago.*`
@@ -43,6 +46,7 @@ interface ShotRequest {
   rebuild: boolean
   tier?:   string
   census?: boolean
+  hide?:   string[]
 }
 
 function valueOf (raw: string): number | boolean | string {
@@ -139,13 +143,14 @@ async function serveStudio (gpu: boolean): Promise<void> {
     }
 
     await ready(0)
-    await page.evaluate(writes => {
-      const bridge = (window as unknown as { scape: { reset(): void, write(path: string, value: unknown): void }}).scape
+    await page.evaluate(({ writes, hide }) => {
+      const bridge = (window as unknown as { scape: { reset(): void, write(path: string, value: unknown): void, hide(names: string[]): number }}).scape
 
       bridge.reset()
       for (const [ path, value ] of writes)
         bridge.write(path, value)
-    }, request.writes.map(([ path, raw ]) => [ path, valueOf(raw) ] as const))
+      bridge.hide(hide)
+    }, { writes: request.writes.map(([ path, raw ]) => [ path, valueOf(raw) ] as const), hide: request.hide ?? []})
 
     if (request.rebuild) {
       await page.evaluate(() => (window as unknown as { scape: { rebuild(): void }}).scape.rebuild())
@@ -203,6 +208,28 @@ async function serveStudio (gpu: boolean): Promise<void> {
             return { info: bridge.info(), census: bridge.census(40) }
           })
         })
+
+        queue = run.catch(() => undefined)
+        return Response.json(await run)
+      }
+
+      if (pathname === '/eval' && request.method === 'POST') {
+        const { source } = await request.json() as { source: string }
+        const run        = queue.then(() => page.evaluate(source))
+
+        queue = run.catch(() => undefined)
+        try {
+          return Response.json({ value: await run })
+        }
+        catch (error) {
+          return Response.json({ error: String(error) })
+        }
+      }
+
+      if (pathname === '/probe' && request.method === 'POST') {
+        const { x, y } = await request.json() as { x: number, y: number }
+        const run      = queue.then(() => page.evaluate(([ px, py ]) =>
+          (window as unknown as { scape: { probe(x: number, y: number): string[] }}).scape.probe(px, py), [ x, y ] as const))
 
         queue = run.catch(() => undefined)
         return Response.json(await run)
@@ -291,6 +318,7 @@ async function shotCommand (args: ReturnType<typeof parseArgs>): Promise<void> {
       rebuild: args.has('rebuild'),
       tier:    args.has('tier') ? args.str('tier') : pose.tier,
       census:  args.has('census'),
+      hide:    args.list('hide').flatMap(entry => entry.split(',')),
     }) as Shot
 
     if (result.error) {
@@ -319,7 +347,20 @@ async function main (): Promise<void> {
   if (command === 'shot')
     return shotCommand(args)
 
-  console.log('studio: serve [--gpu] | shot [--poses set | --rot --zoom --time --season] [--set a.b=1] [--rebuild] [--census] | census | status | stop')
+  // Anything else: an expression run in the page, with `scape` (the bridge) in
+  // scope. `eval "scape.census(200).filter(row => row.triangles === 0)"`.
+  if (command === 'eval')
+    return void console.log(JSON.stringify(await call('/eval', { source: rest.join(' ') }), null, 1))
+
+  // What is drawn under a point of the last look: `probe 0.5 0.2` is the middle
+  // of the frame, a fifth of the way down. Names, nearest first.
+  if (command === 'probe') {
+    const [ x = '0.5', y = '0.5' ] = rest.filter(entry => !entry.startsWith('--'))
+
+    return void console.log((await call('/probe', { x: Number(x), y: Number(y) }) as string[]).join('  ') || '(sky)')
+  }
+
+  console.log('studio: serve [--gpu] | shot [--poses set | --rot --zoom --time --season] [--set a.b=1] [--hide name,name] [--rebuild] [--census] | probe x y | eval <js> | census | status | stop')
 }
 
 if (import.meta.main)

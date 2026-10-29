@@ -17,6 +17,7 @@ import type {
 import { defineModule } from 'threejs-scene'
 import type { SceneContext } from 'threejs-scene'
 import { standardLighting } from 'threejs-scene/modules/lighting'
+import { hazeRange, installAerialPerspective } from './aerial.ts'
 import { landmassTerrain } from './config.ts'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import { createDaylight } from './daylight.ts'
@@ -36,10 +37,9 @@ export interface Atmosphere {
 }
 
 export interface AtmosphereOptions {
-  camera:       OrthographicCamera
-  config:       LiveConfig
-  groundRadius: number
-  quality:      AtmosphereQuality
+  camera:  OrthographicCamera
+  config:  LiveConfig
+  quality: AtmosphereQuality
 
   /**
    * Whether the shadow map will actually be rebuilt on this frame.
@@ -52,10 +52,6 @@ export interface AtmosphereOptions {
   shadowDue?(): boolean
 }
 
-export interface FogRange {
-  near: number
-  far:  number
-}
 
 interface LightingRig {
   scene: Scene
@@ -103,28 +99,6 @@ const focus    = new Vector3()
 const WORLD_UP = new Vector3(0, 1, 0)
 const FALLBACK = new Vector3(0, 0, 1)
 
-function clamp (value: number, minimum: number, maximum: number): number {
-  return Math.min(maximum, Math.max(minimum, value))
-}
-
-export function calculateFogRange (
-  cameraDistance: number,
-  viewSize: number,
-  groundRadius: number,
-  density: number,
-  breath = 1,
-): FogRange {
-  const safeViewSize = Math.max(1, viewSize)
-  const near         = Math.max(0.1, cameraDistance - safeViewSize * 0.9)
-  const amount       = clamp(density * breath, 0, MAX_FOG)
-  const moodFar      = near + safeViewSize * (1.35 + 3.4 * (1 - amount))
-  const edgeFar      = cameraDistance + Math.max(1, groundRadius) * 2
-
-  return {
-    near,
-    far: Math.max(near + 1, Math.min(moodFar, edgeFar)),
-  }
-}
 
 function isDirectionalLight (object: Object3D): object is DirectionalLight {
   return (object as DirectionalLight).isDirectionalLight === true
@@ -245,7 +219,6 @@ function readCameraFocus (camera: OrthographicCamera): Vector3 {
 export function createAtmosphereLayer ({
   camera,
   config,
-  groundRadius,
   quality,
   shadowDue = () => true,
 }: AtmosphereOptions): Atmosphere {
@@ -254,6 +227,8 @@ export function createAtmosphereLayer ({
   // light's colour is set at construction — the per-frame reads below all go
   // back to the store instead.
   const authored = config()
+  installAerialPerspective(authored.atmosphere.hazeHeight)
+
   const daylight = createDaylight(config)
 
   // `sky` is the live state object, and `direction` is its vector — both are
@@ -405,20 +380,13 @@ export function createAtmosphereLayer ({
     // year, whichever module happens to be advancing it.
     daylight.sample(clock.time, config().season.time)
 
-    const target         = readCameraFocus(camera)
-    const viewSize       = camera.userData.viewSize as number ?? config().camera.viewSize
-    const cameraDistance = camera.userData.radius as number ?? camera.position.distanceTo(target)
-    const breath         = 1 + (
+    const target   = readCameraFocus(camera)
+    const viewSize = camera.userData.viewSize as number ?? config().camera.viewSize
+    const breath   = 1 + (
       Math.sin(elapsed * 0.041) * 0.6 +
       Math.sin(elapsed * 0.017) * 0.4
     ) * config().atmosphere.fogBreath
-    const range = calculateFogRange(
-      cameraDistance,
-      viewSize,
-      groundRadius,
-      config().atmosphere.fogDensity,
-      breath,
-    )
+    const range = hazeRange(config().atmosphere.fogDensity, breath, MAX_FOG)
 
     fog.near = range.near
     fog.far  = range.far
@@ -502,7 +470,7 @@ export function createAtmosphereLayer ({
   return { module, sunPosition, daylight: sky }
 }
 
-// perf: one sky texture upload while the view changes, one linear-fog update
+// perf: one sky texture upload while the view changes, one aerial-haze update
 // and a colour resolve per frame; no render-loop allocations and no extra
 // draws. The sky ramp is only recomputed when the colours behind it moved, and
 // the shadow frustum is only refitted on the frames the map is rebuilt on.

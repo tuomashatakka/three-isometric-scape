@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import { SCAPE_CONFIG } from './config.ts'
 import {
+  SHAFT_FADE,
   shaftAmount,
+  shaftFade,
   shaftLift,
   shaftSheetHeights,
   shaftSheetSize,
@@ -250,5 +252,13 @@ describe('shaftStackGeometry', () => {
   test('a single-sheet tier gets the top of the column', () => {
     expect(shaftStackGeometry(1_000, 1).getAttribute('aSlot')
       .getX(0)).toBe(1)
+  })
+})
+
+describe('shaftFade', () => {
+  test('beams are whole close in and gone at the archipelago frame', () => {
+    expect(shaftFade(SHAFT_FADE[0])).toBe(1)
+    expect(shaftFade(SCAPE_CONFIG.camera.viewSize)).toBe(0)
+    expect(shaftFade(400)).toBeGreaterThan(shaftFade(500))
   })
 })

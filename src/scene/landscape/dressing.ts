@@ -3,6 +3,7 @@ import type { BufferGeometry, Camera, InstancedMesh } from 'three'
 import { createSeededRng } from 'threejs-scene'
 import type { SeededRng } from 'threejs-scene'
 
+import { createClaimIndex } from './claims.ts'
 import { createPlacementField, mergeGeometryList, scatterInstances } from 'threejs-scene/modules/assets'
 import type { ScapeConfig } from '../config.ts'
 import { buildProp, resolvePalette } from '../props/index.ts'
@@ -151,6 +152,7 @@ const SWARD_SMOTHERED = 0.34
  */
 const SWARD_DROWNED = 0.25
 
+
 /**
  * A near-white tint. `scatterInstances` multiplies it into the baked vertex
  * colours, so staying close to white varies the shade of a prop rather than
@@ -232,12 +234,12 @@ export function createDressing (
       Math.round(count * quality.scatterScale * spread),
     )
 
-  const solver = createPlacementField({
+  const { reserve, spacingClear } = createClaimIndex(createPlacementField({
     rng:       rng.fork('solver'),
     extent,
     heightAt,
     minHeight: water + 0.3,
-  })
+  }))
 
   // ---- feature tests -------------------------------------------------------
 
@@ -398,7 +400,7 @@ export function createDressing (
       ? Math.max(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z) * 0.5
       : 3
 
-    solver.reserve(x, z, reach + 1.4)
+    reserve(x, z, reach + 1.4)
   }
 
   /**
@@ -426,10 +428,10 @@ export function createDressing (
     placeHero('logPile', logPile.x + ox, logPile.z + oz, rng.range(0, TAU))
 
     for (const anchor of [ well, logPile ])
-      solver.reserve(anchor.x + ox, anchor.z + oz, 4)
+      reserve(anchor.x + ox, anchor.z + oz, 4)
 
     // The posts and rope; the cloth is `wash.ts`'s own draw.
-    raiseWashLine(landmass, config, heightAt, rng.fork(`wash-line-${landmass.id}`), palette, heroes, (x, z, r) => solver.reserve(x, z, r))
+    raiseWashLine(landmass, config, heightAt, rng.fork(`wash-line-${landmass.id}`), palette, heroes, (x, z, r) => reserve(x, z, r))
 
     // The hay rack belongs beside a field, not in the yard.
     const firstPlot: Plot | undefined = landmass.survey.layout.plots[0]
@@ -437,7 +439,7 @@ export function createDressing (
       const rackX = firstPlot.x + ox + Math.cos(firstPlot.rotation) * (firstPlot.halfW + 1.6)
       const rackZ = firstPlot.z + oz + Math.sin(firstPlot.rotation) * (firstPlot.halfW + 1.6)
       placeHero('hayRack', rackX, rackZ, firstPlot.rotation + Math.PI / 2)
-      solver.reserve(rackX, rackZ, 5)
+      reserve(rackX, rackZ, 5)
     }
   }
 
@@ -470,7 +472,7 @@ export function createDressing (
       heightAt,
       placeHero,
       placeHeroAt,
-      reserve: (x: number, z: number, radius: number) => solver.reserve(x, z, radius),
+      reserve: (x: number, z: number, radius: number) => reserve(x, z, radius),
       heroes,
       anchors: harbourAnchors,
     })
@@ -499,7 +501,7 @@ export function createDressing (
       const sill            = kilnSill(survey.kiln)
 
       placeHeroAt('kiln', x + ox, heightAt(sill.x + ox, sill.z + oz) - PLOP_SINK, z + oz, angle)
-      solver.reserve(x + ox, z + oz, KILN_FOOTING)
+      reserve(x + ox, z + oz, KILN_FOOTING)
     }
 
     // The hut and the barrow, which are the two things out on the open fell.
@@ -514,7 +516,7 @@ export function createDressing (
       landmass.origin,
       placeHero,
       raiseBuilding,
-      (x, z, radius) => solver.reserve(x, z, radius),
+      (x, z, radius) => reserve(x, z, radius),
     )
 
     raiseWatermill(survey.watermill, landmass.origin, walling)
@@ -531,7 +533,7 @@ export function createDressing (
       const millZ = layout.mill.z + oz
 
       placeHero('windmill', millX, millZ, yawAlong(layout.mill.bearing), MILL_SINK)
-      solver.reserve(millX, millZ, config.mill.sailSpan * 0.5 + 1)
+      reserve(millX, millZ, config.mill.sailSpan * 0.5 + 1)
     }
 
     // The light, out on whichever rock the survey found furthest from the
@@ -545,7 +547,7 @@ export function createDressing (
       const beaconZ = survey.beacon.z + oz
 
       placeHero('lighthouse', beaconX, beaconZ, yawAlong(survey.beacon.bearing), BEACON_SINK)
-      solver.reserve(beaconX, beaconZ, BEACON_FOOTING + 1.2)
+      reserve(beaconX, beaconZ, BEACON_FOOTING + 1.2)
     }
 
     // The croft, on whichever rock the survey found the shortest row to. Merged
@@ -559,7 +561,7 @@ export function createDressing (
       const croftZ = survey.croft.z + oz
 
       placeHero('croft', croftX, croftZ, survey.croft.angle, CROFT_SINK)
-      solver.reserve(croftX, croftZ, CROFT_FOOTING + 1)
+      reserve(croftX, croftZ, CROFT_FOOTING + 1)
     }
 
     // The hull, on whichever rock the survey found low enough to have caught
@@ -571,7 +573,7 @@ export function createDressing (
       survey.wreck,
       landmass.origin,
       placeHero,
-      (x, z, radius) => solver.reserve(x, z, radius),
+      (x, z, radius) => reserve(x, z, radius),
     )
 
     // The hole in the headland, which is geometry rather than ground and so is
@@ -583,7 +585,7 @@ export function createDressing (
       rng,
       palette,
       heightAt,
-      reserve: (x, z, radius) => solver.reserve(x, z, radius),
+      reserve: (x, z, radius) => reserve(x, z, radius),
       heroes,
     })
   }
@@ -625,7 +627,7 @@ export function createDressing (
     waterLevel:   water,
     rng,
     palette,
-    reserve:      (x, z, radius) => solver.reserve(x, z, radius),
+    reserve:      (x, z, radius) => reserve(x, z, radius),
     addHero:      geometry => heroes.push(geometry),
     placeHero,
     raiseBuilding,
@@ -667,17 +669,13 @@ export function createDressing (
     sample = sampleSpot,
     claimScale = 1,
   ): Vec2 | null {
-    const spacingClear = (x: number, z: number): boolean =>
-      solver.claims.every(claim =>
-        hypot(claim.x - x, claim.z - z) > claim.radius * claimScale + radius)
-
     for (let attempt = 0; attempt < attempts; attempt += 1) {
       const { x, z } = sample()
 
-      if (!accept(x, z) || zones.onCauseway(x, z) || !spacingClear(x, z))
+      if (!accept(x, z) || zones.onCauseway(x, z) || !spacingClear(x, z, radius, claimScale))
         continue
 
-      solver.reserve(x, z, radius)
+      reserve(x, z, radius)
       return { x, z }
     }
     return null
@@ -705,7 +703,7 @@ export function createDressing (
     // in is a clearing, because blanket peat and a spruce wood are two things
     // the same ground cannot be doing at once.
     for (const working of workings)
-      solver.reserve(working.x, working.z, working.radius * CUTTING_CLEARING)
+      reserve(working.x, working.z, working.radius * CUTTING_CLEARING)
 
     // Standing water off the harbour. Tied to the harbour rather than to the
     // waterline in general: a stake belongs to the people who drove it.

@@ -148,7 +148,13 @@ export function createPathQuery (
   }
 }
 
-/** Shortest distance from a point to a polyline, in world units. */
+/**
+ * Shortest distance from a point to a polyline, in world units.
+ *
+ * The least *square* is kept and rooted once: a square root is monotone and
+ * correctly rounded, so this is bit for bit the least of the distances, without
+ * a root per segment — this runs inside every height read near a track.
+ */
 export function distanceToPath (points: readonly Vec2[], x: number, z: number): number {
   let best = Infinity
 
@@ -163,10 +169,13 @@ export function distanceToPath (points: readonly Vec2[], x: number, z: number): 
       ? 0
       : Math.min(1, Math.max(0, ((x - a.x) * dx + (z - a.z) * dz) / lengthSq))
 
-    best = Math.min(best, hypot(x - (a.x + dx * t), z - (a.z + dz * t)))
+    const ox = x - (a.x + dx * t)
+    const oz = z - (a.z + dz * t)
+
+    best = Math.min(best, ox * ox + oz * oz)
   }
 
-  return best
+  return Math.sqrt(best)
 }
 
 /** Total length of a polyline, in world units. */

@@ -141,6 +141,28 @@ function bearingOf (config: ScapeConfig): number {
   return config.terrain.fjord.bearing * Math.PI / 180
 }
 
+/**
+ * The fjord's bearing as a cosine and sine, and its anchor — per terrain
+ * section, because `carveFjord` runs inside every height read and these are
+ * the same three numbers every time.
+ */
+const frames = new WeakMap<object, { cos: number, sin: number, anchor: number }>()
+
+type FrameOfReturnType = { cos: number, sin: number, anchor: number }
+
+function frameOf (config: ScapeConfig): FrameOfReturnType {
+  const known = frames.get(config.terrain)
+
+  if (known)
+    return known
+
+  const angle = bearingOf(config)
+  const frame = { cos: Math.cos(angle), sin: Math.sin(angle), anchor: anchorOf(config) }
+
+  frames.set(config.terrain, frame)
+  return frame
+}
+
 /** Metres from the island's middle to the mouth. */
 function anchorOf (config: ScapeConfig): number {
   const { size, islandOuter } = config.terrain
@@ -277,15 +299,13 @@ export function carveFjord (config: ScapeConfig, x: number, z: number, height: n
   if (fjord.depth <= 0)
     return height
 
-  const angle = bearingOf(config)
-  const cos   = Math.cos(angle)
-  const sin   = Math.sin(angle)
+  const { cos, sin, anchor } = frameOf(config)
 
   // The inlet's own frame: `along` runs inward from the mouth and `across` runs
   // to the left of that walk. Resolved from the config every call rather than
   // surveyed once, because the whole axis is a point, a bearing and a length.
-  const dx     = x - cos * anchorOf(config)
-  const dz     = z - sin * anchorOf(config)
+  const dx     = x - cos * anchor
+  const dz     = z - sin * anchor
   const along  = -(dx * cos + dz * sin)
   const across = dz * cos - dx * sin
 

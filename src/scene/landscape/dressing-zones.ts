@@ -379,6 +379,8 @@ export function createScatterRules (
   const water                                                                          = config.terrain.waterLevel
   const treeline                                                                       = planTreeline(archipelago.field, config, water)
 
+  const rollUnder = treeline.rollUnder
+
   return {
     treeline,
 
@@ -407,7 +409,7 @@ export function createScatterRules (
      */
     inTheWood: (accept: (x: number, z: number) => boolean) =>
       (x: number, z: number): boolean =>
-        rng.next() < treeline.vigourAt(x, z) && accept(x, z),
+        rollUnder(rng.next(), x, z, vigour => vigour) && accept(x, z),
 
     conifer: (biasScale: number, minLift: number, maxSlope: number) =>
       (x: number, z: number): boolean => {
@@ -429,11 +431,9 @@ export function createScatterRules (
         // trap `dressing.ts` documents at the causeway test.
         const roll   = rng.next()
 
-        return roll < (0.46 + bias * ridgeInfluence(
-          landmass.survey.layout,
-          localX,
-          localZ,
-        )) * treeline.vigourAt(x, z)
+        const odds = 0.46 + bias * ridgeInfluence(landmass.survey.layout, localX, localZ)
+
+        return rollUnder(roll, x, z, vigour => odds * vigour)
       },
 
     // Stones stay out of the pasture: the ones that were in it are the wall.
@@ -469,8 +469,9 @@ export function createScatterRules (
       // coast are where it wins. Without this the run's whole finding would have
       // been a subtraction: the summits lost their spruce and got nothing, which
       // is a clear-fell rather than a treeline.
-      return roll < (0.55 + 0.35 * Math.min(1, (height - water - 1.6) / 4)) *
-        (1 - SHADED_OUT * treeline.vigourAt(x, z))
+      const odds = 0.55 + 0.35 * Math.min(1, (height - water - 1.6) / 4)
+
+      return rollUnder(roll, x, z, vigour => odds * (1 - SHADED_OUT * vigour))
     },
 
     beachRule: (maxSlope: number) => (x: number, z: number): boolean => {
@@ -492,10 +493,7 @@ export function createScatterRules (
       // and gets shaded out of the closed stands behind it. So its odds rise
       // with vigour and then bend back down, which is a scatter that is thickest
       // *at* the treeline rather than under it.
-      const roll   = rng.next()
-      const vigour = treeline.vigourAt(x, z)
-
-      return roll < vigour * (1 - SHADED_OUT * vigour)
+      return rollUnder(rng.next(), x, z, vigour => vigour * (1 - SHADED_OUT * vigour), 0.5 / SHADED_OUT)
     },
 
     plotEdge: (x: number, z: number): boolean =>

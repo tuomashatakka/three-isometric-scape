@@ -17,6 +17,7 @@
     "scape:map": "bun scripts/scape-map.ts",
     "scape:shot": "bun scripts/scape-shot.ts",
     "scape:diff": "bun scripts/scape-diff.ts",
+    "scape:bench": "bun scripts/scape-bench.ts",
     "studio": "bun scripts/scape-studio.ts",
     "prop:map": "bun scripts/prop-map.ts",
     "prop:audit": "bun scripts/prop-audit.ts",

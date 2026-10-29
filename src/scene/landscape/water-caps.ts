@@ -128,7 +128,7 @@ export function setCaps (
  * as a uniform: a constant nothing can change at runtime does not need a slot,
  * and a slot invites somebody to change it.
  */
-const CAP_SPACING = 35
+const CAP_SPACING = 14
 
 /**
  * Cycles of the broadest blob across one tile of `water.wave`.
@@ -305,7 +305,7 @@ export const WATER_CAPS_GLSL = /* glsl */`
     // pale. CAP_MEAN is the area the streaks cover at the same coverage, so the
     // two are the same amount of white and the crossover is not a step in
     // brightness.
-    return mix(uCaps * ${CAP_MEAN.toFixed(2)}, caps, 1.0 - smoothstep(0.010, 0.020, fwidth(rows.y)))
+    return mix(uCaps * ${CAP_MEAN.toFixed(2)}, caps, 1.0 - smoothstep(0.006, 0.014, fwidth(rows.y)))
       * open * run;
   }
 `

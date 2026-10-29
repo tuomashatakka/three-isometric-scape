@@ -2,6 +2,37 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the haze, and a first load a third as long
+
+**the frame:** the fog was three's linear fog on camera depth, and from this high orthographic camera every point of the ground sits at nearly the same depth, so it was one flat veil. [`aerial.ts`](src/scene/aerial.ts) replaces three's fog chunks with aerial perspective: optical depth along the ground from the point the camera looks at (half again on the far side), thinning with height (`atmosphere.hazeHeight`, 120 m). the yard stays clear, the far islands go blue-grey, and the feet of the far range dissolve while its summits stand out. it is in metres, not frame-sized, so a close frame carries none. at the archipelago frame the sun shafts fade out (`shaftFade`, 220 → 650 m view), because there they drew a field of white ticks over the sea. the whitecaps are drawn at 14 m instead of 35 m and give way to their mean sooner, because at the `far` pose they were white decals tens of metres across.
+
+- **cost:** no draws, no textures. +2 varying floats on fogged programs, and a few ALU ops per fogged fragment. census (mobile): default 142 → 141 draws (the shafts drop out), 0.95M tris; near 84 / 0.89M; far 117 / 1.38M, both unchanged.
+
+**the first load:** a desktop trace showed 27 s blocked in "Evaluate module". every speed-up below is exact: `scape:map --stats` is identical to main, and the `scape:bench` fingerprint of every placed instance is identical on mobile and ultra.
+
+- **the islet loop** asked `coastWarp` for every islet on every height read. the warp is bounded, so far islets are skipped first. this was most of the `Math.sin` hash time, a third of the load.
+- **`valueNoise`** remembers its lattice-corner hashes in a direct-mapped table.
+- **the waterway router** tests a grid edge as a three-line hull corridor instead of a 25-read hull circle at every step, and answers the reverse edge from the same test. the route is still simplified and audited at full resolution. the survey went from 11.9 s to 3.4 s.
+- **the treeline:** most dressing rolls are decided by a vigour bracket before the upwind exposure walk finishes (`treeline.rollUnder`).
+- **the scatter claims** are bucketed by ground cell (`claims.ts`) instead of being scanned per dart.
+- **smaller exact cuts:** `distanceToPath` takes one root of the least square, the fjord keeps its trig, and `drawnSurfaceOf` caches its corners.
+- **headless (bun):**
+
+  | | before | after |
+  |---|---|---|
+  | survey | 11.9 s | 3.4 s |
+  | dressing, mobile | 5.5 s | 3.8 s |
+  | dressing, ultra | 30.3 s | ~13 s |
+  | `bun test` | ~2 min | 45 s |
+
+**the code and the tools:**
+
+- `config.ts` went from 3202 to 1616 lines. the sites, the lights and the sea moved into `config-sites.ts`, `config-lights.ts` and `config-sea.ts`.
+- the studio gained `--hide`, `probe x y` and `eval`. the census now counts points and lines.
+- `scape:bench` times the first load headless and fingerprints it.
+- the light gate lints only the changed files.
+- the brief's map section is a summary unless asked for.
+
 ## the frame, drawn for what it shows
 
 a rehaul of how the scape is drawn and how a run works on it, rather than one more thing in the world.

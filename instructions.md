@@ -21,7 +21,7 @@ the world already has more sites than most frames show — six islands, a hundre
 - **material** — smooth terrain with real normal detail, wet versus dry, specular water with the sky in it, roughness that varies, snow that sits on top of things and not inside them, foliage that transmits light
 - **atmosphere** — aerial perspective with distance, haze that is denser low, fog that lies in the valleys, rain that darkens and streaks
 - **scale and detail** — what close zoom shows (richer geometry, texture detail), what wide zoom shows (silhouettes, coastline, the sea), and an lod that makes the first cost nothing at the second
-- **cost** — fewer draws, fewer triangles, cheaper passes, a faster build; every tier, mobile first
+- **cost** — fewer draws, fewer triangles, cheaper passes, a faster first load (`scape:bench`); every tier, mobile first
 
 a new prop or site is still allowed, when it is the cheapest way to make a frame more believable. it is no longer the default.
 
@@ -47,13 +47,13 @@ bun run brief                                # ~2 s: inventory, recent themes, o
 bun run studio shot --poses tour --census    # the before picture, and where the triangles go
 ```
 
-read the six pngs only if the census does not already tell you what to work on. the `near` and `default` frames are the two most people see.
+read the six pngs only if the census does not already tell you what to work on. the `near` and `default` frames are the two most people see. when something in a frame reads wrong and you do not know what draws it, `studio probe x y` and `studio shot --hide <name>` find it in seconds.
 
 then read, and only these: [`src/scene/config.ts`](src/scene/config.ts) (the tuning surface), [`src/scene/quality.ts`](src/scene/quality.ts) (the tiers), `node_modules/threejs-scene/llms.txt` (the runtime's exact signatures — read it rather than guessing), [`threejs-scene-api.md`](threejs-scene-api.md) (what exists before you write a helper), and the readme section `brief --sections readme` points at.
 
 ## 3. pick one thing
 
-**one theme per run**, with a headline someone could picture or measure: "terrain normals from the height field", "contact shadows under every prop", "aerial perspective that blues the far islands", "half the draw calls at the default zoom". not a sweep of unrelated tweaks.
+**one rendering theme per run, plus one refactor or cost cut that leaves the code smaller or the load faster** — the theme with a headline someone could picture or measure: "terrain normals from the height field", "contact shadows under every prop", "aerial perspective that blues the far islands", "half the draw calls at the default zoom". not a sweep of unrelated tweaks.
 
 pick by looking: what in the `near` and `default` frames reads as least real, or what in the census costs most for least. do not repeat a theme `brief` lists.
 
