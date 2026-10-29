@@ -2,6 +2,7 @@ import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
 import { box, deg, mergeParts, part } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -230,7 +231,7 @@ function frame (
     const to       = sectionPoint(top * (chord + 1) / CHORDS, full, sheer)
     const dy       = to.y - from.y
     const dz       = (to.z - from.z) * side
-    const span     = Math.hypot(dy, dz)
+    const span     = hypot(dy, dz)
     const [ y, z ] = heel((from.y + to.y) / 2, (from.z + to.z) / 2 * side)
 
     parts.push(part(box(FRAME_SIDING, span * 1.12, FRAME_THICK), {
@@ -263,7 +264,7 @@ function planking (
 
     const here     = sectionPoint(t, bay.full, bay.sheer)
     const next     = sectionPoint(t + 0.04, bay.full, bay.sheer)
-    const tangent  = Math.hypot(next.y - here.y, next.z - here.z)
+    const tangent  = hypot(next.y - here.y, next.z - here.z)
     const [ y, z ] = heel(here.y, here.z)
 
     parts.push(part(box(bay.span * 1.06, 0.06, 0.24), {

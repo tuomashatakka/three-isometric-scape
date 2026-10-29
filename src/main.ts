@@ -1,8 +1,10 @@
 import './style.css'
+import { installBridge } from './bridge.ts'
 import { SCAPE_CONFIG } from './scene/config.ts'
 import type { ScapeConfig } from './scene/config.ts'
 import { createConfigAccess } from './scene/config-access.ts'
 import { createIsometricScape } from './scene/create-isometric-scape.ts'
+import type { IsometricScape } from './scene/create-isometric-scape.ts'
 import type { AtmosphereQuality } from './scene/quality.ts'
 import {
   describeQualitySignals,
@@ -183,6 +185,9 @@ const card = cardSlot && firstCanvas.parentElement
 
 let mounted: Mounted | null = null
 
+/** The live scene, for the `?bridge` instruments. */
+let live: IsometricScape['ctx'] | null = null
+
 // the loading overlay ships in index.html so it is visible on the very first
 // paint. dismissed here once data-scape-state reaches 'ready' — meaning the
 // first frame is genuinely drawn, not merely that the module finished importing.
@@ -317,8 +322,10 @@ function mount (canvas: HTMLCanvasElement, quality: AtmosphereQuality): void {
 
   canvas.parentElement?.append(meter.element)
 
+  live    = built.ctx
   mounted = {
     dispose () {
+      live = null
       meter.dispose()
       panel.dispose()
       release()
@@ -347,6 +354,9 @@ const recovery = createContextRecovery({
   // leave a verdict behind for the next ordinary load to inherit.
   remember: !auditing,
 })
+
+if (params.has('bridge'))
+  installBridge({ config: scape, rebuild: () => recovery.rebuild(), ctx: () => live })
 
 if (recovery.build())
   diagnostics.say(compactLayout ? 'ready · tap and drag to explore' : 'ready · select the canvas for keys')

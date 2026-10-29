@@ -15,7 +15,9 @@ the tool reference for anything working on this repository without a pair of eye
 | what colour is where on a prop | `bun run prop:map <name> --audit` | ~40 ms, no browser |
 | what does the roster look like | `/props.html` (dev server) | one gpu context |
 | how does one prop measure up | `/props.html?prop=<name>` | one gpu context |
-| does it still draw at all | `bun run scape:shot` | ~20 s per pose |
+| what does it look like, live | `bun run studio shot …` (skill: `scape-studio`) | ~60 s once, then ~5–15 s a look |
+| where do the triangles and draws go | `bun run studio census` (skill: `scape-perf`) | seconds, once the studio is up |
+| does it still draw at all | `bun run scape:shot` | ~90 s per pose, cold browser |
 | did my change move the picture | `bun run scape:diff --ref origin/main` | minutes, builds a ref |
 
 ---
@@ -295,6 +297,19 @@ bun run dev     # then open /props.html
 
 both are real urls. `esc` returns to the sheet, `1`–`4` solo a pane, `0` restores, `f` frames, `g`/`x`/`w`/`b` toggle grid, axes, wire and bounds.
 
+### `bun run studio` — a warm browser
+
+```sh
+bun run studio serve                                  # background, once; "studio ready on :4199"
+bun run studio shot --poses tour [--census]           # .scape/studio/<pose>.png + draws/tris
+bun run studio shot --zoom 12 --set camera.focusX=-12 --name yard
+bun run studio shot --set archipelago.worldSize=1800 --rebuild
+bun run studio shot --tier desktop
+bun run studio census | status | stop
+```
+
+[`scripts/scape-studio.ts`](scripts/scape-studio.ts) keeps one chromium page open on vite's dev server (port 4175) and drives it through `?bridge` ([`src/bridge.ts`](src/bridge.ts)): `scape.write(path, value)`, `reset()`, `rebuild()`, `census()`, `info()`. every look resets to the opening config (`STILL` applied), applies the pose and the `--set`s, waits a few drawn frames and photographs. the page follows source edits by itself (vite reload), so the loop is edit → look. `camera.focusX/focusZ/viewSize/rotation` are live knobs now — the camera snaps to a change in them — which is what lets a look move the camera without a reload. the full how-to is the `scape-studio` skill in `.claude/skills/`.
+
 ### `bun run scape:shot` — a still
 
 ```sh
@@ -489,31 +504,33 @@ noise floor, measured: two captures of the same commit differ in ~14% of pixels 
 
 ## the gate
 
-one command, and it is all four:
-
 ```sh
-bun run gate        # lint, typecheck, test, build — concurrently, one summary
+bun run gate               # light: lint+typecheck side by side, then the tests the diff reaches, vite build, prop audit
+bun run gate --full        # what CI runs: every test, `bun run build`
+bun run gate --only test   # a subset
+bun run gate --base HEAD~1 # what "changed" is measured against (default origin/main)
 ```
 
 ```text
-gate · 16.8s
+gate · 113.5s · light, tests changed since origin/main
 
-lint       ok      2.1s
-typecheck  ok      1.5s
-test       ok     16.8s
-build      ok      1.9s
+lint        ok      2.7s
+typecheck   ok     11.3s
+test        ok     99.9s
+build       ok      1.8s
+prop:audit  ok      0.4s
 ```
 
-nothing in the gate contends with anything else in it — no test opens a port, spawns a process or launches a browser, and `vite build` only ever *writes* `dist/`, which none of the others read — so they run at once. the wall clock is the slowest one rather than the sum, and a clean run is four lines instead of four screens. **only a failure prints its output**, and it prints all of it.
+sized for a four-core cloud container: never more than two processes at once (five in parallel is what got the old gate killed for memory), tests picked by `bun test --changed=<base>` off the import graph, lint cached in `node_modules/.cache/eslint/`, and `vite build` without its second `tsc` (the typecheck stage already ran it). **only a failure prints its output.** a change to `config.ts` reaches nearly every test; a change to one prop reaches a handful. run `--full` before merging a change to generation — CI runs it either way.
 
-`--only lint,test` runs a subset. `--sequential` is the escape hatch for a one- or two-core box, where four cpu-bound processes thrash worse than they parallelise. `--fast` drops `build`'s redundant second `tsc` pass and is off by default: the moment this stops running the exact command CI runs is the moment "gate green, ci red" becomes possible.
+the suite as a whole is ~2 min, down from ~12: one survey of the default archipelago is ~12 s, and `surveyArchipelago` is memoized on the config's content, so forty-odd test files share one instead of each paying for their own.
 
-the four underneath are still there, still in this order, and still all clean before anything is pushed:
+the scripts underneath:
 
 ```sh
-bun run lint        # eslint --max-warnings 0; a warning is a failure
+bun run lint        # eslint --max-warnings 0 --cache; a warning is a failure
 bun run typecheck   # tsc --noEmit
-bun test            # bun test
+bun test            # every test
 bun run build       # tsc --noEmit && vite build
 ```
 

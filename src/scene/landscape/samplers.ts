@@ -4,6 +4,7 @@ import type { Footpaths } from './footpath.ts'
 import type { Vec2 } from './path.ts'
 import { SKERRY_WATERLINE } from './skerry.ts'
 import type { SkerryGuard } from './skerry.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -169,7 +170,7 @@ export function createTreadSampler (paths: Footpaths, rng: SeededRng): (() => Ve
       const a = path.points[index]
       const b = path.points[index + 1]
 
-      total += Math.hypot(b.x - a.x, b.z - a.z)
+      total += hypot(b.x - a.x, b.z - a.z)
       legs.push({ a, b })
       reach.push(total)
     }
@@ -199,7 +200,7 @@ export function createTreadSampler (paths: Footpaths, rng: SeededRng): (() => Ve
     const along    = rng.next()
     const dx       = b.x - a.x
     const dz       = b.z - a.z
-    const span     = Math.hypot(dx, dz) || 1
+    const span     = hypot(dx, dz) || 1
 
     // Across the tread, not the verge: the stones are the bare middle, and the
     // grass thinning either side of them is what makes the edge read as an edge.

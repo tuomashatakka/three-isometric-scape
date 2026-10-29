@@ -1,4 +1,5 @@
 import { hash2, smoothstep } from 'threejs-scene'
+import { hypot } from './hypot.ts'
 
 
 /**
@@ -73,7 +74,7 @@ export function sampleHeight (
     weight *= 0.48
   }
 
-  const radialLift = Math.max(0, 1 - Math.hypot(x, z) / liftRadius) * liftAmount
+  const radialLift = Math.max(0, 1 - hypot(x, z) / liftRadius) * liftAmount
   return (total / weightTotal * 2 - 1 + radialLift) * amplitude
 }
 

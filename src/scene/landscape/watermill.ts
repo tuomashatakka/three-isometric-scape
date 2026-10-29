@@ -2,6 +2,7 @@ import { LADE_FEED, WATERMILL_SINK, WHEEL_REACH } from '../props/watermill.ts'
 import type { Obstacle } from './footpath.ts'
 import type { Vec2 } from './path.ts'
 import type { Standing } from './steading.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -249,7 +250,7 @@ function faceTheWater (search: WatermillSearch, stand: Vec2, at: number): number
   const near = alongCourse(search.course, at)
   const dx   = near.x - stand.x
   const dz   = near.z - stand.z
-  const span = Math.hypot(dx, dz)
+  const span = hypot(dx, dz)
 
   if (span < 1e-3)
     return null
@@ -358,7 +359,7 @@ function bankStands (search: WatermillSearch, avoid: readonly Obstacle[]): Stand
           continue
 
         if (avoid.some(thing =>
-          Math.hypot(thing.x - x, thing.z - z) < thing.radius + WATERMILL_FOOTING))
+          hypot(thing.x - x, thing.z - z) < thing.radius + WATERMILL_FOOTING))
           continue
 
         // Before the sill, because the sill is measured in the frame this sets.
@@ -403,7 +404,7 @@ function mouthAbove (
 
   for (let index = Math.floor(stand.at); index >= 1; index -= 1) {
     const point = search.course[index]
-    const lade  = Math.hypot(point.x - stand.x, point.z - stand.z)
+    const lade  = hypot(point.x - stand.x, point.z - stand.z)
 
     if (lade < LADE_LEAST)
       continue

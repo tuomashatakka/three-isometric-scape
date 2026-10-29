@@ -2,6 +2,7 @@ import type { IsleSite } from './height.ts'
 import type { Vec2 } from './path.ts'
 import { faceToward } from './steading.ts'
 import type { Standing } from './steading.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -159,7 +160,7 @@ export function findCroftSite (
     if (index === taken || isle.radius < search.minIsle)
       continue
 
-    const fromIsle = Math.hypot(isle.x - harbour.x, isle.z - harbour.z)
+    const fromIsle = hypot(isle.x - harbour.x, isle.z - harbour.z)
 
     if (fromIsle > search.reach)
       continue
@@ -177,7 +178,7 @@ export function findCroftSite (
         if (freeboard < search.freeboard)
           continue
 
-        const fromHarbour = Math.hypot(x - harbour.x, z - harbour.z)
+        const fromHarbour = hypot(x - harbour.x, z - harbour.z)
 
         // A short row first, then dry rock under the sill. The freeboard term is
         // a tie-break rather than a preference — it is already past a threshold,

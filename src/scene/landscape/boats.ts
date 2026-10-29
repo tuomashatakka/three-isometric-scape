@@ -21,6 +21,7 @@ import type { ScheduledBoatSample } from './boat-motion.ts'
 import { yawAlong } from './layout.ts'
 import { BOAT_HULL_RADIUS, sampleWaterway } from './waterway.ts'
 import type { RouteSample, WaterwayNetwork, WaterwayRoute } from './waterway.ts'
+import { hypot } from '../hypot.ts'
 
 /**
  * Trail ring buffer dimensions. Six samples spanning roughly 2.5 seconds of
@@ -182,7 +183,7 @@ function routeBounds (route: WaterwayRoute, y: number): Sphere {
   let radius = 0
 
   for (const point of route.points)
-    radius = Math.max(radius, Math.hypot(point.x - x, point.z - z))
+    radius = Math.max(radius, hypot(point.x - x, point.z - z))
 
   return new Sphere(
     new Vector3(x, y, z),
@@ -243,7 +244,7 @@ function advanceTrail (wake: BoatWakeEmitter, pose: BoatPose, forwardX: number, 
 
   const dx   = wake.x - trail.lastX
   const dz   = wake.z - trail.lastZ
-  const step = Math.hypot(dx, dz)
+  const step = hypot(dx, dz)
   trail.accum += step
 
   if (!trail.filled || trail.accum >= TRAIL_SPACING) {
@@ -324,7 +325,7 @@ export function createBoatFleet (options: BoatFleetOptions): BoatFleet {
 
       const dx           = after.x - before.x
       const dz           = after.z - before.z
-      const desiredAngle = Math.hypot(dx, dz) > 1e-6
+      const desiredAngle = hypot(dx, dz) > 1e-6
         ? Math.atan2(dz, dx)
         : pose.angle
 

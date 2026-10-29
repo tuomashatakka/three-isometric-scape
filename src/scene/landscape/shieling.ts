@@ -3,6 +3,7 @@ import { distanceToPath } from './path.ts'
 import type { Vec2 } from './path.ts'
 import { faceToward } from './steading.ts'
 import type { Standing } from './steading.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -227,7 +228,7 @@ export function findShielingSite (
         continue
 
       if (avoid.some(thing =>
-        Math.hypot(thing.x - x, thing.z - z) < thing.radius + SHIELING_FOOTING))
+        hypot(thing.x - x, thing.z - z) < thing.radius + SHIELING_FOOTING))
         continue
 
       const wet = toWater(search, x, z)

@@ -6,6 +6,7 @@ import { buildProp, resolvePalette } from '../props/index.ts'
 import type { TideState } from '../tide.ts'
 import { hauledSeals, sealAshore, sealClearance } from './haulout.ts'
 import type { Haulout, HauledSeal } from './haulout.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -98,7 +99,7 @@ function colonyBounds (seals: readonly HauledSeal[]): Sphere {
   let radius = 0
 
   for (const seal of seals)
-    radius = Math.max(radius, Math.hypot(seal.x - x, seal.z - z))
+    radius = Math.max(radius, hypot(seal.x - x, seal.z - z))
 
   return new Sphere(new Vector3(x, y, z), radius + (maxY - minY) * 0.5 + SLIP + 2)
 }

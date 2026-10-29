@@ -1,5 +1,5 @@
 import { Group, Mesh } from 'three'
-import type { BufferGeometry, InstancedMesh } from 'three'
+import type { BufferGeometry, Camera, InstancedMesh } from 'three'
 import { createSeededRng } from 'threejs-scene'
 import type { SeededRng } from 'threejs-scene'
 
@@ -13,7 +13,6 @@ import type { Footprint } from '../props/ploppable.ts'
 import { BEACON_SINK } from '../props/beacon.ts'
 import { CROFT_SINK } from '../props/croft.ts'
 import { MILL_SINK } from '../props/mill.ts'
-import { buildWashLine } from '../props/wash.ts'
 import type { AtmosphereQuality } from '../quality.ts'
 import { PLOP_SINK } from './fixtures.ts'
 import type { TiltWeight } from './align.ts'
@@ -33,11 +32,17 @@ import { createGrazingTest } from './grazing.ts'
 import { yawAlong } from './layout.ts'
 import type { Plot, Vec2 } from './layout.ts'
 import { createSkerrySampler, createTreadSampler } from './samplers.ts'
-import { washLineFrame } from './wash.ts'
+import { raiseWashLine } from './wash.ts'
+import { createScatterLod } from './scatter-lod.ts'
+import type { ScatterLodConfig } from './scatter-lod.ts'
+import { hypot } from '../hypot.ts'
 
 
 export interface Dressing {
   object: Group
+
+  /** Pick which scatter draws are worth drawing from this camera. See `scatter-lod.ts`. */
+  update(camera: Camera, canvasHeight: number, lod: ScatterLodConfig): void
   dispose(): void
 }
 
@@ -423,15 +428,8 @@ export function createDressing (
     for (const anchor of [ well, logPile ])
       solver.reserve(anchor.x + ox, anchor.z + oz, 4)
 
-    // The posts and rope; the cloth is `wash.ts`'s own draw. A line of zero
-    // height is a farm with no line, and keeps its ground for the trees.
-    const line = washLineFrame(landmass, heightAt)
-    if (config.wash.height > 0) {
-      heroes.push(buildWashLine({ ...config.wash, rng: rng.fork(`wash-line-${landmass.id}`), palette })
-        .rotateY(line.angle)
-        .translate(line.x, line.y, line.z))
-      solver.reserve(line.x, line.z, landmass.survey.places.washLine.radius)
-    }
+    // The posts and rope; the cloth is `wash.ts`'s own draw.
+    raiseWashLine(landmass, config, heightAt, rng.fork(`wash-line-${landmass.id}`), palette, heroes, (x, z, r) => solver.reserve(x, z, r))
 
     // The hay rack belongs beside a field, not in the yard.
     const firstPlot: Plot | undefined = landmass.survey.layout.plots[0]
@@ -671,7 +669,7 @@ export function createDressing (
   ): Vec2 | null {
     const spacingClear = (x: number, z: number): boolean =>
       solver.claims.every(claim =>
-        Math.hypot(claim.x - x, claim.z - z) > claim.radius * claimScale + radius)
+        hypot(claim.x - x, claim.z - z) > claim.radius * claimScale + radius)
 
     for (let attempt = 0; attempt < attempts; attempt += 1) {
       const { x, z } = sample()
@@ -718,11 +716,11 @@ export function createDressing (
     // asking the working's disc rather than its rectangle.
     const onWorking = (x: number, z: number): boolean =>
       zones.onPeat(x, z) ||
-        workings.some(working => Math.hypot(x - working.x, z - working.z) < working.radius) &&
+        workings.some(working => hypot(x - working.x, z - working.z) < working.radius) &&
         heightAt(x, z) > water + 0.4
 
     const harbourShallows = (x: number, z: number): boolean => {
-      if (!harbourAnchors.some(anchor => Math.hypot(x - anchor.x, z - anchor.z) <= 30))
+      if (!harbourAnchors.some(anchor => hypot(x - anchor.x, z - anchor.z) <= 30))
         return false
 
       const height = heightAt(x, z)
@@ -1166,10 +1164,19 @@ export function createDressing (
     }, foliage))
   }
 
+  // Last: the tiles are cut from the finished instance matrices.
+  const scatter = createScatterLod(owned.instances, config.lod.tile)
+
+  for (const mesh of scatter.meshes)
+    if (!mesh.parent)
+      root.add(mesh)
+
   return {
     object: root,
+    update: scatter.update,
 
     dispose () {
+      scatter.dispose()
       for (const prop of plopped)
         prop.dispose()
       plopped.length = 0
@@ -1188,5 +1195,5 @@ export function createDressing (
 }
 
 // perf: one merged draw for the whole steading, one InstancedMesh per scattered
-// prop type. Structural props pay the solver's spacing check; ground cover does
-// not, which is the difference between a 40 ms build and a 4 s one.
+// prop type (tiled and size-culled by `scatter-lod.ts`). Ground cover skips the
+// solver's spacing check: the difference between a 40 ms build and a 4 s one.

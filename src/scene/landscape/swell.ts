@@ -2,6 +2,7 @@ import type { IUniform, Vector2 } from 'three'
 import type { ScapeConfig } from '../config.ts'
 import type { WindState } from '../wind.ts'
 import { MAX_DEPTH } from './shore-mask.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -103,7 +104,7 @@ export function swellBearings (
   dirX:   number,
   dirZ:   number,
 ): readonly (readonly [ number, number ])[] {
-  const length = Math.hypot(dirX, dirZ)
+  const length = hypot(dirX, dirZ)
   const runX   = length < 1e-6 ? 1 : dirX / length
   const runZ   = length < 1e-6 ? 0 : dirZ / length
 

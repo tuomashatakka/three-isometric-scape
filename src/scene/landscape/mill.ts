@@ -1,5 +1,6 @@
 import { distanceToPath } from './path.ts'
 import type { Vec2 } from './path.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -179,16 +180,16 @@ export function findMillSite (
       const x = -reach + ix / (MILL_PROBES - 1) * reach * 2
       const z = -reach + iz / (MILL_PROBES - 1) * reach * 2
 
-      if (Math.hypot(x, z) > reach)
+      if (hypot(x, z) > reach)
         continue
 
-      const fromYard = Math.hypot(x - yard.x, z - yard.z)
+      const fromYard = hypot(x - yard.x, z - yard.z)
 
       if (fromYard < fromFarm)
         continue
       if (lines.some(line => distanceToPath(line.points, x, z) < line.clearance))
         continue
-      if (avoid.some(thing => Math.hypot(thing.x - x, thing.z - z) < thing.radius + search.sweep * 0.7))
+      if (avoid.some(thing => hypot(thing.x - x, thing.z - z) < thing.radius + search.sweep * 0.7))
         continue
 
       const dryness = search.ground(x, z) - search.waterLevel
@@ -220,7 +221,7 @@ export function findMillSite (
           // Out to sea on the bearing the island falls away along. At the exact
           // centre there is no such bearing, so the mill turns its back on the
           // farm instead — which is where the open ground is anyway.
-          bearing: Math.hypot(x, z) > 1e-3
+          bearing: hypot(x, z) > 1e-3
             ? Math.atan2(z, x)
             : Math.atan2(z - yard.z, x - yard.x),
           prominence: rise,

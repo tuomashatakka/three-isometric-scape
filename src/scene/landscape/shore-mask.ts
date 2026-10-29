@@ -2,6 +2,7 @@ import { DataTexture, LinearFilter, RGBAFormat } from 'three'
 import type { ScapeConfig } from '../config.ts'
 import type { HeightField } from './height.ts'
 import { surveyRoosts } from './roost.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -120,7 +121,7 @@ export function bakeShoreData (
       // cheap: open sea has no shore to face.
       const gradientX = at(column + 1, row) - at(column - 1, row)
       const gradientZ = at(column, row + 1) - at(column, row - 1)
-      const length    = Math.hypot(gradientX, gradientZ)
+      const length    = hypot(gradientX, gradientZ)
       const seaward   = length > 1e-6 ? 1 / length : 0
 
       data[index]     = Math.round(depth[row * size + column] * 255)

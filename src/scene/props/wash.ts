@@ -2,6 +2,7 @@ import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
 import { box, cyl, deg, mergeParts, part } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -80,7 +81,7 @@ export function buildWashLine ({ length, height, rng, palette }: WashLineOptions
     const y0 = washRopeAt(height, length, t0),
       y1     = washRopeAt(height, length, t1)
 
-    parts.push(part(box(Math.hypot(x1 - x0, y1 - y0) + 0.01, 0.018, 0.018), {
+    parts.push(part(box(hypot(x1 - x0, y1 - y0) + 0.01, 0.018, 0.018), {
       at:     [ (x0 + x1) / 2, (y0 + y1) / 2, 0 ],
       rotate: [ 0, 0, Math.atan2(y1 - y0, x1 - x0) ],
       color:  palette.trimShadow,

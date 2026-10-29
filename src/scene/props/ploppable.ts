@@ -1,6 +1,7 @@
 import { BufferAttribute, BufferGeometry, Color, Mesh } from 'three'
 import type { ColorRepresentation, Material } from 'three'
 import { Prop } from 'threejs-scene/modules/assets'
+import { hypot } from '../hypot.ts'
 
 
 /** Ground height at a point, in world units. */
@@ -157,7 +158,7 @@ function buildBand (
     const [ bx, bz ] = points[next]
     const aLow       = Math.min(levels[index] - baseY - SKIRT_BURY, SKIRT_TOP - 0.05)
     const bLow       = Math.min(levels[next] - baseY - SKIRT_BURY, SKIRT_TOP - 0.05)
-    const length     = Math.hypot(bx - ax, bz - az) || 1
+    const length     = hypot(bx - ax, bz - az) || 1
 
     // Outward horizontal normal of this segment.
     const nx = (bz - az) / length

@@ -2,6 +2,7 @@ import { createSeededRng, smoothstep, valueNoise1d } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 import type { LandmassSurvey } from './archipelago.ts'
 import type { Vec2 } from './path.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -82,7 +83,7 @@ export function findShoreToward (
 ): Vec2 | null {
   const dx             = toward.x - from.origin.x
   const dz             = toward.z - from.origin.z
-  const span           = Math.hypot(dx, dz)
+  const span           = hypot(dx, dz)
   const reach          = from.config.terrain.size * 0.5
   const { waterLevel } = config.terrain
 
@@ -110,7 +111,7 @@ function alongPolyline (points: readonly Vec2[], x: number, z: number): AlongPol
   let total    = 0
 
   for (let index = 0; index < points.length - 1; index += 1)
-    total += Math.hypot(points[index + 1].x - points[index].x, points[index + 1].z - points[index].z)
+    total += hypot(points[index + 1].x - points[index].x, points[index + 1].z - points[index].z)
 
   for (let index = 0; index < points.length - 1; index += 1) {
     const a        = points[index]
@@ -124,7 +125,7 @@ function alongPolyline (points: readonly Vec2[], x: number, z: number): AlongPol
       ? 0
       : Math.min(1, Math.max(0, ((x - a.x) * dx + (z - a.z) * dz) / lengthSq))
 
-    const near = Math.hypot(x - (a.x + dx * t), z - (a.z + dz * t))
+    const near = hypot(x - (a.x + dx * t), z - (a.z + dz * t))
 
     if (near < distance) {
       distance = near
@@ -165,7 +166,7 @@ export function createStrand (
   const { width, crest }           = config.strand
 
   const seabed = waterLevel - seabedDrop
-  const span   = Math.hypot(to.x - from.x, to.z - from.z)
+  const span   = hypot(to.x - from.x, to.z - from.z)
   const steps  = Math.max(2, Math.round(span / 6))
 
   // Three independent streams off one fork, so the line's wander, the crest's

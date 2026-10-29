@@ -2,6 +2,7 @@ import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
 import { box, cyl, mergeParts, part, spread } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -207,7 +208,7 @@ export function buildPierRun (options: PierRunOptions): BufferGeometry {
 
   const parts: BufferGeometry[] = []
   const across                  = angle + Math.PI / 2
-  const run                     = Math.hypot(last.x - root.x, last.z - root.z)
+  const run                     = hypot(last.x - root.x, last.z - root.z)
   const midX                    = (root.x + last.x) / 2
   const midZ                    = (root.z + last.z) / 2
   const cos                     = Math.cos(across)

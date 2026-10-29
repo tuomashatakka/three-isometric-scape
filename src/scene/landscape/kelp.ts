@@ -7,6 +7,7 @@ import { KELP_HEIGHT } from '../props/kelp.ts'
 import type { TideState } from '../tide.ts'
 import { kelpDepth, kelpLean, kelpPlants } from './kelpbed.ts'
 import type { KelpPlant, KelpSkirt } from './kelpbed.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -95,7 +96,7 @@ function forestBounds (plants: readonly KelpPlant[]): Sphere {
   let radius = 0
 
   for (const plant of plants)
-    radius = Math.max(radius, Math.hypot(plant.x - x, plant.z - z))
+    radius = Math.max(radius, hypot(plant.x - x, plant.z - z))
 
   return new Sphere(new Vector3(x, deepest * 0.5, z), radius + longest)
 }

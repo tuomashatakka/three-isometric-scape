@@ -1,10 +1,12 @@
 import { Color, DynamicDrawUsage, InstancedMesh, Object3D, Sphere, Vector3 } from 'three'
-import type { Material } from 'three'
+import type { BufferGeometry, Material } from 'three'
 import { createSeededRng, smoothstep } from 'threejs-scene'
+import type { SeededRng } from 'threejs-scene'
 import type { ScapeConfig, LiveConfig } from '../config.ts'
 import { dayAmount, sunHeight } from '../daylight.ts'
 import { buildProp, resolvePalette } from '../props/index.ts'
-import { LINEN_DROP, LINEN_WIDTH, washRopeAt } from '../props/wash.ts'
+import { LINEN_DROP, LINEN_WIDTH, buildWashLine, washRopeAt } from '../props/wash.ts'
+import type { NordicPalette } from '../props/palette.ts'
 import type { WindState } from '../wind.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from './archipelago.ts'
 
@@ -79,6 +81,30 @@ const LIFT = 0.12
 const LEVEL = Math.PI * 0.46
 
 const TAU = Math.PI * 2
+
+/**
+ * Raise one farm's posts and rope into the steading's merged geometry, and
+ * keep its ground clear. A line of zero height is a farm with no line.
+ */
+export function raiseWashLine (
+  landmass: LandmassSurvey,
+  config:   ScapeConfig,
+  heightAt: (x: number, z: number) => number,
+  rng:      SeededRng,
+  palette:  NordicPalette,
+  heroes:   BufferGeometry[],
+  reserve:  (x: number, z: number, radius: number) => void,
+): void {
+  if (config.wash.height <= 0)
+    return
+
+  const line = washLineFrame(landmass, heightAt)
+
+  heroes.push(buildWashLine({ length: config.wash.length, height: config.wash.height, rng, palette })
+    .rotateY(line.angle)
+    .translate(line.x, line.y, line.z))
+  reserve(line.x, line.z, landmass.survey.places.washLine.radius)
+}
 
 /** Where one farm's line stands. One answer for the posts and the pegs. */
 export function washLineFrame (

@@ -17,6 +17,7 @@ import type { DaylightState } from './daylight.ts'
 import type { AtmosphereQuality } from './quality.ts'
 import { deckFocus, deckReveal, deckViewSize } from './sky-deck.ts'
 import { LAYER } from './layers.ts'
+import { hypot } from './hypot.ts'
 
 
 export interface NightSkyOptions {
@@ -248,7 +249,7 @@ export function bakeField (count: number, seed: number, radius: number, cool: Co
 
     // Faded out before the rim, so the sheet's own edge never draws a circle in
     // the sky the way a hard-edged deck does.
-    const rim = 1 - Math.min(1, Math.max(0, (Math.hypot(place.x, place.z) / radius - 0.72) / 0.28))
+    const rim = 1 - Math.min(1, Math.max(0, (hypot(place.x, place.z) / radius - 0.72) / 0.28))
 
     const glow = 0.34 + 0.66 * bright
 

@@ -2,6 +2,16 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the frame, drawn for what it shows
+
+a rehaul of how the scape is drawn and how a run works on it, rather than one more thing in the world.
+
+- **rendering:** scatter families are size-culled (`lod.pixels`) and tiled for frustum culling close in (`lod.tile`, `lod.wide`), the mist mask moved from a 224k-triangle subdivided sheet into a world-space texture (fixing a mirrored mask), and the ground and foliage are smooth-shaded. mobile, default frame: 3.20M → 0.95M triangles, 167 → 142 draws. `near`: 3.15M → 0.89M triangles, 67 → 84 draws.
+- **build:** `Math.hypot` → `hypot` across 86 files, route-edge caching, a memoized survey. archipelago survey 20 s → 11.5 s; `bun test` ~12 min → ~2 min.
+- **tools:** `bun run studio` keeps one browser warm and drives the page through `?bridge`; a look is ~5–15 s instead of ~90 s, and `census` reports draws and triangles per mesh. the camera knobs are live. project skills in `.claude/skills/` (`scape-studio`, `scape-perf`, `scape-verify`).
+- **gate:** light by default (changed tests, cached lint, two processes at most, ~2 min on a config-wide diff); `--full` is what CI runs.
+- **brief:** `instructions.md` now aims runs at the realism and cost of the whole frame rather than at one more prop.
+
 ## the wash the wind works
 
 every farm now has a washing line across the yard: strutted posts and a sagging rope merged into the steading, and sheets, shirts and towels pegged along it. the wash goes out with the sun, comes in at dusk and when a shower starts, and blows out from plumb with the share of the live wind that crosses the rope, flapping in the gusts.

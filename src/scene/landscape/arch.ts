@@ -2,6 +2,7 @@ import type { ArchConfig } from '../config-arch.ts'
 import type { ScapeConfig } from '../config.ts'
 import { coastBedAt } from './coast.ts'
 import type { Vec2 } from './path.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -396,7 +397,7 @@ export function measureArch (
 ): ArchReport {
   const cos  = Math.cos(arch.bearing)
   const sin  = Math.sin(arch.bearing)
-  const from = Math.hypot(arch.inner.x, arch.inner.z) + arch.girth
+  const from = hypot(arch.inner.x, arch.inner.z) + arch.girth
 
   let wetted  = 0
   let deepest = 0

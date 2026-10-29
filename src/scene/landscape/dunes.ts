@@ -2,6 +2,7 @@ import { smoothstep } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 import { valueNoise } from '../noise.ts'
 import { COAST_BEARINGS, coastBedAt, solveCoastline } from './coast.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -218,7 +219,7 @@ export function solveDunes (config: ScapeConfig): DuneBelt | null {
   }
 
   function depthAt (x: number, z: number): number {
-    const radius = Math.hypot(x, z)
+    const radius = hypot(x, z)
 
     if (radius <= 0)
       return 0

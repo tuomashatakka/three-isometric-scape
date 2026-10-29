@@ -2,6 +2,7 @@ import type { ScapeConfig } from '../config.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from './archipelago.ts'
 import { createZoneTests } from './dressing-zones.ts'
 import type { DressingZones } from './dressing-zones.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -183,7 +184,7 @@ function candidatesOf (
       const x = fromX + dirX * distance
       const z = fromZ + dirZ * distance
 
-      if (Math.hypot(x - landmass.origin.x, z - landmass.origin.z) > inland)
+      if (hypot(x - landmass.origin.x, z - landmass.origin.z) > inland)
         continue
 
       const cover = coverAt(grazeable, x, z, spread)
@@ -207,7 +208,7 @@ function candidatesOf (
   // from the rng, so the same seed lands the same flocks in the same order.
   return found.sort((a, b) =>
     b.cover - a.cover ||
-    Math.hypot(a.x - fromX, a.z - fromZ) - Math.hypot(b.x - fromX, b.z - fromZ))
+    hypot(a.x - fromX, a.z - fromZ) - hypot(b.x - fromX, b.z - fromZ))
 }
 
 /**
@@ -251,7 +252,7 @@ export function planGrazing (
       // the same bearing overlaps the one before it, so without this the whole
       // quota is spent on one hillside.
       if (taken.some(other =>
-        Math.hypot(other.x - candidate.x, other.z - candidate.z) < candidate.radius * SEPARATION))
+        hypot(other.x - candidate.x, other.z - candidate.z) < candidate.radius * SEPARATION))
         continue
 
       taken.push(candidate)

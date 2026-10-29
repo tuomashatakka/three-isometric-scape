@@ -1,5 +1,6 @@
 import {
   BufferAttribute,
+  ClampToEdgeWrapping,
   Color,
   Mesh,
   MeshBasicMaterial,
@@ -32,6 +33,7 @@ import type { TextureCatalogue } from './textures/catalogue.ts'
 import type { WindState } from './wind.ts'
 import type { SeasonState } from './season.ts'
 import { LAYER } from './layers.ts'
+import { hypot } from './hypot.ts'
 
 
 export interface MistOptions {
@@ -132,8 +134,6 @@ const SHEET_WORLD_MULTIPLIER = 4.4
 /** Upright slice spacing as a fraction of the widest authored frame. */
 const SLICE_VIEW_FRACTION = 0.445
 
-/** Preserve the mask's world-space sampling density as its quad grows. */
-const MASK_CELL_UNITS = 20
 
 export function mistSheetSize (worldSize: number): number {
   return worldSize * SHEET_WORLD_MULTIPLIER
@@ -167,9 +167,8 @@ function islandExtents (config: ScapeConfig): { x: number, z: number, size: numb
   })
 }
 
-function mistMaskSegments (size: number): number {
-  return Math.ceil(size / MASK_CELL_UNITS)
-}
+/** Texels across the island mask. 512 over the sheet is about thirteen metres a texel. */
+const MASK_SIZE = 512
 
 /** Radial fade band, as fractions of the terrain extent. */
 const REACH_IN  = 0.16
@@ -200,49 +199,61 @@ const SMOKE_OUT = 2
 const SMOKE_EDGE_IN  = 0.68
 const SMOKE_EDGE_OUT = 0.96
 
+/** Which of the mask's channels a family is cut by: red, green, or neither (the upright slices). */
+type MaskChannel = 'land' | 'smoke' | 'none'
+
+const MASK_CHANNELS: Record<MaskChannel, Vector3> = {
+  land:  new Vector3(1, 0, 0),
+  smoke: new Vector3(0, 1, 0),
+  none:  new Vector3(0, 0, 1),
+}
+
 const WHITE    = new Color('#ffffff')
 const viewAxis = new Vector3()
 
 /**
- * A horizontal sheet that fades out to sea.
+ * Where the mist and the sea smoke stand, as one world-space mask.
  *
- * The sheets are pinned to the world, and a flat sheet wide enough to survive
- * any pan is also wide enough to lie over every pixel of open water in the
- * frame — several of them stacked, which is a uniform white glaze over the lake
- * rather than weather. Ground mist collects over land and shallows in the first
- * place, so the alpha is baked to fall off radially: dense on the island, gone
- * by the time the eye is out at sea, and never an edge you can see.
+ * The sheets are pinned to the world and wide enough to lie over every pixel
+ * of open water in the frame, so both families are cut by a mask baked here:
+ * **red** is the ground mist, dense on the islands and gone by the time the eye
+ * is out at sea; **green** is the sea smoke, which starts at the coastline,
+ * builds offshore and gives out before the sheet's own straight edge.
+ *
+ * A texture rather than vertex colours, and that was a performance finding: a
+ * vertex mask needed the sheet subdivided every twenty metres, which on a
+ * six-kilometre quad is 224k triangles a sheet for a gradient. The texture is
+ * read in world metres off the weather bank's varying, so each sheet is two
+ * triangles — and the mask can no longer disagree with the sheet's rotation,
+ * which the vertex version did: it read the plane's `y` as world `z`, so every
+ * island's mist stood over its mirror image across the equator of the map.
  */
-function sheetGeometry (size: number, config: ScapeConfig): PlaneGeometry {
-  const segments = mistMaskSegments(size)
-  const geometry = new PlaneGeometry(size, size, segments, segments)
-  const position = geometry.getAttribute('position')
-  const colors   = new Float32Array(position.count * 4)
-  const islands  = islandExtents(config)
+export function bakeMistMask (data: Uint8Array, size: number, config: ScapeConfig): void {
+  const islands = islandExtents(config)
+  const half    = size * 0.5
 
-  for (let index = 0; index < position.count; index += 1) {
-    const x      = position.getX(index)
-    const z      = position.getY(index)
-    const offset = index * 4
-    let alpha    = 0
+  for (let row = 0; row < MASK_SIZE; row += 1)
+    for (let column = 0; column < MASK_SIZE; column += 1) {
+      const x = ((column + 0.5) / MASK_SIZE - 0.5) * size
+      const z = ((row + 0.5) / MASK_SIZE - 0.5) * size
+      let land   = 0,
+        offshore = 1
 
-    for (const island of islands) {
-      const distance = Math.hypot(x - island.x, z - island.z)
-      alpha = Math.max(alpha, 1 - smoothstep(
-        island.size * REACH_IN,
-        island.size * REACH_OUT,
-        distance,
-      ))
+      for (const island of islands) {
+        const distance = hypot(x - island.x, z - island.z)
+
+        land     = Math.max(land, 1 - smoothstep(island.size * REACH_IN, island.size * REACH_OUT, distance))
+        offshore = Math.min(offshore, smoothstep(island.landRadius * SMOKE_IN, island.landRadius * SMOKE_OUT, distance))
+      }
+
+      const offset = (row * MASK_SIZE + column) * 4
+      const edge   = 1 - smoothstep(half * SMOKE_EDGE_IN, half * SMOKE_EDGE_OUT, hypot(x, z))
+
+      data[offset]     = Math.round(land * 255)
+      data[offset + 1] = Math.round(offshore * edge * 255)
+      data[offset + 2] = 0
+      data[offset + 3] = 255
     }
-
-    colors[offset]     = 1
-    colors[offset + 1] = 1
-    colors[offset + 2] = 1
-    colors[offset + 3] = alpha
-  }
-
-  geometry.setAttribute('color', new BufferAttribute(colors, 4))
-  return geometry
 }
 
 /**
@@ -272,56 +283,6 @@ function sliceGeometry (width: number, height: number): PlaneGeometry {
     colors[offset + 3] = (1 - smoothstep(0.5, 1, across)) *
       smoothstep(0, 0.08, up) *
       (1 - smoothstep(0.16, 1, up))
-  }
-
-  geometry.setAttribute('color', new BufferAttribute(colors, 4))
-  return geometry
-}
-
-/**
- * A horizontal sheet that only exists off the coast.
- *
- * The ground mist's profile turned inside out, and for a physical reason rather
- * than a compositional one. Sea smoke is water steaming into air colder than it
- * is, so it stands over open water and nowhere else — which is exactly the part
- * of the map the mist sheets have already faded out of. Nothing over the
- * island, full strength a couple of island-radii out, and gone again before the
- * sheet's own edge.
- *
- * There is no ice term in here, and there does not need to be one: the smoke
- * only ever has a strength during the weeks the sea has not shut yet, so the
- * open water it wants is all the water there is. See `seaSmokeAmount`.
- */
-function smokeGeometry (size: number, config: ScapeConfig): PlaneGeometry {
-  const segments = mistMaskSegments(size)
-  const geometry = new PlaneGeometry(size, size, segments, segments)
-  const position = geometry.getAttribute('position')
-  const colors   = new Float32Array(position.count * 4)
-  const half     = size * 0.5
-  const islands  = islandExtents(config)
-
-  for (let index = 0; index < position.count; index += 1) {
-    const x      = position.getX(index)
-    const z      = position.getY(index)
-    const radius = Math.hypot(x, z)
-    const offset = index * 4
-    let offshore = 1
-
-    for (const island of islands) {
-      const distance = Math.hypot(x - island.x, z - island.z)
-
-      offshore = Math.min(offshore, smoothstep(
-        island.landRadius * SMOKE_IN,
-        island.landRadius * SMOKE_OUT,
-        distance,
-      ))
-    }
-
-    colors[offset]     = 1
-    colors[offset + 1] = 1
-    colors[offset + 2] = 1
-    colors[offset + 3] = offshore *
-      (1 - smoothstep(half * SMOKE_EDGE_IN, half * SMOKE_EDGE_OUT, radius))
   }
 
   geometry.setAttribute('color', new BufferAttribute(colors, 4))
@@ -362,10 +323,10 @@ export function createMistLayer ({
   const sheetSize  = mistSheetSize(config().archipelago.worldSize)
   const waterLine  = config().terrain.waterLevel
   const amount     = config().atmosphere.mistAmount
-  const geometry   = sheetGeometry(sheetSize, config())
+  const geometry   = new PlaneGeometry(sheetSize, sheetSize)
   const upright    = sliceGeometry(sheetSize, MIST_HEIGHT)
-  const offshore   = smokeGeometry(sheetSize, config())
   const texture    = bakeAlphaField(TEXTURE_SIZE, f => bakeMist(f, config().seed ^ 0x53a9))
+  const mask       = bakeAlphaField(MASK_SIZE, field => bakeMistMask(field, sheetSize, config()), { wrap: ClampToEdgeWrapping })
 
   const mistColor = new Color(config().palette.fog).lerp(WHITE, 0.32)
 
@@ -420,14 +381,14 @@ export function createMistLayer ({
   // `name` is carried purely so a failed program link can be attributed: three
   // prints `Material Name:` and nothing else when a driver declines to link and
   // declines to say why, and an unnamed material makes that line useless.
-  function mistMaterial (map: Texture, opacity: number, name: string, color: Color): MeshBasicMaterial {
+  function mistMaterial (map: Texture, opacity: number, name: string, color: Color, channel: MaskChannel): MeshBasicMaterial {
     const material = new MeshBasicMaterial({
       name,
       map,
       color,
       transparent:  true,
       depthWrite:   false,
-      vertexColors: true,
+      vertexColors: channel === 'none',
       opacity,
       fog:          true,
     })
@@ -438,7 +399,11 @@ export function createMistLayer ({
     // and none of them the ground's. The model matrix is the one frame they all
     // share, and it costs a varying — see `weather-bank.ts`.
     material.onBeforeCompile = (program: WebGLProgramParametersWithUniforms) => {
-      Object.assign(program.uniforms, bankUniforms)
+      Object.assign(program.uniforms, bankUniforms, {
+        uMistMask:        { value: mask },
+        uMistMaskScale:   { value: 1 / sheetSize },
+        uMistMaskChannel: { value: MASK_CHANNELS[channel] },
+      })
 
       program.vertexShader = program.vertexShader
         .replace('#include <common>', `#include <common>\n${WEATHER_BANK_PARS_VERTEX}`)
@@ -446,7 +411,13 @@ export function createMistLayer ({
 
       program.fragmentShader = program.fragmentShader
         .replace('#include <common>', `#include <common>\n${WEATHER_BANK_PARS_FRAGMENT}`)
-        .replace('#include <map_fragment>', WEATHER_BANK_MAP_FRAGMENT)
+        .replace('#include <map_fragment>', `${WEATHER_BANK_MAP_FRAGMENT}
+  vec4 mistMask = texture2D(uMistMask, vWeatherGround * uMistMaskScale + 0.5);
+  diffuseColor.a *= dot(mistMask.rg, uMistMaskChannel.xy) + uMistMaskChannel.z;`)
+        .replace('#include <common>', `#include <common>
+uniform sampler2D uMistMask;
+uniform float uMistMaskScale;
+uniform vec3 uMistMaskChannel;`)
     }
 
     return material
@@ -492,7 +463,7 @@ export function createMistLayer ({
 
   const sheets = Array.from({ length: count }, (_unused, index): MistSheet => {
     const weight   = (1 - index / (count + 1)) * LAYER_ALPHA
-    const material = mistMaterial(tile(index, 1), amount * weight, `mist-${index + 1}`, mistColor)
+    const material = mistMaterial(tile(index, 1), amount * weight, `mist-${index + 1}`, mistColor, 'land')
 
     // Pinned to the world, not to the camera. A sheet that chases the focus
     // point drags its whole cloud pattern across the ground as you pan, which
@@ -510,7 +481,7 @@ export function createMistLayer ({
 
   const slices = Array.from({ length: sliceCount }, (_unused, index): MistSheet => {
     const weight   = (1 - index / (sliceCount + 1)) * SLICE_ALPHA
-    const material = mistMaterial(tile(index, 0.5), amount * weight, `mist-slice-${index + 1}`, mistColor)
+    const material = mistMaterial(tile(index, 0.5), amount * weight, `mist-slice-${index + 1}`, mistColor, 'none')
 
     const mesh          = new Mesh(upright, material)
     mesh.name           = `mist-slice-${index + 1}`
@@ -536,9 +507,9 @@ export function createMistLayer ({
    */
   const smoke = Array.from({ length: smokeCount }, (_unused, index): MistSheet => {
     const weight   = (1 - index / (smokeCount + 1)) * SMOKE_ALPHA
-    const material = mistMaterial(tile(index, 0.62), 0, `sea-smoke-${index + 1}`, smokeColor)
+    const material = mistMaterial(tile(index, 0.62), 0, `sea-smoke-${index + 1}`, smokeColor, 'smoke')
 
-    const mesh      = new Mesh(offshore, material)
+    const mesh      = new Mesh(geometry, material)
     mesh.name       = `sea-smoke-${index + 1}`
     mesh.rotation.x = -Math.PI / 2
     mesh.position.y = waterLine + SMOKE_RISE + index * SMOKE_STEP
@@ -643,8 +614,8 @@ export function createMistLayer ({
       }
       geometry.dispose()
       upright.dispose()
-      offshore.dispose()
       texture.dispose()
+      mask.dispose()
     },
   })
 }

@@ -16,6 +16,7 @@ import type { WeatherState } from './weather.ts'
 import { HAIL_CENTRE, HAIL_WIDTH } from './weather.ts'
 import type { WindState } from './wind.ts'
 import { LAYER } from './layers.ts'
+import { hypot } from './hypot.ts'
 
 
 export interface HailOptions {
@@ -330,7 +331,7 @@ export function createHailLayer ({
       // whose every stone is masked out still costs a draw and a vertex each.
       const focusX = focus?.[0] ?? 0
       const focusZ = focus?.[2] ?? 0
-      const away   = Math.hypot(focusX - cell.x, focusZ - cell.y)
+      const away   = hypot(focusX - cell.x, focusZ - cell.y)
 
       mesh.visible = away < radius + viewSize * SPAN
 

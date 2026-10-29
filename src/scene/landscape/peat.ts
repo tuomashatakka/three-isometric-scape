@@ -6,6 +6,7 @@ import { distanceToTrack, pastureInfluence, plotInfluence, ridgeInfluence } from
 import type { ScapeLayout } from './layout.ts'
 import { MILL_FOOTING } from './mill.ts'
 import type { Tarn } from './tarn.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -165,7 +166,7 @@ const FLOOR_MARGIN = 1.12
 
 /** Ground already spoken for, which no cutting may be dug into. */
 function taken (layout: ScapeLayout, tarn: Tarn | null, x: number, z: number, radius: number): boolean {
-  if (Math.hypot(x - layout.yard.x, z - layout.yard.z) < layout.yard.radius + radius)
+  if (hypot(x - layout.yard.x, z - layout.yard.z) < layout.yard.radius + radius)
     return true
   if (distanceToTrack(layout, x, z) < layout.track.width * 1.5 + radius)
     return true
@@ -173,16 +174,16 @@ function taken (layout: ScapeLayout, tarn: Tarn | null, x: number, z: number, ra
     return true
   if (pastureInfluence(layout, x, z) > 0)
     return true
-  if (layout.mill && Math.hypot(x - layout.mill.x, z - layout.mill.z) < MILL_FOOTING + radius)
+  if (layout.mill && hypot(x - layout.mill.x, z - layout.mill.z) < MILL_FOOTING + radius)
     return true
-  if (layout.chapel && Math.hypot(x - layout.chapel.x, z - layout.chapel.z) < CHAPEL_FOOTING + radius)
+  if (layout.chapel && hypot(x - layout.chapel.x, z - layout.chapel.z) < CHAPEL_FOOTING + radius)
     return true
 
   // The pool, explicitly, and it has to be: the cutting is sited against the
   // ground the basin has already been carved into, and the floor of a tarn is
   // the flattest, lowest ground on the island by a wide margin. Every bribe this
   // search pays would be paid to dig peat out from under standing water.
-  if (tarn && Math.hypot(x - tarn.x, z - tarn.z) < tarn.radius + radius)
+  if (tarn && hypot(x - tarn.x, z - tarn.z) < tarn.radius + radius)
     return true
 
   // And the channel, for the reason the pool's carve keeps out of it: a cutting
@@ -204,7 +205,7 @@ function fallAt (ground: GroundAt, x: number, z: number, reach: number): { x: nu
   const dx = ground(x + reach, z) - ground(x - reach, z)
   const dz = ground(x, z + reach) - ground(x, z - reach)
 
-  const length = Math.hypot(dx, dz)
+  const length = hypot(dx, dz)
 
   // Level ground has no downhill, and inventing one out of floating-point noise
   // is how a cutting on a flat moor faces a different way for every seed that
@@ -359,7 +360,7 @@ export function solvePeatBank (
   // corner and used it as a radius about the face — which is a circle nearly
   // twice the working's own, and on an island this thoroughly spoken for it
   // refused every site there was.
-  const guard = Math.hypot(face, reach) * 0.5
+  const guard = hypot(face, reach) * 0.5
   const step  = layout.landRadius * 2 / CANDIDATES
 
   let best: PeatBank | null = null
@@ -393,7 +394,7 @@ export function solvePeatBank (
       const midX = x - sin * reach * 0.5
       const midZ = z + cos * reach * 0.5
 
-      if (Math.hypot(midX, midZ) > layout.landRadius - guard)
+      if (hypot(midX, midZ) > layout.landRadius - guard)
         continue
       if (taken(layout, tarn, midX, midZ, guard))
         continue

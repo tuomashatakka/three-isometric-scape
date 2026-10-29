@@ -188,6 +188,7 @@ keeping generation in `build`, animation in `update`, resize work in `resize` an
 ```text
 src/
 ├── main.ts                         browser entry and accessible status
+├── bridge.ts                       the `?bridge` remote the studio drives: writes, reset, rebuild, census
 ├── context-recovery.ts             the scape's status store, and the fallback ladder
 ├── url-overrides.ts                every knob the query string may overrule
 ├── style.css                       full-viewport responsive shell
@@ -241,6 +242,8 @@ src/
     ├── config-snowfence.ts         the snow fence's own slice: the height, the setback, and the bite that earns one
     ├── config-hjell.ts             the drying rack's own slice: the rack, the fetch it needs, and the weeks it is loaded
     ├── config-wash.ts              the washing line's own slice: the rope, the fill, and how the wind works the cloth
+    ├── config-lod.ts               how much scatter is drawn at the zoom it is seen at: pixels, tile, wide
+    ├── hypot.ts                    `Math.hypot` without the cost, for the hot loops
     ├── config-kiln.ts              the lime kiln's own slice: the brae it needs, and the weeks it is fired
     ├── config-season.ts            the year's own slice: the phase, the speed, and the snow, turn and ice it derives
     ├── config-crossing.ts          the bridge's own slice: the deck, the bay, the span, and the four refusals
@@ -387,6 +390,7 @@ src/
     │   ├── dressing-enclosures.ts  the pasture wall, the churchyard wall, the plot fences, the head dyke
     │   ├── dressing-harbour.ts     the waterfront: boathouse, net rack, the pots ashore, the trestle, the fish trap
     │   ├── dressing.ts             placement, hero merge, instanced scatter
+    │   ├── scatter-lod.ts          the scatter, hidden under a pixel and tiled for culling close in
     │   └── index.ts                the scene module, and what raycasts
     ├── textures/
     │   ├── catalogue.ts            every texture in the scape, in one list
@@ -438,7 +442,7 @@ scripts/
 ├── args.ts                         the shared command line, and dotted-path overrides
 ├── browser.ts                      finding a chromium, and serving what it looks at
 ├── brief.ts                        where a run starts: inventory, themes, prs, survey
-├── gate.ts                         lint, typecheck, test and build as one answer
+├── gate.ts                         the light gate (changed tests, two processes at most) and --full
 ├── api-digest.ts                   what the runtime exports, and what we use of it
 ├── prop-map.ts                     one prop as ascii, from six angles
 ├── scape-map.ts                    the whole composition as ascii, surveyed
@@ -463,6 +467,7 @@ scripts/
 ├── scape-poses-rotation.ts         the course each field is in, one frame each and two of them together
 ├── scape-poses-harbour.ts          what the settlement builds beside the boats: the smokehouse, the racks, the kiln
 ├── scape-shot.ts                   headless stills, posed and pinned
+├── scape-studio.ts                 one warm browser: looks in seconds, live knobs, the census
 ├── scape-diff.ts                   what a change did to the picture, in numbers
 └── setup.ts                        what a run has before it starts thinking
 ```
@@ -3454,6 +3459,20 @@ four of them, all in the capture harness rather than in the scene, and every one
 **the ready budget is a hang detector again.** 40 s was the figure when this scape was one island. six islands, a waterway router and thirty-odd sited structures later it was about what a loaded box actually needs, and a budget that close to the truth does not fail honestly. it is 150 s, overridable with `SCAPE_READY_BUDGET`, and the shutter is given the same — playwright's own 30 s default is reached on the screenshot rather than on the boot by a heavier tier under a software rasteriser, and that one throws and takes the whole set with it.
 
 **the chromium finder knows both layouts.** playwright renamed the unpack directory partway through the revisions the finder walks: builds up to about r1200 land in `chrome-linux`, newer ones in `chrome-linux64`. a cache populated by a recent `playwright install` holds only the second, so a box with a perfectly good chromium in it reported `NOT FOUND` and cost the run its visual check.
+
+## the frame, drawn for what it shows
+
+the census the studio added (`bun run studio census`) showed where a mobile frame went: **3.2 million triangles at the default whole-archipelago frame**, nearly all of it things too small to see or too far to be in frame. every scattered family was one `InstancedMesh` over the whole world with culling off, so four thousand grass tufts a fifth of a pixel tall were drawn at the default zoom, and the whole world's grass was drawn when the camera stood in one yard. and the two mist sheets were 224k triangles each — a six-kilometre quad subdivided every twenty metres to carry a radial fade in its vertex colours.
+
+- **[`scatter-lod.ts`](src/scene/landscape/scatter-lod.ts)** decides per frame, from the orthographic camera. a family whose median instance projects under `lod.pixels` is not drawn. each family is also cut at build into `lod.tile`-metre tiles with real bounding spheres; inside `lod.wide` metres of view the tiles are drawn and the renderer culls them, and past it the one world-wide mesh is, so the draw count does not multiply exactly when everything is in frame anyway.
+- **the mist mask is a texture.** one 512² bake in world metres (red the ground mist, green the sea smoke), read off the weather bank's varying, so every sheet is two triangles. the vertex version had also read the plane's local `y` as world `z` — every island's mist stood over its mirror image.
+- **smooth shading.** the ground and foliage materials dropped `flatShading`: the terrain already had computed vertex normals, and the facets were the single most diorama-like thing in a close frame. rocks and buildings keep hard edges because their own geometry has them.
+
+the result, mobile tier: default frame **3.20M → 0.95M triangles, 167 → 142 draws**; `near` **3.15M → 0.89M, 67 → 84 draws** (more draws, since the tiles in frame replace one world-wide mesh each, for a third of the triangles).
+
+**the build got cheaper too.** `Math.hypot` was forty per cent of the archipelago survey — it is variadic and overflow-safe, and nothing in a world a few kilometres wide needs either — so every two- and three-argument call is now [`hypot`/`hypot3`](src/scene/hypot.ts). the boat-route search caches each grid edge's wetness across its five legs. the survey went from 20 s to 11.5 s, which is boot time on every page load, and `surveyArchipelago` is memoized on the config's content, which took the test suite from ~12 minutes to ~2.
+
+**the camera knobs are live.** `camera.focusX/focusZ/viewSize/rotation` were read once at build. now a change to any of them snaps the camera there — which is what the studio needed, and what the overlay's camera knobs should always have done.
 
 ## the wash on the line
 

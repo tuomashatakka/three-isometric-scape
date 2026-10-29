@@ -2,6 +2,7 @@ import type { ScapeConfig } from '../config.ts'
 import { resolveIsles } from './height.ts'
 import type { HeightField, IsleSite } from './height.ts'
 import type { Vec2 } from './path.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -115,7 +116,7 @@ export function findBeaconSite (config: ScapeConfig, field: HeightField): Beacon
     if (isle.radius < minRock)
       continue
 
-    const reach = Math.hypot(isle.x, isle.z)
+    const reach = hypot(isle.x, isle.z)
 
     // Scored before the ground is sampled, because the ground is the expensive
     // half: a rock further in than the one already found cannot win however dry

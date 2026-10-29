@@ -5,6 +5,7 @@ import { valueNoise } from '../noise.ts'
 import { toWorld } from './archipelago.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from './archipelago.ts'
 import type { Vec2 } from './path.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -321,7 +322,7 @@ function plantRow ({ survey, landmass, config, rng, angle, shore, landing }: Row
     // The harbour is kept cut, and the place is spent rather than shuffled
     // along: a row that stepped round the jetty would draw a ring of weed
     // against the one thing it is supposed to leave alone. See `kelp.clear`.
-    if (landing && Math.hypot(x - landing.x, z - landing.z) < clear)
+    if (landing && hypot(x - landing.x, z - landing.z) < clear)
       continue
 
     row.push({

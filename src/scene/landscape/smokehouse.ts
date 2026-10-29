@@ -2,6 +2,7 @@ import type { Obstacle } from './footpath.ts'
 import type { Spot } from './landing.ts'
 import { faceToward } from './steading.ts'
 import type { Standing } from './steading.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -162,7 +163,7 @@ export function findSmokehouseSite (
       const z      = bank.z + Math.sin(around) * fromBank
 
       if (avoid.some(thing =>
-        Math.hypot(thing.x - x, thing.z - z) < thing.radius + SMOKEHOUSE_FOOTING))
+        hypot(thing.x - x, thing.z - z) < thing.radius + SMOKEHOUSE_FOOTING))
         continue
 
       const level = search.ground(x, z)

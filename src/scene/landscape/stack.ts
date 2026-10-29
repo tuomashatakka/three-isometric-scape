@@ -2,6 +2,7 @@ import { smoothstep } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 import { valueNoise } from '../noise.ts'
 import { coastBedAt } from './coast.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -277,7 +278,7 @@ export function stackClaim (stack: Stack | null, x: number, z: number): number {
 
   const dx       = x - stack.x
   const dz       = z - stack.z
-  const distance = Math.hypot(dx, dz)
+  const distance = hypot(dx, dz)
   const plan     = stack.planAt(Math.atan2(dz, dx))
 
   return smoothstep(plan, plan * COLUMN, distance)

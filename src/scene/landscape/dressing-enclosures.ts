@@ -13,6 +13,7 @@ import { yawAlong } from './layout.ts'
 import type { Vec2 } from './layout.ts'
 import { SNOW_FENCE_CLAIM } from './snowfence.ts'
 import type { Standing } from './steading.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -333,7 +334,7 @@ function claimAlong (run: readonly Vec2[], walling: Walling, ox: number, oz: num
   let last: Vec2 | null = null
 
   for (const point of run)
-    if (!last || Math.hypot(point.x - last.x, point.z - last.z) >= DYKE_STRIDE) {
+    if (!last || hypot(point.x - last.x, point.z - last.z) >= DYKE_STRIDE) {
       walling.reserve(point.x + ox, point.z + oz, DYKE_CLAIM)
       last = point
     }

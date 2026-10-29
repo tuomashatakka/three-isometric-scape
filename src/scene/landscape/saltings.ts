@@ -3,6 +3,7 @@ import type { ScapeConfig } from '../config.ts'
 import { valueNoise } from '../noise.ts'
 import { COAST_BEARINGS, bearingGap, coastBedAt, solveCoastline } from './coast.ts'
 import type { Vec2 } from './path.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -184,7 +185,7 @@ function offBerths (
 
   for (const berth of berths)
     if (berth)
-      gap = Math.min(gap, smoothstep(0, clear, Math.hypot(x - berth.x, z - berth.z)))
+      gap = Math.min(gap, smoothstep(0, clear, hypot(x - berth.x, z - berth.z)))
 
   return gap
 }
@@ -301,7 +302,7 @@ export function solveSaltings (
   const cosInner = Math.cos(arc * ARC_INNER)
 
   function claimAt (x: number, z: number): number {
-    const radius = Math.hypot(x, z)
+    const radius = hypot(x, z)
 
     if (radius <= 0)
       return 0
@@ -339,7 +340,7 @@ export function solveSaltings (
 
   function levelAt (x: number, z: number): number {
     const angle  = Math.atan2(z, x)
-    const inland = shoreAt(angle) - Math.hypot(x, z)
+    const inland = shoreAt(angle) - hypot(x, z)
 
     // The profile: the mud at the seaward edge, the marsh at the old waterline,
     // and a straight ramp between the two. Landward of the waterline it is the
@@ -357,7 +358,7 @@ export function solveSaltings (
    */
   function gutterShare (x: number, z: number): number {
     const angle  = Math.atan2(z, x)
-    const inland = shoreAt(angle) - Math.hypot(x, z)
+    const inland = shoreAt(angle) - hypot(x, z)
     const across = z * unitX - x * unitZ
     const out    = Math.max(0, -inland)
     const reach  = smoothstep(0, Math.max(1, saltings.out * GUT_REACH), out)

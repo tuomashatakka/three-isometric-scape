@@ -76,7 +76,7 @@ export function nearestRepeat (reach: number): number {
       const dx       = x - ox
       const dy       = y - oy
 
-      nearest = Math.min(nearest, Math.hypot(dx - Math.round(dx), dy - Math.round(dy)))
+      nearest = Math.min(nearest, hypot(dx - Math.round(dx), dy - Math.round(dy)))
     }
 
   return nearest
@@ -105,3 +105,5 @@ export const UNTILE_GLSL = /* glsl */`
   }
 #endif
 `
+
+import { hypot } from '../hypot.ts'

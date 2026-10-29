@@ -2,6 +2,7 @@ import type { Obstacle } from './footpath.ts'
 import type { Vec2 } from './path.ts'
 import { faceToward } from './steading.ts'
 import type { Standing } from './steading.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -240,7 +241,7 @@ export function skylineClearance (
   site:   Vec2,
   crest:  number,
 ): number {
-  const span  = Math.hypot(site.x - yard.x, site.z - yard.z)
+  const span  = hypot(site.x - yard.x, site.z - yard.z)
   const steps = Math.max(2, Math.ceil(span / SIGHT_STEP))
   const from  = ground(yard.x, yard.z) + eye
 
@@ -303,10 +304,10 @@ export function findHoweSite (
       const x = column * STATION
       const z = row * STATION
 
-      if (Math.hypot(x, z) > search.reach)
+      if (hypot(x, z) > search.reach)
         continue
 
-      const fromYard = Math.hypot(x - yard.x, z - yard.z)
+      const fromYard = hypot(x - yard.x, z - yard.z)
 
       if (fromYard < search.setback || search.barred(x, z))
         continue
@@ -322,7 +323,7 @@ export function findHoweSite (
         continue
 
       if (avoid.some(thing =>
-        Math.hypot(thing.x - x, thing.z - z) < thing.radius + HOWE_FOOTING))
+        hypot(thing.x - x, thing.z - z) < thing.radius + HOWE_FOOTING))
         continue
 
       if (kerbFall(search.ground, x, z) > KERB_FALL)

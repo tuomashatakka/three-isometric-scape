@@ -1,6 +1,7 @@
 import { smoothstep } from 'threejs-scene'
 import type { GroundNormal } from './height.ts'
 import type { Vec2 } from './path.ts'
+import { hypot } from '../hypot.ts'
 
 
 const DEGREES = Math.PI / 180
@@ -84,7 +85,7 @@ const LEAN_FULL  = 0.18
  * "which way is this face turned" here, and both of them are it.
  */
 export function faceAmount (normal: GroundNormal, direction: Vec2): number {
-  const lean = Math.hypot(normal.x, normal.z)
+  const lean = hypot(normal.x, normal.z)
 
   if (lean < 1e-4)
     return 0

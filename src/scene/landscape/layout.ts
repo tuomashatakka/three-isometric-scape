@@ -13,6 +13,7 @@ import { MILL_FOOTING, findMillSite } from './mill.ts'
 import type { MillSite } from './mill.ts'
 import { distanceToPath, smoothPath } from './path.ts'
 import type { Vec2 } from './path.ts'
+import { hypot } from '../hypot.ts'
 
 
 /** The flattened shelf the buildings stand on. */
@@ -171,7 +172,7 @@ export function sinkToIsland (config: ScapeConfig, x: number, z: number, height:
   // Subtracted from the *distance* rather than added to the thresholds, which is
   // the same arithmetic and a different thing to read: a headland is ground that
   // is nearer the middle than it looks.
-  const radius = Math.hypot(x, z) / (size * 0.5) - coastWarp(x, z, config.seed) * reach
+  const radius = hypot(x, z) / (size * 0.5) - coastWarp(x, z, config.seed) * reach
   const land   = 1 - smoothstep(islandInner, islandOuter, radius)
 
   return seabed + (height - seabed) * land
@@ -344,7 +345,7 @@ function landRadiusOf (config: ScapeConfig): number {
 function underIce (config: ScapeConfig, x: number, z: number, radius: number): boolean {
   const cap = iceCapOf(config)
 
-  return !!cap && Math.hypot(x - cap.x, z - cap.z) < cap.reach + radius
+  return !!cap && hypot(x - cap.x, z - cap.z) < cap.reach + radius
 }
 
 function findYard (config: ScapeConfig): Yard {
@@ -376,7 +377,7 @@ function findYard (config: ScapeConfig): Yard {
 
       const score = -roughness(config, x, z, reach) * 2.4 -
         Math.abs(dryness - 2.6) * 0.5 -
-        Math.hypot(x, z) / extent * 1.1
+        hypot(x, z) / extent * 1.1
 
       if (score > best.score)
         best = { x, z, score }
@@ -432,12 +433,12 @@ function buildPlots (config: ScapeConfig, yard: Yard, seed: number): Plot[] {
     const angle    = inward + rng.range(-1.5, 1.5)
     const halfW    = rng.range(5.5, 8.5)
     const halfD    = rng.range(4.5, 6.5)
-    const distance = yard.radius + Math.hypot(halfW, halfD) * 0.8 + rng.range(0.5, 4)
+    const distance = yard.radius + hypot(halfW, halfD) * 0.8 + rng.range(0.5, 4)
 
     const x = yard.x + Math.cos(angle) * distance
     const z = yard.z + Math.sin(angle) * distance
 
-    if (Math.hypot(x, z) + Math.max(halfW, halfD) > extent)
+    if (hypot(x, z) + Math.max(halfW, halfD) > extent)
       continue
 
     const level = baseAt(config, x, z)
@@ -446,7 +447,7 @@ function buildPlots (config: ScapeConfig, yard: Yard, seed: number): Plot[] {
       continue
     if (roughness(config, x, z, Math.max(halfW, halfD) * 0.6) > config.terrain.height * 0.42)
       continue
-    if (plots.some(plot => Math.hypot(plot.x - x, plot.z - z) < (Math.max(halfW, plot.halfW) + Math.max(halfD, plot.halfD)) * 0.78))
+    if (plots.some(plot => hypot(plot.x - x, plot.z - z) < (Math.max(halfW, plot.halfW) + Math.max(halfD, plot.halfD)) * 0.78))
       continue
 
     plots.push({ x, z, halfW, halfD, rotation: angle + rng.range(-0.3, 0.3), level })
@@ -473,7 +474,7 @@ function findRidges (config: ScapeConfig, yard: Yard): Ridge[] {
       const x = -extent + ix / (probes - 1) * extent * 2
       const z = -extent + iz / (probes - 1) * extent * 2
 
-      if (Math.hypot(x - yard.x, z - yard.z) < yard.radius * 2.1)
+      if (hypot(x - yard.x, z - yard.z) < yard.radius * 2.1)
         continue
 
       found.push({ x, z, height: baseAt(config, x, z) })
@@ -486,7 +487,7 @@ function findRidges (config: ScapeConfig, yard: Yard): Ridge[] {
   for (const candidate of found) {
     if (ridges.length >= 5)
       break
-    if (ridges.some(ridge => Math.hypot(ridge.x - candidate.x, ridge.z - candidate.z) < 15))
+    if (ridges.some(ridge => hypot(ridge.x - candidate.x, ridge.z - candidate.z) < 15))
       continue
 
     ridges.push({ x: candidate.x, z: candidate.z, radius: 16 })
@@ -577,16 +578,16 @@ function findPasture (
       const x = -reach + ix / (PASTURE_PROBES - 1) * reach * 2
       const z = -reach + iz / (PASTURE_PROBES - 1) * reach * 2
 
-      if (Math.hypot(x, z) > reach)
+      if (hypot(x, z) > reach)
         continue
 
-      const fromYard = Math.hypot(x - yard.x, z - yard.z)
+      const fromYard = hypot(x - yard.x, z - yard.z)
 
       if (fromYard < clear)
         continue
       if (distanceToPath(track, x, z) < radius * 0.7)
         continue
-      if (plots.some(plot => Math.hypot(plot.x - x, plot.z - z) < Math.max(plot.halfW, plot.halfD) + radius * 0.85))
+      if (plots.some(plot => hypot(plot.x - x, plot.z - z) < Math.max(plot.halfW, plot.halfD) + radius * 0.85))
         continue
 
       const level   = sunkAt(config, x, z)
@@ -812,7 +813,7 @@ export function pastureInfluence (layout: ScapeLayout, x: number, z: number): nu
   if (!pasture)
     return 0
 
-  const distance = Math.hypot(x - pasture.x, z - pasture.z)
+  const distance = hypot(x - pasture.x, z - pasture.z)
   return Math.min(1, Math.max(0, (pasture.radius - distance) / (pasture.radius * 0.22)))
 }
 
@@ -823,7 +824,7 @@ export function ridgeInfluence (layout: ScapeLayout, x: number, z: number): numb
   let best = 0
 
   for (const ridge of layout.ridges) {
-    const distance = Math.hypot(x - ridge.x, z - ridge.z)
+    const distance = hypot(x - ridge.x, z - ridge.z)
     best = Math.max(best, Math.max(0, 1 - distance / ridge.radius))
   }
 

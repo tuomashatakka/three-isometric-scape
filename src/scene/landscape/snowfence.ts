@@ -2,6 +2,7 @@ import { faceAmount } from './aspect.ts'
 import { driftDirection } from './drift.ts'
 import type { GroundNormal } from './height.ts'
 import type { Vec2 } from './path.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -173,7 +174,7 @@ const SHORTEST_RUN = 4
  * and need not be normalised; the cross product is divided by its length here.
  */
 export function driftRisk (normal: GroundNormal, lee: Vec2, along: Vec2): number {
-  const span = Math.hypot(along.x, along.z)
+  const span = hypot(along.x, along.z)
 
   if (span < 1e-6)
     return 0
@@ -200,7 +201,7 @@ function readTrack (search: SnowFenceSearch, lee: Vec2): Station[] {
   for (let index = 0; index < track.length - 1; index += 1) {
     const a    = track[index]
     const b    = track[index + 1]
-    const span = Math.hypot(b.x - a.x, b.z - a.z)
+    const span = hypot(b.x - a.x, b.z - a.z)
 
     if (span < 1e-6)
       continue
@@ -364,7 +365,7 @@ export function solveSnowFence (search: SnowFenceSearch): SnowFenceSurvey {
       run: {
         posts,
         angle:   Math.atan2(across.z, across.x),
-        length:  Math.hypot(tail.x - head.x, tail.z - head.z),
+        length:  hypot(tail.x - head.x, tail.z - head.z),
         setback,
         guards:  middle,
         guarded: (stretch.to - stretch.from) * STEP,

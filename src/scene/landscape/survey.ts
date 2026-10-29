@@ -58,6 +58,7 @@ import { solveTarn } from './tarn.ts'
 import type { Tarn } from './tarn.ts'
 import { findWreckSite } from './wreck.ts'
 import type { WreckSite } from './wreck.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -781,10 +782,10 @@ function fenceTheTrack (
     reach:      config.snowFence.reach,
     freeboard:  config.snowFence.freeboard,
     clear:      (x, z) =>
-      Math.hypot(x - yard.x, z - yard.z) > yard.radius &&
+      hypot(x - yard.x, z - yard.z) > yard.radius &&
       (creek?.clearanceAt(x, z) ?? Infinity) > 0 &&
       distanceToTrack(layout, x, z) > layout.track.width * 1.5 &&
-      avoid.every(ground => Math.hypot(x - ground.x, z - ground.z) > ground.radius),
+      avoid.every(ground => hypot(x - ground.x, z - ground.z) > ground.radius),
   })
 }
 
@@ -1072,7 +1073,7 @@ export function surveyScape (config: ScapeConfig): ScapeSurvey {
     // and a rule meant to stop a path being worn alongside the road would
     // otherwise refuse every path in the place people actually walk.
     onTrack:  (x, z) =>
-      Math.hypot(x - layout.yard.x, z - layout.yard.z) > layout.yard.radius &&
+      hypot(x - layout.yard.x, z - layout.yard.z) > layout.yard.radius &&
       distanceToTrack(layout, x, z) < layout.track.width * 1.3,
   })
 

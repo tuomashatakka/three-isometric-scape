@@ -2,6 +2,7 @@ import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
 import { box, createRockGeometry, mergeGeometryList, mergeParts, part } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
+import { hypot } from '../hypot.ts'
 
 
 /** A point with a height — both ends of the lade know their own. */
@@ -75,8 +76,8 @@ export function buildLadeRun (options: LadeRunOptions): BufferGeometry | null {
   const dx   = intake.x - feed.x
   const dy   = intake.y - feed.y
   const dz   = intake.z - feed.z
-  const flat = Math.hypot(dx, dz)
-  const run  = Math.hypot(flat, dy)
+  const flat = hypot(dx, dz)
+  const run  = hypot(flat, dy)
 
   if (run < 1)
     return null

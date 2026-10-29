@@ -5,6 +5,7 @@ import type { LiveConfig } from '../config.ts'
 import { buildProp, resolvePalette } from '../props/index.ts'
 import { fishHung, hjellHung } from './hjell.ts'
 import type { HjellFish } from './hjell.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -74,7 +75,7 @@ function catchBounds (fish: readonly HjellFish[]): Sphere {
   let radius   = 0
 
   for (const one of fish)
-    radius = Math.max(radius, Math.hypot(one.x - centre.x, one.z - centre.z))
+    radius = Math.max(radius, hypot(one.x - centre.x, one.z - centre.z))
 
   return new Sphere(centre, radius + (maxY - minY) * 0.5 + LIFT + 1)
 }

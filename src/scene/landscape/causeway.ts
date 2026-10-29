@@ -1,6 +1,7 @@
 import { smoothstep } from 'threejs-scene'
 import type { IsleSite } from './height.ts'
 import type { Vec2 } from './path.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -207,7 +208,7 @@ function crossingAlong (
 /** True when a landfall is really another rock in the ring. */
 function onAnotherIsle (isles: readonly IsleSite[], mine: number, at: Vec2): boolean {
   return isles.some((isle, index) =>
-    index !== mine && Math.hypot(isle.x - at.x, isle.z - at.z) < isle.radius * ISLE_REACH)
+    index !== mine && hypot(isle.x - at.x, isle.z - at.z) < isle.radius * ISLE_REACH)
 }
 
 export interface CausewaySearch {
@@ -283,7 +284,7 @@ export function solveCauseway (
       if (!found || onAnotherIsle(isles, index, found.shore))
         continue
 
-      const crossing = Math.hypot(found.shore.x - found.head.x, found.shore.z - found.head.z)
+      const crossing = hypot(found.shore.x - found.head.x, found.shore.z - found.head.z)
 
       if (crossing <= 0 || crossing > search.gap)
         continue
@@ -292,7 +293,7 @@ export function solveCauseway (
       // bar the ferry cannot get past, and the landing and the harbour were both
       // found before this search ran precisely so it could be told to miss them.
       if (berths.some(berth =>
-        berth && Math.hypot(berth.x - found.shore.x, berth.z - found.shore.z) < search.clear))
+        berth && hypot(berth.x - found.shore.x, berth.z - found.shore.z) < search.clear))
         continue
 
       const score = isle.radius * ISLE_WORTH - crossing
@@ -333,7 +334,7 @@ function describe (
     claimAt (x, z) {
       const at = Math.min(1, Math.max(0, ((x - shore.x) * dx + (z - shore.z) * dz) / span))
 
-      const lateral = Math.hypot(
+      const lateral = hypot(
         x - (shore.x + dx * at),
         z - (shore.z + dz * at),
       )
