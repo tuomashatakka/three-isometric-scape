@@ -7,6 +7,7 @@ import type { Vec2 } from './landscape/path.ts'
 import type { TextureCatalogue } from './textures/catalogue.ts'
 import { UNTILE_GLSL } from './textures/untile.ts'
 import type { WindState } from './wind.ts'
+import { hypot } from './hypot.ts'
 
 
 /**
@@ -307,7 +308,7 @@ export function createCloudShadow (
       )
 
       state.shade   = strength.value
-      state.reach   = Math.hypot(throwAt.x, throwAt.z)
+      state.reach   = hypot(throwAt.x, throwAt.z)
       state.bearing = Math.atan2(throwAt.x, throwAt.z)
     },
   }

@@ -10,6 +10,7 @@ import { saltingsTurf } from './saltings.ts'
 import { iceClaim } from './icecap.ts'
 import { distanceToTrack, pastureInfluence, plotInfluence, ridgeInfluence } from './layout.ts'
 import { planTreeline, stuntedTo } from './treeline.ts'
+import { hypot } from '../hypot.ts'
 
 
 /** The bare middle of a worn path, excluding its thinning verge. */
@@ -134,7 +135,7 @@ export function createZoneTests (archipelago: ArchipelagoSurvey): DressingZones 
       return 0
 
     const { yard } = landmass.survey.layout
-    const distance = Math.hypot(
+    const distance = hypot(
       x - landmass.origin.x - yard.x,
       z - landmass.origin.z - yard.z,
     )
@@ -206,7 +207,7 @@ export function createZoneTests (archipelago: ArchipelagoSurvey): DressingZones 
     if (!beacon)
       return false
 
-    return Math.hypot(
+    return hypot(
       x - landmass.origin.x - beacon.x,
       z - landmass.origin.z - beacon.z,
     ) < BEACON_FOOTING

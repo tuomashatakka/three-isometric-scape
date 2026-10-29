@@ -1,5 +1,6 @@
 import type { Obstacle } from './footpath.ts'
 import type { Vec2 } from './path.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -308,7 +309,7 @@ function circuitOf (radii: readonly number[]): number {
     const one = at / radii.length * TAU
     const two = (at + 1) / radii.length * TAU
 
-    circuit += Math.hypot(
+    circuit += hypot(
       radii[(at + 1) % radii.length] * Math.cos(two) - radii[at] * Math.cos(one),
       radii[(at + 1) % radii.length] * Math.sin(two) - radii[at] * Math.sin(one),
     )
@@ -340,7 +341,7 @@ function founded (search: DykeSearch, at: Vec2): boolean {
   if (search.barred(at.x, at.z))
     return false
 
-  return !search.taken.some(thing => Math.hypot(thing.x - at.x, thing.z - at.z) < thing.radius)
+  return !search.taken.some(thing => hypot(thing.x - at.x, thing.z - at.z) < thing.radius)
 }
 
 /** Square metres inside a closed line. */
@@ -403,7 +404,7 @@ function crossingsOf (
   walked: readonly (readonly Vec2[])[],
 ): number[] {
   const inside = (point: Vec2): boolean =>
-    Math.hypot(point.x - summit.x, point.z - summit.z) <
+    hypot(point.x - summit.x, point.z - summit.z) <
       radiusAt(radii, Math.atan2(point.z - summit.z, point.x - summit.x))
 
   const found: number[] = []
@@ -461,7 +462,7 @@ function lengthOf (points: readonly Vec2[]): number {
   let length = 0
 
   for (let at = 1; at < points.length; at += 1)
-    length += Math.hypot(points[at].x - points[at - 1].x, points[at].z - points[at - 1].z)
+    length += hypot(points[at].x - points[at - 1].x, points[at].z - points[at - 1].z)
 
   return length
 }
@@ -517,7 +518,7 @@ export function solveHeadDyke (
     circuit,
     encloses: areaOf(stations),
     gates:    gates.filter(gate => runs.some(run =>
-      run.some(point => Math.hypot(point.x - gate.x, point.z - gate.z) < search.gateway))),
+      run.some(point => hypot(point.x - gate.x, point.z - gate.z) < search.gateway))),
   }
 }
 

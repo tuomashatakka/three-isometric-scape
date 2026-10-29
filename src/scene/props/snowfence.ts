@@ -4,6 +4,7 @@ import { box, mergeParts, part } from 'threejs-scene/modules/assets'
 import { resamplePath, strut } from './fence.ts'
 import type { FencePoint } from './fence.ts'
 import type { NordicPalette } from './palette.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -136,7 +137,7 @@ function clad (
 
     // A gap wider than two spacings means the run stepped over refused ground,
     // and a rail spanning it would be a rail hanging in the air.
-    if (Math.hypot(b.x - a.x, b.z - a.z) > spacing * 2)
+    if (hypot(b.x - a.x, b.z - a.z) > spacing * 2)
       continue
 
     for (const rail of RAILS)

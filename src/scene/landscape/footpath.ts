@@ -2,6 +2,7 @@ import { smoothstep } from 'threejs-scene'
 import type { SeededRng } from 'threejs-scene'
 import { createPathQuery, smoothPath, smoothPolyline } from './path.ts'
 import type { Vec2 } from './path.ts'
+import { hypot } from '../hypot.ts'
 
 
 /** Ground something already stands on, that a path has to go round. */
@@ -122,7 +123,7 @@ function clearObstacles (point: Vec2, avoid: readonly Obstacle[]): void {
     const dx    = point.x - thing.x
     const dz    = point.z - thing.z
     const range = thing.radius + CLEARANCE
-    const gap   = Math.hypot(dx, dz)
+    const gap   = hypot(dx, dz)
 
     if (gap >= range)
       continue
@@ -208,7 +209,7 @@ function wanderRoute (points: Vec2[], amount: number, phase: number): Vec2[] {
   const last = points.length - 1
   const dx   = points[last].x - points[0].x
   const dz   = points[last].z - points[0].z
-  const span = Math.hypot(dx, dz)
+  const span = hypot(dx, dz)
 
   if (span < 1e-6 || amount <= 0)
     return points
@@ -247,7 +248,7 @@ export function createFootpaths (options: FootpathOptions): Footpaths {
   for (const { from, to } of wear > 0 ? options.routes : []) {
     // Two names for the same spot. The well is a couple of paces from the
     // farmhouse door on some seeds, and a path that short is the yard.
-    if (Math.hypot(to.x - from.x, to.z - from.z) < STUB)
+    if (hypot(to.x - from.x, to.z - from.z) < STUB)
       continue
 
     const route  = traceRoute(from, to, heightAt, climb, avoid)

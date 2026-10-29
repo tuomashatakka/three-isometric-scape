@@ -29,7 +29,7 @@ import { normalFromHeight } from './normals.ts'
 export type TextureId =
   'ground.grain' | 'ground.normal' | 'ground.wear' | 'prop.bark' | 'sky.cloudShadow' |
   'water.ripple' | 'water.wave' | 'water.shoreMask' | 'water.shelterMask' |
-  'weather.squall' | 'sky.deck' | 'sky.aurora' | 'sky.gradient' | 'mist.field' |
+  'weather.squall' | 'sky.deck' | 'sky.aurora' | 'sky.gradient' | 'mist.field' | 'mist.mask' |
   'haar.field' | 'post.lut'
 
 /**
@@ -177,6 +177,14 @@ export const TEXTURES: readonly TextureEntry[] = [
     size:      256,
     module:    'mist.ts',
     consumers: [ 'map' ],
+  },
+  {
+    id:        'mist.mask',
+    origin:    'baked',
+    purpose:   'where the ground mist (red) and the sea smoke (green) stand, in world metres',
+    size:      512,
+    module:    'mist.ts',
+    consumers: [ 'uMistMask' ],
   },
   {
     id:        'haar.field',

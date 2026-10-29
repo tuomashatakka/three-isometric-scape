@@ -2,6 +2,7 @@ import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
 import { createRockGeometry, mergeParts, part } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -162,7 +163,7 @@ function leg (
 function span (parts: BufferGeometry[], options: ArchSpanOptions): void {
   const { inner, outer, girth, crown, soffitAt, blocks, rng, palette } = options
   const count                                                          = Math.max(3, Math.round(blocks))
-  const run                                                            = Math.hypot(outer.x - inner.x, outer.z - inner.z)
+  const run                                                            = hypot(outer.x - inner.x, outer.z - inner.z)
   const stepX                                                          = (outer.x - inner.x) / count
   const stepZ                                                          = (outer.z - inner.z) / count
   const across                                                         = Math.atan2(outer.z - inner.z, outer.x - inner.x)

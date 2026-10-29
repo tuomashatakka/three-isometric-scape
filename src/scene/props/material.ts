@@ -793,8 +793,8 @@ export function createScapeMaterials (
     material.name = key
   }
 
-  const ground  = kitMaterial({ roughness: 0.96, metalness: 0, flatShading: true })
-  const foliage = kitMaterial({ roughness: 0.92, metalness: 0, flatShading: true })
+  const ground  = kitMaterial({ roughness: 0.96, metalness: 0, flatShading: false })
+  const foliage = kitMaterial({ roughness: 0.92, metalness: 0, flatShading: false })
 
   // `?skip=detail` keeps the cloud shadow — one texture fetch — and drops the
   // ground grain, which is six. The two halves of the injection cost very

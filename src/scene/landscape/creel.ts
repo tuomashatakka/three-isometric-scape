@@ -3,6 +3,7 @@ import type { ScapeConfig } from '../config.ts'
 import { toWorld } from './archipelago.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from './archipelago.ts'
 import type { Vec2 } from './path.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -251,7 +252,7 @@ function settle (depthAt: (x: number, z: number) => number, at: Vec2, target: nu
     const scale = (target - here) / sq
     const moveX = gx * scale
     const moveZ = gz * scale
-    const span  = Math.hypot(moveX, moveZ)
+    const span  = hypot(moveX, moveZ)
     const held  = span > SETTLE_REACH ? SETTLE_REACH / span : 1
 
     x += moveX * held
@@ -388,13 +389,13 @@ function shootString ({ survey, landmass, config, from, angle, others }: Shot): 
     // traced round a headland comes back toward the harbour it started from,
     // and a pot that curled into the fairway is a rope round somebody's
     // propeller. The string stops at the cut rather than stepping over it.
-    const home = Math.hypot(at.x - from.x, at.z - from.z)
+    const home = hypot(at.x - from.x, at.z - from.z)
 
     if (home > range || home < clear)
       break
 
     // And off the neighbours' ground. See {@link Shot.others}.
-    if (others.some(other => Math.hypot(at.x - other.x, at.z - other.z) < home))
+    if (others.some(other => hypot(at.x - other.x, at.z - other.z) < home))
       break
 
     row.push({
@@ -468,7 +469,7 @@ function spread (offered: readonly CreelString[], budget: number): CreelString[]
       break
 
     const fouls = kept.some(other => other.pots.some(there =>
-      string.pots.some(here => Math.hypot(here.x - there.x, here.z - there.z) < GAP)))
+      string.pots.some(here => hypot(here.x - there.x, here.z - there.z) < GAP)))
 
     if (!fouls)
       kept.push(string)

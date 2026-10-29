@@ -4,6 +4,7 @@ import type { Spot } from './landing.ts'
 import type { Vec2 } from './path.ts'
 import { faceToward } from './steading.ts'
 import type { Standing } from './steading.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -174,7 +175,7 @@ export function findKilnSite (
       const z      = bank.z + Math.sin(around) * fromBank
 
       if (avoid.some(thing =>
-        Math.hypot(thing.x - x, thing.z - z) < thing.radius + KILN_FOOTING))
+        hypot(thing.x - x, thing.z - z) < thing.radius + KILN_FOOTING))
         continue
 
       const angle = downhillYaw(search.ground, x, z)

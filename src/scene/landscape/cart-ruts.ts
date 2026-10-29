@@ -2,6 +2,7 @@ import { smoothstep, valueNoise1d } from 'threejs-scene'
 import { createSurfaceRibbon, mergeGeometryList } from 'threejs-scene/modules/assets'
 import type { BufferGeometry, Color } from 'three'
 import type { Vec2 } from './path.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -150,7 +151,7 @@ export function cartRutGeometry (options: CartRutsOptions): BufferGeometry | nul
 
     colorAt: ({ x, z, step, section }, target) => {
       const patch   = PATCH_FLOOR + (1 - PATCH_FLOOR) * valueNoise1d(section.along, PATCH_SPAN, side * 3.7)
-      const traffic = trafficAt(Math.hypot(section.x - yard.x, section.z - yard.z), reach)
+      const traffic = trafficAt(hypot(section.x - yard.x, section.z - yard.z), reach)
 
       groundAt(x, z, target).lerp(rut, weights[step] * wear * traffic * patch)
     },

@@ -2,6 +2,7 @@ import type { ScapeConfig } from '../config.ts'
 import type { HeightField } from './height.ts'
 import { pathLength } from './path.ts'
 import type { Vec2 } from './path.ts'
+import { hypot } from '../hypot.ts'
 
 
 export interface WorldPort {
@@ -47,6 +48,13 @@ interface NavigationGrid {
   cols: number
   min:  number
   wet:  Uint8Array
+
+  /**
+   * Whether each node's edge to each neighbour is navigable: -1 not yet probed.
+   * Every leg searches the same grid, and probing an edge is a dozen height
+   * samples — this is what took the route search from ten seconds to one.
+   */
+  edges: Int8Array
 }
 
 export const BOAT_HULL_RADIUS = 1.85
@@ -143,7 +151,7 @@ function segmentIsWet (
   to:        Vec2,
   probeStep = ROUTE_PROBE_STEP,
 ): boolean {
-  const distance = Math.hypot(to.x - from.x, to.z - from.z)
+  const distance = hypot(to.x - from.x, to.z - from.z)
   const steps    = Math.max(1, Math.ceil(distance / probeStep))
 
   for (let step = 0; step <= steps; step += 1) {
@@ -208,7 +216,7 @@ function createGrid (config: ScapeConfig, field: HeightField): NavigationGrid {
         : 0
     }
 
-  return { cell, cols, min, wet }
+  return { cell, cols, min, wet, edges: new Int8Array(cols * cols * NEIGHBOURS.length).fill(-1) }
 }
 
 function gridPoint (grid: NavigationGrid, node: number): Vec2 {
@@ -281,7 +289,7 @@ function expandNode (
   const column = item.node % grid.cols
   const here   = gridPoint(grid, item.node)
 
-  for (const [ dx, dz ] of NEIGHBOURS) {
+  for (const [ direction, [ dx, dz ]] of NEIGHBOURS.entries()) {
     const nextColumn = column + dx
     const nextRow    = row + dz
 
@@ -293,24 +301,31 @@ function expandNode (
       continue
 
     const there = gridPoint(grid, next)
-    if (!segmentIsWet(
-      field,
-      config.terrain.waterLevel,
-      config.boats.clearance,
-      here,
-      there,
-      GRID_PROBE_STEP,
-    ))
+    const edge  = item.node * NEIGHBOURS.length + direction
+
+    if (grid.edges[edge] < 0)
+      grid.edges[edge] = segmentIsWet(
+        field,
+        config.terrain.waterLevel,
+        config.boats.clearance,
+        here,
+        there,
+        GRID_PROBE_STEP,
+      )
+        ? 1
+        : 0
+
+    if (!grid.edges[edge])
       continue
 
-    const travelled = score[item.node] + Math.hypot(dx, dz) * grid.cell
+    const travelled = score[item.node] + hypot(dx, dz) * grid.cell
     if (travelled >= score[next])
       continue
 
     score[next]  = travelled
     parent[next] = item.node
 
-    const estimate = travelled + Math.hypot(goal.x - there.x, goal.z - there.z)
+    const estimate = travelled + hypot(goal.x - there.x, goal.z - there.z)
     pushQueue(heap, { node: next, score: estimate })
   }
 }
@@ -451,14 +466,14 @@ function joinRoute (legs: readonly WaterwayLeg[]): WaterwayRoute {
 
       const previous = points.at(-1)
       if (previous)
-        distance += Math.hypot(point.x - previous.x, point.z - previous.z)
+        distance += hypot(point.x - previous.x, point.z - previous.z)
       points.push(point)
     }
   }
 
   const cumulative = [ 0 ]
   for (let index = 1; index < points.length; index += 1)
-    cumulative.push(cumulative[index - 1] + Math.hypot(
+    cumulative.push(cumulative[index - 1] + hypot(
       points[index].x - points[index - 1].x,
       points[index].z - points[index - 1].z,
     ))
@@ -532,7 +547,7 @@ export function fleetMinimumSeparation (
 
     for (let a = 0; a < poses.length; a += 1)
       for (let b = a + 1; b < poses.length; b += 1)
-        minimum = Math.min(minimum, Math.hypot(poses[a].x - poses[b].x, poses[a].z - poses[b].z))
+        minimum = Math.min(minimum, hypot(poses[a].x - poses[b].x, poses[a].z - poses[b].z))
   }
 
   // Both boats can close by at most one sample step before the next probe.

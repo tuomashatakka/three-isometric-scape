@@ -3,6 +3,7 @@ import type { ScapeConfig } from '../config.ts'
 import type { ArchipelagoSurvey } from './archipelago.ts'
 import { depthUnit, floeScale, freezeToClose, iceCover } from './water-ice.ts'
 import type { Vec2 } from './path.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -146,12 +147,12 @@ function segmentDistance (point: Vec2, from: Vec2, to: Vec2): number {
   const span = runX * runX + runZ * runZ
 
   if (span < 1e-6)
-    return Math.hypot(point.x - from.x, point.z - from.z)
+    return hypot(point.x - from.x, point.z - from.z)
 
   const along = Math.max(0, Math.min(1,
                                      ((point.x - from.x) * runX + (point.z - from.z) * runZ) / span))
 
-  return Math.hypot(point.x - (from.x + runX * along), point.z - (from.z + runZ * along))
+  return hypot(point.x - (from.x + runX * along), point.z - (from.z + runZ * along))
 }
 
 /**

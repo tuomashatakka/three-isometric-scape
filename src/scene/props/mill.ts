@@ -3,6 +3,7 @@ import type { SeededRng } from 'threejs-scene'
 import { box, cyl, deg, mergeParts, part } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
 import { claddingPlanks, gableEnd, gabledRoof } from './timber.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -94,7 +95,7 @@ export function buildWindmill (rng: SeededRng, palette: NordicPalette): BufferGe
   const barTop  = postTop - 0.35
   const barRise = barTop - (treeY + 0.3)
   const barLean = Math.atan2(barFoot, barRise)
-  const barLong = Math.hypot(barFoot, barRise)
+  const barLong = hypot(barFoot, barRise)
 
   for (const side of [ -1, 1 ]) {
     parts.push(part(cyl(0.13, 0.16, barLong, 5), {
@@ -195,7 +196,7 @@ export function buildWindmill (rng: SeededRng, palette: NordicPalette): BufferGe
   const footY   = -0.3
   const headZ   = -HALF_LENGTH - 0.05
   const headY   = FLOOR_Y - 0.05
-  const runLong = Math.hypot(headZ - footZ, headY - footY)
+  const runLong = hypot(headZ - footZ, headY - footY)
   const runLean = Math.atan2(headZ - footZ, headY - footY)
 
   for (const sx of [ -1, 1 ])

@@ -1,5 +1,6 @@
 import { smoothstep } from 'threejs-scene'
 import type { RoostConfig } from '../config-roost.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -520,7 +521,7 @@ function clusterGates (seeds: RoostGate[], apart: number): RoostGate[] {
   const kept: RoostGate[] = []
 
   for (const seed of sorted) {
-    if (kept.some(gate => Math.hypot(gate.x - seed.x, gate.z - seed.z) < apart))
+    if (kept.some(gate => hypot(gate.x - seed.x, gate.z - seed.z) < apart))
       continue
 
     kept.push(seed)

@@ -1,5 +1,5 @@
 import { Vector2, Vector3 } from 'three'
-import type { Mesh, OrthographicCamera, WebGLRenderer } from 'three'
+import type { Mesh, OrthographicCamera, Scene, WebGLRenderer } from 'three'
 import { createApp, createIsoCamera, createRenderer, reportPrograms } from 'threejs-scene'
 import type { Store } from 'threejs-scene'
 import { NOTHING_SKIPPED } from './audit.ts'
@@ -54,6 +54,9 @@ export interface IsometricScape {
    * which is one write out of date the moment the first slider moves.
    */
   store: Store<ScapeConfig>
+
+  /** The scene and renderer, for the `?bridge` instruments only. See `src/bridge.ts`. */
+  ctx: { scene: Scene, renderer: WebGLRenderer }
 
   dispose(): void
 }
@@ -663,6 +666,7 @@ export function createIsometricScape (
 
   return {
     store: app.store,
+    ctx:   app.ctx,
 
     dispose () {
       canvas.removeEventListener('webglcontextlost', handleContextLost)

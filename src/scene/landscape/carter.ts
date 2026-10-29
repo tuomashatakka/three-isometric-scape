@@ -2,6 +2,7 @@ import { dayLength } from '../daylight.ts'
 import type { ScapeConfig } from '../config.ts'
 import type { ArchipelagoSurvey, LandmassSurvey } from './archipelago.ts'
 import type { HeightField } from './height.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -289,7 +290,7 @@ export function planCarterRound (landmass: LandmassSurvey, field: HeightField): 
       break
 
     if (last)
-      length += Math.hypot(x - last.x, z - last.z)
+      length += hypot(x - last.x, z - last.z)
 
     points.push({ x, y, z })
     marks.push(length)
@@ -346,7 +347,7 @@ export function sampleCarterRound (
   const behind = placeOnRound(round, distance - LOOK, scratchBehind)
   const dx     = ahead.x - behind.x
   const dz     = ahead.z - behind.z
-  const facing = Math.hypot(dx, dz) > 1e-6
+  const facing = hypot(dx, dz) > 1e-6
     ? Math.atan2(dz, dx)
     : 0
 

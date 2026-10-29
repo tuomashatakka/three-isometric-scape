@@ -9,6 +9,7 @@ import type { ArchipelagoSurvey } from './archipelago.ts'
 import { beckFreeze } from './beck.ts'
 import type { Creek } from './creek.ts'
 import { drawnSurfaceOf, patchSegments } from './terrain.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -220,7 +221,7 @@ export function findFall (options: FallOptions): Fall | null {
 
   const lip    = sections[head]
   const plunge = sections[tail]
-  const reach  = Math.hypot(plunge.x - lip.x, plunge.z - lip.z)
+  const reach  = hypot(plunge.x - lip.x, plunge.z - lip.z)
 
   return {
     x:        lip.x,

@@ -3,6 +3,7 @@ import { beaconCrown } from './beacon.ts'
 import { resolveIsles } from './height.ts'
 import type { HeightField } from './height.ts'
 import type { Vec2 } from './path.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -263,7 +264,7 @@ export function findWreckSite (
       bearing: laid.bearing,
       turn:    laid.turn,
       fall:    laid.fall,
-      reach:   Math.hypot(isle.x, isle.z),
+      reach:   hypot(isle.x, isle.z),
       isle:    index,
     }
   }

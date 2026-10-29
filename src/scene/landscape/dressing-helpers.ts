@@ -21,6 +21,7 @@ import type { ShielingSite } from './shieling.ts'
 import { WRECK_FOOTING } from './wreck.ts'
 import type { WreckSite } from './wreck.ts'
 import { drawnSurfaceOf, patchSegments } from './terrain.ts'
+import { hypot } from '../hypot.ts'
 
 
 /** Where a prop meets the ground, and which way that ground is facing. */
@@ -132,7 +133,7 @@ export function trackPointNear (layout: ScapeLayout, distance: number): Spot | n
 
   for (let index = points.length - 1; index > 0; index -= 1) {
     const point = points[index]
-    const gap   = Math.hypot(point.x - layout.yard.x, point.z - layout.yard.z)
+    const gap   = hypot(point.x - layout.yard.x, point.z - layout.yard.z)
 
     if (gap >= distance) {
       const previous = points[index - 1]

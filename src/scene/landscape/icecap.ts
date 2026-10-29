@@ -1,6 +1,7 @@
 import { smoothstep } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 import { valueNoise } from '../noise.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -157,7 +158,7 @@ function topAt (config: ScapeConfig, x: number, z: number): number {
 
   const half     = config.terrain.size * 0.5
   const reach    = cap.reach * half
-  const distance = Math.hypot(x - cap.x * half, z - cap.z * half)
+  const distance = hypot(x - cap.x * half, z - cap.z * half)
 
   if (distance >= reach)
     return -Infinity
@@ -256,7 +257,7 @@ export function crevasseAt (config: ScapeConfig, x: number, z: number, slope: nu
   const half   = config.terrain.size * 0.5
   const dx     = x - cap.x * half
   const dz     = z - cap.z * half
-  const radial = Math.hypot(dx, dz)
+  const radial = hypot(dx, dz)
   const along  = Math.atan2(dz, dx) * radial
   const scale  = Math.max(0.05, cap.crevasseScale)
 

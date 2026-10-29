@@ -79,7 +79,7 @@ export function normalFromHeight (
       // The surface normal of a height field is `(-dh/dx, 1, -dh/dz)`. The minus
       // signs are the whole correction: a bump has to tip its normal *away* from
       // the rising side, and the difference this replaces tipped it toward.
-      const length = Math.hypot(-dx, -dy, 1)
+      const length = hypot3(-dx, -dy, 1)
       const index  = (y * size + x) * 4
 
       out[index]     = encode(-dx / length)
@@ -90,3 +90,5 @@ export function normalFromHeight (
 
   return out
 }
+
+import { hypot3 } from '../hypot.ts'

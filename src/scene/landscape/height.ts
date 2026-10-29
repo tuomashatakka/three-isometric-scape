@@ -17,6 +17,7 @@ import type { Saltings } from './saltings.ts'
 import type { PeatBank } from './peat.ts'
 import { carveTarn } from './tarn.ts'
 import type { Tarn } from './tarn.ts'
+import { hypot, hypot3 } from '../hypot.ts'
 
 
 /**
@@ -99,7 +100,7 @@ export function surfaceQueries (
   return {
     slopeAt (x, z) {
       sample(x, z)
-      return Math.hypot(gradient.dx, gradient.dz)
+      return hypot(gradient.dx, gradient.dz)
     },
 
     normalAt (x, z, target) {
@@ -107,7 +108,7 @@ export function surfaceQueries (
 
       // The normal of a height field is `(-dh/dx, 1, -dh/dz)`, normalised. The
       // signs are the same ones `textures/normals.ts` is written down for.
-      const length = Math.hypot(gradient.dx, 1, gradient.dz)
+      const length = hypot3(gradient.dx, 1, gradient.dz)
 
       target.x = -gradient.dx / length
       target.y = 1 / length
@@ -274,7 +275,7 @@ export function createHeightField (
       const dx       = x - isle.x
       const dz       = z - isle.z
       const warp     = coastWarp(dx * 7, dz * 7, isle.seed) * ISLE_REACH
-      const distance = Math.hypot(dx, dz) - warp * isle.radius
+      const distance = hypot(dx, dz) - warp * isle.radius
 
       if (distance >= isle.radius)
         continue
@@ -350,7 +351,7 @@ export function createHeightField (
         height += (plot.level - height) * claim * PLOT_STRENGTH
     }
 
-    const fromYard = Math.hypot(x - yard.x, z - yard.z)
+    const fromYard = hypot(x - yard.x, z - yard.z)
     const onYard   = 1 - smoothstep(yard.radius * 0.62, yard.radius * 1.25, fromYard)
 
     if (onYard > 0)
@@ -390,7 +391,7 @@ export function createHeightField (
         ? 0
         : Math.min(1, Math.max(0, ((x - a.x) * dx + (z - a.z) * dz) / lengthSq))
 
-      const distance = Math.hypot(x - (a.x + dx * t), z - (a.z + dz * t))
+      const distance = hypot(x - (a.x + dx * t), z - (a.z + dz * t))
 
       if (distance < bestDistance) {
         bestDistance = distance

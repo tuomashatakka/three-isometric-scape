@@ -43,6 +43,7 @@ import {
 import { hailCellRadius, hailCellTravel } from '../src/scene/hail.ts'
 import type { ScapeConfig } from '../src/scene/config.ts'
 import type { ArchipelagoSurvey } from '../src/scene/landscape/archipelago.ts'
+import { hypot } from '../src/scene/hypot.ts'
 
 
 /**
@@ -603,7 +604,7 @@ export function shadeStats (config: ScapeConfig): WeatherStats['shade'] {
     dark:    round(cloudShadow, 2),
     cover:   round(cloudCover, 2),
     light:   round(Math.min(1, day + lunar), 3),
-    reach:   round(Math.hypot(at.x, at.z)),
+    reach:   round(hypot(at.x, at.z)),
     bearing: round((Math.atan2(at.x, at.z) * COMPASS % 360 + 360) % 360),
 
     // The period, in the only unit that says whether it can be seen: how many
@@ -662,7 +663,7 @@ export function shaftStats (config: ScapeConfig): WeatherStats['shafts'] {
 
     // The run of the top sheet over the foot of the stack: the full ground
     // throw is the run of the deck itself, and the lit column stops short of it.
-    lean:   round(Math.hypot(at.x, at.z) * (column / Math.max(cloudHeight, 1e-3)), 1),
+    lean:   round(hypot(at.x, at.z) * (column / Math.max(cloudHeight, 1e-3)), 1),
     column: round(column, 1),
     top:    round(heights[1], 1),
   }

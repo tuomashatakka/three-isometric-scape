@@ -5,6 +5,7 @@ import type { LiveConfig } from '../config.ts'
 import { buildProp, resolvePalette } from '../props/index.ts'
 import { colonyAshore, ledgeBirds } from './ledges.ts'
 import type { CliffColony, LedgeBird } from './ledges.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -76,7 +77,7 @@ function cliffBounds (birds: readonly LedgeBird[]): Sphere {
   let radius   = 0
 
   for (const bird of birds)
-    radius = Math.max(radius, Math.hypot(bird.x - centre.x, bird.z - centre.z))
+    radius = Math.max(radius, hypot(bird.x - centre.x, bird.z - centre.z))
 
   return new Sphere(centre, radius + (maxY - minY) * 0.5 + SETTLE + 1)
 }

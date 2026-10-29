@@ -3,6 +3,7 @@ import type { ArchipelagoSurvey } from '../src/scene/landscape/archipelago.ts'
 import { SHELTER_RESOLUTION, shelterAt, surveyShelter } from '../src/scene/landscape/shelter.ts'
 import { bakeDepthGrid } from '../src/scene/landscape/shore-mask.ts'
 import type { MapStats } from './scape-map.ts'
+import { hypot } from '../src/scene/hypot.ts'
 
 
 /** The rounding every instrument in this directory prints through. */
@@ -59,7 +60,7 @@ export function shelterStats (survey: ArchipelagoSurvey, config: ScapeConfig): M
 
     // The first harmonic's own amplitude, doubled: the span between the
     // bearing it peaks on and the one opposite it.
-    swing += 2 * Math.hypot(field.data[at + 1], field.data[at + 2])
+    swing += 2 * hypot(field.data[at + 1], field.data[at + 2])
     lee += shelterAt(field, index, upwindX, upwindZ) >= 0.5 ? 1 : 0
   }
 

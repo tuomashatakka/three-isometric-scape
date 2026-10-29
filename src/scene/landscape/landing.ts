@@ -3,6 +3,7 @@ import type { HeightField } from './height.ts'
 import type { ScapeLayout } from './layout.ts'
 import type { Vec2 } from './path.ts'
 import { BOAT_HULL_RADIUS } from './waterway.ts'
+import { hypot } from '../hypot.ts'
 
 
 const TAU             = Math.PI * 2
@@ -34,7 +35,7 @@ export function findBank (
     const x = layout.yard.x + Math.cos(angle) * distance
     const z = layout.yard.z + Math.sin(angle) * distance
 
-    if (Math.hypot(x, z) > limit)
+    if (hypot(x, z) > limit)
       return null
     if (field.heightAt(x, z) > water - 0.6)
       continue

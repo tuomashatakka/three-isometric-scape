@@ -288,7 +288,37 @@ export const SURVEY_BUDGET_MS = 180_000
  * Survey every inhabited island locally, then join only their world-facing
  * contracts: ground, paths, ports and waterways.
  */
+/**
+ * Surveys already taken, keyed on the config's content.
+ *
+ * The survey is a pure function of the config and the most expensive thing in
+ * the scape — twenty seconds of terrain solving on the default world — and a
+ * rebuild after a context loss, a tier change or a scatter-only knob asks for
+ * exactly the same one. So does the test suite, forty-odd files over. Keyed on
+ * content rather than identity because the store commits a new object on every
+ * write; a few entries, because the configs that differ in the survey's inputs
+ * are the ones a reader is moving between.
+ */
+const SURVEYS = new Map<string, ArchipelagoSurvey>()
+const KEPT    = 4
+
 export function surveyArchipelago (config: ScapeConfig): ArchipelagoSurvey {
+  const key    = JSON.stringify(config)
+  const cached = SURVEYS.get(key)
+
+  if (cached)
+    return cached
+
+  const survey = surveyAfresh(config)
+
+  SURVEYS.set(key, survey)
+  if (SURVEYS.size > KEPT)
+    SURVEYS.delete(SURVEYS.keys().next().value as string)
+
+  return survey
+}
+
+function surveyAfresh (config: ScapeConfig): ArchipelagoSurvey {
   assertSeparate(config)
 
   const landmasses = config.archipelago.landmasses.map(spec => {

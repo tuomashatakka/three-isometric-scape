@@ -3,6 +3,7 @@ import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
 import { cyl, mergeParts, part } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
+import { hypot } from '../hypot.ts'
 
 
 /** A point on the ground plane. */
@@ -101,7 +102,7 @@ export function resamplePath (points: readonly FencePoint[], spacing: number, cl
   for (let index = 0; index < path.length - 1; index += 1) {
     const a    = path[index]
     const b    = path[index + 1]
-    const span = Math.hypot(b.x - a.x, b.z - a.z)
+    const span = hypot(b.x - a.x, b.z - a.z)
 
     if (span < 1e-4)
       continue
@@ -160,7 +161,7 @@ function spanRails (
       continue
 
     // A gap wider than two spacings means the run stepped over rejected ground.
-    if (Math.hypot(b.x - a.x, b.z - a.z) > spacing * 2)
+    if (hypot(b.x - a.x, b.z - a.z) > spacing * 2)
       continue
 
     for (const rail of rails) {

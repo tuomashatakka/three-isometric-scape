@@ -7,6 +7,7 @@ import { solveArch } from './arch.ts'
 import type { Arch } from './arch.ts'
 import { raiseStack, solveStack } from './stack.ts'
 import type { Stack } from './stack.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -397,7 +398,7 @@ export function solveCrag (
     target.level = 0
     target.foot  = 0
 
-    const radius = Math.hypot(x, z)
+    const radius = hypot(x, z)
 
     if (radius <= 0)
       return target

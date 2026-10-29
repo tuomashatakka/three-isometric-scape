@@ -8,6 +8,7 @@ import type { TideState } from '../tide.ts'
 import type { WindState } from '../wind.ts'
 import { floeExtent } from './packice.ts'
 import type { IceFloe } from './packice.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -110,7 +111,7 @@ function packBounds (floes: readonly IceFloe[], surface: number, slack: number):
   let radius = 0
 
   for (const floe of floes)
-    radius = Math.max(radius, Math.hypot(floe.x - x, floe.z - z) + floe.length * 0.5)
+    radius = Math.max(radius, hypot(floe.x - x, floe.z - z) + floe.length * 0.5)
 
   return new Sphere(new Vector3(x, surface, z), radius + slack)
 }

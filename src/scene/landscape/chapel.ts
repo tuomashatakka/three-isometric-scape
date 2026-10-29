@@ -3,6 +3,7 @@ import type { MillKeepOff, MillObstacle } from './mill.ts'
 import { distanceToPath } from './path.ts'
 import type { Vec2 } from './path.ts'
 import type { Standing } from './steading.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -249,16 +250,16 @@ export function findChapelSite (
       const x = -edge + ix / (CHAPEL_PROBES - 1) * edge * 2
       const z = -edge + iz / (CHAPEL_PROBES - 1) * edge * 2
 
-      if (Math.hypot(x, z) > edge)
+      if (hypot(x, z) > edge)
         continue
 
-      const fromYard = Math.hypot(x - yard.x, z - yard.z)
+      const fromYard = hypot(x - yard.x, z - yard.z)
 
       if (fromYard < fromFarm || fromYard > search.reach)
         continue
       if (lines.some(line => distanceToPath(line.points, x, z) < line.clearance))
         continue
-      if (avoid.some(thing => Math.hypot(thing.x - x, thing.z - z) < thing.radius + CHAPEL_FOOTING))
+      if (avoid.some(thing => hypot(thing.x - x, thing.z - z) < thing.radius + CHAPEL_FOOTING))
         continue
 
       const dryness = search.ground(x, z) - search.waterLevel

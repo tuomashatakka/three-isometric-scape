@@ -25,6 +25,7 @@ import type { Vec2 } from './path.ts'
 import type { PeatBank } from './peat.ts'
 import { courseRigs, rigGeometry } from './rigs.ts'
 import type { Strand } from './strand.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -262,7 +263,7 @@ export function createTerrainPainter (
       if (grazed > 0)
         target.lerp(pasture, grazed * 0.62)
 
-      const fromYard = Math.hypot(x - layout.yard.x, z - layout.yard.z)
+      const fromYard = hypot(x - layout.yard.x, z - layout.yard.z)
       const onYard   = 1 - smoothstep(layout.yard.radius * 0.5, layout.yard.radius * 1.15, fromYard)
       if (onYard > 0)
         target.lerp(yard, onYard * 0.65)

@@ -18,6 +18,7 @@ import { sampleHeight } from './noise.ts'
 import type { AtmosphereQuality } from './quality.ts'
 import { deckReveal, deckViewSize } from './sky-deck.ts'
 import { LAYER } from './layers.ts'
+import { hypot } from './hypot.ts'
 
 
 export interface AuroraOptions {
@@ -114,7 +115,7 @@ function veilGeometry (size: number): PlaneGeometry {
   const colors   = new Float32Array(position.count * 4)
 
   for (let index = 0; index < position.count; index += 1) {
-    const radius = Math.hypot(position.getX(index), position.getY(index)) / size
+    const radius = hypot(position.getX(index), position.getY(index)) / size
     const offset = index * 4
 
     colors[offset]     = 1

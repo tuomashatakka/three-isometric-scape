@@ -1,5 +1,6 @@
 import { sampleWaterway } from './waterway.ts'
 import type { RouteSample, WaterwayRoute } from './waterway.ts'
+import { hypot } from '../hypot.ts'
 
 
 export interface FleetSchedule {
@@ -157,7 +158,7 @@ export function scheduledFleetMinimumSeparation (
 
     for (let a = 0; a < poses.length; a += 1)
       for (let b = a + 1; b < poses.length; b += 1)
-        minimum = Math.min(minimum, Math.hypot(
+        minimum = Math.min(minimum, hypot(
           poses[a].x - poses[b].x,
           poses[a].z - poses[b].z,
         ))

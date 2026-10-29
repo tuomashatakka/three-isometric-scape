@@ -8,6 +8,7 @@ import type { TideState } from '../tide.ts'
 import type { WindState } from '../wind.ts'
 import { creelDepth, creelPots } from './creel.ts'
 import type { CreelFleet, CreelPot } from './creel.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -97,7 +98,7 @@ function fleetBounds (pots: readonly CreelPot[]): Sphere {
   let radius = 0
 
   for (const pot of pots)
-    radius = Math.max(radius, Math.hypot(pot.x - x, pot.z - z))
+    radius = Math.max(radius, hypot(pot.x - x, pot.z - z))
 
   // Generous in y: a mark rides a couple of metres of tide and the staff on it
   // is most of two more.

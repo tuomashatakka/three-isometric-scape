@@ -219,6 +219,26 @@ function openingPose (
   }
 }
 
+/** The four camera knobs an outside writer can move: the overlay, the url, the studio. */
+type AuthoredCamera = Pick<ScapeConfig['camera'], 'focusX' | 'focusZ' | 'viewSize' | 'rotation'>
+
+/**
+ * Whether the camera knobs moved since the last frame, recording them if so.
+ *
+ * The camera's live pose belongs to the gestures, so the config is not read
+ * every frame — only a *change* to it is obeyed, and obeyed at once rather
+ * than eased, so a capture that writes a pose gets exactly that pose.
+ */
+export function authoredMoved (now: AuthoredCamera, last: AuthoredCamera): boolean {
+  const moved = now.focusX !== last.focusX || now.focusZ !== last.focusZ ||
+    now.viewSize !== last.viewSize || now.rotation !== last.rotation
+
+  if (moved)
+    Object.assign(last, { focusX: now.focusX, focusZ: now.focusZ, viewSize: now.viewSize, rotation: now.rotation })
+
+  return moved
+}
+
 export function createCameraControls (
   options: CameraControlsOptions,
 ): ScapeModule {
@@ -292,8 +312,9 @@ export function createCameraControls (
     lastViewSize                = Number.NaN,
     detach: (() => void) | null = null
 
-  const aspect = (): number => canvas.clientWidth / canvas.clientHeight || 1
-  const tiltOf = (viewSize: number): number =>
+  const authored: AuthoredCamera = { ...limits() }
+  const aspect                   = (): number => canvas.clientWidth / canvas.clientHeight || 1
+  const tiltOf                   = (viewSize: number): number =>
     tiltForViewSize(viewSize, limits().minViewSize, limits().maxViewSize, limits().tiltNear, limits().tiltFar)
 
   /**
@@ -753,6 +774,18 @@ export function createCameraControls (
     // writers of the same target on the same frame.
     syncPath(delta)
     syncBoatFollow()
+
+    if (authoredMoved(limits(), authored)) {
+      const { x, z } = clampFocus(authored.focusX, authored.focusZ, maxFocus)
+
+      target.focus.set(x, landscape.heightAt(x, z), z)
+      target.viewSize = clamp(authored.viewSize, limits().minViewSize, limits().maxViewSize)
+      target.heading  = wrapHeading(authored.rotation - baseRotation)
+      pose.focus.copy(target.focus)
+      pose.viewSize = target.viewSize
+      pose.heading  = target.heading
+      settling      = true
+    }
 
     if (revolving)
       target.heading = wrapHeading(target.heading + ORBIT_DEGREES_PER_SECOND * delta)

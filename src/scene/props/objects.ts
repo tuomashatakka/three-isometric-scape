@@ -2,6 +2,7 @@ import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
 import { ball, box, cyl, deg, mergeParts, part, spread } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
+import { hypot } from '../hypot.ts'
 
 
 /** Loose objects — the clutter that says the farm is lived in. */
@@ -35,7 +36,7 @@ function addStrake (
       const to     = HULL_STATIONS[index + 1]
       const dx     = sx * (to.halfWidth - from.halfWidth) * scale
       const dz     = to.z - from.z
-      const length = Math.hypot(dx, dz)
+      const length = hypot(dx, dz)
 
       parts.push(part(box(0.085, height, length + 0.035), {
         at: [

@@ -1,5 +1,6 @@
 import type { Creek } from './creek.ts'
 import type { Vec2 } from './path.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -396,7 +397,7 @@ interface Meeting {
  */
 function fold (groups: Meeting[], found: Meeting, within: number): void {
   const near = groups.find(group =>
-    Math.hypot(group.at.x - found.at.x, group.at.z - found.at.z) < within)
+    hypot(group.at.x - found.at.x, group.at.z - found.at.z) < within)
 
   if (!near) {
     groups.push(found)

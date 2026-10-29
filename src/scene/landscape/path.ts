@@ -136,7 +136,7 @@ export function createPathQuery (
         ? 0
         : Math.min(1, Math.max(0, ((x - a.x) * dx + (z - a.z) * dz) / lengthSq))
 
-      const distance = Math.hypot(x - (a.x + dx * t), z - (a.z + dz * t))
+      const distance = hypot(x - (a.x + dx * t), z - (a.z + dz * t))
 
       if (distance < hit.distance) {
         hit.distance = distance
@@ -163,7 +163,7 @@ export function distanceToPath (points: readonly Vec2[], x: number, z: number): 
       ? 0
       : Math.min(1, Math.max(0, ((x - a.x) * dx + (z - a.z) * dz) / lengthSq))
 
-    best = Math.min(best, Math.hypot(x - (a.x + dx * t), z - (a.z + dz * t)))
+    best = Math.min(best, hypot(x - (a.x + dx * t), z - (a.z + dz * t)))
   }
 
   return best
@@ -174,7 +174,9 @@ export function pathLength (points: readonly Vec2[]): number {
   let total = 0
 
   for (let index = 0; index < points.length - 1; index += 1)
-    total += Math.hypot(points[index + 1].x - points[index].x, points[index + 1].z - points[index].z)
+    total += hypot(points[index + 1].x - points[index].x, points[index + 1].z - points[index].z)
 
   return total
 }
+
+import { hypot } from '../hypot.ts'

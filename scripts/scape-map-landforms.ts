@@ -21,6 +21,7 @@ import { planTreeline } from '../src/scene/landscape/treeline.ts'
 import { freezeAmount } from '../src/scene/season.ts'
 import { tideAmplitudeAt } from '../src/scene/tide.ts'
 import type { MapStats } from './scape-map.ts'
+import { hypot } from '../src/scene/hypot.ts'
 
 
 /**
@@ -363,7 +364,7 @@ export function fjordStats (survey: ArchipelagoSurvey): FjordStats[] {
       const centre = fjord!.pointAt(at)
       const edge   = fjord!.halfWidthAt(at)
       const step   = fjord!.pointAt(Math.min(1, at + 0.01))
-      const run    = Math.hypot(step.x - centre.x, step.z - centre.z) || 1
+      const run    = hypot(step.x - centre.x, step.z - centre.z) || 1
 
       // The across-axis of the centreline at this point, from its own tangent.
       const nx = -(step.z - centre.z) / run
@@ -1255,7 +1256,7 @@ export function roostStats (survey: ArchipelagoSurvey, config: ScapeConfig): Map
     widest:   gaps.length ? round(Math.max(...gaps), 1) : 0,
     share:    round(water ? lit / water * 100 : 0, 1),
     nearest:  found.gates.length
-      ? round(Math.min(...found.gates.map(gate => Math.hypot(gate.x, gate.z))), 1)
+      ? round(Math.min(...found.gates.map(gate => hypot(gate.x, gate.z))), 1)
       : 0,
     springs: round(roostAmount(1, config.roost.strength), 2),
   }

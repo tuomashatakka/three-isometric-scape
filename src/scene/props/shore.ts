@@ -3,6 +3,7 @@ import type { SeededRng } from 'threejs-scene'
 import { ball, box, cyl, deg, mergeParts, part, spread } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
 import { gableEnd, gabledRoof } from './timber.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -70,7 +71,7 @@ function slipway (
   const span = run - 0.4
 
   for (const sx of [ -1, 1 ])
-    parts.push(part(box(0.16, 0.2, Math.hypot(run, drop)), {
+    parts.push(part(box(0.16, 0.2, hypot(run, drop)), {
       at:     [ sx * 0.92, deckY - 0.28 - drop / 2, start + run / 2 ],
       rotate: [ Math.atan2(drop, run), 0, 0 ],
       color:  palette.tarWood,

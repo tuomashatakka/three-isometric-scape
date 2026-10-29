@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { clampFocus, clientPointToNdc, headingDelta, rotateAroundPivot, tiltForViewSize, wrapHeading, zoomViewSize } from './camera-controls.ts'
+import { authoredMoved, clampFocus, clientPointToNdc, headingDelta, rotateAroundPivot, tiltForViewSize, wrapHeading, zoomViewSize } from './camera-controls.ts'
 
 
 describe('camera control math', () => {
@@ -112,5 +112,19 @@ describe('camera control math', () => {
       expect(result.x).toBeCloseTo(expected, 8)
       expect(result.z).toBeCloseTo(-expected, 8)
     })
+  })
+})
+
+describe('authoredMoved', () => {
+  const pose = { focusX: 0, focusZ: 0, viewSize: 70, rotation: 45 }
+
+  test('obeys a change to any of the four camera knobs once, and records it', () => {
+    const last = { ...pose }
+
+    expect(authoredMoved(pose, last)).toBe(false)
+    expect(authoredMoved({ ...pose, viewSize: 10 }, last)).toBe(true)
+    expect(last.viewSize).toBe(10)
+    expect(authoredMoved({ ...pose, viewSize: 10 }, last)).toBe(false)
+    expect(authoredMoved({ ...pose, viewSize: 10, rotation: 90 }, last)).toBe(true)
   })
 })

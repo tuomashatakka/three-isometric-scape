@@ -2,6 +2,7 @@ import { smoothstep } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 import { createPathQuery, distanceToPath, pathLength, smoothPath, smoothPolyline } from './path.ts'
 import type { Vec2 } from './path.ts'
+import { hypot } from '../hypot.ts'
 
 
 /** Where a point falls in the channel. A shared scratch — read it, do not keep it. */
@@ -83,7 +84,7 @@ export interface Claim extends Vec2 {
 
 /** Whether any claim reaches a point, with a margin added to every radius. */
 function claimed (claims: readonly Claim[], x: number, z: number, margin: number): boolean {
-  return claims.some(claim => Math.hypot(x - claim.x, z - claim.z) < claim.radius + margin)
+  return claims.some(claim => hypot(x - claim.x, z - claim.z) < claim.radius + margin)
 }
 
 const TAU = Math.PI * 2
@@ -173,7 +174,7 @@ function findSprings (
       const x = -reach + ix / (SPRING_PROBES - 1) * reach * 2
       const z = -reach + iz / (SPRING_PROBES - 1) * reach * 2
 
-      if (Math.hypot(x, z) > reach)
+      if (hypot(x, z) > reach)
         continue
       if (claimed(keepOut, x, z, SPRING_SPACING * 0.5))
         continue
@@ -193,7 +194,7 @@ function findSprings (
   for (const candidate of found) {
     if (springs.length >= SPRING_COUNT)
       break
-    if (springs.some(spring => Math.hypot(spring.x - candidate.x, spring.z - candidate.z) < SPRING_SPACING))
+    if (springs.some(spring => hypot(spring.x - candidate.x, spring.z - candidate.z) < SPRING_SPACING))
       continue
 
     springs.push({ x: candidate.x, z: candidate.z })
@@ -224,11 +225,11 @@ function traceDescent (
   let z        = start.z
   let headingX = 0
   let headingZ = 0
-  let furthest = Math.hypot(x, z)
+  let furthest = hypot(x, z)
   let stalled  = 0
 
   for (let step = 0; step < DESCENT_LIMIT; step += 1) {
-    const radius   = Math.hypot(x, z) || 1
+    const radius   = hypot(x, z) || 1
     const outwardX = x / radius
     const outwardZ = z / radius
     const seaward  = SEAWARD_WORTH * (1 + Math.min(stalled, SPILL_CAP) * SPILL_GAIN)
@@ -260,7 +261,7 @@ function traceDescent (
 
     points.push({ x, z })
 
-    const reached = Math.hypot(x, z)
+    const reached = hypot(x, z)
 
     if (reached >= limit)
       return points

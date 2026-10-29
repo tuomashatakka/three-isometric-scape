@@ -6,6 +6,7 @@ import { distanceToTrack, pastureInfluence, plotInfluence } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
 import { MILL_FOOTING } from './mill.ts'
 import type { Vec2 } from './path.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -141,7 +142,7 @@ function taken (
   // with no bed under it.
   if (iceClaim(config, x, z, level) > 0)
     return true
-  if (Math.hypot(x - layout.yard.x, z - layout.yard.z) < layout.yard.radius + radius)
+  if (hypot(x - layout.yard.x, z - layout.yard.z) < layout.yard.radius + radius)
     return true
   if (distanceToTrack(layout, x, z) < layout.track.width * 1.5 + radius)
     return true
@@ -154,9 +155,9 @@ function taken (
   // footings the footpath planner avoids them by. The smokehouse is not here
   // and does not need to be: it is sited on the harbour bank, and `lift` keeps
   // the pool metres above it.
-  if (layout.mill && Math.hypot(x - layout.mill.x, z - layout.mill.z) < MILL_FOOTING + radius)
+  if (layout.mill && hypot(x - layout.mill.x, z - layout.mill.z) < MILL_FOOTING + radius)
     return true
-  if (layout.chapel && Math.hypot(x - layout.chapel.x, z - layout.chapel.z) < CHAPEL_FOOTING + radius)
+  if (layout.chapel && hypot(x - layout.chapel.x, z - layout.chapel.z) < CHAPEL_FOOTING + radius)
     return true
 
   // A channel through the basin would be a beck running along the bottom of a
@@ -194,7 +195,7 @@ export function solveTarn (
 
       // The whole pool has to fit inside the ground that is reliably dry, not
       // just its centre — a basin whose far rim is out past the coast is a bay.
-      if (Math.hypot(x, z) > layout.landRadius - radius)
+      if (hypot(x, z) > layout.landRadius - radius)
         continue
 
       const level = ground(x, z)
@@ -247,7 +248,7 @@ export function solveTarn (
     outflow: best.outflow,
 
     claimAt (px, pz) {
-      const distance = Math.hypot(px - x, pz - z)
+      const distance = hypot(px - x, pz - z)
 
       if (distance >= radius)
         return 0
@@ -302,7 +303,7 @@ export function carveTarn (tarn: Tarn | null, x: number, z: number, height: numb
   if (!tarn)
     return height
 
-  const distance = Math.hypot(x - tarn.x, z - tarn.z)
+  const distance = hypot(x - tarn.x, z - tarn.z)
 
   if (distance >= tarn.radius)
     return height

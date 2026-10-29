@@ -6,6 +6,7 @@ import { driftDirection } from './drift.ts'
 import type { Obstacle } from './footpath.ts'
 import type { Spot } from './landing.ts'
 import type { Vec2 } from './layout.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -228,7 +229,7 @@ function layRun (
     const station = stationAt(search, centre, along, index * search.spacing - span / 2)
 
     if (avoid.some(thing =>
-      Math.hypot(thing.x - station.x, thing.z - station.z) < thing.radius + HJELL_CLEARING))
+      hypot(thing.x - station.x, thing.z - station.z) < thing.radius + HJELL_CLEARING))
       return null
 
     if (station.level - search.waterLevel < search.freeboard)

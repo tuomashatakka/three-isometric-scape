@@ -640,7 +640,7 @@ export function createLandscape (
       ctx.scene.add(root)
     },
 
-    update (_state, frame) {
+    update (_state, frame, ctx) {
       // The year is a number in the config, the same way the time of day is, so
       // scrubbing the overlay's season slider and letting the clock run are the
       // same operation on the same field.
@@ -667,6 +667,7 @@ export function createLandscape (
       shadow.update(wind)
 
       advancePopulated(frame.delta, year.time, now, front.fall)
+      dressing?.update(ctx.camera, ctx.renderer.domElement.clientHeight, config().lod)
       beck?.update(frame.delta, now)
       force?.update(frame.delta, now)
       tarns?.update(now)

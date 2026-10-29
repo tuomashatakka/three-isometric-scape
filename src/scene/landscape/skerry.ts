@@ -2,6 +2,7 @@ import { createSeededRng } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 import type { LandmassSurvey } from './archipelago.ts'
 import type { Strand } from './strand.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -150,7 +151,7 @@ function skerryHeight (skerry: Skerry, waterLevel: number, seabed: number, x: nu
   const dx = x - skerry.x
   const dz = z - skerry.z
 
-  const distance = Math.hypot(dx, dz)
+  const distance = hypot(dx, dz)
   if (distance > skerry.radius * (1 + LOBE * 1.62))
     return null
 
@@ -289,7 +290,7 @@ export function surveySkerries (
       return false
 
     for (const other of placed)
-      if (Math.hypot(x - other.x, z - other.z) < wide + other.radius)
+      if (hypot(x - other.x, z - other.z) < wide + other.radius)
         return false
 
     return true

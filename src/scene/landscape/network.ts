@@ -8,6 +8,7 @@ import { distanceToPath } from './path.ts'
 import type { Vec2 } from './path.ts'
 import { STEADING_BUILDINGS, doorstepOf } from './steading.ts'
 import type { SteadingPlaces } from './steading.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -102,7 +103,7 @@ function goesRound (from: Vec2, to: Vec2, avoid: readonly Obstacle[]): boolean {
 }
 
 function span (from: Vec2, to: Vec2): number {
-  return Math.hypot(to.x - from.x, to.z - from.z)
+  return hypot(to.x - from.x, to.z - from.z)
 }
 
 function legCost (from: Vec2, to: Vec2, avoid: readonly Obstacle[]): number {
@@ -197,7 +198,7 @@ export function shortcuts (
  */
 function plotGate (plot: Plot, toward: Vec2): Vec2 | null {
   const bearing = Math.atan2(toward.z - plot.z, toward.x - plot.x)
-  const reach   = Math.hypot(plot.halfW, plot.halfD) + 2
+  const reach   = hypot(plot.halfW, plot.halfD) + 2
 
   for (let out = 0; out < reach; out += 0.3) {
     const x = plot.x + Math.cos(bearing) * out

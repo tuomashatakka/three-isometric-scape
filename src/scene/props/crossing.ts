@@ -2,6 +2,7 @@ import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
 import { box, createRockGeometry, mergeParts, part, spread } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
+import { hypot } from '../hypot.ts'
 
 
 /**
@@ -77,7 +78,7 @@ const yawAlong = (bearing: number): number => Math.PI / 2 - bearing
 export function buildFootbridge (options: FootbridgeOptions): BufferGeometry | null {
   const { near, far, deck, width, rng, palette } = options
 
-  const span = Math.hypot(far.x - near.x, far.z - near.z)
+  const span = hypot(far.x - near.x, far.z - near.z)
 
   if (span < 0.6 || width <= 0)
     return null
