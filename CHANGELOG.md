@@ -7,7 +7,7 @@ one entry per [scene enhancement run](instructions.md), newest first. a run is o
 every farm now has a washing line across the yard: strutted posts and a sagging rope merged into the steading, and sheets, shirts and towels pegged along it. the wash goes out with the sun, comes in at dusk and when a shower starts, and blows out from plumb with the share of the live wind that crosses the rope, flapping in the gusts.
 
 - **one draw:** all cloths are one `InstancedMesh` over the archipelago, tinted per instance. the posts and rope are merged and cost no draw call.
-- **tiers:** `quality.washCloths` is 0 / 24 / 64 / 64. mobile gets a thinned line on every farm.
+- **tiers:** `quality.washCloths` is 0 / 42 / 64 / 64. mobile gets every farm's full line; desktop carries the denser `wash.fill` headroom.
 - **knobs:** `wash.billow` and `wash.flutter` are in the overlay. `wash.length`, `height` and `fill` are build-time. `wash.flutter=0` is in `STILL`.
 - **claims as tests:** `wash.test.ts` checks that every peg is on its own rope and no hem touches the ground. it also checks that the budget thins every farm, that the wash is in at night and in rain, and that wind along the line lifts nothing. `steading.test.ts` checks that the line is square to the yard and both posts stand clear of every building.
 

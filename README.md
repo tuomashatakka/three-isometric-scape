@@ -3466,7 +3466,7 @@ the hjell is the year's clock at ground level; this is the **day's and the weath
 
 the cloth is three thin panels set at alternating angles — a sheet on a line hangs in vertical folds, and the zig-zag is what breaks the light across it into bands. thin boxes rather than planes so the shared single-sided material lights both faces. it is painted white and tinted per instance, so one geometry is every garment.
 
-**cost:** one draw call for the whole archipelago's wash; `quality.washCloths` is 0 / 24 / 64 / 64 (minimal / mobile / desktop / ultra), dealt by stride so a phone thins every line rather than stripping one farm. the posts and rope are merged and cost no draw at any tier. `wash.height` at 0 is a farm with no line; `wash.flutter` is in `STILL`.
+**cost:** one draw call for the whole archipelago's wash; `quality.washCloths` is 0 / 42 / 64 / 64 (minimal / mobile / desktop / ultra), dealt by stride so a phone thins every line rather than stripping one farm. the posts and rope are merged and cost no draw at any tier. `wash.height` at 0 is a farm with no line; `wash.flutter` is in `STILL`.
 
 ## ground that casts
 

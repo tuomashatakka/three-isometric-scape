@@ -65,7 +65,7 @@ export const SCAPE_WASH: WashConfig = {
     length:  6.4,
     height:  1.95,
     fill:    1.1,
-    billow:  1.05,
+    billow:  0.75,
     flutter: 1.4,
   },
 }
