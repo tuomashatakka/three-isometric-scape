@@ -391,6 +391,7 @@ src/
     │   ├── dressing-sampling.ts    what the darts are thrown at, and each feature's quota
     │   ├── dressing-zones.ts       what the composition already claims the ground for
     │   ├── dressing-helpers.ts     the placement questions that are pure geometry
+    │   ├── lattice.ts              a height field read through a lazy lattice: the terrain mesh and the scatter rules read it
     │   ├── claims.ts               the solver's claims bucketed by ground cell, so a dart asks a few cells rather than every claim
     │   ├── dressing-enclosures.ts  the pasture wall, the churchyard wall, the plot fences, the head dyke
     │   ├── dressing-harbour.ts     the waterfront: boathouse, net rack, the pots ashore, the trestle, the fish trap

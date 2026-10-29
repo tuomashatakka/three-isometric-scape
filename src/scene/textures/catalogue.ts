@@ -265,7 +265,7 @@ function grainField (seed: number): DataTexture {
  * independent: retuning one does not reshuffle the others, and two of them never
  * accidentally become the same noise.
  */
-const BUILDERS: Record<string, (seed: number) => Texture> = {
+const BUILDERS: Record<string, (seed: number, catalogue: TextureCatalogue) => Texture> = {
   'ground.grain': seed => tiled(grainField(seed)),
 
   // The grain's own gradient, resolved once at build. It carries the height in
@@ -276,8 +276,11 @@ const BUILDERS: Record<string, (seed: number) => Texture> = {
   // texel per pixel is the tinfoil failure the lake's ripple map is commented
   // for — a different random tangent in every pixel, and a specular that fires
   // in a scatter of them.
-  'ground.normal': seed => {
-    const source  = grainField(seed)
+  'ground.normal': (_seed, catalogue) => {
+    // The grain the catalogue already holds, rather than the same five-octave
+    // field generated a second time — that was a quarter of a second of the
+    // first load, spent on bytes identical to ones already built.
+    const source  = catalogue.get('ground.grain')
     const data    = (source.image as { data: Uint8Array }).data
     const texture = new DataTexture(
       normalFromHeight(data, GRAIN_SIZE),
@@ -285,10 +288,6 @@ const BUILDERS: Record<string, (seed: number) => Texture> = {
       GRAIN_SIZE,
       RGBAFormat,
     )
-
-    // Freed immediately: it was never uploaded, and it exists only as the field
-    // the gradient was taken from.
-    source.dispose()
 
     texture.colorSpace = NoColorSpace
     return mipped(texture)
@@ -333,7 +332,7 @@ export const CATALOGUE_TEXTURES: readonly TextureId[] = TEXTURES
 export function createTextureCatalogue (seed: number): TextureCatalogue {
   const built = new Map<TextureId, Texture>()
 
-  return {
+  const catalogue: TextureCatalogue = {
     get (id) {
       const cached = built.get(id)
 
@@ -345,7 +344,7 @@ export function createTextureCatalogue (seed: number): TextureCatalogue {
       if (!build)
         throw new Error(`texture ${id} is baked by its own module, not built by the catalogue`)
 
-      const texture = build(seed)
+      const texture = build(seed, catalogue)
 
       texture.name = id
       built.set(id, texture)
@@ -371,4 +370,6 @@ export function createTextureCatalogue (seed: number): TextureCatalogue {
       built.clear()
     },
   }
+
+  return catalogue
 }

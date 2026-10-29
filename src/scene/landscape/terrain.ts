@@ -16,6 +16,7 @@ import type { DuneBelt } from './dunes.ts'
 import { saltingsFace, saltingsTurf } from './saltings.ts'
 import type { Saltings } from './saltings.ts'
 import type { Footpaths } from './footpath.ts'
+import { latticeField } from './lattice.ts'
 import { surfaceQueries } from './height.ts'
 import type { GroundNormal, HeightField } from './height.ts'
 import { crevasseAt, iceCapOf, iceClaim } from './icecap.ts'
@@ -860,9 +861,15 @@ export function createArchipelagoTerrain (
     // sampled from its local field alone would draw the island the bar is *not*
     // joined to — with the strip then hovering over ground that had never heard
     // of it.
-    const ground = archipelago.strand
+    const exact  = archipelago.strand
       ? withStrand(landmass.survey.field, archipelago.strand, landmass.origin)
       : landmass.survey.field
+    const size   = landmass.config.terrain.size
+
+    // Read through a lattice on the mesh's own vertices: each vertex asks the
+    // field once, and the slope and normal the painter wants come off its
+    // neighbours instead of four more full reads each.
+    const ground = latticeField(exact, size / segments, -size / 2, -size / 2)
 
     const geometry = terrainGeometry(
       landmass.config,
@@ -885,7 +892,7 @@ export function createArchipelagoTerrain (
     for (const laid of laidPatches(
       landmass.config,
       landmass.survey.layout,
-      landmass.survey.field,
+      latticeField(landmass.survey.field, size / segments, -size / 2, -size / 2),
       landmass.survey.paths,
       segments,
       rigCuts,

@@ -42,6 +42,9 @@ export const SHORE_RESOLUTION = 512
  */
 export const MAX_DEPTH = 3.2
 
+/** Texels between the coarse depth reads the bake skips open water by. */
+const DEEP_STRIDE = 3
+
 /** Pack a −1..1 component into a byte. */
 function encodeUnit (value: number): number {
   return Math.round(Math.min(255, Math.max(0, (value * 0.5 + 0.5) * 255)))
@@ -74,17 +77,45 @@ export function bakeDepthGrid (
   size:   number = SHORE_RESOLUTION,
 ): Float32Array {
   const step  = span / (size - 1)
-  const depth = new Float32Array(size * size)
+  const depth = new Float32Array(size * size).fill(Number.NaN)
+  const read  = (column: number, row: number): number => {
+    const slot = row * size + column
 
-  for (let row = 0; row < size; row += 1)
-    for (let column = 0; column < size; column += 1) {
-      const x = -span / 2 + column * step
-      const z = -span / 2 + row * step
-
-      depth[row * size + column] = Math.min(
+    if (Number.isNaN(depth[slot]))
+      depth[slot] = Math.min(
         1,
-        Math.max(0, (config.terrain.waterLevel - field.heightAt(x, z)) / MAX_DEPTH),
+        Math.max(0, (config.terrain.waterLevel - field.heightAt(-span / 2 + column * step, -span / 2 + row * step)) / MAX_DEPTH),
       )
+    return depth[slot]
+  }
+  const coarse = (index: number): number => Math.min(size - 1, Math.max(0, index * DEEP_STRIDE))
+  const blocks = Math.ceil((size - 1) / DEEP_STRIDE)
+
+  // Most of the world is open water deeper than the mask can tell apart, and
+  // reading every texel of it was most of the bake. So the depth is read on a
+  // coarse lattice first, and a block whose own corners and the ring of corners
+  // around it are all saturated is filled as deep without reading it — a rock
+  // would have to rise from the seabed and sink again inside two strides to be
+  // missed. Everything else is read texel by texel, as before.
+  for (let blockRow = 0; blockRow < blocks; blockRow += 1)
+    for (let blockColumn = 0; blockColumn < blocks; blockColumn += 1) {
+      let deep = true
+
+      for (let dr = -1; dr <= 2 && deep; dr += 1)
+        for (let dc = -1; dc <= 2 && deep; dc += 1)
+          deep = read(coarse(blockColumn + dc), coarse(blockRow + dr)) >= 1
+
+      const top    = blockRow * DEEP_STRIDE
+      const left   = blockColumn * DEEP_STRIDE
+      const bottom = Math.min(size - 1, top + DEEP_STRIDE)
+      const right  = Math.min(size - 1, left + DEEP_STRIDE)
+
+      for (let row = top; row <= bottom; row += 1)
+        for (let column = left; column <= right; column += 1)
+          if (deep && Number.isNaN(depth[row * size + column]))
+            depth[row * size + column] = 1
+          else
+            read(column, row)
     }
 
   return depth
