@@ -88,5 +88,10 @@ export function latticeField (
  * height and its slope and normal change; everything else is the survey's own.
  */
 export function latticeSurvey (survey: ArchipelagoSurvey, spacing: number): ArchipelagoSurvey {
-  return { ...survey, field: { ...survey.field, ...latticeField(survey.field, spacing) }}
+  // A view over the survey rather than a copy of it: a spread would read every
+  // getter on it, and `waterways` is one that is meant to stay unread until a
+  // boat needs it.
+  const field = { ...survey.field, ...latticeField(survey.field, spacing) }
+
+  return Object.create(survey, { field: { value: field, enumerable: true }}) as ArchipelagoSurvey
 }

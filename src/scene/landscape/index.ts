@@ -55,7 +55,6 @@ import { createKelpForest } from './kelp.ts'
 import type { KelpForest } from './kelp.ts'
 import { planKelp } from './kelpbed.ts'
 import { planPackIce } from './packice.ts'
-import type { IceFloe } from './packice.ts'
 import type { KelpSkirt } from './kelpbed.ts'
 import { yawAlong } from './layout.ts'
 import type { ScapeLayout } from './layout.ts'
@@ -143,17 +142,6 @@ export interface Landscape {
    */
   creels: readonly CreelFleet[]
 
-  /**
-   * Every plate of ice the winter can stand on the sound, and the week each
-   * arrives.
-   *
-   * Published for the reason the haul-outs and the weed are: which water carries
-   * a floe is an answer about the depth and the ice front over it rather than
-   * about geometry, and it is the one thing `scape:map` can measure about a pack
-   * without a browser. What is drawn from it is `landscape/floes.ts`, and how
-   * much of it is standing in any week is the year's.
-   */
-  pack: readonly IceFloe[]
 
   /** Live fleet accessor; null until the landscape module has built. */
   boatFleet(): BoatFleet | null
@@ -281,16 +269,17 @@ export function createLandscape (
   // more optional system is what took it over. The pairing is not
   // arbitrary — both are a colony of small instances that the *year* fills and
   // empties, and both are advanced from the same week in `advancePopulated`.
-  let cliffs: SeabirdCliffs | null = null,
-    hjells: HjellCatch | null      = null,
-    wash: WashLines | null         = null
-  let kelp: KelpForest | null      = null
-  let creels: CreelMarks | null    = null
-  let pack: PackIce | null         = null
-  let water: Water | null          = null
-  let beck: Beck | null            = null
-  let force: Force | null          = null
-  let tarns: TarnWater | null      = null
+  let cliffs: SeabirdCliffs | null                             = null,
+    hjells: HjellCatch | null                                  = null,
+    wash: WashLines | null                                     = null,
+    populating: 'due' | 'done' | ReturnType<typeof setTimeout> = 'done'
+  let kelp: KelpForest | null                                  = null
+  let creels: CreelMarks | null                                = null
+  let pack: PackIce | null                                     = null
+  let water: Water | null                                      = null
+  let beck: Beck | null                                        = null
+  let force: Force | null                                      = null
+  let tarns: TarnWater | null                                  = null
 
   /**
    * Every mill's wheel, in world space.
@@ -483,17 +472,101 @@ export function createLandscape (
    */
   const cliffColonies = planCliffColonies(archipelago, config(), quality.cliffBirds)
 
+
   /**
-   * Every plate of ice on the sea between the islands, sited once against mean
-   * water.
+   * What stands on the ground and floats on the water.
    *
-   * Surveyed here beside the weed and the birds, and for their reason — where a
-   * floe can float is a fact about the depth and the ice front over it rather
-   * than about geometry. The tier is asked here rather than inside the search
-   * because how many plates the world carries is a budget and which water
-   * carries any is not.
+   * Built after the first frame rather than in `build`: the dressing and the
+   * waterways the fleet sails (computed on first read, see `archipelago.ts`)
+   * were most of the page's first load, and nothing in the first picture needs
+   * them. The first `update` sets a timeout, which runs once that frame is on
+   * screen — so the page shows the land, the sea and the sky, and only then
+   * pays for what is on them.
    */
-  const packIce = planPackIce(archipelago, config(), quality.floeCount)
+  function populate (): void {
+    populating = 'done'
+    if (!root || !materials)
+      return
+
+    dressing = createDressing(config(), archipelago, materials, quality)
+    // The rounds are planned here rather than beside the other surveys
+    // because they cost nothing to plan and `createLandscape` was at the
+    // lint config's statement ceiling. Which islands have a road long
+    // enough to be worth a journey is still a fact about the ground, and
+    // `quality.carterRounds` is still the tier's budget for how many of
+    // them carry traffic.
+    carters = createCarters({
+      config,
+      rounds:   planCarterRounds(archipelago, quality.carterRounds),
+      material: materials.ground,
+      field,
+    })
+    sails = createMillSails({ config, hubs: millHubs, material: materials.ground })
+    wheels = createWaterWheels({ config, quality, hubs: wheelHubs, material: materials.ground })
+    seals = createSealColony({ config, haulouts, material: materials.ground, tide })
+    kelp = createKelpForest({ config, skirts, material: materials.ground, tide })
+    creels = createCreelMarks({
+      config,
+      fleets:   creelFleets,
+      material: materials.ground,
+      tide,
+    })
+    cliffs = createSeabirdCliffs({ config, colonies: cliffColonies, material: materials.ground })
+    // The seats are dealt here rather than beside the other surveys for the
+    // reason the carter's rounds are: they cost nothing to deal — the survey
+    // already settled which harbours carry a rack — and `createLandscape`
+    // was at the lint config's statement ceiling. `quality.hjellFish` is
+    // still the tier's budget for how many of them hold a fish.
+    hjells = createHjellCatch({
+      config,
+      fish:     planHjellCatch(archipelago, config(), quality.hjellFish),
+      material: materials.ground,
+    })
+    wash = createWashLines({
+      config,
+      cloths:   planWash(archipelago, config(), quality.washCloths),
+      material: materials.ground,
+    })
+    root.add(dressing.object)
+
+    // A list walked rather than a column of `if (x) root.add(x.mesh)`, for
+    // the reason `releaseSystems` is one: the ninth optional fleet is what
+    // took `build` past the lint config's complexity ceiling, and which
+    // fleets exist was never the interesting part of the build. Each is
+    // null on an archipelago that had nowhere to put one, or on a tier that
+    // asked for none.
+    for (const fleetMesh of [ carters, sails, wheels, seals, kelp, creels, cliffs, hjells, wash ])
+      if (fleetMesh)
+        root.add(fleetMesh.mesh)
+
+    /** The boats and the pack ice: the two readers of the route, solved here on first read. */
+    function launch (): void {
+      populating = 'done'
+      if (!root || !materials)
+        return
+
+      fleet = createBoatFleet({
+        config,
+        network:  archipelago.waterways,
+        material: materials.ground,
+        tide,
+        motion:   {
+          dwellSeconds:  config().boats.dwellSeconds,
+          turnRate:      config().boats.turnRate,
+          turnLookAhead: config().boats.turnLookAhead,
+        },
+      })
+      pack = createPackIce({ config, floes: planPackIce(archipelago, config(), quality.floeCount), material: materials.ground, tide })
+      root.add(fleet.mesh)
+      if (pack)
+        root.add(pack.mesh)
+    }
+
+    // The second half in a task of its own, so a frame with the dressing in
+    // it is drawn before the route is solved.
+    populating = setTimeout(launch, 0)
+  }
+
 
   const module = defineModule<ScapeConfig>({
     name: 'nordic-landscape',
@@ -572,75 +645,17 @@ export function createLandscape (
           root.add(tarns.mesh)
       }
 
-      if (!skip.has('dressing')) {
-        dressing = createDressing(config(), archipelago, materials, quality)
-        fleet = createBoatFleet({
-          config,
-          network:  archipelago.waterways,
-          material: materials.ground,
-          tide,
-          motion:   {
-            dwellSeconds:  config().boats.dwellSeconds,
-            turnRate:      config().boats.turnRate,
-            turnLookAhead: config().boats.turnLookAhead,
-          },
-        })
-        // The rounds are planned here rather than beside the other surveys
-        // because they cost nothing to plan and `createLandscape` was at the
-        // lint config's statement ceiling. Which islands have a road long
-        // enough to be worth a journey is still a fact about the ground, and
-        // `quality.carterRounds` is still the tier's budget for how many of
-        // them carry traffic.
-        carters = createCarters({
-          config,
-          rounds:   planCarterRounds(archipelago, quality.carterRounds),
-          material: materials.ground,
-          field,
-        })
-        sails = createMillSails({ config, hubs: millHubs, material: materials.ground })
-        wheels = createWaterWheels({ config, quality, hubs: wheelHubs, material: materials.ground })
-        seals = createSealColony({ config, haulouts, material: materials.ground, tide })
-        kelp = createKelpForest({ config, skirts, material: materials.ground, tide })
-        creels = createCreelMarks({
-          config,
-          fleets:   creelFleets,
-          material: materials.ground,
-          tide,
-        })
-        cliffs = createSeabirdCliffs({ config, colonies: cliffColonies, material: materials.ground })
-        // The seats are dealt here rather than beside the other surveys for the
-        // reason the carter's rounds are: they cost nothing to deal — the survey
-        // already settled which harbours carry a rack — and `createLandscape`
-        // was at the lint config's statement ceiling. `quality.hjellFish` is
-        // still the tier's budget for how many of them hold a fish.
-        hjells = createHjellCatch({
-          config,
-          fish:     planHjellCatch(archipelago, config(), quality.hjellFish),
-          material: materials.ground,
-        })
-        wash = createWashLines({
-          config,
-          cloths:   planWash(archipelago, config(), quality.washCloths),
-          material: materials.ground,
-        })
-        pack = createPackIce({ config, floes: packIce, material: materials.ground, tide })
-        root.add(dressing.object, fleet.mesh)
-
-        // A list walked rather than a column of `if (x) root.add(x.mesh)`, for
-        // the reason `releaseSystems` is one: the ninth optional fleet is what
-        // took `build` past the lint config's complexity ceiling, and which
-        // fleets exist was never the interesting part of the build. Each is
-        // null on an archipelago that had nowhere to put one, or on a tier that
-        // asked for none.
-        for (const fleetMesh of [ carters, sails, wheels, seals, kelp, creels, cliffs, pack, hjells, wash ])
-          if (fleetMesh)
-            root.add(fleetMesh.mesh)
-      }
+      // Everything that stands on the ground or floats on the water comes after
+      // the first frame rather than before it — see `populate`.
+      populating = skip.has('dressing') ? 'done' : 'due'
 
       ctx.scene.add(root)
     },
 
     update (_state, frame, ctx) {
+      if (populating === 'due')
+        populating = setTimeout(populate, 0)
+
       // The year is a number in the config, the same way the time of day is, so
       // scrubbing the overlay's season slider and letting the clock run are the
       // same operation on the same field.
@@ -684,6 +699,9 @@ export function createLandscape (
     },
 
     dispose () {
+      if (typeof populating !== 'string')
+        clearTimeout(populating)
+      populating = 'done'
       releaseSystems()
 
       if (root) {
@@ -732,7 +750,6 @@ export function createLandscape (
     cliffs:    cliffColonies,
     kelp:      skirts,
     creels:    creelFleets,
-    pack:      packIce,
     lanternHubs,
     hearths,
     windows,

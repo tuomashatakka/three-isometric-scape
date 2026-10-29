@@ -365,7 +365,12 @@ function surveyAfresh (config: ScapeConfig): ArchipelagoSurvey {
   const field       = createCompositeField(config, landmasses, strand, skerries, shoals)
   const paths       = createWorldPaths(landmasses)
   const ports       = projectPorts(config, field, landmasses)
-  const waterways   = createWaterways(config, field, ports)
+
+  // The route is solved on first read rather than here. It is the most
+  // expensive survey in the archipelago and only the fleet and the pack ice
+  // read it, and both are built after the first frame — so the page draws
+  // without having paid for it. Memoized, so every reader gets the one route.
+  let waterways: WaterwayNetwork | null = null
 
   return {
     landmasses,
@@ -378,7 +383,9 @@ function surveyAfresh (config: ScapeConfig): ArchipelagoSurvey {
     field,
     paths,
     ports,
-    waterways,
+    get waterways (): WaterwayNetwork {
+      return waterways ??= createWaterways(config, field, ports)
+    },
     size:       config.archipelago.worldSize,
     waterLevel: config.terrain.waterLevel,
   }
