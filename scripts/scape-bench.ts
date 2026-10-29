@@ -1,6 +1,7 @@
 import { SCAPE_CONFIG } from '../src/scene/config.ts'
 import { surveyArchipelago } from '../src/scene/landscape/archipelago.ts'
 import { createDressing } from '../src/scene/landscape/dressing.ts'
+import { createArchipelagoTerrain } from '../src/scene/landscape/terrain.ts'
 import { createScapeMaterials } from '../src/scene/props/material.ts'
 import { atmosphereQuality, isAtmosphereQualityTier } from '../src/scene/quality.ts'
 import { parseArgs } from './args.ts'
@@ -32,9 +33,16 @@ let started   = performance.now()
 const world  = surveyArchipelago(config)
 const survey = performance.now() - started
 
+const materials = createScapeMaterials(() => config)
+
+started = performance.now()
+createArchipelagoTerrain(config, world, materials.ground, quality.terrainSegments, quality.rigCuts)
+
+const terrain = performance.now() - started
+
 started = performance.now()
 
-const dressing = createDressing(config, world, createScapeMaterials(() => config), quality)
+const dressing = createDressing(config, world, materials, quality)
 const dressed  = performance.now() - started
 
 let instances = 0
@@ -52,5 +60,5 @@ dressing.object.traverse(object => {
     print += cells[index] * (index % 13 + 1)
 })
 
-console.log(`${tier}  survey ${survey.toFixed(0)} ms  dressing ${dressed.toFixed(0)} ms  ` +
+console.log(`${tier}  survey ${survey.toFixed(0)} ms  terrain ${terrain.toFixed(0)} ms  dressing ${dressed.toFixed(0)} ms  ` +
   `fingerprint ${instances} instances ${print.toFixed(6)}`)

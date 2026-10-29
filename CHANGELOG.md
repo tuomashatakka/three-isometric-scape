@@ -2,6 +2,16 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the ground, read through a lattice
+
+the first load after #94 was still ~20 s on a desktop browser. the exact cuts had run out, so this one trades exactness for time where the trade is invisible. [`landscape/lattice.ts`](src/scene/landscape/lattice.ts) is a height field read through a lazily filled lattice: each lattice point asks the full field once, and everything between is bilinear.
+
+- **terrain mesh:** read at its own vertex spacing. each vertex asks the field once, and the painter's slope and normal come off the neighbours instead of eight more full reads. ultra: 5.0 s → 2.1 s. the drawn ground is the same surface.
+- **scatter rules:** read at the slope probe's 0.75 m reach (`latticeSurvey`). ultra: 12.4 s → 4.7 s; mobile: 3.8 s → 1.7 s. the instance counts are the same; positions move by the lattice's rounding. props still stand on the drawn surface.
+- **shore mask:** reads open water on a coarse lattice first, and fills blocks that are deep all round without reading them. 4.4× fewer reads, ~25% less time.
+- **textures:** `ground.normal` takes its height from the cached `ground.grain` instead of generating the same 512² field twice. 0.67 s → 0.45 s.
+- **not latticed:** the survey itself — layout, waterways, sites — stays exact, and `scape:map --stats` is unchanged. a latticed router either grounds a boat or closes a channel, and the build refuses both.
+
 ## the haze, and a first load a third as long
 
 **the frame:** the fog was three's linear fog on camera depth, and from this high orthographic camera every point of the ground sits at nearly the same depth, so it was one flat veil. [`aerial.ts`](src/scene/aerial.ts) replaces three's fog chunks with aerial perspective: optical depth along the ground from the point the camera looks at (half again on the far side), thinning with height (`atmosphere.hazeHeight`, 120 m). the yard stays clear, the far islands go blue-grey, and the feet of the far range dissolve while its summits stand out. it is in metres, not frame-sized, so a close frame carries none. at the archipelago frame the sun shafts fade out (`shaftFade`, 220 → 650 m view), because there they drew a field of white ticks over the sea. the whitecaps are drawn at 14 m instead of 35 m and give way to their mean sooner, because at the `far` pose they were white decals tens of metres across.

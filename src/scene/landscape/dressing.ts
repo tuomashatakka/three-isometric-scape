@@ -4,6 +4,7 @@ import { createSeededRng } from 'threejs-scene'
 import type { SeededRng } from 'threejs-scene'
 
 import { createClaimIndex } from './claims.ts'
+import { latticeSurvey } from './lattice.ts'
 import { createPlacementField, mergeGeometryList, scatterInstances } from 'threejs-scene/modules/assets'
 import type { ScapeConfig } from '../config.ts'
 import { buildProp, resolvePalette } from '../props/index.ts'
@@ -152,6 +153,9 @@ const SWARD_SMOTHERED = 0.34
  */
 const SWARD_DROWNED = 0.25
 
+/** Metres between the points of the ground lattice the scatter rules read. */
+const DRESSING_LATTICE = 0.75
+
 
 /**
  * A near-white tint. `scatterInstances` multiplies it into the baked vertex
@@ -180,12 +184,14 @@ function shade (rng: SeededRng, low: number, high: number): string {
  */
 export function createDressing (
   config:       ScapeConfig,
-  archipelago:  ArchipelagoSurvey,
+  surveyed:     ArchipelagoSurvey,
   materials:    ScapeMaterials,
   quality:      AtmosphereQuality,
 ): Dressing {
-  const root = new Group()
-  root.name  = 'scape-dressing'
+  // Every rule below reads the ground through a lattice (see `latticeSurvey`);
+  // where a prop *stands* is still the drawn surface, so nothing floats for it.
+  const archipelago = latticeSurvey(surveyed, DRESSING_LATTICE)
+  const root        = Object.assign(new Group(), { name: 'scape-dressing' })
 
   const rng              = createSeededRng(config.seed).fork('dressing')
   const palette          = resolvePalette()
