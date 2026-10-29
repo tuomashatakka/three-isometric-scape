@@ -1987,6 +1987,10 @@ export const STILL = [
   // this list, and it is the same reason the sea itself has no entry.
   'haulout.shuffle=0',
 
+  // The wash's flap. Already scaled to nothing by `wind.strength=0` above —
+  // named anyway, for `mill.spin`'s reason.
+  'wash.flutter=0',
+
   // The swell in the kelp beds. Its own rate rather than a share of the wind,
   // because a swell is weather that happened somewhere else a day ago and runs
   // through a flat calm — so nothing else in this list stops it, and several

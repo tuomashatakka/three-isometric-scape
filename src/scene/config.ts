@@ -36,6 +36,8 @@ import { SCAPE_HOWE } from './config-howe.ts'
 import type { HoweConfig } from './config-howe.ts'
 import { SCAPE_HJELL } from './config-hjell.ts'
 import type { HjellConfig } from './config-hjell.ts'
+import { SCAPE_WASH } from './config-wash.ts'
+import type { WashConfig } from './config-wash.ts'
 import { SCAPE_KILN } from './config-kiln.ts'
 import type { KilnConfig } from './config-kiln.ts'
 import { SCAPE_SEASON } from './config-season.ts'
@@ -309,7 +311,7 @@ export interface DressingBudget {
 
 export interface ScapeConfig extends CarterConfig, CreelConfig, CroppingConfig, CrossingConfig, DykeConfig, FarShoreConfig, ForceConfig, FrontConfig,
   GuardConfig, HaarConfig, HaloConfig, HjellConfig, HoweConfig, KelpConfig, KilnConfig, LedgeConfig, MoleConfig, PackIceConfig, RigsConfig, RoostConfig, ShaftsConfig, ShielingConfig,
-  SeasonConfig, ShelterConfig, ShoalConfig, ShoreLightsConfig, SnowFenceConfig, SwashConfig, TreelineConfig, WatermillConfig, WreckConfig {
+  SeasonConfig, ShelterConfig, ShoalConfig, ShoreLightsConfig, SnowFenceConfig, SwashConfig, TreelineConfig, WashConfig, WatermillConfig, WreckConfig {
   seed:    number
   terrain: {
     size:       number
@@ -2716,6 +2718,7 @@ export const SCAPE_CONFIG = {
   ...SCAPE_SHORE_LIGHTS,
   ...SCAPE_SHOAL,
   ...SCAPE_TREELINE,
+  ...SCAPE_WASH,
   ...SCAPE_WATERMILL,
   ...SCAPE_WEIR,
   ...SCAPE_WRECK,

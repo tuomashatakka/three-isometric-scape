@@ -47,6 +47,8 @@ import type { PackIce } from './floes.ts'
 import { planHjellCatch } from './hjell.ts'
 import { createHjellCatch } from './hjells.ts'
 import type { HjellCatch } from './hjells.ts'
+import { createWashLines, planWash } from './wash.ts'
+import type { WashLines } from './wash.ts'
 import { planHaulouts } from './haulout.ts'
 import type { Haulout } from './haulout.ts'
 import { createKelpForest } from './kelp.ts'
@@ -280,7 +282,8 @@ export function createLandscape (
   // arbitrary — both are a colony of small instances that the *year* fills and
   // empties, and both are advanced from the same week in `advancePopulated`.
   let cliffs: SeabirdCliffs | null = null,
-    hjells: HjellCatch | null      = null
+    hjells: HjellCatch | null      = null,
+    wash: WashLines | null         = null
   let kelp: KelpForest | null      = null
   let creels: CreelMarks | null    = null
   let pack: PackIce | null         = null
@@ -360,7 +363,7 @@ export function createLandscape (
    * output — but the clocks they are handed are. Every one of them comes from
    * `update`, already resolved, rather than being sampled a second time.
    */
-  function advancePopulated (delta: number, week: number, now: SeasonState): void {
+  function advancePopulated (delta: number, week: number, now: SeasonState, fall: number): void {
     fleet?.update(delta)
     sails?.update(delta, wind.strength)
 
@@ -377,6 +380,7 @@ export function createLandscape (
     creels?.update(delta, wind)
     cliffs?.update(week)
     hjells?.update(week)
+    wash?.update(delta, wind, fall)
     pack?.update(now, wind)
   }
 
@@ -391,7 +395,7 @@ export function createLandscape (
    */
   function releaseSystems (): void {
     const systems: readonly ({ dispose(): void } | null)[] =
-      [ dressing, fleet, carters, sails, wheels, seals, kelp, creels, cliffs, hjells, pack, water,
+      [ dressing, fleet, carters, sails, wheels, seals, kelp, creels, cliffs, hjells, wash, pack, water,
         beck, force, tarns ]
 
     for (const system of systems)
@@ -614,6 +618,11 @@ export function createLandscape (
           fish:     planHjellCatch(archipelago, config(), quality.hjellFish),
           material: materials.ground,
         })
+        wash = createWashLines({
+          config,
+          cloths:   planWash(archipelago, config(), quality.washCloths),
+          material: materials.ground,
+        })
         pack = createPackIce({ config, floes: packIce, material: materials.ground, tide })
         root.add(dressing.object, fleet.mesh)
 
@@ -623,7 +632,7 @@ export function createLandscape (
         // fleets exist was never the interesting part of the build. Each is
         // null on an archipelago that had nowhere to put one, or on a tier that
         // asked for none.
-        for (const fleetMesh of [ carters, sails, wheels, seals, kelp, creels, cliffs, pack, hjells ])
+        for (const fleetMesh of [ carters, sails, wheels, seals, kelp, creels, cliffs, pack, hjells, wash ])
           if (fleetMesh)
             root.add(fleetMesh.mesh)
       }
@@ -657,7 +666,7 @@ export function createLandscape (
       // three programs are handed the answer.
       shadow.update(wind)
 
-      advancePopulated(frame.delta, year.time, now)
+      advancePopulated(frame.delta, year.time, now, front.fall)
       beck?.update(frame.delta, now)
       force?.update(frame.delta, now)
       tarns?.update(now)
@@ -698,6 +707,7 @@ export function createLandscape (
       seals     = null
       cliffs    = null
       hjells    = null
+      wash      = null
       kelp      = null
       creels    = null
       pack      = null

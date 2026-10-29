@@ -240,6 +240,7 @@ src/
     ├── config-shoal.ts             the bank's own slice: the reach, the crest, and the room the sound leaves
     ├── config-snowfence.ts         the snow fence's own slice: the height, the setback, and the bite that earns one
     ├── config-hjell.ts             the drying rack's own slice: the rack, the fetch it needs, and the weeks it is loaded
+    ├── config-wash.ts              the washing line's own slice: the rope, the fill, and how the wind works the cloth
     ├── config-kiln.ts              the lime kiln's own slice: the brae it needs, and the weeks it is fired
     ├── config-season.ts            the year's own slice: the phase, the speed, and the snow, turn and ice it derives
     ├── config-crossing.ts          the bridge's own slice: the deck, the bay, the span, and the four refusals
@@ -329,6 +330,7 @@ src/
     │   ├── seabirds.ts             the cliffs, in one instanced draw the year empties
     │   ├── hjell.ts                the line above the harbour a catch dries on, and every fish hung on it
     │   ├── hjells.ts               the catch, in one instanced draw the year loads and strips
+    │   ├── wash.ts                 every farm's washing, in one instanced draw the day hangs out and the rain takes in
     │   ├── packice.ts              which water carries a floe, how big it is, and the week its sheet closes
     │   ├── floes.ts                the pack, in one instanced draw the year builds and takes back
     │   ├── kelpbed.ts              which water grows weed, and how long every plant in it is
@@ -428,6 +430,7 @@ src/
         ├── livestock.ts            the ewe with her head down, and the lamb with hers up
         ├── seabird.ts              the guillemot standing on its ledge, dark over white
         ├── hjell.ts                the drying rack as a run of trestles, and the split cod hung over it
+        ├── wash.ts                 the washing line's posts and sagging rope, and the folded cloth pegged to it
         ├── ice.ts                  the unit plate of rafted sea ice, scaled into a field
         └── wildlife.ts             the grey seal hauled out, head up and hind flippers raised
 
@@ -3451,6 +3454,19 @@ four of them, all in the capture harness rather than in the scene, and every one
 **the ready budget is a hang detector again.** 40 s was the figure when this scape was one island. six islands, a waterway router and thirty-odd sited structures later it was about what a loaded box actually needs, and a budget that close to the truth does not fail honestly. it is 150 s, overridable with `SCAPE_READY_BUDGET`, and the shutter is given the same — playwright's own 30 s default is reached on the screenshot rather than on the boot by a heavier tier under a software rasteriser, and that one throws and takes the whole set with it.
 
 **the chromium finder knows both layouts.** playwright renamed the unpack directory partway through the revisions the finder walks: builds up to about r1200 land in `chrome-linux`, newer ones in `chrome-linux64`. a cache populated by a recent `playwright install` holds only the second, so a box with a perfectly good chromium in it reported `NOT FOUND` and cost the run its visual check.
+
+## the wash on the line
+
+every farm in the archipelago now has a **washing line** strung across the yard between the house and the sauna: two strutted T-posts and a rope that sags, merged into the steading draw, with up to seven cloths pegged along it — sheets, shirts, towels, mostly white and unbleached linen with the odd faded blue or red. the cloths are one `InstancedMesh` ([`landscape/wash.ts`](src/scene/landscape/wash.ts)), and the line is placed by [`landscape/steading.ts`](src/scene/landscape/steading.ts) beside every other thing the yard is arranged around.
+
+the hjell is the year's clock at ground level; this is the **day's and the weather's**. every frame it answers two questions, and both come from clocks other modules own:
+
+- **is it out.** `washOut` is daylight off the sun's own arc (`dayAmount(sunHeight(...))`, the same height the caustics read) times *dry*, off the front's `fall`. each cloth has its own `keen` in that share, so a line fills one cloth at a time in the morning and empties one at a time at dusk or as the shower arrives — a taken-in cloth shrinks up into its pegs rather than blinking.
+- **which way is it blowing.** only the share of the wind **across** the rope lifts the wash (`washBillow`): a wind along the line runs down the edge of every sheet and leaves it limp. so one gust stands one farm's wash straight out and leaves the next farm's hanging, which is the read a real coast gives. the flap is a phase integrated from `wash.flutter`, scaled by the wind's strength, clamped short of level.
+
+the cloth is three thin panels set at alternating angles — a sheet on a line hangs in vertical folds, and the zig-zag is what breaks the light across it into bands. thin boxes rather than planes so the shared single-sided material lights both faces. it is painted white and tinted per instance, so one geometry is every garment.
+
+**cost:** one draw call for the whole archipelago's wash; `quality.washCloths` is 0 / 24 / 64 / 64 (minimal / mobile / desktop / ultra), dealt by stride so a phone thins every line rather than stripping one farm. the posts and rope are merged and cost no draw at any tier. `wash.height` at 0 is a farm with no line; `wash.flutter` is in `STILL`.
 
 ## ground that casts
 

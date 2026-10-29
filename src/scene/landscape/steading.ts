@@ -39,6 +39,13 @@ export interface SteadingPlaces {
   cart:      Standing
   logPile:   Standing
   flagpole:  Standing
+
+  /**
+   * The middle of the washing line. Its `angle` is the yaw that lays the rope
+   * along local `x` — square to the line from the yard's middle, so the line
+   * is strung *across* the yard beside the house rather than pointing into it.
+   */
+  washLine: Standing
 }
 
 /** The buildings, in the order a path would meet them going round the yard. */
@@ -77,6 +84,22 @@ export function doorstepOf (place: Standing): Vec2 {
   }
 }
 
+/**
+ * The washing line, between the house and the sauna.
+ *
+ * The one place on a farm that is a line rather than a point, so its radius is
+ * the half-span: a path worn past it, a tree kept off it and the buildings
+ * either side of it all see the rope rather than the middle of it.
+ */
+function washLineAt (yard: Yard, bearing: number, distance: number): Standing {
+  return {
+    x:      yard.x + Math.cos(bearing) * distance,
+    z:      yard.z + Math.sin(bearing) * distance,
+    angle:  -(bearing + Math.PI / 2),
+    radius: 3.4,
+  }
+}
+
 export function steadingPlaces (yard: Yard): SteadingPlaces {
   const facing = Math.atan2(-yard.z, -yard.x)
 
@@ -96,6 +119,7 @@ export function steadingPlaces (yard: Yard): SteadingPlaces {
     well:      around(0.9, yard.radius * 0.24, 1.2),
     cart:      around(-0.4, yard.radius * 0.34, 1.6),
     logPile:   around(-2.4, yard.radius * 0.92, 2),
+    washLine:  washLineAt(yard, facing + 1.1, yard.radius * 0.66),
     flagpole:  {
       x:      yard.x - Math.cos(facing) * 2.2,
       z:      yard.z - Math.sin(facing) * 2.2,
