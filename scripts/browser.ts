@@ -38,7 +38,16 @@ export function findChromium (): string {
           join(cache, revision, 'chrome-mac-arm64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing'),
           join(cache, revision, 'chrome-mac', 'Chromium.app', 'Contents', 'MacOS', 'Chromium'),
         ]
-        : [ join(cache, revision, 'chrome-linux', 'chrome') ]
+        // Two layouts, because playwright renamed the directory partway
+        // through the revisions this finder walks: builds up to about r1200
+        // unpack into `chrome-linux`, newer ones into `chrome-linux64`. A cache
+        // populated by a recent `playwright install` holds only the second, and
+        // looking for only the first is how a box with a working chromium in it
+        // reports NOT FOUND and costs the run its visual check.
+        : [
+          join(cache, revision, 'chrome-linux64', 'chrome'),
+          join(cache, revision, 'chrome-linux', 'chrome'),
+        ]
 
       for (const candidate of candidates)
         if (existsSync(candidate))

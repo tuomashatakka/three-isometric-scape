@@ -1019,7 +1019,8 @@ export function formatStats (stats: MapStats): string {
     grazingLine(stats.grazing),
     `gulls ${stats.colonies.count}/${stats.colonies.asked} colonies  ` +
       (stats.colonies.sited
-        .map(colony => `${colony.id}/${colony.kind} (${colony.x},${colony.z}) r${colony.radius}`)
+        .map(colony => `${colony.id}/${colony.kind} (${colony.x},${colony.z}) r${colony.radius}` +
+          (colony.high > 0 ? ` air ${colony.low}..${colony.high}m` : ''))
         .join('  ') || '<- no coast had open water to fit a ring over'),
   ]
 

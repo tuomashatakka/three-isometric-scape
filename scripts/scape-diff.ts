@@ -277,7 +277,21 @@ const REF_POSES = join(REF_SHOTS, '.ref-poses')
 
 /** Everything about a pose that moves the camera or the clock. */
 export function poseDigest (pose: Pose): string {
-  return JSON.stringify([ pose.rot ?? null, pose.zoom ?? null, pose.time ?? null, pose.season ?? null, pose.set ?? [] ])
+  // `tier` and `skip` are in here for the reason `refStamp` folds the flags of
+  // the same name in: a pose that asks for a tier builds different programs
+  // from one that does not, and a reference taken without that ask is a
+  // reference of a different scape. The stamp cannot carry it — it is one
+  // string for the whole run and these are per pose — so it rides the digest,
+  // which is already recorded a pose at a time.
+  return JSON.stringify([
+    pose.rot ?? null,
+    pose.zoom ?? null,
+    pose.time ?? null,
+    pose.season ?? null,
+    pose.set ?? [],
+    pose.tier ?? null,
+    pose.skip ?? null,
+  ])
 }
 
 async function recordedPoses (): Promise<Record<string, string>> {
@@ -362,30 +376,35 @@ async function prepareReference (
   target: string,
   poses:  readonly Pose[],
   args:   ReturnType<typeof parseArgs>,
-): Promise<{ tree: string; reused: boolean }> {
+): Promise<{ tree: string; reused: boolean; unread: ReadonlySet<string> }> {
   const rev   = await resolveRef(target)
   const tree  = await prepareRef(rev)
   const stamp = refStamp(rev, args)
 
   if (await refShotsMatch(stamp, poses))
-    return { tree, reused: true }
+    return { tree, reused: true, unread: new Set() }
 
   // Merged rather than replaced: a prewarm of the tour and a later run of the
   // chapel poses are two captures of the same reference, and throwing the tour's
   // record away on the second would rebuild it on the third.
   const recorded = await refShotsMatch(stamp, []) ? await recordedPoses() : {}
+  const unread   = await capture(tree, args.num('port', 4186), REF_SHOTS, poses, args)
 
-  await capture(tree, args.num('port', 4186), REF_SHOTS, poses, args)
+  // A reference plate that never came ready is not recorded as taken. The whole
+  // point of the cache is that a later run trusts it without looking, so a
+  // spinner written into it would be believed by every run after this one.
+  const taken = poses.filter(pose => !unread.has(pose.name))
+
   await Bun.write(REF_SENTINEL, `${stamp}\n`)
   await Bun.write(
     REF_POSES,
     JSON.stringify(Object.fromEntries([
       ...Object.entries(recorded),
-      ...poses.map(pose => [ pose.name, poseDigest(pose) ]),
+      ...taken.map(pose => [ pose.name, poseDigest(pose) ]),
     ])),
   )
 
-  return { tree, reused: false }
+  return { tree, reused: false, unread }
 }
 
 async function buildHere (): Promise<string> {
@@ -397,16 +416,32 @@ async function buildHere (): Promise<string> {
   return resolve('.')
 }
 
+/**
+ * Times a pose is photographed before the harness gives up on it.
+ *
+ * `shoot` has a budget to reach `ready` and takes the picture either way, which
+ * is right for `scape:shot` — the row says `BOOTING` and the reader sees it.
+ * Here the picture is the *only* output, and a plate of the loading spinner
+ * against a real reference measures as **ninety-odd per cent of the frame
+ * changed, whole-plate**: a failed capture wearing the costume of the most
+ * alarming possible finding. Under enough load it happens to about one pose in
+ * six, and it has been read as a change at least once in this repository's
+ * history. One retake, because a box loaded enough to miss the budget twice is
+ * a box whose numbers are not worth quoting anyway.
+ */
+const CAPTURE_TRIES = 2
+
 async function capture (
   root:  string,
   port:  number,
   out:   string,
   poses: readonly Pose[],
   args:  ReturnType<typeof parseArgs>,
-): Promise<void> {
+): Promise<Set<string>> {
   await mkdir(out, { recursive: true })
 
   const server = await serveStatic(port, join(root, 'dist'))
+  const unread = new Set<string>()
 
   try {
     await withBrowser(args.has('gpu'), async browser => {
@@ -414,16 +449,29 @@ async function capture (
         .map(Number)
       const context           = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1 })
 
-      for (const pose of poses) {
-        const page = await context.newPage()
+      for (const pose of poses)
+        for (let attempt = 1; attempt <= CAPTURE_TRIES; attempt += 1) {
+          const page = await context.newPage()
 
-        try {
-          await shoot(page, optionsFrom(args, `http://127.0.0.1:${port}/`, pose), join(out, `${pose.name}.png`))
+          try {
+            const shot = await shoot(
+              page,
+              optionsFrom(args, `http://127.0.0.1:${port}/`, pose),
+              join(out, `${pose.name}.png`),
+            )
+
+            if (shot.state === 'ready') {
+              unread.delete(pose.name)
+              break
+            }
+
+            unread.add(pose.name)
+            console.log(`${pose.name}: ${shot.state} after ${(shot.ms / 1000).toFixed(1)}s · retaking`)
+          }
+          finally {
+            await page.close()
+          }
         }
-        finally {
-          await page.close()
-        }
-      }
 
       await context.close()
     })
@@ -431,6 +479,8 @@ async function capture (
   finally {
     server.stop()
   }
+
+  return unread
 }
 
 /** One pose, weighed against its reference. */
@@ -440,12 +490,18 @@ async function weigh (
   after:     string,
   threshold: number,
   tolerance: number,
+  unread:    ReadonlySet<string>,
 ): Promise<Comparison> {
   const left  = join(before, `${name}.png`)
   const right = join(after, `${name}.png`)
 
   if (!existsSync(left) || !existsSync(right))
     return { pose: name, changed: 0, maxBlock: 0, diff: null, note: '  MISSING' }
+
+  // A plate that never reached `ready` is not a reading. Said as its own
+  // verdict rather than as a percentage, because the percentage is the lie.
+  if (unread.has(name))
+    return { pose: name, changed: 0, maxBlock: 0, diff: null, note: '  NEVER READY' }
 
   const [ a, b ] = await Promise.all([ readPng(left), readPng(right) ])
 
@@ -551,24 +607,35 @@ async function main (): Promise<void> {
   let before         = baseline
   let structuralNote = ''
 
+  // Poses whose own capture never reached `ready`, so there is nothing of this
+  // change in them to weigh. Empty for a baseline run, which photographs
+  // nothing.
+  let unread: ReadonlySet<string> = new Set()
+
   if (args.has('ref-only')) {
-    const target     = ref ?? 'origin/main'
-    const { reused } = await prepareReference(target, poses, args)
+    const target                     = ref ?? 'origin/main'
+    const { reused, unread: missed } = await prepareReference(target, poses, args)
+
+    if (missed.size)
+      console.log(`never ready · ${[ ...missed ].join(' ')}`)
 
     console.log(`ref side ${reused ? 'already warm' : 'ready'} · ${target} · ${REF_SHOTS}`)
     return
   }
 
   if (ref) {
-    const { tree, reused } = await prepareReference(ref, poses, args)
-    const here             = await buildHere()
+    const { tree, reused, unread: refMissed } = await prepareReference(ref, poses, args)
+    const here                                = await buildHere()
 
     before = REF_SHOTS
 
     if (reused)
       console.log(`ref side reused from a prewarm · ${ref}`)
 
-    await capture(here, args.num('port', 4186) + 1, shots, poses, args)
+    unread = new Set([
+      ...refMissed,
+      ...await capture(here, args.num('port', 4186) + 1, shots, poses, args),
+    ])
 
     structuralNote = structuralLine(await structure(tree), await structure(here))
   }
@@ -576,7 +643,7 @@ async function main (): Promise<void> {
   await mkdir('.scape/diff', { recursive: true })
 
   const rows = await Promise.all(
-    poses.map(pose => weigh(pose.name, before, shots, threshold, tolerance)),
+    poses.map(pose => weigh(pose.name, before, shots, threshold, tolerance, unread)),
   )
 
   console.log(formatTable(rows))

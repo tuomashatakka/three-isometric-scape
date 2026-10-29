@@ -101,8 +101,28 @@ export interface ShotResult {
   path:      string
 }
 
-/** How long a capture is allowed to spend getting to its first draw. */
-const READY_BUDGET = 40_000
+/**
+ * How long a capture is allowed to spend getting to its first draw.
+ *
+ * A **hang detector**, not a performance target, and priced the way the
+ * archipelago survey's own budget is: to catch a page that will never come
+ * ready, not to the time this world happens to take today. 40 s was the figure
+ * when the scape was one island; six islands, a waterway router and thirty-odd
+ * sited structures later it is about the time a loaded box actually needs, and
+ * a budget that close to the truth does not fail honestly — `shoot` photographs
+ * whatever is on screen when it runs out, so an overrun is a plate of the
+ * loading spinner, and against a real reference that measures as ninety-odd per
+ * cent of the frame changed. Every run that grows the world moves this closer
+ * to the cliff, so it is set far from it.
+ *
+ * It is also what the shutter itself is given. Playwright's own default is 30 s,
+ * which a heavier tier under a software rasteriser reaches on the screenshot
+ * rather than on the boot — and that one throws, so the whole set dies on its
+ * first frame instead of reporting a slow one.
+ *
+ * `SCAPE_READY_BUDGET` overrides it, in milliseconds, for a box slower still.
+ */
+const READY_BUDGET = Number(process.env.SCAPE_READY_BUDGET ?? 150_000)
 
 /**
  * Photograph one pose.
@@ -186,7 +206,7 @@ export async function shoot (page: Page, options: ShotOptions, out: string): Pro
   // Under a faked clock nothing presents unless something advances it, and the
   // shutter is waiting on exactly that — so the clock is pumped alongside the
   // capture rather than before it.
-  const shutter = page.screenshot({ path: out, animations: 'disabled' })
+  const shutter = page.screenshot({ path: out, animations: 'disabled', timeout: READY_BUDGET })
 
   if (options.clock)
     for (let tick = 0; tick < 24; tick += 1)
@@ -235,8 +255,8 @@ export function optionsFrom (args: Args, base: string, pose: Pose): ShotOptions 
   return {
     base,
     pose,
-    tier:   args.str('tier', 'mobile'),
-    skip:   args.str('skip'),
+    tier:   args.has('tier') ? args.str('tier', 'mobile') : pose.tier ?? 'mobile',
+    skip:   args.has('skip') ? args.str('skip') : pose.skip ?? '',
     ratio:  args.num('ratio', 1),
     aa:     args.str('aa'),
     post:   args.str('post'),

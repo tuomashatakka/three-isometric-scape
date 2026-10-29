@@ -47,8 +47,49 @@ const OFF_THE_LANDING = [ 'camera.focusX=-34', 'camera.focusZ=-25' ]
 /** The middle of the home island's bird ledges, which is the middle of its crag. */
 const ON_LEDGES = [ 'camera.focusX=37', 'camera.focusZ=-28' ]
 
+/**
+ * The ring the home island's cliff flock turns on, in world metres.
+ *
+ * Off the ledges rather than on them, and taken off the `gulls` line
+ * `scape:map --stats` prints rather than guessed: the ring's centre is twenty
+ * metres seaward of the face at (54,-41), with a radius of 13.2 m. Aimed at the
+ * centre rather than between the ring and the rock — the first cut split the
+ * difference at (46,-35) and put a third of the wheel outside the frame, which
+ * measured as a flock a tenth the size of the one that is there.
+ *
+ * `weather.time` is pinned dry for the reason the kiln and rig sets pin it, and
+ * for one more that is specific to birds: the default phase parks a shower over
+ * the scape, and `birdsAloft` keeps **seventy per cent of a flock on the water**
+ * through a squall. A capture of this subject at the default weather is a
+ * capture of three birds in ten, in falling snow.
+ */
+const OFF_THE_LEDGES = [ 'camera.focusX=54', 'camera.focusZ=-41', 'weather.time=0.62' ]
+
 /** The quarter the 322.5° headland's face is turned toward: off the water. */
 const SEAWARD = 315
+
+/**
+ * The cheapest tier that has birds in the air at all.
+ *
+ * `quality.birdCount` is **0 on mobile** — the flocks are a transparent pass a
+ * phone does not need — and every capture this repository takes is pinned to
+ * mobile unless told otherwise. The first cut of this set left the tier alone
+ * and photographed an empty sky four times; the table came back `same` at every
+ * frame, which is the one result the brief says to treat as a failure rather
+ * than a pass, and it was right to.
+ */
+const FLYING = 'laptop'
+
+/**
+ * What a flying bird is photographed without.
+ *
+ * The laptop tier runs the optical chain the mobile tier does not, and the
+ * first frames taken on it came back as a tilt-shift miniature: a gull with a
+ * 1.6 m wingspan sitting inside a depth-of-field blur several times its own
+ * width. The subject is a shape against the sea, so the chain that softens
+ * every shape in the frame is the one thing it cannot be photographed through.
+ */
+const UNBLURRED = 'post'
 
 
 /**
@@ -139,6 +180,49 @@ export const COAST_TOURS: Record<string, Pose[]> = {
       zoom: 28,
       rot:  SEAWARD,
       set:  [ ...ON_LEDGES, 'ledges.stain=0', 'ledges.ashore=0' ],
+    },
+  ],
+
+  /**
+   * The flock the bird cliff throws, in the two halves of the year it has.
+   *
+   * The ledge set's twin, moved off the rock and out over the water the birds
+   * are turning on. At `SEAWARD` for the ledge set's reason — the home
+   * island's crag faces 322.5°, so at the camera's authored heading the
+   * headland is on the far side of the hill and the flock is behind it.
+   *
+   * `wheel` is the whole subject at 46 m: the face, the whole ring and the air
+   * between them. `wheel-near` is 20 m, where a bird crossing the cliff is a
+   * shape with a wingspan rather than a mark, and is the frame that says the
+   * band is against the rock and not over the island behind it. `wheel-winter`
+   * is the same 46 m at midwinter and carries half the claim — the rock is
+   * bare and so is the air over it, because the auks that left the ledges left
+   * the coast. `wheel-bare` is the control: `ledges.flock` at zero is a colony
+   * that never flies, with every harbour ring in the archipelago untouched.
+   *
+   * Nothing new in {@link STILL}: the sweep is `birds.speed` and the beat is
+   * `birds.flap`, both of which it already zeroes, and the year is already
+   * stopped by `season.speed`.
+   */
+  wheel: [
+    { name: 'wheel', zoom: 46, rot: SEAWARD, tier: FLYING, skip: UNBLURRED, set: OFF_THE_LEDGES },
+    { name: 'wheel-near', zoom: 20, rot: SEAWARD, tier: FLYING, skip: UNBLURRED, set: OFF_THE_LEDGES },
+    {
+      name:   'wheel-winter',
+      zoom:   46,
+      rot:    SEAWARD,
+      tier:   FLYING,
+      skip:   UNBLURRED,
+      season: 0.02,
+      set:    OFF_THE_LEDGES,
+    },
+    {
+      name: 'wheel-bare',
+      zoom: 46,
+      rot:  SEAWARD,
+      tier: FLYING,
+      skip: UNBLURRED,
+      set:  [ ...OFF_THE_LEDGES, 'ledges.flock=0' ],
     },
   ],
 

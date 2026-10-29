@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { SCAPE_CONFIG } from '../config.ts'
 import { surveyArchipelago } from './archipelago.ts'
 import { planColonies } from './colony.ts'
+import { isBirdCliff, ledgeTiers } from './ledges.ts'
 
 
 const survey   = surveyArchipelago(SCAPE_CONFIG)
@@ -10,6 +11,16 @@ const colonies = planColonies(survey, SCAPE_CONFIG)
 function withBirds (birds: Partial<typeof SCAPE_CONFIG.birds>) {
   return { ...SCAPE_CONFIG, birds: { ...SCAPE_CONFIG.birds, ...birds }}
 }
+
+function withLedges (ledges: Partial<typeof SCAPE_CONFIG.ledges>) {
+  return { ...SCAPE_CONFIG, ledges: { ...SCAPE_CONFIG.ledges, ...ledges }}
+}
+
+/** The islands whose crag is tall enough for the colony gate to take it. */
+const birdCliffs = survey.landmasses
+  .filter(landmass =>
+    isBirdCliff(landmass.survey.crag, { ...landmass.config, ledges: SCAPE_CONFIG.ledges }))
+  .map(landmass => landmass.id)
 
 
 describe('siting the flocks', () => {
@@ -94,5 +105,79 @@ describe('siting the flocks', () => {
     const tight = planColonies(survey, withBirds({ spread: SCAPE_CONFIG.birds.spread * 0.5 }))
 
     expect(tight.length).toBeGreaterThanOrEqual(colonies.length)
+  })
+})
+
+
+/**
+ * The cliff rings, which are the half of a colony that is not on the rock.
+ *
+ * Every claim here is about the *band* rather than about the search, because
+ * the search is the one the harbour flocks already pass. What is new is that a
+ * ring can be pinned in metres instead of hanging at the live ceiling, and
+ * every way that goes wrong — a band that misses the face, a band inverted, a
+ * band on a headland with no birds on it — is invisible from any pose but one.
+ */
+describe('the flocks off the bird cliffs', () => {
+  const ledges = colonies.filter(colony => colony.kind === 'ledge')
+
+  test('every headland the colony gate takes carries one', () => {
+    expect([ ...ledges.map(colony => colony.id) ].sort()).toEqual([ ...birdCliffs ].sort())
+    expect(birdCliffs.length).toBeGreaterThan(0)
+  })
+
+  /**
+   * The claim: the air a cliff flock flies in is the air over its own face.
+   *
+   * Stated against the ledges rather than against the numbers the planner used,
+   * so a change to either side has to move both to stay true.
+   */
+  test('the band runs from the lowest ledge to the air over the lip', () => {
+    for (const colony of ledges) {
+      const landmass = survey.landmasses.find(island => island.id === colony.id)
+
+      expect(landmass).toBeDefined()
+
+      const local = { ...landmass!.config, ledges: SCAPE_CONFIG.ledges }
+      const crag  = landmass!.survey.crag!
+      const tiers = ledgeTiers(crag, local)
+      const water = SCAPE_CONFIG.terrain.waterLevel
+
+      expect(colony.band).not.toBeNull()
+      expect(colony.band!.low).toBeCloseTo(tiers[0] - water, 6)
+      expect(colony.band!.high).toBeCloseTo(crag.lip - water + SCAPE_CONFIG.ledges.wheel, 6)
+      expect(colony.band!.high).toBeGreaterThan(colony.band!.low)
+    }
+  })
+
+  test('the flocks over open water are not pinned to anything', () => {
+    for (const colony of colonies.filter(flock => flock.kind !== 'ledge'))
+      expect(colony.band).toBeNull()
+  })
+
+  /** `wheel` at 0 is a flock level with its own clifftop, and still a flock. */
+  test('no air over the lip stops the band at the lip', () => {
+    for (const colony of planColonies(survey, withLedges({ wheel: 0 })).filter(f => f.kind === 'ledge')) {
+      const crag = survey.landmasses.find(island => island.id === colony.id)!.survey.crag!
+
+      expect(colony.band!.high).toBeCloseTo(crag.lip - SCAPE_CONFIG.terrain.waterLevel, 6)
+    }
+  })
+
+  /**
+   * The absence, by the route every other switch in this scape takes. A gate no
+   * headland clears is a coast with no cliff flocks on it — the harbour rings
+   * are untouched, which is the half of the claim a count alone would miss.
+   */
+  test('a face gate nothing clears leaves the cliffs empty and the harbours alone', () => {
+    const bare = planColonies(survey, withLedges({ face: 1e4 }))
+
+    expect(bare.filter(colony => colony.kind === 'ledge')).toEqual([])
+    expect(bare.length).toBe(colonies.length - ledges.length)
+  })
+
+  test('a cliff ring is worth `ledges.flock` harbour rings and a harbour ring is worth one', () => {
+    for (const colony of colonies)
+      expect(colony.wheel).toBe(colony.kind === 'ledge' ? SCAPE_CONFIG.ledges.flock : 1)
   })
 })

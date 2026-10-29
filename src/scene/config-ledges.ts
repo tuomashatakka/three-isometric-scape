@@ -112,6 +112,42 @@ export interface LedgeConfig {
      * scape has one year in it.
      */
     ashore: number
+
+    /**
+     * Metres of air over the clifftop the flock off a face wheels in.
+     *
+     * The other half of the colony, and the half that is not on the rock. A
+     * cliff is not a shelf birds sit on — it is the place they come off, and
+     * `landscape/colony.ts` hangs a ring against every headland `face` accepts
+     * for exactly as long as `ashore` says there is anything on it to leave.
+     * The band runs from the lowest row of ledges to this far above the lip, so
+     * the flock crosses the face rather than cruising over the island: a ring
+     * pinned at the gulls' `birds.ceiling` would put the birds in the sky above
+     * a cliff they have no relationship with.
+     *
+     * Metres, and metre-sized — a bird clears a clifftop by its own body
+     * lengths whatever size the world is. 0 flies the colony level with its own
+     * top row, which is still a flock and still against the rock.
+     */
+    wheel: number
+
+    /**
+     * How many times a harbour's share of the archipelago's gulls a bird cliff
+     * takes.
+     *
+     * `birds.count` is one budget for every ring in the scape and the deal used
+     * to be flat — twelve birds and three colonies were four birds each. A
+     * harbour ring is a dozen gulls working a boat; a bird cliff is the single
+     * densest thing on this coast, and dealt a harbour's share it reads as four
+     * gulls lost in front of four hundred standing ones. Relative rather than a
+     * count of its own, so the tier stays the one place the archipelago's bird
+     * budget is written down.
+     *
+     * 1 is the flat deal this scape had before the cliffs were given rings. 0
+     * is a headland whose birds never leave the rock — the colony is still
+     * there, it simply never flies.
+     */
+    flock: number
   }
 }
 
@@ -140,6 +176,14 @@ export interface LedgeConfig {
  * gone by the end of August, which is about right for a guillemot and means the
  * tour's winter pose photographs an empty cliff — the staining without the
  * birds, which is the whole point of their being two numbers.
+ *
+ * `wheel` at 5 m and `flock` at 3 are the air over the rock. Five metres over a
+ * seven-metre lip is a band about nine metres deep measured from the lowest row
+ * of ledges, which is a flock that crosses the face at every height it has and
+ * still clears the turf behind it. Three harbour shares is the smallest weight
+ * at which a cliff ring reads as the denser thing in a frame that holds both —
+ * at the desktop tier it is about thirty birds off a face against ten over a
+ * harbour, and the standing colony on the same rock is thirty more.
  */
 export const SCAPE_LEDGES: LedgeConfig = {
   ledges: {
@@ -151,5 +195,7 @@ export const SCAPE_LEDGES: LedgeConfig = {
     spread: 0.72,
     stain:  0.62,
     ashore: 0.46,
+    wheel:  5,
+    flock:  3,
   },
 }
