@@ -16,6 +16,21 @@ the default frame had a regular grid of pale "3"-shaped figures across the whole
   - each shaft sheet fragment: +1 (3 sheets on the mobile tier)
 - **left for the next run:** the cloud deck stores a pre-cut alpha, so the sum has no mean to work around. the whitecaps are held to one read by their own budget test.
 
+### verification
+
+`bun run gate` was green on all five checks: lint 20.4s, typecheck 13.8s, test 696.2s, build 15.7s and prop:audit 0.5s. `scape:map --stats` showed no structural change. `scape:diff --ref origin/main --poses tour` moved only the wide daylit frames, which are the ones the lattice was in. the changed share is small because the prints were low-contrast and spread across the whole frame:
+
+```text
+pose         changed   maxblock  verdict
+default       0.32%     6.1%  same
+near          0.00%     0.0%  same
+far           0.52%    13.1%  CHANGED
+noon          0.48%     6.2%  same
+night         0.00%     0.0%  same
+winter        0.00%     0.0%  same
+structural: ... no structural change
+```
+
 ## what comes off the face
 
 the bird cliff has been a place birds *are* since the run that put them on it — four rows of guillemots standing on a seven-metre face, on five of the six islands, and not one of them ever left the rock. every headland the colony gate takes now throws a **wheel of birds off its face**: a ring sited over the water on the crag's own bearing, pinned to the air between its lowest ledge and the sky over its lip, and gone from that air in the same weeks the rock goes bare. [`landscape/colony.ts`](src/scene/landscape/colony.ts) sites it, [`scene/birds.ts`](src/scene/birds.ts) flies it, and the two new knobs are in [`config-ledges.ts`](src/scene/config-ledges.ts) rather than in `birds` — because how far over a clifftop a guillemot turns is a fact about the colony and not about the gulls.
