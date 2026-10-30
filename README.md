@@ -220,6 +220,7 @@ src/
     ├── beacon.ts                   the coastal light: the lamp, and the beams it sweeps
     ├── clouds.ts                   sky deck, faded in as the view pulls back
     ├── cloud-shadow.ts             the shadow that deck throws: one cut, one drift, one projection, four programs
+    ├── frame.ts                    how many repeats of a world-space tile the frame is wide, and how much of it a reader keeps
     ├── weather-bank.ts             the one world-sized field: what stops every frame-sized tile reading as wallpaper
     ├── config.ts                   the public tuning surface
     ├── config-landmasses.ts        the six islands, as a table rather than as schema
@@ -636,6 +637,22 @@ the weather bank stopped the *cover* repeating, and the section above took that 
 the chunk is guarded with `#ifndef SCAPE_UNTILED` because the lake compiles both the cloud shadow's chunk and its own.
 
 **what it did not touch, on purpose:** the cloud deck bakes the cut into its alpha, so there is no field left up there to sum around a mean. the whitecaps are a cut on `water.wave` with a measured percentile table and a test that holds them to one read on the phone's budget. both are follow-ups, not oversights.
+
+## the pattern the frame can resolve
+
+the camouflage over the default frame — every island and the whole far shore printed with the same brown blotches — was not the ground grain and not the wear map. setting both to zero left it exactly where it was; setting `atmosphere.cloudShadow` to zero took it away. it was the 92 m cloud tile, repeated fifteen times across a 1400 m frame and cut hard at its edges. close in, that tile is a cloud passing over the farm. at the archipelago frame it is a print.
+
+[`frame.ts`](src/scene/frame.ts) reads how many repeats of a tile the frame is wide, off the projection (`2 / projection[0][0]` metres for an orthographic frame, whatever the zoom), and every world-space reader lets its tile go between two counts:
+
+| reader | tile | kept to | gone past |
+|---|---|---|---|
+| ground grain, its relief march and normal fetch | 7.5 m | 300 m frame | 900 m |
+| wear | 53 m | 270 m | 750 m |
+| cloud shadow detail | 92 m | 550 m | 1470 m |
+
+a tile goes to its **mean**, not to nothing: the grain's dirt term keeps its average darkening, and the cloud cut widens by `CLOUD_SPREAD` so a wide frame keeps roughly the share of shade a close one has, drawn in the weather bank's kilometre-wide shapes. the count is the same for every fragment, so the branches are uniform and the wide frame skips the relief march, the normal fetch, the wear fetch and both cloud-detail fetches outright.
+
+with the print gone the far shore showed what it was underneath: one tan blend from `seaRock` to `scree`. [`skyline.ts`](src/scene/landscape/skyline.ts) now paints it as a northern coast — wet rock at the water, `palette.farForest` over the lower slopes and the vales, heath in the clearings, and scree only above a treeline at 62–100 % of `farShore.rise`. the stands come from two broad octaves of the ring's own wrapped noise. a fine octave was tried and drew spokes, because the colour is swept across the ring's whole depth.
 
 ## every texture, in one list
 

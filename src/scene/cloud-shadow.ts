@@ -3,6 +3,7 @@ import type { IUniform } from 'three'
 import { WEATHER_BANK_GLSL, weatherBankDrift, weatherBankTile } from './weather-bank.ts'
 import type { LiveConfig } from './config.ts'
 import { createDaylight } from './daylight.ts'
+import { FRAME_GLSL, repeatKeepGlsl } from './frame.ts'
 import type { Vec2 } from './landscape/path.ts'
 import type { TextureCatalogue } from './textures/catalogue.ts'
 import { UNTILE_GLSL } from './textures/untile.ts'
@@ -130,6 +131,21 @@ const TAKEN = 0.7
 export const CLOUD_CUT  = 0.55
 export const CLOUD_EDGE = 0.22
 
+/**
+ * The repeat counts the cloud tile is let go between (see `frame.ts`): kept
+ * whole to a frame of about 550 m, gone past about 1500 m — the archipelago
+ * frame, where fifteen repeats of a 92 m cloud drew brown camouflage over
+ * every island and the far shore.
+ *
+ * What stands in for the tile is its *coverage*. The cut is widened by
+ * {@link CLOUD_SPREAD} either side, which is roughly what averaging the cut
+ * over the tile's spread of values does, so a wide frame keeps about the share
+ * of shade a close one has and draws it in the weather bank's shapes —
+ * kilometre-wide and soft, which is what a shower's shadow is from that high.
+ */
+export const CLOUD_REPEATS = [ 6, 16 ] as const
+export const CLOUD_SPREAD  = 0.22
+
 /** Below this the throw is a divide by nothing. The key light never reaches it. */
 const MIN_LIFT = 1e-3
 
@@ -205,10 +221,22 @@ export const CLOUD_SHADOW_GLSL = /* glsl */`
   uniform float uCloudStrength;
 ${WEATHER_BANK_GLSL}
 ${UNTILE_GLSL}
+${FRAME_GLSL}
   float scapeCloudShade (vec2 ground) {
-    float detail = scapeUntiled(uCloudMap, ground * uCloudScale + uCloudOffset);
+    float keep   = ${repeatKeepGlsl('scapeFrameMetres() * uCloudScale', CLOUD_REPEATS)};
+    float detail = 0.5;
+
+    // Uniform across the frame, so the wide frame skips both fetches.
+    if (keep > 0.0)
+      detail = mix(0.5, scapeUntiled(uCloudMap, ground * uCloudScale + uCloudOffset), keep);
+
     float field  = clamp(detail + scapeWeatherBank(ground), 0.0, 1.0);
-    float cloud  = smoothstep(${CLOUD_CUT.toFixed(2)}, ${(CLOUD_CUT + CLOUD_EDGE).toFixed(2)}, field);
+    float spread = ${CLOUD_SPREAD.toFixed(2)} * (1.0 - keep);
+    float cloud  = smoothstep(
+      ${CLOUD_CUT.toFixed(2)} - spread,
+      ${(CLOUD_CUT + CLOUD_EDGE).toFixed(2)} + spread,
+      field
+    );
     return mix(1.0, 1.0 - ${TAKEN.toFixed(2)} * cloud, uCloudStrength);
   }
 `

@@ -1,7 +1,8 @@
 import { BufferAttribute, BufferGeometry, Color, Mesh } from 'three'
+import { smoothstep } from 'threejs-scene'
 import type { Material } from 'three'
 import type { ScapeConfig } from '../config.ts'
-import { SHORE_STEPS } from './farshore.ts'
+import { SHORE_STEPS, ringNoise } from './farshore.ts'
 import type { FarShore } from './farshore.ts'
 
 
@@ -74,32 +75,60 @@ const RINGS = [ -1, 0, 1.6 ]
 const HIGH  = [ 0, 1, 0.5, 0.86 ]
 
 /**
- * How much of the crest's own height each ring takes as colour, and how far
- * each is pulled toward the horizon.
+ * What each ring is made of.
  *
- * The lift is the rock: `seaRock` is what this scape paints anything standing
- * in salt water and `scree` is bare mountain, and a summit is scree where a
- * shoreline is not. Without it a hundred-metre wall reads as one flat
- * silhouette the moment the air has taken the contrast out of it.
+ * The first coast was one blend, `seaRock` at the toe to `scree` at the
+ * summit, and from the archipelago frame that is a tan sheet: a hundred
+ * kilometres of the same bare stone. A northern coast that far off reads as
+ * three things — wet rock at the water, dark conifer forest over the lower
+ * slopes and the vales, and bare scree and heath only where the ground stands
+ * high enough to be above the trees.
  *
- * The haze is aerial perspective, baked, and it is not a cheat. The scape's
- * fog is linear in *view depth*, and this camera at the zoom that can see the
- * far shore looks down at fifty degrees — so the outer rim, a kilometre
- * further across the water than the ridge, is barely any further from the
- * camera than the ridge is and the fog treats them the same. Distance through
- * the air is radial here, not axial, and this is that distance. It is an
- * albedo rather than a light, so a hazier rim is still a dark rim at night.
+ * {@link TREELINE} is that last line, as a share of `farShore.rise`: a ring
+ * whose own height is under it is forest, over it scree, with a soft band
+ * between. The forest is not a band of paint either: {@link standAt} breaks
+ * it along the bearing into stands and clearings, two octaves of the ring's
+ * own wrapped noise, so the treeline climbs and falls with them. Broad
+ * octaves only: the colour is swept across the whole ring's depth, so a fine
+ * one draws spokes rather than stands.
+ *
+ * {@link HAZE} is aerial perspective, baked, and it is not a cheat. The
+ * shader's haze is measured from the point the camera looks at, so the outer
+ * rim, a kilometre further across the water than the ridge, is barely any
+ * further from it than the ridge is. Distance through the air is radial here,
+ * and this is that distance. It is an albedo rather than a light, so a hazier
+ * rim is still a dark rim at night.
  */
-const LIFT = [ 0, 1, 0.55, 0.8 ]
-const HAZE = [ 0, 0.05, 0.18, 0.3 ]
+const TREELINE = [ 0.62, 1 ] as const
+const HAZE     = [ 0, 0.05, 0.18, 0.3 ]
 
-/** What the rock is worth before the crest's own height is added to it. */
-const ROCK_FLOOR = 0.5
+/** The stands, 0..1 along the bearing: clearings low, close forest high. */
+function standAt (bearing: number, seed: number): number {
+  return ringNoise(bearing, 29, 11.3 + seed * 0.031) * 0.7 +
+    ringNoise(bearing, 67, 23.9 - seed * 0.017) * 0.3
+}
 
-const crestTone = new Color()
-const toeTone   = new Color()
-const hazeTone  = new Color()
-const blend     = new Color()
+const rockTone   = new Color()
+const screeTone  = new Color()
+const forestTone = new Color()
+const heathTone  = new Color()
+const hazeTone   = new Color()
+const blend      = new Color()
+
+/** The colour of one vertex, before the haze. */
+function groundTone (ring: number, height: number, stand: number, out: Color): Color {
+  if (ring === 0)
+    return out.copy(rockTone)
+
+  // The clearings are heath, and a thin stand is half of each.
+  out.lerpColors(heathTone, forestTone, smoothstep(0.15, 0.45, stand))
+
+  // The treeline, lowered where the stand is thin — trees give out first
+  // where they were already struggling.
+  const line = TREELINE[0] + (TREELINE[1] - TREELINE[0]) * (stand - 0.2)
+
+  return out.lerp(screeTone, smoothstep(line - 0.18, line + 0.12, height))
+}
 
 /**
  * Write the ring's four vertices per bearing — toe, ridge, vale, rim.
@@ -125,8 +154,10 @@ function sweepRing (
   // grows a ring cannot grow one without a base to stand on.
   const base = HIGH.map((_, ring) => ring === 0 ? toeY : terrain.waterLevel)
 
-  toeTone.set(palette.seaRock)
-  crestTone.set(palette.scree)
+  rockTone.set(palette.seaRock)
+  screeTone.set(palette.scree)
+  forestTone.set(palette.farForest)
+  heathTone.set(palette.heath)
   hazeTone.set(palette.fog)
 
   for (let step = 0; step < SHORE_STEPS; step += 1) {
@@ -135,6 +166,7 @@ function sweepRing (
     const dirZ                               = Math.sin(bearing)
     const half                               = distance * farShore.width * 0.5
     const share                              = farShore.rise > 0 ? crest / farShore.rise : 0
+    const stand                              = standAt(bearing, config.seed)
 
     for (let ring = 0; ring < RINGS.length + 1; ring += 1) {
       const at     = (step * (RINGS.length + 1) + ring) * 3
@@ -159,9 +191,7 @@ function sweepRing (
       position[at + 1] = seabed + (base[ring] + crest * HIGH[ring] - seabed) * land
       position[at + 2] = dirZ * radius
 
-      blend
-        .lerpColors(toeTone, crestTone, ROCK_FLOOR + (1 - ROCK_FLOOR) * share * LIFT[ring])
-        .lerp(hazeTone, HAZE[ring])
+      groundTone(ring, share * HIGH[ring], stand, blend).lerp(hazeTone, HAZE[ring])
 
       colour[at]     = blend.r
       colour[at + 1] = blend.g

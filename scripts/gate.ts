@@ -54,6 +54,9 @@ async function run (check: Check): Promise<Result> {
 const args = parseArgs(Bun.argv.slice(2))
 const full = args.has('full')
 const base = args.str('base', 'origin/main')
+// `--fix` lets the light lint repair what it can before it judges — the
+// spacing and ordering warnings that otherwise cost a run a second gate.
+const fix  = args.has('fix')
 const only = args.list('only').flatMap(name => name.split(','))
 
 /** Source files changed against the base, committed or not — what the light lint reads. */
@@ -70,7 +73,7 @@ async function changedSources (): Promise<string[] | 'all'> {
 const changed = full ? 'all' : await changedSources()
 const lint    = changed === 'all'
   ? [ 'bun', 'run', 'lint' ]
-  : [ 'bunx', 'eslint', '--max-warnings', '0', '--cache', '--cache-location', 'node_modules/.cache/eslint/', '--no-warn-ignored', ...changed ]
+  : [ 'bunx', 'eslint', '--max-warnings', '0', '--cache', '--cache-location', 'node_modules/.cache/eslint/', '--no-warn-ignored', ...fix ? [ '--fix' ] : [], ...changed ]
 
 /** Each stage runs its checks side by side; the stages run in order. */
 const STAGES: Check[][] = [

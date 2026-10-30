@@ -9,6 +9,7 @@ description: The cheapest correct way to verify a three-iso change before pushin
 bun run gate               # light: lint of the changed files + typecheck, tests the diff reaches, vite build, prop audit (~1 min)
 bun run gate --full        # what CI runs: every test, `bun run build` (~1.5 min)
 bun run gate --only test   # one check
+bun run gate --fix         # the light gate, letting eslint repair what it can first (re-read the diff)
 bun run scape:map --stats  # structure: did the world model move?
 ```
 

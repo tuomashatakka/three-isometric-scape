@@ -511,6 +511,7 @@ noise floor, measured: two captures of the same commit differ in ~14% of pixels 
 bun run gate               # light: lint+typecheck side by side, then the tests the diff reaches, vite build, prop audit
 bun run gate --full        # what CI runs: every test, `bun run build`
 bun run gate --only test   # a subset
+bun run gate --fix         # light, with `eslint --fix` on the changed files first
 bun run gate --base HEAD~1 # what "changed" is measured against (default origin/main)
 ```
 

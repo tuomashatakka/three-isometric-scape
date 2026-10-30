@@ -6,7 +6,9 @@ import { SNOW_BAND, SNOW_WANDER, WANDER_ACROSS, WANDER_ALONG } from '../landscap
 import { createSeason } from '../season.ts'
 import { createWeather } from '../weather.ts'
 import { SWASH_DRY } from '../landscape/swash.ts'
-import { createScapeMaterials } from './material.ts'
+import { CLOUD_REPEATS } from '../cloud-shadow.ts'
+import { repeatKeep } from '../frame.ts'
+import { GRAIN_REPEATS, WEAR_REPEATS, WEAR_TILE, createScapeMaterials } from './material.ts'
 
 
 /**
@@ -234,5 +236,38 @@ describe('the two compasses the snow line swings on', () => {
     expect(uniforms.uDriftDir.value.x).toBeCloseTo(Math.cos(bearing), 12)
     expect(uniforms.uDriftDir.value.y).toBeCloseTo(Math.sin(bearing), 12)
     materials.dispose()
+  })
+})
+
+
+describe('the grain the frame can resolve', () => {
+  // Frame widths in metres, at the authored 7.5 m grain tile.
+  const repeats = (metres: number): number => metres / SCAPE_CONFIG.terrain.detailScale
+
+  test('a ground-level frame keeps every map', () => {
+    expect(repeatKeep(repeats(40), GRAIN_REPEATS)).toBe(1)
+    expect(repeatKeep(repeats(40) * WEAR_TILE, WEAR_REPEATS)).toBe(1)
+  })
+
+  test('the archipelago frame keeps none, so it marches and fetches nothing', () => {
+    expect(repeatKeep(repeats(1400), GRAIN_REPEATS)).toBe(0)
+    expect(repeatKeep(repeats(1400) * WEAR_TILE, WEAR_REPEATS)).toBe(0)
+    expect(repeatKeep(1400 / SCAPE_CONFIG.atmosphere.cloudScale, CLOUD_REPEATS)).toBeLessThan(0.05)
+  })
+
+  test('a farm-sized frame keeps the cloud shadow whole', () => {
+    expect(repeatKeep(520 / SCAPE_CONFIG.atmosphere.cloudScale, CLOUD_REPEATS)).toBe(1)
+  })
+
+  test('lets go monotonically, never snapping', () => {
+    let last = 1
+
+    for (let metres = 0; metres <= 1600; metres += 10) {
+      const keep = repeatKeep(repeats(metres), GRAIN_REPEATS)
+
+      expect(keep).toBeLessThanOrEqual(last)
+      expect(last - keep).toBeLessThan(0.05)
+      last = keep
+    }
   })
 })

@@ -2,6 +2,14 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the pattern the frame can resolve
+
+the default frame printed every island and the whole far shore with the same brown camouflage. the culprit was the 92 m cloud-shadow tile, repeated fifteen times across the frame and cut hard at its edges. [`frame.ts`](src/scene/frame.ts) reads how many repeats of a tile the frame is wide, and each world-space reader (grain, wear, cloud detail) lets its tile go to its mean between two counts. the wide frame shows the weather bank's kilometre-wide soft shadows instead. close frames are unchanged.
+
+- **the far shore:** with the print gone, it was one tan blend. it is now wet rock at the water, dark conifer stands (`palette.farForest`) on the lower slopes and vales, heath in the clearings, and scree above a treeline. same mesh, vertex colours only.
+- **cost:** cheaper on the frame most people see. at the archipelago frame the ground skips its relief march, normal fetch and wear fetch, and every ground and lake program skips both cloud-detail fetches. these are uniform branches on one projection read. census unchanged: mobile default 141 draws / 0.95M, near 87 / 0.89M, far 117 / 1.38M.
+- **tools:** the bridge has `find(name)`, so `studio eval` can read a mesh's own attributes. the studio skill says to zero a shader term's knob when `probe` names no mesh.
+
 ## the first frame first
 
 after #95 a desktop Firefox profile still showed ~8.5 s before the first frame. dressing (~3.3 s) and the waterway router (~2 s, 23%) were the two biggest blocks, and neither is in the first picture.
