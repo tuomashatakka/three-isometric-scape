@@ -135,9 +135,9 @@ describe('the lookup itself', () => {
   test('it cuts at the level the deck overhead is cut at', () => {
     const deck = readFileSync(new URL('clouds.ts', import.meta.url).pathname, 'utf8')
 
-    expect(CLOUD_SHADOW_GLSL).toContain(
-      `smoothstep(${CLOUD_CUT.toFixed(2)}, ${(CLOUD_CUT + CLOUD_EDGE).toFixed(2)}, field)`,
-    )
+    // Close in, where the spread is nothing.
+    expect(CLOUD_SHADOW_GLSL).toContain(`${CLOUD_CUT.toFixed(2)} - spread`)
+    expect(CLOUD_SHADOW_GLSL).toContain(`${(CLOUD_CUT + CLOUD_EDGE).toFixed(2)} + spread`)
     expect(deck).toContain('smoothstep(CLOUD_CUT, CLOUD_CUT + CLOUD_EDGE, sample)')
     expect(deck).not.toContain('const CUT =')
   })

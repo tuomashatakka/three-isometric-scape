@@ -56,8 +56,15 @@ export interface ScapePalette {
   meadow:   number
   dryGrass: number
   heath:    number
-  scree:    number
-  lichen:   number
+
+  /**
+   * Conifer forest read from kilometres off: the stands on the far coast's
+   * lower slopes and vales. Darker and bluer than any one tree, because a
+   * canopy from that far is mostly the shade between the crowns.
+   */
+  farForest: number
+  scree:     number
+  lichen:    number
 
   /**
    * Bladderwrack on wet stone — the tidal band on the rocks in the open sea.
@@ -272,6 +279,7 @@ export const SCAPE_PALETTE: SCAPE_PALETTEType = {
     meadow:       0x5d6b3c,
     dryGrass:     0x8f8a51,
     heath:        0x6b6a52,
+    farForest:    0x2e3a30,
     scree:        0x7d7a72,
     lichen:       0x9aa088,
     wrack:        0x3f3a20,

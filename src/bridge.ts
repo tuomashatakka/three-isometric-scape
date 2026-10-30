@@ -33,6 +33,9 @@ export interface ScapeBridge {
   /** The named meshes under a point of the canvas (0..1 from the top left), nearest first. */
   probe(x: number, y: number): string[]
 
+  /** The first object whose name contains this, for `studio eval` to read a mesh's own state. */
+  find(name: string): Object3D | null
+
   /** The renderer's own counters for the last frame. */
   info(): { calls: number, triangles: number, programs: number, geometries: number, textures: number }
 }
@@ -142,6 +145,15 @@ export function installBridge ({ config, rebuild, ctx }: BridgeOptions): void {
 
       ray.setFromCamera(new Vector2(x * 2 - 1, 1 - y * 2), live.camera)
       return [ ...new Set(ray.intersectObject(live.scene, true).map(hit => nameOf(hit.object))) ].slice(0, 8)
+    },
+    find (name) {
+      let found: Object3D | null = null
+
+      ctx()?.scene.traverse(object => {
+        if (!found && object.name.includes(name))
+          found = object
+      })
+      return found
     },
     drawn: () => Number(document.documentElement.dataset.scapeDrawn ?? 0),
     census (limit) {

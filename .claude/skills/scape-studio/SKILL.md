@@ -35,10 +35,13 @@ bun run studio census                                   # census of whatever is 
 bun run studio shot --hide sun-shafts,cloud- --name bare  # the same look without those meshes
 bun run studio probe 0.5 0.2                            # the meshes under that point of the last look
 bun run studio eval "scape.read('season.time')"         # any expression in the page, `scape` is the bridge
+bun run studio eval "scape.find('far-shore').geometry.attributes.color.count"  # a mesh's own state
 ```
 
 **What paints that?** `probe` the point (names, nearest first), then `--hide`
-the suspects one shot at a time — far cheaper than reasoning from pixels. Hidden
+the suspects one shot at a time — far cheaper than reasoning from pixels. When the culprit is a *shader term*
+rather than a mesh, zero its knob instead (`--set atmosphere.cloudShadow=0`,
+`terrain.detailGrain=0`, `terrain.detailMacro=0`): one shot per suspect. Hidden
 meshes come back on the next look. A change to `scripts/scape-studio.ts` itself
 needs `studio stop` and `serve` again; a change under `src/` reloads by itself.
 

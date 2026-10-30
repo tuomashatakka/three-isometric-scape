@@ -6,6 +6,7 @@ import type { ScapeSkips } from '../audit.ts'
 import { CLOUD_SHADOW_GLSL, createCloudShadow } from '../cloud-shadow.ts'
 import type { CloudShadow } from '../cloud-shadow.ts'
 import type { LiveConfig } from '../config.ts'
+import { FRAME_GLSL, repeatKeepGlsl } from '../frame.ts'
 import { shadeDirection } from '../landscape/aspect.ts'
 import { SNOW_BAND, SNOW_WANDER, WANDER_ACROSS, WANDER_ALONG, driftDirection } from '../landscape/drift.ts'
 import { SWASH_FRAGMENT, SWASH_PARS_FRAGMENT, setSwash } from '../landscape/swash.ts'
@@ -212,6 +213,7 @@ const DETAIL_PARS_FRAGMENT = /* glsl */`
   uniform float uDetailScale;
   uniform float uDetailStrength;
   uniform float uPropGrain;
+${FRAME_GLSL}
 `
 
 /**
@@ -330,6 +332,40 @@ const PROP_GRAIN_FRAGMENT = /* glsl */`
 `
 
 /**
+ * The repeat counts the grain and the wear are let go between — see `frame.ts`.
+ * The wear tile is seven times the grain's, so it goes at a frame seven times
+ * narrower in repeats. Both are gone at the archipelago frame, which therefore
+ * marches no relief and fetches neither the normal map nor the wear.
+ */
+export const GRAIN_REPEATS = [ 40, 120 ] as const
+export const WEAR_REPEATS  = [ 5, 14 ] as const
+
+/** The tile the wear map is read at, as a share of the grain's. */
+export const WEAR_TILE = 0.14
+
+const REPEATS_FRAGMENT = /* glsl */`
+  float scapeRepeats   = scapeFrameMetres() * uDetailScale;
+  float scapeGrainKeep = ${repeatKeepGlsl('scapeRepeats', GRAIN_REPEATS)};
+  float scapeWearKeep  = ${repeatKeepGlsl(`scapeRepeats * ${WEAR_TILE.toFixed(2)}`, WEAR_REPEATS)};
+`
+
+/**
+ * The grit, weighted by how much of it the frame can show. The dirt term's
+ * mean, `E[(1 - grain)²]` ≈ 0.25 for a grain centred on a half, stands in for
+ * it as it goes, so the ground's brightness is the same at every zoom.
+ */
+const GRAIN_FRAGMENT = /* glsl */`
+  float scapeGrit = scapeAmt * scapeGrainKeep;
+
+  diffuseColor.rgb *= 1.0 + scapeGrit * (grain - 0.5) * 1.6;
+
+  // Dirt collects in the low ground and it never comes back out.
+  diffuseColor.rgb *= 1.0 - scapeAmt * 0.22 * mix(0.25, pow(1.0 - grain, 2.0), scapeGrainKeep);
+
+  roughnessFactor = clamp(roughnessFactor + scapeGrit * (0.5 - grain) * 0.24, 0.05, 1.0);
+`
+
+/**
  * The same grain, for a gpu that cannot afford to look for it three times.
  *
  * One dependent texture read instead of three. It keeps the albedo mottle and
@@ -344,14 +380,9 @@ const DETAIL_FRAGMENT_LITE = /* glsl */`
   #include <normal_fragment_begin>
   float scapeFlat = smoothstep(0.3, 0.9, vScapeFace.x);
   float scapeAmt  = uDetailStrength * scapeFlat;
+${REPEATS_FRAGMENT}
   float grain     = texture2D(uDetailMap, vScapeGround * uDetailScale).r;
-
-  diffuseColor.rgb *= 1.0 + scapeAmt * (grain - 0.5) * 1.6;
-
-  // Dirt collects in the low ground and it never comes back out.
-  diffuseColor.rgb *= 1.0 - scapeAmt * 0.22 * pow(1.0 - grain, 2.0);
-
-  roughnessFactor = clamp(roughnessFactor + scapeAmt * (0.5 - grain) * 0.24, 0.05, 1.0);
+${GRAIN_FRAGMENT}
 ${PROP_GRAIN_FRAGMENT}
 `
 
@@ -361,27 +392,29 @@ function detailFragment (steps: number): string {
   float scapeFlat = smoothstep(0.3, 0.9, vScapeFace.x);
   float scapeAmt  = uDetailStrength * scapeFlat;
   vec2 scapeUv    = vScapeGround * uDetailScale;
-${steps > 0 ? `  if (scapeAmt > 0.001) {${reliefFragment(steps)}  }\n` : ''}
+${REPEATS_FRAGMENT}
+${steps > 0 ? `  if (scapeAmt * scapeGrainKeep > 0.001) {${reliefFragment(steps)}  }\n` : ''}
 
   // The broad octave is its own map, not this one read slowly. A single field
   // sampled at two frequencies is self-similar by construction, so the patches
   // landed exactly where the grit was already darkest and the two reinforced
   // into a lumpy weave rather than reading as two different histories.
-  vec2 wearUv = scapeUv * 0.14;
+  vec2 wearUv = scapeUv * ${WEAR_TILE.toFixed(2)};
   float grain = texture2D(uDetailMap, scapeUv).r;
-  float wear  = texture2D(uWearMap, wearUv).r;
+${GRAIN_FRAGMENT}
 
-  diffuseColor.rgb *= 1.0 + scapeAmt * (grain - 0.5) * 1.6;
-  diffuseColor.rgb *= 1.0 + scapeAmt * uDetailMacro * (wear - 0.5) * 1.15;
+  // A uniform branch — the keep is the same for every fragment of the frame —
+  // so a frame too wide to show the patches does not fetch them.
+  if (scapeWearKeep > 0.0) {
+    float wear = texture2D(uWearMap, wearUv).r - 0.5;
+    float macro = scapeAmt * scapeWearKeep * uDetailMacro * wear;
 
-  // Dirt collects in the low ground and it never comes back out.
-  diffuseColor.rgb *= 1.0 - scapeAmt * 0.22 * pow(1.0 - grain, 2.0);
+    diffuseColor.rgb *= 1.0 + macro * 1.15;
 
-  roughnessFactor = clamp(roughnessFactor + scapeAmt * (0.5 - grain) * 0.24, 0.05, 1.0);
-
-  // A damp patch is smoother than the grit in it, and that is most of what tells
-  // wet ground from dry at this distance — the albedo barely moves.
-  roughnessFactor = clamp(roughnessFactor - scapeAmt * uDetailMacro * (wear - 0.5) * 0.3, 0.05, 1.0);
+    // A damp patch is smoother than the grit in it, and that is most of what
+    // tells wet ground from dry at this distance — the albedo barely moves.
+    roughnessFactor = clamp(roughnessFactor - macro * 0.3, 0.05, 1.0);
+  }
 
   // One fetch, where there used to be four differenced by hand. The map's own
   // tangent is the grain's gradient resolved at full texel resolution and with
@@ -396,10 +429,12 @@ ${steps > 0 ? `  if (scapeAmt > 0.001) {${reliefFragment(steps)}  }\n` : ''}
   // its normal. A metre-wide patch of wear is damp ground, not raised ground —
   // there is nothing there to catch the light on, and two more fetches to prove
   // it was two fetches spent agreeing with a flat surface.
-  vec2 scapeTangent = texture2D(uGroundNormalMap, scapeUv).xy * 2.0 - 1.0;
-  vec3 scapeBump    = vec3(scapeTangent.x, 0.0, scapeTangent.y) * ${GROUND_NORMAL_GAIN.toFixed(2)};
+  if (scapeGrainKeep > 0.0) {
+    vec2 scapeTangent = texture2D(uGroundNormalMap, scapeUv).xy * 2.0 - 1.0;
+    vec3 scapeBump    = vec3(scapeTangent.x, 0.0, scapeTangent.y) * ${GROUND_NORMAL_GAIN.toFixed(2)};
 
-  normal = normalize(normal + mat3(viewMatrix) * scapeBump * scapeAmt);
+    normal = normalize(normal + mat3(viewMatrix) * scapeBump * scapeAmt * scapeGrainKeep);
+  }
 ${PROP_GRAIN_FRAGMENT}
 `
 }
