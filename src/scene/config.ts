@@ -1118,10 +1118,11 @@ export interface ScapeConfig extends CarterConfig, CreelConfig, CroppingConfig, 
   look: {
     grade:     GradeName
     intensity: number
-    vignette:  number
     grain:     number
     bloom:     number
-    tiltShift: number
+
+    /** The glass: defocus off the focused band, colour fringes and vignetting, 0 is a pinhole. */
+    lens: number
 
     /** Volumetric sun-shaft strength, 0 disables the pass. */
     godRays: number
@@ -1594,10 +1595,9 @@ export const SCAPE_CONFIG = {
   look: {
     grade:      'nordic',
     intensity:  0.78,
-    vignette:   0.34,
     grain:      0.16,
     bloom:      0.34,
-    tiltShift:  0.88,
+    lens:       1,
     godRays:    0.26,
     anamorphic: 0.4,
     ao:         0.7,

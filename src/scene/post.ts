@@ -1,22 +1,15 @@
 import { Vector3 } from 'three'
 import type { Mesh, OrthographicCamera } from 'three'
 import type { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
-import type { LUTPass } from 'three/addons/postprocessing/LUTPass.js'
 import type { Pass } from 'three/addons/postprocessing/Pass.js'
 import type { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
-import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js'
-import { HorizontalTiltShiftShader } from 'three/addons/shaders/HorizontalTiltShiftShader.js'
-import { VerticalTiltShiftShader } from 'three/addons/shaders/VerticalTiltShiftShader.js'
 import { defineModule, smoothstep } from 'threejs-scene'
-import {
-  createFilmGrainPass,
-  createGodRaysPass,
-  createGradePass,
-  postProcessing,
-} from 'threejs-scene/modules/post'
-import type { EffectContext, GodRaysPass, GradePass } from 'threejs-scene/modules/post'
-import { createAnamorphic, createAo, createLUT, createSsr, createTraa } from 'threejs-scene/modules/post/webgl'
+import { createGodRaysPass, postProcessing } from 'threejs-scene/modules/post'
+import type { EffectContext, GodRaysPass } from 'threejs-scene/modules/post'
+import { createAnamorphic, createAo, createSsr, createTraa } from 'threejs-scene/modules/post/webgl'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
+import { createLensPass } from './lens.ts'
+import type { LensPass } from './lens.ts'
 import { createGradeLUTs } from './lut.ts'
 import type { AtmosphereQuality } from './quality.ts'
 
@@ -34,18 +27,21 @@ export interface PostOptions {
   water(): Mesh | null
 }
 
-interface TiltShiftPair {
-  horizontal: ShaderPass
-  vertical:   ShaderPass
-  step:       number
-}
-
-const BLUR_PIXELS      = 3.6
-const BLUR_REFERENCE   = 54
-const BLUR_MIN         = 0.7
-const BLUR_MAX         = 1.8
-const SECOND_PASS_STEP = 1.7
-const GRAIN_SCALE      = 0.09
+/**
+ * What one unit of `look.lens` is, per effect of the glass.
+ *
+ * The blur is the old two-pair tilt-shift's reach at the frame edge — its two
+ * gaussians compose to σ ≈ 14 px per unit at half a frame, and a disc of
+ * radius 2σ reads the same — and the vignette is the old default amount.
+ */
+const LENS_BLUR       = 12.5
+const LENS_VIGNETTE   = 0.34
+const LENS_ABERRATION = 2.2
+const LENS_SHARPEN    = 0.32
+const BLUR_REFERENCE  = 54
+const BLUR_MIN        = 0.7
+const BLUR_MAX        = 1.8
+const GRAIN_SCALE     = 0.09
 
 /** Exponential approach rate for the focus band easing, in e-folds per second. */
 const SETTLE_RATE = 6.2
@@ -67,16 +63,15 @@ const RAY_REACH = 0.95
  * Chain order, and why:
  *
  * ```
- * Render → AO → SSR → Bloom → Anamorphic → GodRays
- *        → TiltShift ×N → Grade → LUT → Grain → TRAA → Output
+ * Render → AO → SSR → Bloom → Anamorphic → GodRays → Lens → TRAA → Output
  * ```
  *
  * Ambient occlusion has to see a sharp image, so it goes first. God rays go
- * after bloom because a bloomed sun throws brighter shafts. Tilt-shift sits
- * after all of them because it is the *lens* — in a real miniature photograph
- * every one of those effects happens in the scene and then the lens defocuses
- * the result, not the other way round. Grade and LUT then run on the final
- * composed frame, and TRAA resolves last.
+ * after bloom because a bloomed sun throws brighter shafts. The lens sits
+ * after all of them — in a real miniature photograph every one of those
+ * effects happens in the scene and then the glass defocuses, fringes and
+ * darkens the result, and the film grades and grains it (`lens.ts`, one pass
+ * for all of that). TRAA resolves last.
  *
  * All of it lands before `OutputPass`, which is where tone-mapping happens
  * exactly once. That matters more than it looks: passes appended with
@@ -94,16 +89,12 @@ export function createAtmospherePost ({
 }: PostOptions): ScapeModule {
   const luts = createGradeLUTs()
 
-  let pairs: TiltShiftPair[]          = []
   let composer: EffectComposer | null = null
   let bloom: UnrealBloomPass | null   = null
-  let grade: GradePass | null         = null
-  let lut: LUTPass | null             = null
-  let film: ShaderPass | null         = null
+  let lens: LensPass | null           = null
   let godRays: GodRaysPass | null     = null
   let extras: Pass[]                  = []
-  let size                            = { width: 1, height: 1 }
-  let amount                          = config().look.tiltShift
+  let elapsed                         = 0
 
   /** Where the focused band is *now*, eased toward where it wants to be. */
   let focusNow                        = Number.NaN
@@ -120,25 +111,16 @@ export function createAtmospherePost ({
   let bufferWidth  = 0
   let bufferHeight = 0
 
-  function applyBlur (): void {
-    for (const pair of pairs) {
-      pair.horizontal.uniforms.h.value = BLUR_PIXELS * pair.step * amount / Math.max(1, size.width)
-      pair.vertical.uniforms.v.value   = BLUR_PIXELS * pair.step * amount / Math.max(1, size.height)
-    }
-  }
-
   function aimFocus (): void {
-    // The tilt-shift band is a focused horizontal stripe, not a point — the
-    // HorizontalTiltShiftShader modulates blur by vertical distance from `r`,
-    // and a true 2D focus point would need a radial/bokeh shader instead.
-    // When a fine pointer (mouse/pen) is on the canvas, the band tracks its
+    // The focused band is a horizontal stripe, not a point — a tilted lens
+    // focuses a plane, and from this camera that plane is the ground. When a fine pointer (mouse/pen) is on the canvas, the band tracks its
     // screen y; otherwise it falls back to the camera's look-at projection.
     const stored = camera.userData.target as readonly [number, number, number] | undefined
     target.set(stored?.[0] ?? 0, stored?.[1] ?? 0, stored?.[2] ?? 0)
     projected.copy(target).project(camera)
 
     // All of this is in the shader's own 0..1 screen space, not the projection's
-    // -1..1 — `r` is compared against `vUv.y`. Converting once here and staying
+    // -1..1 — the focus is compared against `vUv.y`. Converting once here and staying
     // converted is what keeps the ease from blending two different spaces.
     const lookAtLine = (projected.y + 1) / 2
     const pointerY   = camera.userData.pointerScreenY as number | undefined
@@ -154,16 +136,7 @@ export function createAtmospherePost ({
       ? wanted
       : focusNow + (wanted - focusNow) * (1 - Math.exp(-frameDelta * SETTLE_RATE))
 
-    const focusLine = focusNow
-    for (const pair of pairs) {
-      pair.horizontal.uniforms.r.value = focusLine
-      pair.vertical.uniforms.r.value   = focusLine
-    }
-
-    const viewSize = camera.userData.viewSize as number ?? config().camera.viewSize
-    const zoom     = Math.min(BLUR_MAX, Math.max(BLUR_MIN, BLUR_REFERENCE / Math.max(1, viewSize)))
-    amount         = config().look.tiltShift * zoom
-    applyBlur()
+    lens?.aim(focusNow, elapsed)
   }
 
   /**
@@ -270,15 +243,6 @@ export function createAtmospherePost ({
   }
 
   /**
-   * Push `config().look` into the passes that are already built.
-   *
-   * The chain's *shape* is a tier decision made once — which passes exist at
-   * all is not something a slider gets to change without rebuilding the
-   * composer. Their strengths are just uniforms, though, so every one of them
-   * can follow the config live, which is what makes the tuning overlay
-   * immediate rather than a reload.
-   */
-  /**
    * Keep the chain on the same surface the renderer is drawing to.
    *
    * `scene/runtime.ts` moves the renderer; this moves the composer after it.
@@ -298,17 +262,32 @@ export function createAtmospherePost ({
     composer.setPixelRatio(next)
   }
 
+  /**
+   * Push `config().look` into the passes that are already built.
+   *
+   * The chain's *shape* is a tier decision made once — which passes exist at
+   * all is not something a slider gets to change without rebuilding the
+   * composer. Their strengths are just uniforms, though, so every one of them
+   * can follow the config live, which is what makes the tuning overlay
+   * immediate rather than a reload.
+   */
   function syncLook (): void {
-    if (grade)
-      grade.uniforms.uVignette.value = config().look.vignette
+    const look = config().look
 
-    if (lut) {
-      lut.intensity = config().look.intensity
-      lut.lut       = luts.get(config().look.grade)
-    }
+    // The defocus is the one effect of the glass that is frame-sized: a close
+    // frame is a macro lens and blurs more, the whole archipelago blurs less.
+    const viewSize = camera.userData.viewSize as number ?? config().camera.viewSize
+    const zoom     = Math.min(BLUR_MAX, Math.max(BLUR_MIN, BLUR_REFERENCE / Math.max(1, viewSize)))
 
-    if (film)
-      film.uniforms.uIntensity.value = config().look.grain * GRAIN_SCALE
+    lens?.look({
+      blur:       LENS_BLUR * look.lens * zoom,
+      aberration: LENS_ABERRATION * look.lens,
+      vignette:   LENS_VIGNETTE * look.lens,
+      sharpen:    LENS_SHARPEN * Math.min(1, look.lens),
+      grain:      quality.grain ? look.grain * GRAIN_SCALE : 0,
+      lut:        luts.get(look.grade),
+      intensity:  look.intensity,
+    })
 
     // The bloom pass belongs to the composer rather than to `effects`, so it is
     // found once by the one property no other pass in the chain carries.
@@ -342,7 +321,6 @@ export function createAtmospherePost ({
         ctx.composer.renderTarget2.samples = quality.msaaSamples
       }
 
-      size         = { width: ctx.width, height: ctx.height }
       composer     = ctx.composer
       surfaceRatio = config().runtime.pixelRatio
 
@@ -351,39 +329,14 @@ export function createAtmospherePost ({
 
       chain.push(...sceneEffects(ctx))
 
-      pairs = Array.from(
-        { length: quality.tiltShiftPairs },
-        (_unused, index): TiltShiftPair => ({
-          horizontal: new ShaderPass(HorizontalTiltShiftShader),
-          vertical:   new ShaderPass(VerticalTiltShiftShader),
-          step:       SECOND_PASS_STEP ** index,
-        }),
-      )
-      if (pairs.length === 1)
-        pairs[0].step = SECOND_PASS_STEP
-
-      chain.push(...pairs.flatMap(pair => [ pair.horizontal, pair.vertical ]))
-
-      grade = createGradePass({
-        contrast:   1.04,
-        saturation: 1.06,
-        vignette:   config().look.vignette,
+      lens = createLensPass({
+        taps:  quality.lensTaps,
+        grain: quality.grain,
+        lut:   luts.get(config().look.grade),
       })
-      chain.push(grade)
-
-      lut = createLUT({
-        lut:       luts.get(config().look.grade),
-        intensity: config().look.intensity,
-      }) as LUTPass
-      chain.push(lut)
-
-      if (quality.grain && config().look.grain > 0) {
-        film = createFilmGrainPass({
-          intensity: config().look.grain * GRAIN_SCALE,
-          luma:      0.65,
-        })
-        chain.push(film)
-      }
+      lens.size(ctx.width, ctx.height)
+      chain.push(lens)
+      syncLook()
 
       if (quality.traa) {
         const traa = createTraa(ctx, { sampleLevel: 2 })
@@ -396,8 +349,7 @@ export function createAtmospherePost ({
     },
 
     onResize (next) {
-      size = { width: next.width, height: next.height }
-      applyBlur()
+      lens?.size(next.width, next.height)
     },
   })
 
@@ -411,12 +363,11 @@ export function createAtmospherePost ({
 
     update (state, frame, ctx) {
       frameDelta = Math.min(frame.delta, 0.1)
+      elapsed    = frame.elapsed
       aimFocus()
       aimSun()
       syncSurface()
       syncLook()
-      if (film)
-        film.uniforms.uTime.value = frame.elapsed
       inner.update?.(state, frame, ctx)
     },
 
@@ -437,8 +388,7 @@ export function createAtmospherePost ({
       bufferHeight = height
 
       inner.resize?.(next, ctx)
-      lut?.setSize(next.width, next.height)
-      film?.setSize(next.width, next.height)
+      lens?.size(next.width, next.height)
       for (const pass of extras)
         pass.setSize?.(next.width, next.height)
     },
@@ -448,18 +398,14 @@ export function createAtmospherePost ({
     },
 
     dispose () {
-      lut?.dispose()
-      film?.dispose()
+      lens?.dispose()
       for (const pass of extras)
         pass.dispose?.()
       inner.dispose?.()
       luts.dispose()
 
-      pairs        = []
       extras       = []
-      grade        = null
-      lut          = null
-      film         = null
+      lens         = null
       godRays      = null
       bloom        = null
       composer     = null
@@ -470,8 +416,8 @@ export function createAtmospherePost ({
   })
 }
 
-// perf: mobile runs one tilt-shift pair plus grade and lut. Desktop adds a
-// second pair, bloom, god rays, grain and 4x msaa. Ultra adds GTAO, screen-space
+// perf: the chain is off on mobile. Desktop runs bloom, god rays and the one
+// lens pass (16 defocus taps, grain) over 4x msaa. Ultra adds GTAO, screen-space
 // reflections on the lake, anamorphic streaks and a TRAA resolve. Every target
 // in the chain is reallocated only when the drawing buffer behind it actually
 // changed size.
