@@ -22,6 +22,8 @@ the world already has more sites than most frames show — six islands, a hundre
 - **atmosphere** — aerial perspective with distance, haze that is denser low, fog that lies in the valleys, rain that darkens and streaks
 - **scale and detail** — what close zoom shows (richer geometry, texture detail), what wide zoom shows (silhouettes, coastline, the sea), and an lod that makes the first cost nothing at the second
 - **cost** — fewer draws, fewer triangles, cheaper passes, a faster first load (`scape:bench`); every tier, mobile first
+- **the optical pipeline** — the post chain is a camera, not a stack of filters: one pass per physical stage (scene light, then the glass and the film in [`lens.ts`](src/scene/lens.ts)), merged rather than appended. a new screen-space effect folds into an existing pass when it reads the same pixels
+- **fewer, broader knobs** — one parameter per physical decision (`look.lens` is defocus, fringe and vignette at once). a run that adds a knob should look for two it can merge or retire; the panel only shrinks
 
 a new prop or site is still allowed, when it is the cheapest way to make a frame more believable. it is no longer the default.
 
@@ -53,9 +55,25 @@ then read, and only these: [`src/scene/config.ts`](src/scene/config.ts) (the tun
 
 ## 3. pick one thing
 
-**one rendering theme per run, plus one refactor or cost cut that leaves the code smaller or the load faster** — the theme with a headline someone could picture or measure: "terrain normals from the height field", "contact shadows under every prop", "aerial perspective that blues the far islands", "half the draw calls at the default zoom". not a sweep of unrelated tweaks.
+**one rendering theme per run, plus one refactor or cost cut that leaves the code smaller, the chain shorter, the panel smaller or the load faster** — the theme with a headline someone could picture or measure: "terrain normals from the height field", "contact shadows under every prop", "aerial perspective that blues the far islands", "half the draw calls at the default zoom". not a sweep of unrelated tweaks.
 
 pick by looking: what in the `near` and `default` frames reads as least real, or what in the census costs most for least. do not repeat a theme `brief` lists.
+
+**then announce it, before building.** print the run's title and plan in exactly this shape:
+
+```markdown
+# [run title]
+
+[general description of the updates]
+
+**Tasks**
+
+- [task 1]
+- [...]
+```
+
+- **the title is the headline** — the sentence that becomes the gist of the pull request title and the changelog headline. written now, so the run is judged against it rather than described after it.
+- **the tasks are the plan** — the rendering theme, the refactor or cost cut, the tests and docs. the pull request's *what the frame gained* should be checkable against this list.
 
 ## 4. build it
 
@@ -132,6 +150,7 @@ the prompt stays a pointer to this file, so changing how the runs behave is a re
 
 ## what a good run looks like
 
+- a title and task list printed before the first edit, and a pull request that delivers what they promised
 - one theme, landed completely, visible in the frames most people see
 - the census at mobile is no worse, or the pull request says exactly why and what mobile gets instead
 - the gate is clean; the structural stats moved only where intended
