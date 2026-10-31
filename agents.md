@@ -536,7 +536,7 @@ bun run scape:diff --accept         # promote .scape/shots to .scape/baseline
 | `--port` | `4186` | the reference is served there, this tree on the next port up |
 | every `scape:shot` knob | | `--tier` `--set` `--skip` `--size` `--frames` `--ratio` `--aa` `--post` `--gpu` `--no-still` — the same on both sides, and folded into the cache key |
 
-the table has two numbers a pose, because one is not enough: `changed` is the share of the frame that moved and `maxblock` is the worst 32-pixel square, which is how a broken jetty in the corner of a wide frame is noticed at all. a pose that never came `ready` is retaken once and then reported as unread rather than as a ninety-per-cent change. **exits 1** when any pose moved past `--threshold` or carries a note.
+the table has two numbers a pose, because one is not enough: `changed` is the share of the frame that moved and `maxblock` is the worst 32-pixel square, which is how a broken jetty in the corner of a wide frame is noticed at all. a pose that never came `ready` is retaken once and then reads `NEVER READY` rather than a ninety-per-cent change; a missing side reads `MISSING` and a different viewport `SIZE CHANGED`. **exits 1** when any pose moved past `--threshold` or carries one of those notes.
 
 where it writes — all under the gitignored `.scape/`:
 
@@ -573,9 +573,9 @@ noise floor, measured: two captures of the same commit differ in ~14% of pixels 
 ## the gate
 
 ```sh
-bun run gate               # light: lint+typecheck side by side, then the tests the diff reaches, vite build, prop audit
+bun run gate               # light: lint of the changed files + typecheck side by side, then the tests the diff reaches, vite build, prop audit
 bun run gate --full        # what CI runs: every test, `bun run build`
-bun run gate --only test   # a subset
+bun run gate --only test   # a subset of lint, typecheck, test, build, prop:audit (comma-separated or repeated)
 bun run gate --fix         # light, with `eslint --fix` on the changed files first
 bun run gate --base HEAD~1 # what "changed" is measured against (default origin/main)
 ```
@@ -590,7 +590,7 @@ build       ok      1.8s
 prop:audit  ok      0.4s
 ```
 
-sized for a four-core cloud container: never more than two processes at once (five in parallel is what got the old gate killed for memory), tests picked by `bun test --changed=<base>` off the import graph, lint cached in `node_modules/.cache/eslint/`, and `vite build` without its second `tsc` (the typecheck stage already ran it). **only a failure prints its output.** a change to `config.ts` reaches nearly every test; a change to one prop reaches a handful. run `--full` before merging a change to generation — CI runs it either way.
+sized for a four-core cloud container: never more than two processes at once (five in parallel is what got the old gate killed for memory), tests picked by `bun test --changed=<base>` off the import graph (and run `--only-failures`, so a green stage is quiet), lint of only the `.ts`/`.js` files `git diff --name-only <base>` names — committed or not — cached in `node_modules/.cache/eslint/`, and widened to the whole repository when the diff touches `eslint.config`, `package.json`, `bun.lock` or `tsconfig`, and `vite build` without its second `tsc` (the typecheck stage already ran it). **only a failure prints its output.** a change to `config.ts` reaches nearly every test; a change to one prop reaches a handful. run `--full` before merging a change to generation — CI runs it either way.
 
 the suite as a whole is ~2 min, down from ~12: one survey of the default archipelago is ~12 s, and `surveyArchipelago` is memoized on the config's content, so forty-odd test files share one instead of each paying for their own.
 
@@ -609,7 +609,18 @@ the size limits it enforces, as actual numbers rather than as a feeling: **40 st
 
 three more live in [`eslint.config.mjs`](eslint.config.mjs) rather than in the shared config, because they are this scape's rules and not style: **no `Math.random`, no `Date.now`, no `requestAnimationFrame`** anywhere in `src/`. each fails with the reason and with the thing to reach for instead.
 
-other scripts: `bun run dev` (vite on 127.0.0.1:4174), `bun run preview`.
+other scripts: `bun run dev` (vite on 127.0.0.1:4174, `--strictPort`, so a second one fails rather than drifting to 4175 — which is the studio's) and `bun run preview` (the built `dist/` on the same port). `vite build` writes both entries, `index.html` and `props.html`, with relative asset paths (`base: './'`), which is what lets `scape:diff` serve a reference `dist/` from anywhere.
+
+### ci
+
+[`.github/workflows/`](.github/workflows/), both on the latest bun with `bun install --frozen-lockfile`:
+
+| workflow | when | runs |
+| --- | --- | --- |
+| [`pr-checks.yml`](.github/workflows/pr-checks.yml) | every pull request into `main`, or by hand | lint, typecheck, `bun test`, `bun run build` — the same four as `gate --full`, minus the prop audit |
+| [`deploy.yml`](.github/workflows/deploy.yml) | every push to `main`, or by hand | lint and build, then publishes `dist/` to github pages |
+
+ci never takes a picture: no chromium, no `scape:shot`, no `scape:diff`. the pixel check is the run's own job, before the pull request.
 
 ---
 
@@ -620,10 +631,18 @@ on the running page — useful on a device you cannot attach a debugger to:
 | param | does |
 | --- | --- |
 | `?debug` | adds calls and triangles to the always-visible fps, xyz and zoom readout, and opens the card whatever was last chosen |
-| `?tier=minimal\|mobile\|desktop\|ultra` | forces a tier past detection *and* past tier memory |
+| `?tier=minimal\|mobile\|desktop\|ultra` | forces a tier past detection *and* past tier memory, which it clears |
 | `?post=0\|1` | forces the optical chain either way |
-| `?set=look.bloom=0,daylight.time=0.5` | any dotted config path, comma separated |
+| `?ratio=<n>` | caps the pixel ratio at that, over the tier's |
+| `?aa=0\|1` | forces antialiasing either way |
+| `?effects=tier\|all` | `all` builds every effect on whatever tier is pinned — the drawer's switch, from the url |
+| `?set=look.bloom=0,daylight.time=0.5` | any dotted config path, comma separated, applied after local storage so the url wins |
 | `?skip=water,mist,beacon,…` | leaves a whole family out — the list is `SCAPE_FAMILIES` in [`audit.ts`](src/scene/audit.ts) |
+| `?camera=fresh` | opens on the default camera rather than the one the last session stored; every capture sends it |
+| `?audit` | builds the scape, links and reports every program, never draws, and leaves no tier verdict behind |
+| `?bridge` | installs `window.scape`, the remote the studio drives ([`src/bridge.ts`](src/bridge.ts)) |
+
+every one is announced in the diagnostics log as it applies ([`url-overrides.ts`](src/url-overrides.ts), [`main.ts`](src/main.ts)). `scape:shot`'s `--tier`, `--ratio`, `--aa`, `--post`, `--skip` and `--set` are these, written for you. the prop viewer has its own two: `/props.html?prop=<name>&seed=<n>`.
 
 ---
 
@@ -849,7 +868,7 @@ this list.
 | `attachResizeObserver` | watches the canvas's *parent*, and syncs perspective cameras. the quad view watches the canvas and has four orthographic frustums |
 | `disposeScene` / `disposeMaterial` | dispose indiscriminately. this scape pools materials through `markShared`, so per-module teardown is the correct instrument |
 | `createInfiniteGround` | an endless tile grid. the scape is a bounded archipelago with an authored heightfield |
-| `reviewProp` | three of its five checks need more than one mesh, and this kit merges every prop into one geometry. the two that do work — base height and scale — are already asserted in [`props.test.ts`](src/scene/props/props.test.ts) with thresholds tuned to this scape, not to a generic prop |
+| `reviewProp` | three of its five checks need more than one mesh, and this kit merges every prop into one geometry. the two that do work — base height and scale — are already asserted in [`props.test.ts`](src/scene/props/props.test.ts) with thresholds tuned to this scape, not to a generic prop. so it is never a test: its one caller is the advisory [`prop:audit`](#bun-run-propaudit--every-prop-reviewed), whose notes are read and never fail anything |
 | `createDof` | real depth-of-field, and `look.lens` already defocuses a disc banded on the focus line. two blurs fight, and three's `BokehPass` is written for a perspective camera |
 | `createLensflare` | not a post pass at all — a scene object needing caller-supplied sprite textures. this scape is procedural and DOM-free on purpose |
 | `createChromaticAberration` | the grade pass already carries chromatic aberration |
@@ -885,3 +904,6 @@ the beacon's lamp glows. anything that should glow should be *made bright enough
 8. **things sized in metres do not survive a change of scale.** express constants against `terrain.size` unless they are genuinely metres.
 9. **`scape:shot` and `scape:diff` default to `--tier mobile`, and mobile draws the ground with the one-tap lite path.** the normal map, the parallax relief and the macro octave all live on the six-tap path, so a change to any of them photographs as **exactly 0.00% on every pose** at the default tier — not a subtle difference, an identical file. that is the gate working, measured on the tier the gate turns it off on. it cost a full round of "the effect is not visible" debugging, up to painting the branch bright red and watching nothing happen. **any change to the detail injection in `props/material.ts` has to be captured with `--tier desktop`**, and a diff table quoted without one proves only that mobile still links.
 10. **a cached `scape:diff` reference was keyed on the commit and nothing else.** the prewarm sentinel stamped the sha, so a reference warmed at the default `--tier mobile` was happily reused for a `--tier desktop` head side — and the tiers do not merely look different, they build different programs. the table read `near 44.67% CHANGED / default 28.61% CHANGED` for a change whose actual subject moved a few pixels, and nothing in the output admitted the two halves were different tiers. fixed twice, independently and on the same day: `refStamp(rev, args)` now folds tier, ratio, aa, post, skip, size, frames, `--set` and the still flag into the sentinel, and `scape-diff.test.ts` asserts each of those moves the key while the port and the pose list do not. fixed, but worth knowing that a diff table is only ever as honest as what it thinks it is comparing.
+11. **`scape:diff --ref` writes over `.scape/shots/` and `dist/`.** its head side is captured into the directory `scape:shot` uses and built into the working tree's `dist/`. copy a still you meant to keep before diffing.
+12. **a misspelt pose is not an error.** `--poses` looks a comma list up in `tour` only; any other name becomes the default frame saved under that name. check the name against `TOURS` in [`scape-poses.ts`](scripts/scape-poses.ts), not against `--help`, which lists only some of the sets.
+13. **one software-rendered browser at a time on a four-core box.** the studio, `scape:shot` and `scape:diff` all rasterise on the cpu. run two at once and captures start missing their budgets — `scape:diff` measured about one pose in six under load — so a diff reads `NEVER READY` and a shot `BOOTING`. stop the studio or wait before a diff, and never run the full suite beside one.

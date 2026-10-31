@@ -18,7 +18,7 @@ bun run dev        # http://127.0.0.1:4174
 
 **almost nothing here needs a browser.** world generation, prop building, path planning and the whole palette are pure typescript — no `three`, no gl context, no dom. that is deliberate, and it is what the tooling is built on: the loop between changing a number and seeing what it did should not go through a screenshot.
 
-every command there is, by what it is for. **the flags, the outputs, where the files land and the traps are in [`agents.md`](agents.md)**; the three that need a browser or a budget also have a how-to in `.claude/skills/` (`scape-studio`, `scape-perf`, `scape-verify`). costs are on a four-core cloud container.
+every command there is, by what it is for. **the flags, the outputs, where the files land and the traps are in [`agents.md`](agents.md)**; `.claude/skills/` carries the how-to for the ones that need a browser or a budget (`scape-studio`, `scape-perf`, `scape-verify`) and an index of them all (`scape-tools`). costs are on a four-core cloud container.
 
 | | command | for | costs |
 | --- | --- | --- | --- |
