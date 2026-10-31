@@ -8,6 +8,7 @@ written to be read cold. a run starts with no memory of the previous one. everyt
 - **`.claude/skills/scape-studio`** — how to *look*: a warm browser, seconds per picture
 - **`.claude/skills/scape-perf`** — how to *measure*: the triangle and draw census, and the levers that exist
 - **`.claude/skills/scape-verify`** — how to *check*: the light gate and the full one
+- **`.claude/skills/scape-tools`** — which instrument: every dev tool, what it costs, and where its detail lives
 - **[`agents.md`](agents.md)** — every script and flag, the module surface, the traps
 - **[`README.md`](README.md)** — why the scene is the way it is
 
