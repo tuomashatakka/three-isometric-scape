@@ -17,6 +17,7 @@ import { HAIL_CENTRE, HAIL_WIDTH } from './weather.ts'
 import type { WindState } from './wind.ts'
 import { LAYER } from './layers.ts'
 import { hypot } from './hypot.ts'
+import { fallMarks } from './squall.ts'
 
 
 export interface HailOptions {
@@ -308,7 +309,9 @@ export function createHailLayer ({
     },
 
     update (_state, frame) {
-      const falling = weather.hail
+      const live     = config()
+      const viewSize = camera.userData.viewSize as number ?? live.camera.viewSize
+      const falling  = weather.hail * fallMarks(viewSize, live.camera)
 
       material.uniforms.uOpacity.value = falling * STONE_ALPHA
 
@@ -317,11 +320,9 @@ export function createHailLayer ({
         return
       }
 
-      const live     = config()
-      const viewSize = camera.userData.viewSize as number ?? live.camera.viewSize
-      const focus    = camera.userData.target as readonly [number, number, number] | undefined
-      const radius   = hailCellRadius(live.archipelago.worldSize, live.weather.hailCell)
-      const lead     = hailLead(weather.phase) * SWEEP * radius
+      const focus  = camera.userData.target as readonly [number, number, number] | undefined
+      const radius = hailCellRadius(live.archipelago.worldSize, live.weather.hailCell)
+      const lead   = hailLead(weather.phase) * SWEEP * radius
 
       cell.set(wind.dirX * lead, wind.dirZ * lead)
       band.set(radius * (1 - EDGE), radius)

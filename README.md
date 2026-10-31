@@ -649,8 +649,11 @@ the camouflage over the default frame — every island and the whole far shore p
 | ground grain, its relief march and normal fetch | 7.5 m | 300 m frame | 900 m |
 | wear | 53 m | 270 m | 750 m |
 | cloud shadow detail | 92 m | 550 m | 1470 m |
+| the sea's swell faces (shade and normal) | 70 m crest | 700 m | 1540 m |
 
 a tile goes to its **mean**, not to nothing: the grain's dirt term keeps its average darkening, and the cloud cut widens by `CLOUD_SPREAD` so a wide frame keeps roughly the share of shade a close one has, drawn in the weather bank's kilometre-wide shapes. the count is the same for every fragment, so the branches are uniform and the wide frame skips the relief march, the normal fetch, the wear fetch and both cloud-detail fetches outright.
+
+the swell was the same fault on the water: three plain sines thirty crests across the archipelago frame ruled the whole sea in diagonal stripes. past the band its shade and normal go flat (`SWELL_REPEATS` in [`swell.ts`](src/scene/landscape/swell.ts)) and the three wave reads are skipped; the vertex swell stays, sub-pixel there. the falling weather has the same rule on another axis: rain streaks and hail stones are screen-sized marks, right in the farmyard and a column of white confetti over open sea, so `fallMarks` in [`squall.ts`](src/scene/squall.ts) fades them out on exactly the curve the squall on the water fades in, and past it both layers are hidden.
 
 with the print gone the far shore showed what it was underneath: one tan blend from `seaRock` to `scree`. [`skyline.ts`](src/scene/landscape/skyline.ts) now paints it as a northern coast — wet rock at the water, `palette.farForest` over the lower slopes and the vales, heath in the clearings, and scree only above a treeline at 62–100 % of `farShore.rise`. the stands come from two broad octaves of the ring's own wrapped noise. a fine octave was tried and drew spokes, because the colour is swept across the ring's whole depth.
 

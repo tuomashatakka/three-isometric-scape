@@ -2,6 +2,15 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the shower and the sea, at the distance they are seen
+
+the default frame had two patterns no photograph from a kilometre and a half up would show: a column of white confetti over the sea, and diagonal stripes ruled over the whole of the water. the confetti was the hail and the rain, whose marks are screen-sized: right in the farmyard, metres-wide stones at the archipelago frame. the stripes were the swell, a 70 m train thirty crests across the frame. the default and noon frames now show the squall darkening the water under the shower, the cloud shadows and the sky, and no ruled pattern. near frames are unchanged.
+
+- **the handover:** `fallMarks` in `squall.ts` is `1 − squallReveal`, so the drops fade out on exactly the curve the squall on the water fades in. past it the rain and hail layers are hidden.
+- **the swell:** `scapeSwellFaces` (`swell.ts`) goes to its mean between 10 and 22 crests across the frame (`SWELL_REPEATS`, through `frame.ts`), and on a frame past that it skips all three wave reads. both lake programs read it, so the duplicated three-line swell sample is gone.
+- **cost:** cheaper. census (mobile): default 141 → 139 draws, 0.95M tris; near 87 / 0.89M; far 117 → 115 / 1.38M; night 148 → 146; winter 147 → 145. a wide frame skips three wave evaluations per water fragment.
+- **tools:** the studio fails a look at once with the page's error when the page throws before it is ready. before, it hung for the three-minute budget, and for longer through the cli. this run lost two of those budgets to a TDZ error in a shader template.
+
 ## the pattern the frame can resolve
 
 the default frame printed every island and the whole far shore with the same brown camouflage. the culprit was the 92 m cloud-shadow tile, repeated fifteen times across the frame and cut hard at its edges. [`frame.ts`](src/scene/frame.ts) reads how many repeats of a tile the frame is wide, and each world-space reader (grain, wear, cloud detail) lets its tile go to its mean between two counts. the wide frame shows the weather bank's kilometre-wide soft shadows instead. close frames are unchanged.

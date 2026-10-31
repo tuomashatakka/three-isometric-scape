@@ -65,6 +65,23 @@ export function squallReveal (viewSize: number, limits: ScapeConfig['camera']): 
 }
 
 /**
+ * How much of the falling weather — the rain's streaks, the hail's stones —
+ * the view is close enough to draw as marks, 0..1: the other side of
+ * {@link squallReveal}, so one curve hands the shower from one to the other.
+ *
+ * The marks are screen-sized (see `screenSize` in `fall-column.ts`), which is
+ * right at a farmyard frame and wrong at an archipelago one: there a stone a
+ * few millimetres across was drawn three metres wide, and the default frame
+ * carried a column of white confetti over the sea. A photograph from that far
+ * resolves no drop at all, only the darkened water and the curtain the squall
+ * already draws, so the marks give way to it. Past the handover the layers are
+ * hidden, which is a draw and a few thousand quads each off the wide frames.
+ */
+export function fallMarks (viewSize: number, limits: ScapeConfig['camera']): number {
+  return 1 - squallReveal(viewSize, limits)
+}
+
+/**
  * How much water the shower is standing on, 0..1.
  *
  * The larger of two readings of one front: the rain that is falling here, and

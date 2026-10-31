@@ -28,7 +28,7 @@ import { MAX_DEPTH, bakeShoreMask } from './shore-mask.ts'
 import { WATER_CAPS_GLSL, setCaps } from './water-caps.ts'
 import { WATER_ICE_GLSL } from './water-ice.ts'
 import { WATER_SHELTER_GLSL, bakeShelterMask } from './shelter.ts'
-import { WATER_SWELL_GLSL, setSwell, swellRate, swellWavenumber } from './swell.ts'
+import { WATER_SWELL_FACES_GLSL, WATER_SWELL_GLSL, setSwell, swellRate, swellWavenumber } from './swell.ts'
 import { BOAT_WAKE_GLSL } from './water-wake.ts'
 import {
   CAUSTIC_RATE,
@@ -341,6 +341,7 @@ ${UNTILE_GLSL}
   uniform vec3 uPhosphorColor;
   varying vec2 vWaterGround;
 ${WATER_SWELL_GLSL}
+${WATER_SWELL_FACES_GLSL}
 ${SHORE_GLSL}
 ${WATER_SHELTER_GLSL}
 ${WATER_ICE_GLSL}
@@ -408,9 +409,10 @@ const WATER_COLOR_FRAGMENT = /* glsl */`
   // see, and a second read of the same sampler at the same uv is exactly the
   // tap the surf band already refuses to make.
   float swellShoal = scapeShoal(waterDepth) * swellCalm;
-  float swell  = scapeWave(vWaterGround, swellShoal);
-  float swellX = scapeWave(vWaterGround + vec2(1.6, 0.0), swellShoal);
-  float swellZ = scapeWave(vWaterGround + vec2(0.0, 1.6), swellShoal);
+  vec3 swellFaces = scapeSwellFaces(vWaterGround, swellShoal);
+  float swell      = swellFaces.x;
+  float swellX     = swellFaces.y;
+  float swellZ     = swellFaces.z;
   float boatWake   = scapeBoatWake(vWaterGround) * openWater * (1.0 - iceCover);
 
   // Foam is a band hugging the bank, not a wash over everything shallow: it
@@ -525,9 +527,10 @@ const WATER_COLOR_FRAGMENT_LITE = /* glsl */`
   // see, and a second read of the same sampler at the same uv is exactly the
   // tap the surf band already refuses to make.
   float swellShoal = scapeShoal(waterDepth) * swellCalm;
-  float swell  = scapeWave(vWaterGround, swellShoal);
-  float swellX = scapeWave(vWaterGround + vec2(1.6, 0.0), swellShoal);
-  float swellZ = scapeWave(vWaterGround + vec2(0.0, 1.6), swellShoal);
+  vec3 swellFaces = scapeSwellFaces(vWaterGround, swellShoal);
+  float swell      = swellFaces.x;
+  float swellX     = swellFaces.y;
+  float swellZ     = swellFaces.z;
   float boatWake   = scapeBoatWake(vWaterGround) * openWater * (1.0 - iceCover);
 
   // The one thing the cheap lake gains rather than loses. The trim it cannot
