@@ -1,11 +1,12 @@
 # agents.md
 
-the tool reference for anything working on this repository without a pair of eyes on the canvas. [`instructions.md`](instructions.md) is *what to do*; this is *what you have to do it with*. the [readme](README.md) is the design record and explains why the scene is the way it is.
+the tool reference for anything working on this repository without a pair of eyes on the canvas. [`instructions.md`](instructions.md) is *what to do*; this is *what you have to do it with*. the [readme](README.md) is the design record and explains why the scene is the way it is; its [working on it](README.md#working-on-it) table is the one-line list of every command, and this file is every flag of each.
 
 **the one rule that saves the most time:** almost nothing here needs a browser. world generation, prop building, path planning and the whole palette are pure typescript — no `three`, no gl context, no dom. so the fast loop is `bun` and ascii, and a screenshot is the *last* resort rather than the first.
 
 | you want to know | reach for | costs |
 | --- | --- | --- |
+| what does this box have | `bun run setup` | seconds, then a detached prewarm |
 | where am i starting from | `bun run brief` | ~2 s, no browser |
 | what does the runtime already do | [`threejs-scene-api.md`](threejs-scene-api.md) | one read |
 | what is its exact signature | `node_modules/threejs-scene/llms.txt` | one read, ships with the package |
@@ -13,94 +14,68 @@ the tool reference for anything working on this repository without a pair of eye
 | where is everything | `bun run scape:map` | ~1.5 s cold, no browser |
 | what does this one prop look like | `bun run prop:map <name>` | ~40 ms, no browser |
 | what colour is where on a prop | `bun run prop:map <name> --audit` | ~40 ms, no browser |
+| is any prop floating, buried or heavy | `bun run prop:audit` | ~0.4 s, no browser |
+| did a build-time change move the world | `bun run scape:bench` on both sides | seconds, no browser |
 | what does the roster look like | `/props.html` (dev server) | one gpu context |
 | how does one prop measure up | `/props.html?prop=<name>` | one gpu context |
 | what does it look like, live | `bun run studio shot …` (skill: `scape-studio`) | ~60 s once, then ~5–15 s a look |
 | where do the triangles and draws go | `bun run studio census` (skill: `scape-perf`) | seconds, once the studio is up |
 | does it still draw at all | `bun run scape:shot` | ~90 s per pose, cold browser |
 | did my change move the picture | `bun run scape:diff --ref origin/main` | minutes, builds a ref |
+| is it safe to push | `bun run gate` (skill: `scape-verify`) | a minute or two |
+
+costs are on a four-core cloud container. every script takes `--key value` and `--key=value` alike, and `--set` repeats ([`scripts/args.ts`](scripts/args.ts)).
 
 ---
+
+## `bun run setup` — before the brief
+
+```sh
+bun run setup                     # install, chromium, api digest, prewarm origin/main, then the brief
+bun run setup --ref origin/feat   # prewarm a different reference
+bun run setup --no-prewarm        # skip the background reference build
+```
+
+in order: `bun install --frozen-lockfile`; a chromium lookup; `api:digest --check`; and, if a chromium was found, `scape:diff --ref-only --ref <ref>` spawned **detached** with its output discarded, so the reference half of stage 5 builds while the change is being written ([below](#bun-run-scapediff--what-the-change-did)); then `bun run brief`. **it never fails** — a run that cannot take a picture can still do good work, and this exists to say so at minute one rather than at stage 5.
+
+the chromium is found, never installed (`playwright-core` ships none, on purpose — [`scripts/browser.ts`](scripts/browser.ts)): `$PLAYWRIGHT_CHROMIUM` first, then the newest `chromium-*` revision under `$PLAYWRIGHT_BROWSERS_PATH` or `~/.cache/ms-playwright` (both the `chrome-linux64` and the older `chrome-linux` layout), then `/usr/bin/google-chrome`. `chromium NOT FOUND` means `scape:shot`, `scape:diff` and the studio cannot run: `bunx playwright install chromium` fixes it; otherwise pick a theme `scape:map` can judge and say so in the pull request.
 
 ## `bun run brief` — where a run starts
 
 ```sh
-bun run brief                          # inventory, themes, open prs, scape:map --stats
+bun run brief                          # every section: inventory, themes, api, prs, map, readme
 bun run brief --sections readme        # the design record's index, heading by line
 bun run brief --sections inventory,api # a subset
+bun run brief --sections map           # the full scape:map --stats block, not just its headline
 bun run brief --themes 12              # more history
 bun run brief --out .scape/brief.txt   # keep a copy to quote into the pull request
 ```
 
-```text
-brief · 1.7s
+the sections are `inventory` (files and effective lines under `src/` and `scripts/`, anything over the 666-line ceiling, the five largest), `themes` (the newest `## ` headings of [`CHANGELOG.md`](CHANGELOG.md), eight by default), `api` (whether [`threejs-scene-api.md`](threejs-scene-api.md) matches the installed version), `prs` (`gh pr list`; where there is no `gh`, as on the cloud container, it says so and points at the github tools), `map` (`scape:map --stats` — only its world line and one line per landmass unless `map` is asked for by name) and `readme` (every `#`–`###` heading of the readme with its line number, so a `# ` at the start of a line inside a readme code block shows up as a heading here).
 
-inventory   134 files · 19582 lines · 86 code, 48 test · none over 666
-            largest: scene/landscape/dressing.ts 609 · scene/config.ts 535 · ...
-themes      the rules the tools now enforce
-            the machinery that was never about this island
+```text
+brief · 3.2s
+
+inventory   450 files · 57889 lines · 290 code, 160 test · none over 666
+            largest: scripts/scape-map.ts 663 · scripts/scape-poses.ts 662 · scene/landscape/dressing.ts 661 · ...
+themes      the shower and the sea, at the distance they are seen
+            the pattern the frame can resolve
             ...
-api digest  matches threejs-scene@0.6.2 · 77/415 exports used
-open prs    none open — clear to branch
+api digest  matches threejs-scene@0.6.2 · 74/415 exports used
+open prs    gh unavailable — list open pull requests with the GitHub MCP tools
 scape:map   seed 7319  world 1520m  home 196m  water -1.25m  grid 96x48  15.83x31.67 m/cell
 
-land 18.5%  above snowline 72.2%  peak 8.63m @ (9, 18)
-yard (-17,-0.7) r19    track 27pts 48.8m    landRadius 44
-footpaths 19 routes, 245.8m total, longest 22.3m
-creek OK  head (19,23) 6.49m -> mouth (36,56) -14.3m  len 38m
-beck  15.9m wetted, 8m of fall
-tarn  (33,3.7) surface 2.59m  wetted r5.9m  rim 2.34m
-peat  (29.3,-18.3) moor 3.34m  face 0.82m standing  ground 1.7m
-pasture (24.5,3.9) r6   plots 4   ridges 5   isles 15/15 surfacing
-mill (35.9,-8.1) prominence 6.85m
-chapel (26.8,15.1) prominence 1.56m  46.6m from the yard
-smokehouse (-8.5,-10.3) 18m up the bank
-beacon (60.9,39.3) isle 5 freeboard 6.69m  reach 74.7m
-croft (-66.2,-37) isle 10  freeboard 3.95m  53.9m from the harbour
-causeway (52.4,32.5) isle 5  crossing 13m  crest 0.22m  covered 31% springs / 0% neaps
-steading  farmhouse(-8,3) barn(-16,-14) aitta(-27,6) woodshed(-28,-7) sauna(-17,16)
-landing (-26,-17)  harbour (-13,-28)
-landmasses 6
-home/home @ (0,0)  land 18.5% peak 8.63m  paths 19  jetty (-26,-17)  mill (35.9,-8.1)  peat (29.3,-18.3) face 0.82m
-ridge/ridge @ (-178,128)  land 14.3% peak 6.5m  paths 12  jetty (-151,138)  mill NONE  peat NONE
-meadow/meadow @ (178,128)  land 27% peak 5.68m  paths 16  jetty (151,126)  mill (168.2,157.5)  peat NONE
-sound/sound @ (-300,-480)  land 15.5% peak 12.62m  paths 16  jetty (-362,-396)  mill (-282.7,-482.5)  peat (-337.5,-457.5) face 2.23m
-fell/fell @ (300,-480)  land 13.9% peak 14.94m  paths 15  jetty (322,-393)  mill (339.3,-515.2)  peat (306.3,-442.1) face 2.19m
-shield/shield @ (0,520)  land 16.5% peak 22.85m  paths 13  jetty (-50,557)  mill (17,555.9)  peat NONE
-waterways 5 legs 2515.5m  connected OK  wet OK  clearance 0.55m
-boats 5  separation 115.79m  conflicts 0
-strand sound<->fell  len 450m  crest 1.1m  lowest 0.4m  CONNECTED
-skerries 59 in 16 guards  widest 23.7m  lowest 0.8m over the water  nearest island 76.4m
-roost 16 gates  tightest 6.1m  widest 37.9m  6.2% of the water  nearest 53.6m out  springs 0.72
-seals 246 on 23/59 rocks in 13 guards  ashore 246 low / 189 high  ledges 0.21..1.4m over mean  springs ±0.4m
-kelp 1175/1343 plants in 42 beds on 6/6 coasts  water 1..4.2m  longest 6.71m  afloat 100%  lean 61.2° low / 39.4° high
-creels 13/70 strings, 97 pots off 6/6 harbours  water 2.67..5.73m  longest 80m  least 2.27m low / 3.07m high springs
-ledges 148 birds on 5/5 headlands  4 tiers of a 7m face  band 2.28..6.06m over mean  ashore 148 midsummer / 0 midwinter
-pack 1200/1709 plates  6.3..21.7m across  standing 0.61m  ice 6.7% of the world  in from freeze 0.49 to 1  up 874 midwinter / 1200 at a hard freeze / 0 midsummer  sheet 0.55  lane 9.1m
-fjord sound  len 115m  sea 11.7m  sill 5.5m  basin 16.3m  head +2.8m  OVERDEEPENED
-fjord fell  len 115m  sea 11.7m  sill 6m  basin 16.3m  head +3.8m  OVERDEEPENED
-ice shield  (-11.1,482.9) reach 56.1m  covers 38.3% of the island  apex 21.93m  thickest 19.88m  front in 2.12m of water
-dune home  crest 2.4m  ridge 8.5m inland  belt 104.8m of coast  2/15 bearings blown out  21% refused  lowest ground 0.003m
-dune ridge  crest 2.03m  ridge 6.5m inland  belt 74.9m of coast  2/15 bearings blown out  35% refused  lowest ground 0.04m
-dune meadow  crest 2.07m  ridge 7.5m inland  belt 84.2m of coast  6/15 bearings blown out  33% refused  lowest ground 0.025m
-dune sound  crest 2.37m  ridge 10.5m inland  belt 223.7m of coast  3/12 bearings blown out  31% refused  lowest ground 0.001m
-dune fell  crest 1.91m  ridge 9.5m inland  belt 209.2m of coast  5/15 bearings blown out  58% refused  lowest ground 0.004m
-dune shield  crest 1.5m  ridge 9.5m inland  belt 179.8m of coast  6/15 bearings blown out  64% refused  lowest ground 0.004m
-marsh ridge  mouth 152°  runs 38.9m of coast  flat 174.1m2 tidal / 140.4m2 turf  gutters 0%  the tide walks 14.5m across it  lowest turf 0.22m
-marsh sound  mouth 224°  runs 122.7m of coast  flat 840.6m2 tidal / 704.4m2 turf  gutters 4.4%  the tide walks 17m across it  lowest turf 0.24m
-crag home  headland 322°  lip 6.28m  face 69°  runs 45.5m of coast  low 3.23m  1 clefts  stands 5.77m over the coast  plunge 8.95m  coast 0.38
-crag fell  headland 218°  lip 9.26m  face 69°  runs 102m of coast  low 3.38m  1 clefts  stands 5.14m over the coast  plunge 6.71m  coast 0.61
-stack home  (57.2,-34.6)  off the 328.8° headland  crown 5.95m of a 7m lip  girth 5m  gut 9.5m of water 10.65m deep  clear 5.55m at springs  rock 0.62
-stack fell  (185.1,-539.5)  off the 207.4° headland  crown 5.95m of a 7m lip  girth 5m  gut 11.75m of water 15.38m deep  clear 5.55m at springs  rock 0.79
-hearths 19  lowest mouth 4.17m over the ground
-windows 108  lowest pane 0.73m over the ground  facing out 108/108
-storm 6/7 strikes  peak @ phase 0.3161 over fell  ridge(-193,77) 1x on -1.25m  meadow(206,141) 0x on -1.05m  sound(-336,-501) 2x on 1.72m  fell(282,-480) 3x on 7.02m  shield(-42,526) 0x on 4.01m
-bow   sun 42.1° up  apex -0.1°  bearing 143.5°  cover 0.29  now 0.482  best 0.585 @ phase 0.201
-moon  phase 0.184  lit 0.3  up 6.9°  lights 0  key share 0  track 1  fire 0
-treeline wooded 42.2%  margin 38.2%  bare 19.6%  line 1.8..8.5m mean 5.68m
-            home 48.3%/5.21m/e0.49  ridge 33.3%/4.44m/e0.61  meadow 62.5%/5.69m/e0.42  sound 61.8%/6.32m/e0.33  fell 45.7%/6.22m/e0.34  shield 21.2%/6.23m/e0.34
-grazing 7/12 flocks  thinnest cover 0.72  home/outfield (32,-14) r7  home/outfield (24,23) r7  meadow/infield (158,146) r7  sound/infield (-329,-518) r7  sound/outfield (-266,-443) r7  fell/infield (311,-424) r7  fell/outfield (322,-541) r7
-gulls 7/7 colonies  home/harbour (-53,-63) r24.1  home/rock (93,60) r28  ridge/harbour (-116,147) r28  meadow/harbour (103,132) r28  sound/harbour (-373,-353) r28  fell/harbour (322,-361) r13.2  shield/harbour (-98,577) r24.1
+            land 19%  above snowline 77.6%  peak 8.63m @ (9, 18)
+            home/home @ (0,0)  land 19% peak 8.63m  paths 20  jetty (-26,-17)  mill (35.9,-8.1)  peat (33,-22) face 1.63m
+            ridge/ridge @ (-178,128)  land 14.5% peak 6.5m  paths 12  jetty (-151,138)  mill NONE  peat NONE  pier 9m bert
+            ...
+
+readme      the design record, by section — read the one you are about to change
+
+  three-iso  ·L1
+    working on it  ·L17
+      the ascii instruments  ·L48
+      ...
 ```
 
 everything it prints is derived from this working tree, and none of it is committed — a generated file that churns on every commit is just a second thing for every
@@ -130,7 +105,7 @@ dependency is a reviewed decision and regenerating a committed file as a side ef
 installed version disagree.
 
 the reinvention it exists to stop was never a discipline problem. nothing in this repository said what was already available, so each run rebuilt what it could
-not see — a gesture rig, a renderer bootstrap, three copies of one ribbon builder. 59 of 390 exports are used; the rest are one read away.
+not see — a gesture rig, a renderer bootstrap, three copies of one ribbon builder. a minority of the exports are used — the digest's header carries the count — and the rest are one read away.
 
 ---
 
@@ -145,10 +120,13 @@ bun run scape:map                      # grid + stats
 bun run scape:map --stats              # numbers only, including route/fleet safety
 bun run scape:map --seed 7318          # a different valid archipelago
 bun run scape:map --window 40,-20,60   # crop: cx,cz,span
-bun run scape:map --w 150              # wider grid
+bun run scape:map --w 150 --h 60       # grid size, default 96x48 (cells are ~2:1, so that keeps the world square)
 bun run scape:map --layers paths,waterways,boats,buildings
-bun run scape:map --json               # for scripting
+bun run scape:map --set archipelago.worldSize=1800 --stats   # any dotted config path, repeatable; --seed n is --set seed=n
+bun run scape:map --json               # the stats as json, for scripting (what scape:diff's structural line reads)
 ```
+
+layers: `height` `creek` `paths` `track` `waterways` `boats` `buildings` (alias `steading`); all of them when `--layers` is absent, and the grid always ends with its legend. `--help` prints the flags. it exits 0 whatever the stats say — a `NONE` or a `FAILED` is read, not trapped.
 
 the stats block is the check that catches what a still cannot — a beck that stopped tracing, an island that drowned, a pasture that never found room, a mill that lost its shoulder, footpaths that collapsed to zero, a route that crossed land or a fleet that collided. the `dyke` line is the sharpest *ratio* in it: `Nm built of Mm` says how much of the head dyke's contour actually carries stone, and the circuit half of that only moves when the terrain does — so a built length that fell while the circuit held means something else has moved onto the contour, and the wall that is no longer there is invisible in every still. the `force` lines are the sharpest case of it: the step in a beck's long profile preserves the fall of the window it was cut from, so every other figure in this readout — the wetted reach, the total fall, the mouth — is identical whether the fall is two metres deep or was never cut at all. the `shelter` line is the newest and the one a run that widens the world should read first: `lee N% of the water` is the share at or over half sheltered at the authored wind, and it has a finding at each end — under about a per cent nothing on the water reads as sheltered at any zoom, and past about a third the lees have run together and the archipelago has no weather side left. `swing` beside it is how much of the field answers to the *bearing* rather than merely to being enclosed; a swing near zero with a healthy mean is a pond. the `mole` line carries another of these — `shelters Ndeg of Mm fetch`, degrees of the landing's own horizon the breakwater now stands in the way of against the open water it was built against. it is the structure's whole claim as a number and it is invisible in every still, because a photograph of an arm shows stone in water whether the water behind it is quiet or not; an arm whose length held while its shelter fell has been moved onto the wrong hand of its bank. the `shore` line is the only one in the block about something that is not in the height field at all, and it carries the check a still cannot make: `clears the islands by Nm` is the least open water between the near toe of the far coast and the furthest corner of any terrain patch on that bearing. it is fifty metres by construction rather than by luck — a run that grows the world, moves an island or changes a patch size has moved the thing that number depends on, and a coast that has started standing in the archipelago looks perfectly fine from every bearing but one. the `bridges` line is the newest, and it is the one block here whose *refusals* carry the reading: `N/M crossings` is how many places a worn way goes into water against how many got a deck, and `left wet:` names which of the five reasons the rest were left — tidal, a dry crease, too wide, banks too uneven, or over the farm's budget. a `budget` count that climbs across runs is the path network growing legs over one stream; a `wide` count that climbs is a beck that grew. a bare `bridges NONE` on an island is not a gap either: it says that island's ways never meet its water at all, which is a different world from one that fords it. the first block is the legacy home-island shape; the landmass, waterway and boat blocks cover the full world. **read it before and after every change.**
 
@@ -266,6 +244,20 @@ note that this is the one block in `scape:map` that reports geometry rather than
 
 `mill NONE` is a valid answer and not a failure — an island with nowhere level and exposed enough for a trestle does not get one. what would be a finding is a mill *appearing* or *moving* on a run that did not touch the siting rules, because everything the search reads is either the ground or something the farm already claimed.
 
+### `bun run scape:bench` — the first load's cpu, without a browser
+
+```sh
+bun run scape:bench                    # mobile tier
+bun run scape:bench --tier ultra       # the heaviest dressing: minimal | mobile | desktop | ultra
+bun --cpu-prof scripts/scape-bench.ts  # where the time goes, as a .cpuprofile
+```
+
+```text
+mobile  survey … ms  terrain … ms  dressing … ms  fingerprint <instances> instances <checksum>
+```
+
+builds what the page builds before its first frame — `surveyArchipelago`, `createArchipelagoTerrain` at the tier's segments, `createDressing` — and times each, then sums every instanced matrix into one **fingerprint**. that line is the proof a build-time optimisation needs: run it on main and on the branch, and if the fingerprints differ the change moved the world, whatever it claimed. `scape:map --stats` is the same check for the survey alone. the timings are one cold run on a shared box; read them as a ratio between two runs, not as a number. the skill `scape-perf` has the levers.
+
 ### `bun run prop:map` — one prop, as ascii
 
 the same bargain one scale down. builds exactly one geometry and draws it through the runtime's z-buffered ascii rasteriser (`rasterizeAscii` from `threejs-scene/modules/assets`). **use this instead of a screenshot when you touch a prop builder.**
@@ -280,9 +272,17 @@ bun run prop:map --list                    # names only
 bun run prop:watch farmhouse               # re-render on save
 ```
 
-views: `front` `back` `right` `left` `top` `iso`. flags: `--cols`, `--cell`, `--seed`.
+views: `front` `back` `right` `left` `top` `iso` (default `iso`). flags: `--cols` (default 96, clamped to 16–400), `--cell` (terminal cell height over width, default 2), `--seed` (build seed, default 11), `--all`, `--list`, `--help`. several names in one call draw one after another; an unknown name prints the usage and exits 1 (`--list` is the roster). `prop:watch` is the same script under `bun --watch`, so it reruns on a save of anything it imports.
 
 `--audit` names the palette entry every baked facet came from and the height band it covers, so *"does `faluDark` appear above the roofline"* is one line of output. two things to know: the match is done in **linear** colour (three bakes the colour attribute out of srgb, and that is a power curve, not a scale — matched in srgb the rust chimney lands in the falu bucket); and the greys — granite, shingle, iron, trim — are near-collinear, so read them as one family.
+
+### `bun run prop:audit` — every prop, reviewed
+
+```sh
+bun run prop:audit       # one report per prop, then "N props with notes"
+```
+
+builds each prop in [`PROPS`](src/scene/props/index.ts) at one fixed seed, wraps it in a `Prop` and runs the runtime's `reviewProp` over it — floating, detached, buried, heavy. **advisory**: notes never fail it, because a floating cloud is right and a floating chair is not and only the author knows which this is. it exits 1 only when a prop throws while building, which is therefore the only way the gate's `prop:audit` stage goes red. the base-height and scale checks that *are* enforced live in [`props.test.ts`](src/scene/props/props.test.ts) — see `reviewProp` under [also available, unused here](#also-available-unused-here) for why the rest of the review is not a test.
 
 ### `/props.html` — the prop viewer
 
@@ -311,7 +311,18 @@ bun run studio eval "scape.census(300)"               # any expression in the pa
 bun run studio census | status | stop
 ```
 
-[`scripts/scape-studio.ts`](scripts/scape-studio.ts) keeps one chromium page open on vite's dev server (port 4175) and drives it through `?bridge` ([`src/bridge.ts`](src/bridge.ts)): `scape.write(path, value)`, `reset()`, `rebuild()`, `census()`, `info()`, `hide(names)`, `probe(x, y)`. **to find what paints something, `probe` the point, then `--hide` the suspects** — it is how the white tick field and the white decals over the wide sea were traced to the sun shafts and the whitecaps in one run, where reading screenshots had not. `census` counts points, lines and sprites too. every look resets to the opening config (`STILL` applied), applies the pose and the `--set`s, waits a few drawn frames and photographs. the page follows source edits by itself (vite reload), so the loop is edit → look. `camera.focusX/focusZ/viewSize/rotation` are live knobs now — the camera snaps to a change in them — which is what lets a look move the camera without a reload. the full how-to is the `scape-studio` skill in `.claude/skills/`.
+| command | does |
+| --- | --- |
+| `serve [--gpu]` | the daemon: vite dev on :4175, one 800×500 chromium page (swiftshader unless `--gpu`), a control server on :4199 (`$SCAPE_STUDIO_PORT`). run it in the background and wait for `studio ready` |
+| `shot` | one look per pose. `--poses <set>` (any `scape:shot` set, or comma-separated `tour` pose names) or `--rot` `--zoom` `--time` `--season` `--name`; `--set a.b=1` (repeatable), `--hide name,name` (substring of the object name), `--rebuild` (for build-time knobs), `--tier` (reopens the page), `--frames 4` (drawn frames before the shutter), `--census` (the top twelve rows under the line). lands in `.scape/studio/<name>.png` |
+| `census` | the renderer's counters and the forty heaviest rows: name, kind, draws, instances, triangles |
+| `probe x y` | the named meshes under that point of the last look (0..1 from the top left, default the middle), nearest first; `(sky)` for none |
+| `eval <js>` | any expression in the page, `scape` (the bridge) in scope, answered as json |
+| `status` / `stop` | is it up, at which tier and url / shut down the browser, vite and the daemon. no command at all is `status` |
+
+no `--size`, `--skip`, `--ratio`, `--aa` or `--post` here: the page is opened once, so those belong to `scape:shot`. `--hide` is the live substitute for `--skip`. a look has 180 s to come ready; a page error before the scene mounts fails the look at once with the message. looks are queued — the page is one camera — and any client call with no daemon up exits 2 and says to start one.
+
+[`scripts/scape-studio.ts`](scripts/scape-studio.ts) keeps one chromium page open on vite's dev server (port 4175) and drives it through `?bridge` ([`src/bridge.ts`](src/bridge.ts)): `scape.write(path, value)`, `read(path)`, `reset()`, `rebuild()`, `drawn()`, `census(limit)`, `info()`, `hide(names)`, `probe(x, y)`, `find(name)` — the last is for `eval` to read one mesh's own state. **to find what paints something, `probe` the point, then `--hide` the suspects** — it is how the white tick field and the white decals over the wide sea were traced to the sun shafts and the whitecaps in one run, where reading screenshots had not. `census` counts points, lines and sprites too. every look resets to the opening config (`STILL` applied), applies the pose and the `--set`s, waits a few drawn frames and photographs. the page follows source edits by itself (vite reload), so the loop is edit → look. `camera.focusX/focusZ/viewSize/rotation` are live knobs now — the camera snaps to a change in them — which is what lets a look move the camera without a reload. the full how-to is the `scape-studio` skill in `.claude/skills/`.
 
 ### `bun run scape:shot` — a still
 
@@ -337,7 +348,7 @@ bun run scape:shot --poses wreck                    # the hull on the low rock, 
 bun run scape:shot --poses shoal                    # the banks in the sound, and the tide over them, 4 frames
 bun run scape:shot --poses swell                    # the sea's own shape: the bank it stands up over, the fan at both ends, and the wind turned a quarter, 6 frames
 bun run scape:shot --poses tide                     # the sea at both ends of its swing, 3 frames
-bun run scape:shot --poses fjord                    # the drowned valley in the sound, 4 frames
+bun run scape:shot --poses fjord                    # the drowned valley in the sound, 5 frames, and the fell's inlet
 bun run scape:shot --poses aspect                   # two sides of one hill, 4 frames
 bun run scape:shot --poses tarn                     # the pool on the high ground, 4 frames
 bun run scape:shot --poses peat                     # the turf cutting on the moor, 3 frames
@@ -348,6 +359,11 @@ bun run scape:shot --poses bow                      # the rainbow, 4 frames, thr
 bun run scape:shot --poses halo                     # the ring round the sun, 5 frames, in the weeks that hold one
 bun run scape:shot --poses haulout                  # the seals on the guard, 4 frames, low water and high
 bun run scape:shot --poses wood                     # the treeline on two hillsides, 3 frames
+bun run scape:shot --poses dune                     # the blown sand on the weather shore, 4 frames, near, the lee and the winter
+bun run scape:shot --poses crag                     # the cliff on the steep shore, 4 frames, near, from the sea and bare
+bun run scape:shot --poses stack                    # the pillar off that headland, 4 frames, near, from the sea and bare
+bun run scape:shot --poses arch                     # the hole the sea cut through it, 4 frames, near, its reach and none
+bun run scape:shot --poses saltings                 # the tidal flat on the sound, 4 frames, low water, high, near and bare
 bun run scape:shot --poses pier                     # the trestle out to deep water, 3 frames, and a coast without one
 bun run scape:shot --poses weir                     # the fish trap on the flat, 4 frames, low water and high
 bun run scape:shot --poses kelp                     # the weed in the shallows, 4 frames, low water and high
@@ -359,10 +375,10 @@ bun run scape:shot --poses dyke                     # the wall between the farm 
 bun run scape:shot --poses moon                     # the farm by moonlight, 4 frames, with the moon, without it, and at a new one
 bun run scape:shot --poses nightsea                 # the sound after dark, 5 frames, the moon track and the fire in the surf
 bun run scape:shot --poses shore                    # the lights of the places on the far coast, 4 frames
-bun run scape:shot --poses blow                     # the sea getting up, 4 frames, at rest, in a gust, in a lee, and switched off
+bun run scape:shot --poses blow                     # the sea getting up, 5 frames, a blow, a light air, a gale, a lee, and switched off
 bun run scape:shot --poses shade                    # the cloud shadow, 5 frames, with it, without it, under a clear sky, low sun and at night
 bun run scape:shot --poses haar                     # the night fog bank, 5 frames, near and far, switched off, blown away and at noon
-bun run scape:shot --poses shafts                   # the beams under the deck, 5 frames, switched off, a clear sky, an overcast and a low sun
+bun run scape:shot --poses shafts                   # the beams under the deck, 6 frames, near and far, a low sun, switched off, a clear sky and an overcast
 bun run scape:shot --poses ledge                    # the birds on the headland, 4 frames, midsummer, midwinter and a bare cliff
 bun run scape:shot --poses wheel                    # the flock off the headland, 4 frames, midsummer, close, midwinter and a colony that never flies
                                                     #   (the set pins its own tier: `birdCount` is 0 on mobile, which every capture defaults to)
@@ -380,7 +396,30 @@ bun run scape:shot --poses kiln                     # the lime kiln on the brae,
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
 bun run scape:shot --tier ultra --set look.bloom=0
 bun run scape:shot --skip post                      # drop the optical chain
+bun run scape:shot --poses quick                    # one default frame, the cheapest named set
+bun run scape:shot --poses near,night               # tour poses by name, comma-separated
 ```
+
+[`scape-poses.ts`](scripts/scape-poses.ts)'s `TOURS` is the list of sets, not `--help`: the usage text names only some of them. a comma list is looked up **in `tour` only** — any other name, or a misspelt one, silently becomes a default pose saved under that name, so `--poses crag-near` is a still of the default frame called `crag-near.png`.
+
+| flag | default | does |
+| --- | --- | --- |
+| `--poses <set>` | — | a named set, or `tour` poses by name |
+| `--name` `--rot` `--zoom` `--time` `--season` | `shot`, the config's | one ad-hoc pose: file name, camera yaw, view size (tilt follows zoom), day 0..1, year 0..1 |
+| `--tier` | `mobile`, or the pose's own | pinned, never detected |
+| `--set a.b=1` | — | any dotted config path, repeatable, applied after the pose's own |
+| `--skip a,b` | the pose's own | leave whole families out (`SCAPE_FAMILIES` in [`audit.ts`](src/scene/audit.ts)) |
+| `--ratio` `--aa 0\|1` `--post 0\|1` | `1`, the tier's | pixel ratio, antialias, optical chain — the `?ratio=`/`?aa=`/`?post=` overrides. not in `--help` |
+| `--size WxH` | `800x500` | viewport |
+| `--frames` | `40` | drawn frames before the shutter |
+| `--gpu` | off | real adapter instead of swiftshader: fast, noisy, never diff it |
+| `--no-still` | off | let the clocks run (drops `STILL` and `?camera=fresh`); never diff it |
+| `--clock` | off | fake the browser clock as well — slower, rarely needed |
+| `--chrome` | off | leave the overlay, card and frame counter in the picture |
+| `--dist <dir>` / `--port` | dev server, `4174` | serve a built directory with `vite preview` instead; a server already on the port is used and left alone |
+| `--out` | `.scape/shots` | where `<pose>.png` lands |
+
+exits 1 if any pose never came `ready` or logged a page error; the first three errors print under the table.
 
 `tour` is `default`, `near`, `far`, `noon`, `night`, `winter`. `night` pins a week as well as an hour, because the sun runs a seasonal arc and the config opens at a midsummer that has no night in it. every capture prints a line before anything opens the image, and most runs need only that line:
 
@@ -436,7 +475,7 @@ bun run scape:shot --skip post                      # drop the optical chain
 
 `arch` is the same coast one stage *earlier* in the sequence, and it needs a set of its own for a reason the stack's does not cover. a pillar is at least a silhouette; an arch is the same silhouette as a lump of rock until the frame is close enough to resolve the opening, and the opening is the whole landform. four frames on the home island's arch at world (35, −40): `arch` at a 40 m view, where the legs, the hole and the cliff behind are three things; `arch-near` at 15 m, the only frame where the soffit curve and the courses of the legs are surfaces; `arch-reach` pulls back to 70 m and is the frame the landform was added for — the headland, the hole cut through its spur and the pillar left where an older hole already fell, all three in one picture; `arch-none` is the control at `terrain.arch.stature=0`, the coast this archipelago had before the run. unlike `stack` and `crag` the focus point is on ground that exists either way, so the control loses a landform rather than relocating its frame. **nothing in this set is turned off the default heading**, and that is deliberate: `rot` does not carry `camera.focusX`/`focusZ` with it, so a rotated frame on a subject fifty metres off the world origin photographs the farmyard instead. read the stills against the `arch` line of `scape:map --stats`, whose `headroom` and `floor ... wet` columns are the two no capture can measure. reach for it whenever the change touches `terrain.arch.*`, `terrain.crag.*`, `quality.archBlocks`, the shore shelving, or anything else that re-levels a coastline.
 
-`saltings` is the newest set, and it is the `tide` set's argument applied to the ground that argument is about. three frames on the sound island's marsh at world (−373, −551): `marsh-low` and `marsh-high` are the identical frame half a cycle of `tide.lag` apart, so the only thing that can have moved between them is the sea — and on a flat whose whole surface stands inside the spring range that water crosses seventeen metres, where the same rise walks under two up the harbour beach `ebb` and `flood` are taken on. `marsh-near` at a 34 m view is the surface itself, and the only frame where the drainage gutters, the bare mud and the cordgrass on the turf are three things rather than one brown patch. the sound rather than the home island because the home island has no marsh: its beck comes out through the dune belt, on the one coast the silt is refused. reach for it whenever the change touches `terrain.saltings.*`, `palette.slob`, `palette.saltings`, `dressing.cordgrass`, `tide.*`, or anything else that re-levels a coastline.
+`saltings` is the newest set, and it is the `tide` set's argument applied to the ground that argument is about. four frames on the sound island's marsh at world (−373, −551): `marsh-low` and `marsh-high` are the identical frame half a cycle of `tide.lag` apart, so the only thing that can have moved between them is the sea — and on a flat whose whole surface stands inside the spring range that water crosses seventeen metres, where the same rise walks under two up the harbour beach `ebb` and `flood` are taken on. `marsh-near` at a 34 m view is the surface itself, and the only frame where the drainage gutters, the bare mud and the cordgrass on the turf are three things rather than one brown patch. `marsh-bare` is the control, the identical frame at `terrain.saltings.top=0`. the sound rather than the home island because the home island has no marsh: its beck comes out through the dune belt, on the one coast the silt is refused. reach for it whenever the change touches `terrain.saltings.*`, `palette.slob`, `palette.saltings`, `dressing.cordgrass`, `tide.*`, or anything else that re-levels a coastline.
 
 `shoal` is the newest set, and it is the first one aimed at something that has no geometry in it. four frames on the home island's bank at world (103, −77): `shoal` at a 230 m view holds the whole spit and the coast it leaves; `shoal-low` and `shoal-high` are that identical frame half a cycle of `tide.lag` apart at `season: 0.93`, the week the moon makes springs in, which walks 0.8 m of water over a crest that has 0.9 m on it at mean — the tint, the caustics and the surf line all move together and the ground under them does not; and `shoal-none` is the same view at `shoals.reach=0`, which is both the control and the switch, because it is the sea this scape had before the banks and diffs `same` against `origin/main` to the pixel. nothing in `tour` can see any of it: a bank is not small, it is submerged, and at the 1400 m frame it shifts the water tint over two per cent of the sea by a few points of blue under the haze that frame already carries. reach for it whenever the change touches `shoals.*`, `water.surfDepth`, `MAX_DEPTH`, `tide.*`, `wind.bearing`, or anything else that decides what a depth looks like.
 
@@ -483,7 +522,33 @@ reach for the focus knobs whenever the change is a *ground-level* one — a rut,
 bun run scape:diff --ref origin/main --poses tour
 bun run scape:diff --ref-only       # build and photograph only the reference side
 bun run scape:diff --clean          # drop the cached ref worktree
+bun run scape:diff                  # no --ref: .scape/shots against .scape/baseline
+bun run scape:diff --accept         # promote .scape/shots to .scape/baseline
 ```
+
+| flag | default | does |
+| --- | --- | --- |
+| `--ref <ref>` | — | build that commit in a worktree and compare against it |
+| `--ref-only` | — | the reference half only, then stop; `--ref` defaults to `origin/main` here |
+| `--poses` | the single default pose; `tour` under `--ref-only` | as `scape:shot`. **pass `--poses tour` with `--ref`**, or the prewarmed tour goes unused and one default frame is compared |
+| `--threshold` | `0.5` | per cent of the frame that counts as moved; a diff image and a failing exit above it |
+| `--tolerance` | `0.1` | per-pixel colour tolerance, 0..1, handed to pixelmatch |
+| `--port` | `4186` | the reference is served there, this tree on the next port up |
+| every `scape:shot` knob | | `--tier` `--set` `--skip` `--size` `--frames` `--ratio` `--aa` `--post` `--gpu` `--no-still` — the same on both sides, and folded into the cache key |
+
+the table has two numbers a pose, because one is not enough: `changed` is the share of the frame that moved and `maxblock` is the worst 32-pixel square, which is how a broken jetty in the corner of a wide frame is noticed at all. a pose that never came `ready` is retaken once and then reads `NEVER READY` rather than a ninety-per-cent change; a missing side reads `MISSING` and a different viewport `SIZE CHANGED`. **exits 1** when any pose moved past `--threshold` or carries one of those notes.
+
+where it writes — all under the gitignored `.scape/`:
+
+| path | holds |
+| --- | --- |
+| `.scape/ref/<sha12>/` | the reference worktree, `node_modules` symlinked, built into its own `dist/`. kept between runs; `--clean` removes them and runs `git worktree prune` |
+| `.scape/ref-shots/` | the reference stills, with `.ref-sha` (the cache key) and `.ref-poses` (each pose's own digest) |
+| `.scape/shots/` | this tree's stills — **the same directory `scape:shot` writes**, so a diff overwrites a still you meant to keep |
+| `.scape/diff/<pose>.png` | the diff image, only for a pose past the threshold |
+| `.scape/baseline/` | the stored-baseline mode's reference, written only by `--accept` |
+
+and `--ref` runs `vite build` in the working tree, so `dist/` is this tree afterwards.
 
 `--ref-only` is the head start, and `bun run setup` fires it in the background at the start of a run. the reference half — checking out another commit, building it,
 and photographing six poses through a software rasteriser — depends on nothing the run is about to write, so it can finish while the change is still being authored.
@@ -508,9 +573,9 @@ noise floor, measured: two captures of the same commit differ in ~14% of pixels 
 ## the gate
 
 ```sh
-bun run gate               # light: lint+typecheck side by side, then the tests the diff reaches, vite build, prop audit
+bun run gate               # light: lint of the changed files + typecheck side by side, then the tests the diff reaches, vite build, prop audit
 bun run gate --full        # what CI runs: every test, `bun run build`
-bun run gate --only test   # a subset
+bun run gate --only test   # a subset of lint, typecheck, test, build, prop:audit (comma-separated or repeated)
 bun run gate --fix         # light, with `eslint --fix` on the changed files first
 bun run gate --base HEAD~1 # what "changed" is measured against (default origin/main)
 ```
@@ -525,7 +590,7 @@ build       ok      1.8s
 prop:audit  ok      0.4s
 ```
 
-sized for a four-core cloud container: never more than two processes at once (five in parallel is what got the old gate killed for memory), tests picked by `bun test --changed=<base>` off the import graph, lint cached in `node_modules/.cache/eslint/`, and `vite build` without its second `tsc` (the typecheck stage already ran it). **only a failure prints its output.** a change to `config.ts` reaches nearly every test; a change to one prop reaches a handful. run `--full` before merging a change to generation — CI runs it either way.
+sized for a four-core cloud container: never more than two processes at once (five in parallel is what got the old gate killed for memory), tests picked by `bun test --changed=<base>` off the import graph (and run `--only-failures`, so a green stage is quiet), lint of only the `.ts`/`.js` files `git diff --name-only <base>` names — committed or not — cached in `node_modules/.cache/eslint/`, and widened to the whole repository when the diff touches `eslint.config`, `package.json`, `bun.lock` or `tsconfig`, and `vite build` without its second `tsc` (the typecheck stage already ran it). **only a failure prints its output.** a change to `config.ts` reaches nearly every test; a change to one prop reaches a handful. run `--full` before merging a change to generation — CI runs it either way.
 
 the suite as a whole is ~2 min, down from ~12: one survey of the default archipelago is ~12 s, and `surveyArchipelago` is memoized on the config's content, so forty-odd test files share one instead of each paying for their own.
 
@@ -544,7 +609,18 @@ the size limits it enforces, as actual numbers rather than as a feeling: **40 st
 
 three more live in [`eslint.config.mjs`](eslint.config.mjs) rather than in the shared config, because they are this scape's rules and not style: **no `Math.random`, no `Date.now`, no `requestAnimationFrame`** anywhere in `src/`. each fails with the reason and with the thing to reach for instead.
 
-other scripts: `bun run dev` (vite on 127.0.0.1:4174), `bun run preview`.
+other scripts: `bun run dev` (vite on 127.0.0.1:4174, `--strictPort`, so a second one fails rather than drifting to 4175 — which is the studio's) and `bun run preview` (the built `dist/` on the same port). `vite build` writes both entries, `index.html` and `props.html`, with relative asset paths (`base: './'`), which is what lets `scape:diff` serve a reference `dist/` from anywhere.
+
+### ci
+
+[`.github/workflows/`](.github/workflows/), both on the latest bun with `bun install --frozen-lockfile`:
+
+| workflow | when | runs |
+| --- | --- | --- |
+| [`pr-checks.yml`](.github/workflows/pr-checks.yml) | every pull request into `main`, or by hand | lint, typecheck, `bun test`, `bun run build` — the same four as `gate --full`, minus the prop audit |
+| [`deploy.yml`](.github/workflows/deploy.yml) | every push to `main`, or by hand | lint and build, then publishes `dist/` to github pages |
+
+ci never takes a picture: no chromium, no `scape:shot`, no `scape:diff`. the pixel check is the run's own job, before the pull request.
 
 ---
 
@@ -555,10 +631,18 @@ on the running page — useful on a device you cannot attach a debugger to:
 | param | does |
 | --- | --- |
 | `?debug` | adds calls and triangles to the always-visible fps, xyz and zoom readout, and opens the card whatever was last chosen |
-| `?tier=minimal\|mobile\|desktop\|ultra` | forces a tier past detection *and* past tier memory |
+| `?tier=minimal\|mobile\|desktop\|ultra` | forces a tier past detection *and* past tier memory, which it clears |
 | `?post=0\|1` | forces the optical chain either way |
-| `?set=look.bloom=0,daylight.time=0.5` | any dotted config path, comma separated |
+| `?ratio=<n>` | caps the pixel ratio at that, over the tier's |
+| `?aa=0\|1` | forces antialiasing either way |
+| `?effects=tier\|all` | `all` builds every effect on whatever tier is pinned — the drawer's switch, from the url |
+| `?set=look.bloom=0,daylight.time=0.5` | any dotted config path, comma separated, applied after local storage so the url wins |
 | `?skip=water,mist,beacon,…` | leaves a whole family out — the list is `SCAPE_FAMILIES` in [`audit.ts`](src/scene/audit.ts) |
+| `?camera=fresh` | opens on the default camera rather than the one the last session stored; every capture sends it |
+| `?audit` | builds the scape, links and reports every program, never draws, and leaves no tier verdict behind |
+| `?bridge` | installs `window.scape`, the remote the studio drives ([`src/bridge.ts`](src/bridge.ts)) |
+
+every one is announced in the diagnostics log as it applies ([`url-overrides.ts`](src/url-overrides.ts), [`main.ts`](src/main.ts)). `scape:shot`'s `--tier`, `--ratio`, `--aa`, `--post`, `--skip` and `--set` are these, written for you. the prop viewer has its own two: `/props.html?prop=<name>&seed=<n>`.
 
 ---
 
@@ -684,7 +768,7 @@ the pointer bookkeeping — capture, live pointers, the pinch frame, tap detecti
 
 ### an atmospheric system
 
-`src/scene/*.ts` — `atmosphere.ts`, `mist.ts`, `clouds.ts`, `aurora.ts`, `nightsky.ts`, `rain.ts`, `birds.ts`, `beacon.ts`, `hearth.ts`, `windows.ts`, `post.ts`, the four clocks `daylight.ts` / `season.ts` / `weather.ts` / `wind.ts`, and `tide.ts`, which is not a fifth — it is the first two read against each other. composed in [`create-isometric-scape.ts`](src/scene/create-isometric-scape.ts). the hung sheets share [`sky-deck.ts`](src/scene/sky-deck.ts) — the zoom reveal and the focus they follow — so two decks cannot fade in at two different zooms.
+`src/scene/*.ts` — `atmosphere.ts`, `mist.ts`, `clouds.ts`, `aurora.ts`, `nightsky.ts`, `rain.ts`, `birds.ts`, `beacon.ts`, `hearth.ts`, `windows.ts`, `post.ts` (the chain) and `lens.ts` (its one optical pass), the four clocks `daylight.ts` / `season.ts` / `weather.ts` / `wind.ts`, and `tide.ts`, which is not a fifth — it is the first two read against each other. composed in [`create-isometric-scape.ts`](src/scene/create-isometric-scape.ts). the hung sheets share [`sky-deck.ts`](src/scene/sky-deck.ts) — the zoom reveal and the focus they follow — so two decks cannot fade in at two different zooms.
 
 anything mounted *after* `atmosphere.module` sees this frame's day; anything before it sees the last one's. that is the whole reason the coastal light is a layer here rather than part of the landscape that surveys it — `beacon.ts` reads `daylight.day` and the landscape publishes `lanternHubs` for it.
 
@@ -784,8 +868,8 @@ this list.
 | `attachResizeObserver` | watches the canvas's *parent*, and syncs perspective cameras. the quad view watches the canvas and has four orthographic frustums |
 | `disposeScene` / `disposeMaterial` | dispose indiscriminately. this scape pools materials through `markShared`, so per-module teardown is the correct instrument |
 | `createInfiniteGround` | an endless tile grid. the scape is a bounded archipelago with an authored heightfield |
-| `reviewProp` | three of its five checks need more than one mesh, and this kit merges every prop into one geometry. the two that do work — base height and scale — are already asserted in [`props.test.ts`](src/scene/props/props.test.ts) with thresholds tuned to this scape, not to a generic prop |
-| `createDof` | real depth-of-field, and `look.tiltShift` is already a screen-space blur banded on the focus line. two blurs fight, and three's `BokehPass` is written for a perspective camera |
+| `reviewProp` | three of its five checks need more than one mesh, and this kit merges every prop into one geometry. the two that do work — base height and scale — are already asserted in [`props.test.ts`](src/scene/props/props.test.ts) with thresholds tuned to this scape, not to a generic prop. so it is never a test: its one caller is the advisory [`prop:audit`](#bun-run-propaudit--every-prop-reviewed), whose notes are read and never fail anything |
+| `createDof` | real depth-of-field, and `look.lens` already defocuses a disc banded on the focus line. two blurs fight, and three's `BokehPass` is written for a perspective camera |
 | `createLensflare` | not a post pass at all — a scene object needing caller-supplied sprite textures. this scape is procedural and DOM-free on purpose |
 | `createChromaticAberration` | the grade pass already carries chromatic aberration |
 | `createFXAA` / `createSMAA` / `createSsaa` | antialiasing is chosen per tier and overridden by `?aa=` |
@@ -820,3 +904,6 @@ the beacon's lamp glows. anything that should glow should be *made bright enough
 8. **things sized in metres do not survive a change of scale.** express constants against `terrain.size` unless they are genuinely metres.
 9. **`scape:shot` and `scape:diff` default to `--tier mobile`, and mobile draws the ground with the one-tap lite path.** the normal map, the parallax relief and the macro octave all live on the six-tap path, so a change to any of them photographs as **exactly 0.00% on every pose** at the default tier — not a subtle difference, an identical file. that is the gate working, measured on the tier the gate turns it off on. it cost a full round of "the effect is not visible" debugging, up to painting the branch bright red and watching nothing happen. **any change to the detail injection in `props/material.ts` has to be captured with `--tier desktop`**, and a diff table quoted without one proves only that mobile still links.
 10. **a cached `scape:diff` reference was keyed on the commit and nothing else.** the prewarm sentinel stamped the sha, so a reference warmed at the default `--tier mobile` was happily reused for a `--tier desktop` head side — and the tiers do not merely look different, they build different programs. the table read `near 44.67% CHANGED / default 28.61% CHANGED` for a change whose actual subject moved a few pixels, and nothing in the output admitted the two halves were different tiers. fixed twice, independently and on the same day: `refStamp(rev, args)` now folds tier, ratio, aa, post, skip, size, frames, `--set` and the still flag into the sentinel, and `scape-diff.test.ts` asserts each of those moves the key while the port and the pose list do not. fixed, but worth knowing that a diff table is only ever as honest as what it thinks it is comparing.
+11. **`scape:diff --ref` writes over `.scape/shots/` and `dist/`.** its head side is captured into the directory `scape:shot` uses and built into the working tree's `dist/`. copy a still you meant to keep before diffing.
+12. **a misspelt pose is not an error.** `--poses` looks a comma list up in `tour` only; any other name becomes the default frame saved under that name. check the name against `TOURS` in [`scape-poses.ts`](scripts/scape-poses.ts), not against `--help`, which lists only some of the sets.
+13. **one software-rendered browser at a time on a four-core box.** the studio, `scape:shot` and `scape:diff` all rasterise on the cpu. run two at once and captures start missing their budgets — `scape:diff` measured about one pose in six under load — so a diff reads `NEVER READY` and a shot `BOOTING`. stop the studio or wait before a diff, and never run the full suite beside one.

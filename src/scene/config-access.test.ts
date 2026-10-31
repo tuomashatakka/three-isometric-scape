@@ -65,10 +65,10 @@ describe('who owns the config', () => {
     // one that shipped.
     expect(config.read().look.bloom).toBe(0.61)
 
-    config.write('look.vignette', 0.2)
+    config.write('look.lens', 0.2)
 
     expect(config.read().look.bloom).toBe(0.61)
-    expect(config.read().look.vignette).toBe(0.2)
+    expect(config.read().look.lens).toBe(0.2)
   })
 })
 

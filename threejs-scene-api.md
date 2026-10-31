@@ -7,7 +7,7 @@ Every symbol the runtime exports, and whether this scape uses it. **Read this be
 writing a helper** — the reinvention this file exists to stop was never a discipline
 problem, it was that nothing here said what was already available.
 
-**78 of 415 exports used.** Everything marked `—` is available and unused.
+**74 of 415 exports used.** Everything marked `—` is available and unused.
 
 ## `threejs-scene`
 
@@ -38,7 +38,7 @@ problem, it was that nothing here said what was already available.
 | `createIsoCamera` | function | src/scene/create-isometric-scape.ts |
 | `createLadderMemory` | function | src/scene/tier-memory.ts |
 | `createRenderer` | function | src/scene/create-isometric-scape.ts, src/prop-preview/quad-view.ts |
-| `createSeededRng` | function | src/scene/storm.test.ts, src/scene/fall-column.ts, src/scene/beacon.ts +66 |
+| `createSeededRng` | function | src/scene/storm.test.ts, src/scene/fall-column.ts, src/scene/beacon.ts +69 |
 | `createStateAccess` | function | src/scene/config-access.ts |
 | `createStore` | function | src/scene/config-access.test.ts, src/context-recovery.ts |
 | `defineModule` | function | src/scene/mist.ts, src/scene/camera-controls.ts, src/scene/tide.ts +23 |
@@ -83,9 +83,9 @@ problem, it was that nothing here said what was already available.
 | `ResizeHandler` | type | — |
 | `resizeIsoCamera` | function | src/scene/camera-controls.ts |
 | `SceneContext` | interface | src/scene/atmosphere.ts, src/scene/vitals.test.ts, src/scene/tide.test.ts +1 |
-| `SeededRng` | interface | src/scene/storm.ts, src/scene/landscape/dressing.ts, src/scene/landscape/kelpbed.ts +46 |
+| `SeededRng` | interface | src/scene/storm.ts, src/scene/landscape/dressing.ts, src/scene/landscape/kelpbed.ts +49 |
 | `Size` | interface | — |
-| `smoothstep` | function | src/scene/mist.ts, src/scene/daylight.ts, src/scene/camera-controls.ts +47 |
+| `smoothstep` | function | src/scene/mist.ts, src/scene/daylight.ts, src/scene/camera-controls.ts +50 |
 | `StateAccess` | interface | src/scene/config-access.ts |
 | `StateValue` | type | src/scene/config-access.ts |
 | `Store` | interface | src/scene/create-isometric-scape.ts, src/context-recovery.ts |
@@ -120,7 +120,7 @@ problem, it was that nothing here said what was already available.
 
 ## `threejs-scene/modules/post`
 
-8 of 26 used.
+5 of 26 used.
 
 | symbol | kind | used by |
 | --- | --- | --- |
@@ -130,9 +130,9 @@ problem, it was that nothing here said what was already available.
 | `createBlockDisplacementPass` | function | — |
 | `createCinematicLUT` | function | src/scene/lut.ts |
 | `createComposer` | function | — |
-| `createFilmGrainPass` | function | src/scene/post.ts |
+| `createFilmGrainPass` | function | — |
 | `createGodRaysPass` | function | src/scene/post.ts |
-| `createGradePass` | function | src/scene/post.ts |
+| `createGradePass` | function | — |
 | `createRgbShiftPass` | function | — |
 | `createScanCorruptionPass` | function | — |
 | `EffectContext` | interface | src/scene/post.ts |
@@ -144,7 +144,7 @@ problem, it was that nothing here said what was already available.
 | `GLSL_VIGNETTE` | const | — |
 | `GodRaysOptions` | interface | — |
 | `GodRaysPass` | interface | src/scene/post.ts |
-| `GradePass` | interface | src/scene/post.ts |
+| `GradePass` | interface | — |
 | `GradePassOptions` | interface | — |
 | `GradeShader` | const | — |
 | `postProcessing` | function | src/scene/post.ts |
@@ -153,7 +153,7 @@ problem, it was that nothing here said what was already available.
 
 ## `threejs-scene/modules/post/webgl`
 
-5 of 64 used.
+4 of 64 used.
 
 | symbol | kind | used by |
 | --- | --- | --- |
@@ -179,7 +179,7 @@ problem, it was that nothing here said what was already available.
 | `createGodRaysPass` | function | — |
 | `createLensflare` | function | — |
 | `createLensingPass` | function | — |
-| `createLUT` | function | src/scene/post.ts |
+| `createLUT` | function | — |
 | `createMotionBlur` | function | — |
 | `createOutline` | function | — |
 | `createPixel` | function | — |
@@ -250,7 +250,7 @@ problem, it was that nothing here said what was already available.
 | `blade` | const | src/scene/props/vegetation.ts, src/scene/props/kelp.ts, src/scene/props/littoral.ts |
 | `BoatOptions` | interface | — |
 | `boatProp` | function | — |
-| `box` | const | src/scene/props/shore.ts, src/scene/props/shieling.ts, src/scene/props/vegetation.ts +24 |
+| `box` | const | src/scene/props/shore.ts, src/scene/props/shieling.ts, src/scene/props/vegetation.ts +26 |
 | `buildAndReview` | function | — |
 | `BuildAttempt` | interface | — |
 | `buildKitGeometry` | function | — |
@@ -262,7 +262,7 @@ problem, it was that nothing here said what was already available.
 | `CloudOptions` | interface | — |
 | `cloudProp` | function | — |
 | `CompositePart` | interface | — |
-| `cone` | const | src/scene/props/vegetation.ts, src/scene/props/upland.ts, src/scene/props/beacon.ts +1 |
+| `cone` | const | src/scene/props/vegetation.ts, src/scene/props/upland.ts, src/scene/props/beacon.ts +2 |
 | `ConnectionGraph` | interface | — |
 | `ConnectionGraphOptions` | interface | — |
 | `CREATE_PROP_SCHEMA` | const | — |
@@ -298,9 +298,9 @@ problem, it was that nothing here said what was already available.
 | `createTriplanarMaterial` | function | — |
 | `CrystalOptions` | interface | — |
 | `crystalProp` | function | — |
-| `cyl` | const | src/scene/props/shore.ts, src/scene/props/howe.ts, src/scene/props/shieling.ts +24 |
+| `cyl` | const | src/scene/props/shore.ts, src/scene/props/howe.ts, src/scene/props/shieling.ts +26 |
 | `defineProp` | function | — |
-| `deg` | const | src/scene/props/shore.ts, src/scene/props/howe.ts, src/scene/props/shieling.ts +21 |
+| `deg` | const | src/scene/props/shore.ts, src/scene/props/howe.ts, src/scene/props/shieling.ts +23 |
 | `displaceByNoise` | function | src/scene/props/vegetation.ts |
 | `edgeSplit` | function | — |
 | `extractJson` | function | — |
@@ -350,7 +350,7 @@ problem, it was that nothing here said what was already available.
 | `MaterialPresetParams` | type | — |
 | `mergeGeometryList` | function | src/scene/landscape/dressing.ts, src/scene/landscape/beck.ts, src/scene/landscape/cart-ruts.ts +6 |
 | `mergeMeshes` | function | — |
-| `mergeParts` | function | src/scene/props/shore.ts, src/scene/props/howe.ts, src/scene/props/shieling.ts +33 |
+| `mergeParts` | function | src/scene/props/shore.ts, src/scene/props/howe.ts, src/scene/props/shieling.ts +35 |
 | `MergePartsOptions` | interface | — |
 | `mergeVertices` | function | — |
 | `NoiseDisplaceOptions` | interface | — |
@@ -364,7 +364,7 @@ problem, it was that nothing here said what was already available.
 | `ParamSpec` | type | — |
 | `ParamSpecMap` | type | — |
 | `ParamValue` | type | — |
-| `part` | function | src/scene/props/shore.ts, src/scene/props/howe.ts, src/scene/props/shieling.ts +33 |
+| `part` | function | src/scene/props/shore.ts, src/scene/props/howe.ts, src/scene/props/shieling.ts +35 |
 | `PART_DEFAULTS` | const | — |
 | `PartOptions` | interface | — |
 | `PartSpec` | interface | — |
@@ -429,7 +429,7 @@ problem, it was that nothing here said what was already available.
 | `SpecIssue` | interface | — |
 | `SpecReview` | interface | — |
 | `SpecVec3` | type | — |
-| `spread` | function | src/scene/props/shore.ts, src/scene/props/vegetation.ts, src/scene/props/timber.ts +9 |
+| `spread` | function | src/scene/props/shore.ts, src/scene/props/vegetation.ts, src/scene/props/timber.ts +10 |
 | `starShape` | function | — |
 | `SURFACE_NAMES` | const | — |
 | `SurfaceRibbonOptions` | interface | — |
