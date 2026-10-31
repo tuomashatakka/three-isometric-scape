@@ -106,6 +106,7 @@ function fragment (taps: number, grain: boolean): string {
   void main () {
     vec4  source = texture2D(tDiffuse, vUv);
     vec3  col    = source.rgb;
+    float open   = 0.0;
 
     // How far out of the focused band this fragment is, 0..1 across half a frame.
     float defocus = clamp(abs(vUv.y - uFocus) * 2.0, 0.0, 1.0);
@@ -128,7 +129,8 @@ function fragment (taps: number, grain: boolean): string {
         sum  += tap * weight;
         mass += weight;
       }
-      col = mix(col, sum / mass, smoothstep(0.35, 1.5, radius));
+      open = smoothstep(0.35, 1.5, radius);
+      col  = mix(col, sum / mass, open);
     }`
       : ''}
 
@@ -142,14 +144,16 @@ function fragment (taps: number, grain: boolean): string {
       col += (source.rgb - cross * 0.25) * crisp;
     }
 
-    // Lateral chromatic aberration, added as the difference it makes so it
-    // rides on top of the defocus rather than re-sampling the disc per channel.
+    // Lateral chromatic aberration, added as the difference it makes rather
+    // than re-sampling the disc per channel. That difference is a sharp edge,
+    // so it fades as the disc opens — on a blurred edge it would print the
+    // sharp one back as coloured speckle.
     vec2  centre = (vUv - 0.5) * uAspect;
     float reach  = dot(centre, centre);
-    if (uAberration > 0.0) {
+    if (uAberration > 0.0 && open < 1.0) {
       vec2 split = normalize(centre + 1e-6) * reach * uAberration * uTexel;
-      col.r += textureLod(tDiffuse, vUv + split, 0.0).r - source.r;
-      col.b += textureLod(tDiffuse, vUv - split, 0.0).b - source.b;
+      col.r += (textureLod(tDiffuse, vUv + split, 0.0).r - source.r) * (1.0 - open);
+      col.b += (textureLod(tDiffuse, vUv - split, 0.0).b - source.b) * (1.0 - open);
     }
 
     // cos⁴ falloff of a lens whose half-diagonal sees ~40°.

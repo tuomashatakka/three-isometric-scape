@@ -36,8 +36,8 @@ export interface PostOptions {
  */
 const LENS_BLUR       = 12.5
 const LENS_VIGNETTE   = 0.34
-const LENS_ABERRATION = 2.2
-const LENS_SHARPEN    = 0.32
+const LENS_ABERRATION = 3.5
+const LENS_SHARPEN    = 0.4
 const BLUR_REFERENCE  = 54
 const BLUR_MIN        = 0.7
 const BLUR_MAX        = 1.8

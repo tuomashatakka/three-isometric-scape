@@ -2,6 +2,15 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the lens, in one pass
+
+the desktop frame was finished by seven full-screen passes: two separable tilt-shift pairs, a grade, a lut and a grain pass. it looked rendered. the defocus was a gaussian smudge where a lens draws a disc, the vignette was a smoothstep ring, and the corners were as clean as the middle. [`lens.ts`](src/scene/lens.ts) does it all in one pass, the way one piece of glass and one piece of film would. out-of-focus ground and roofs now go to soft discs, and lit highlights bloom into coins. red and blue fringe a little toward the corners, the light falls off by cos⁴, and the focused band gets the micro-contrast a sharp lens has.
+
+- **one knob:** `look.lens` replaces `look.tiltShift` and `look.vignette`. it drives defocus, fringe, vignette and micro-contrast together. 0 is a pinhole, 1 is the old default, 2 a cheap wide-angle. the optics panel goes from 7 controls to 6.
+- **tiers:** `quality.tiltShiftPairs` becomes `lensTaps`: 0 on minimal and mobile (no chain, unchanged), 16 on desktop, 24 on ultra, and at least 12 when unlocked.
+- **cost:** desktop runs six fewer full-screen passes (7 → 1), with no new draws, triangles or textures. the disc's taps run only where it is wider than a third of a pixel. mobile is untouched. census (desktop): default 241 draws / 4.22M tris, unchanged. `scape:diff --tier desktop` against main reads every tour pose as `same` (≤ 0.11% of pixels past tolerance), because the change is a lens and not a scene. the near frame shows it: discs where there were smudges, and a sharper focused band.
+- **tooling:** the instructions now open every run with a title, a description and a task list. readme and `agents.md` catalogue every dev tool, and a new `scape-tools` skill indexes them. the other three skills now know every flag.
+
 ## the shower and the sea, at the distance they are seen
 
 the default frame had two patterns no photograph from a kilometre and a half up would show: a column of white confetti over the sea, and diagonal stripes ruled over the whole of the water. the confetti was the hail and the rain, whose marks are screen-sized: right in the farmyard, metres-wide stones at the archipelago frame. the stripes were the swell, a 70 m train thirty crests across the frame. the default and noon frames now show the squall darkening the water under the shower, the cloud shadows and the sky, and no ruled pattern. near frames are unchanged.
