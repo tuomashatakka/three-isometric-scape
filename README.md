@@ -18,30 +18,36 @@ bun run dev        # http://127.0.0.1:4174
 
 **almost nothing here needs a browser.** world generation, prop building, path planning and the whole palette are pure typescript — no `three`, no gl context, no dom. that is deliberate, and it is what the tooling is built on: the loop between changing a number and seeing what it did should not go through a screenshot.
 
-| you want to know | reach for | costs |
-| --- | --- | --- |
-| did the composition survive | `bun run scape:map --stats` | ~16 ms, no browser |
-| where is everything | `bun run scape:map` | ~16 ms, no browser |
-| what does this one prop look like | `bun run prop:map <name>` | ~40 ms, no browser |
-| what colour is where on a prop | `bun run prop:map <name> --audit` | ~40 ms, no browser |
-| what does the roster look like | `/props.html` | one gpu context |
-| how does one prop measure up | `/props.html?prop=<name>` | one gpu context |
-| does it still draw at all | `bun run scape:shot` | ~20 s per pose |
-| did my change move the picture | `bun run scape:diff --ref origin/main` | minutes, builds a ref |
+every command there is, by what it is for. **the flags, the outputs, where the files land and the traps are in [`agents.md`](agents.md)**; the three that need a browser or a budget also have a how-to in `.claude/skills/` (`scape-studio`, `scape-perf`, `scape-verify`). costs are on a four-core cloud container.
 
-the gate, all four clean before anything ships:
+| | command | for | costs |
+| --- | --- | --- | --- |
+| **setup** | `bun install` | the dependencies, from `bun.lock` | |
+| | `bun run setup` | install, find a chromium, check the api digest, start the `scape:diff` reference building in the background, then the brief | seconds; the prewarm runs on, detached |
+| | `bun run brief` | where a run starts: file inventory, recent themes, api digest, open prs, the survey's headline, this readme's index | ~2 s |
+| **look** | `bun run dev` | the scape on `127.0.0.1:4174`, and the prop viewer at `/props.html` | |
+| | `bun run preview` | the built `dist/` on the same port | |
+| | `bun run studio …` | one warm headless browser: `serve`, then `shot`, `probe`, `eval`, `census` | ~60 s once, then ~5–15 s a look |
+| | `bun run scape:shot` | headless stills of one pose or a named set, into `.scape/shots/` | ~90 s a pose, cold browser |
+| | `bun run scape:diff --ref origin/main` | the same poses on another commit, compared in pixels and in structure | minutes; ~40 s once prewarmed |
+| **measure** | `bun run scape:map` | the whole composition as ascii, and the stats block (`--stats`, `--json`) | ~1.5 s cold |
+| | `bun run prop:map <name>` | one prop as ascii from any of six angles; `--audit` for colour by height | ~0.1 s |
+| | `bun run prop:watch <name>` | `prop:map`, again on every save | |
+| | `bun run studio census` | triangles, draws and programs, mesh by mesh | seconds, once the studio is up |
+| | `bun run scape:bench` | the first load's cpu: survey, terrain and dressing timed, and a fingerprint of what was placed | seconds |
+| **verify** | `bun run gate` | lint and typecheck, the tests the diff reaches, vite build, prop audit; `--full` is what ci runs | a minute or two |
+| | `bun run lint` | eslint at `--max-warnings 0`: a warning is a failure | |
+| | `bun run typecheck` | `tsc --noEmit` | |
+| | `bun test` | every test | ~2 min |
+| | `bun run build` | `tsc --noEmit && vite build` into `dist/` | |
+| | `bun run prop:audit` | the runtime's `reviewProp` over the whole roster — advisory, fails only on a prop that will not build | ~0.4 s |
+| **generate** | `bun run api:digest` | rewrites the committed [`threejs-scene-api.md`](threejs-scene-api.md); `--check` only says whether it is stale | |
 
-```sh
-bun run gate        # all four at once, one summary
-bun run lint        # eslint --max-warnings 0; a warning is a failure
-bun run typecheck
-bun test
-bun run build
-```
+nothing ships with lint, typecheck, test or build red. `bun run gate` is all of them as one answer, and ci runs them again on every pull request ([`agents.md` § the gate](agents.md#the-gate)). the page itself takes overrides in its query string — `?tier=`, `?set=`, `?skip=`, `?debug` and more, [listed in `agents.md`](agents.md#url-overrides).
 
 ### the ascii instruments
 
-`scape:map` draws the whole composition — ground, beck, footpaths, cart track, steading, landings — and then says in numbers what a picture cannot. it needs no browser, no gpu and no dependency, because [`landscape/survey.ts`](src/scene/landscape/survey.ts) is pure: the ground, the farm, the landings and the network worn between them all resolve without a vertex being built. the survey is about seven milliseconds, and sampling a 96×48 grid on top of it about nine more.
+`scape:map` draws the whole composition — ground, beck, footpaths, cart track, steading, landings — and then says in numbers what a picture cannot. it needs no browser, no gpu and no dependency, because [`landscape/survey.ts`](src/scene/landscape/survey.ts) is pure: the ground, the farm, the landings and the network worn between them all resolve without a vertex being built. [`landscape/archipelago.ts`](src/scene/landscape/archipelago.ts) does that for every island and plans the water between them, and the whole command — six surveys and a 96×48 grid sampled over them — is about a second and a half, cold.
 
 the stats block is the part that earns its keep. a beck that failed to trace, an island that drowned, a pasture that never found room and a set of footpaths that collapsed to nothing are all *invisible* in a still at the default pose, and all of them are one field here.
 
@@ -73,7 +79,7 @@ three defaults are load-bearing:
 
 the noise floor was measured, not guessed. two independent captures of the same commit differ in about fourteen per cent of their pixels by one or two levels — float ordering in the post chain — and in **nought point nought nought per cent** at the default tolerance. a zero means zero.
 
-`.scape/` holds all of it and is gitignored.
+`.scape/` holds all of it and is gitignored. every flag of both, and which file lands where, is in [`agents.md`](agents.md).
 
 ---
 
@@ -132,7 +138,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - **and the shadow that deck throws, on the sound as well as on the islands**: the same cut the deck is drawn with, so the shadow has edges and gaps rather than being an even haze; laid where the key light actually puts it, 37 m downsun of its cloud at the default hour and two hundred at the bottom of the arc, swinging round the compass through the day; on the water through the mirror and the glitter path as well as the albedo, because at this camera's angles the reflection is most of what the sea's colour is; and gone entirely under a clear sky or on a night with nothing up to block
 - **and the light that gets past that same deck, standing up in the air under it**: a stack of level sheets between the water and the cloud, each one lighting the holes in the *same* map the shadow is cut from and each reading it further back upsun than the one below, so a beam leaning thirty-two metres across a twenty-nine-metre column and the bright patch it lands on are one hole in one deck seen twice — out only while there is a sun up, and gone under a clear sky and under an overcast alike, because one has no cloud to cut the light into beams and the other has no holes left to let it through
 - view-reactive fog, a gradient sky, deterministic drifting ground mist, and a sky cloud deck
-- a configurable 3d-lut grade with vignette, miniature tilt-shift, bloom and film grain
+- one lens pass: disc defocus off the focused band, lateral chromatic aberration, cos⁴ vignetting, micro-contrast, a 3d-lut grade and film grain — plus bloom
 - a live graphics overlay that persists to local storage and reloads what you left it at
 - mobile and desktop atmosphere budgets selected from pointer, viewport and pixel-density signals
 - a scape that survives a lost webgl context: it rebuilds one tier cheaper rather than asking you to reload, and remembers the verdict
@@ -290,7 +296,8 @@ src/
     ├── haar.ts                     the night fog bank: level sheets, and the four gates that make one
     ├── shafts.ts                   the daylight in the gaps of that deck: one stack, one draw, one cloud map
     ├── noise.ts                    deterministic height sampler
-    ├── post.ts                     ao, ssr, sun shafts, tilt-shift, lut, bloom, grain, traa
+    ├── post.ts                     the chain: ao, ssr, bloom, sun shafts, the lens, traa
+    ├── lens.ts                     one pass for the glass and the film: defocus, fringe, vignette, grade, grain
     ├── quality.ts                  minimal/mobile/desktop/ultra gpu budgets, and the unlock
     ├── camera-path.ts              the waypoint tour, and the spline it flies
     ├── runtime.ts                  live pixel ratio, frame cap, shadow cadence
@@ -452,6 +459,7 @@ scripts/
 ├── gate.ts                         the light gate (changed tests, two processes at most) and --full
 ├── api-digest.ts                   what the runtime exports, and what we use of it
 ├── prop-map.ts                     one prop as ascii, from six angles
+├── prop-audit.ts                   the runtime's reviewProp over the whole roster, advisory
 ├── scape-map.ts                    the whole composition as ascii, surveyed
 ├── scape-map-render.ts             the picture half: the ramp, the layers and the grid
 ├── scape-map-format.ts             the stats block, as the run reads it
@@ -476,6 +484,7 @@ scripts/
 ├── scape-shot.ts                   headless stills, posed and pinned
 ├── scape-studio.ts                 one warm browser: looks in seconds, live knobs, the census
 ├── scape-diff.ts                   what a change did to the picture, in numbers
+├── scape-bench.ts                  the first load's cpu, timed and fingerprinted, without a browser
 └── setup.ts                        what a run has before it starts thinking
 ```
 
@@ -483,7 +492,7 @@ scripts/
 
 one `createApp` render loop; the post module is the only frame renderer. teardown releases geometries, materials, sky, mist, cloud-shadow and bathymetry textures, composer targets, fullscreen passes and every baked lut.
 
-**the default pixel ratio is 1.0 on every tier that is actually detected.** this scape is drawn through a per-pixel post chain — bloom, two tilt-shift pairs, god rays, the grade — so a retina desktop at 1.75 pays roughly three times the fill to sharpen an image whose whole look is soft focus and grain. `runtime.pixelRatio` in the overlay raises it when the point is a crisp still rather than a smooth scape.
+**the default pixel ratio is 1.0 on every tier that is actually detected.** this scape is drawn through a per-pixel post chain — bloom, god rays, the lens pass — so a retina desktop at 1.75 pays roughly three times the fill to sharpen an image whose whole look is soft focus and grain. `runtime.pixelRatio` in the overlay raises it when the point is a crisp still rather than a smooth scape.
 
 the `ultra` tier adds ambient occlusion, screen-space reflections on the lake, anamorphic streaks and a traa resolve; it is only selected for a wide viewport on a many-core machine with a mouse.
 
@@ -619,6 +628,20 @@ a tier is a bundle of decisions taken from what the device says about itself, an
 **`moleArmour` is the newest, and the third variation on the same theme.** the breakwater's mound is the same on every tier, because it is merged into a draw that already exists and a wedge of stone is what the structure *is*. what the tier decides is the apron of larger blocks tipped against the seaward face: `minimal` gets **zero**, which is an arm nobody has re-armoured since it was built — a thing that exists on every coast of this kind — and mobile gets one block every 2.4 m against ultra's 1.15. it is *not* in `UNLOCKED_FLOOR`, and that is deliberate and shared with `weirStakes` and `fencePalings`: those three are spacings in metres where smaller means more, so the floor's `Math.max` would turn unlocking into stripping, and a zero there is a real structure rather than a missing one.
 
 **`haloArcs` is the newest count, and the one that went the other way.** the three paragraphs above are all a cheap tier being given less; this is a phone being given everything. the halo's second grant is the two mock suns and the shaft — two gaussians and a column on fragments one quad already covers — and withholding it from mobile would have been free, except that the capture harness pins `--tier mobile`. a grant the harness cannot reach is a sight no still in this repository can ever show, and the mock suns are the half of this system that *moves*. so `minimal` gets 0 — no quad, no program, no ring — the unlocked floor gets the ring on its own, and every detected tier gets both.
+
+## the lens, in one pass
+
+the end of the optical chain used to be seven full-screen passes on desktop — two separable tilt-shift pairs, a grade, a lut and a grain pass — each one a read and a write of a half-float frame, and between them a picture that looked rendered: a gaussian smudge where a lens draws a disc, a smoothstep ring where glass falls off by cos⁴, and edges as clean in the corners as in the middle. [`lens.ts`](src/scene/lens.ts) is one pass that does what one piece of glass and one piece of film do:
+
+- **defocus** — a [Vogel disc](src/scene/lens.ts) of `lensTaps` taps (16 desktop, 24 ultra, 0 compiles it out) whose radius grows with the distance from the focused band. bright taps weigh more, so an out-of-focus window is a soft coin and not a smear. the disc turns per pixel by interleaved gradient noise, which trades the taps' pattern for an even dither.
+- **lateral chromatic aberration** — red and blue a fraction of a pixel either side of green, growing with the square of the distance from the centre, added as the difference it makes so it rides on the defocus without re-sampling the disc per channel.
+- **natural vignetting** — the cos⁴ law of a lens whose half-diagonal sees about 40°.
+- **micro-contrast** — a four-tap unsharp mask in the focused band only, the crispness a sharp lens has and a multisampled render does not.
+- **the grade and the grain** — contrast, saturation, the baked 3d lut, then grain that is strongest in the mid-tones, where film shows it.
+
+**one knob.** `look.lens` drives the defocus, the fringe, the vignette and the micro-contrast together, because they are one optical decision — how much glass is in the picture — and four sliders for it let a reader dial a lens no one ever made. at 0 the scape is a pinhole; at 1 it is the old default tilt-shift and vignette; at 2 it is a cheap wide-angle. `look.tiltShift` and `look.vignette` are gone.
+
+**cost.** mobile and minimal have no post chain and are untouched. on desktop the chain is six passes shorter; the disc is `lensTaps` fetches only where it is wider than a third of a pixel, which is the out-of-focus part of the frame and none of the focused band.
 
 ## the tile that was still there
 
