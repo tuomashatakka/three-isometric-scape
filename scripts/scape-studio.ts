@@ -86,7 +86,19 @@ async function serveStudio (gpu: boolean): Promise<void> {
   const errors: string[] = []
   let tier      = 'mobile'
 
-  page.on('pageerror', error => errors.push(error.message))
+  // An uncaught error before the scene mounts (a shader template that throws,
+  // a bad import) leaves the page never `ready`: a look fails on it at once
+  // with the message, rather than waiting out the three-minute budget.
+  let fatal: string | null = null
+
+  page.on('pageerror', error => {
+    errors.push(error.message)
+    fatal ??= error.message
+  })
+  page.on('framenavigated', frame => {
+    if (frame === page.mainFrame())
+      fatal = null
+  })
   page.on('console', message => {
     if (message.type() === 'error' && !message.location().url.endsWith('/favicon.ico'))
       errors.push(message.text())
@@ -117,12 +129,28 @@ async function serveStudio (gpu: boolean): Promise<void> {
   async function ready (frames: number): Promise<void> {
     const started = Date.now()
 
-    await page.waitForFunction(() => document.documentElement.dataset.scapeState === 'ready' && 'scape' in window,
-                               undefined, { timeout: BUDGET })
+    const failed = (): void => {
+      if (fatal)
+        throw new Error(`page error: ${fatal}`)
+      if (Date.now() - started > BUDGET)
+        throw new Error('page not ready within the budget')
+    }
+
+    // Polled rather than waited on, so a page error ends the wait; a reload
+    // mid-poll destroys the context, which reads as not ready yet.
+    const isReady = (): Promise<boolean> => page.evaluate(() =>
+      document.documentElement.dataset.scapeState === 'ready' && 'scape' in window).catch(() => false)
+
+    while (!await isReady()) {
+      failed()
+      await Bun.sleep(150)
+    }
 
     const from = await page.evaluate(() => Number(document.documentElement.dataset.scapeDrawn ?? 0))
 
-    while (Date.now() - started < BUDGET) {
+    for (;;) {
+      failed()
+
       const drawn = await page.evaluate(() => Number(document.documentElement.dataset.scapeDrawn ?? 0))
 
       // A drawn count that went *down* is a reload — vite saw an edit — so the

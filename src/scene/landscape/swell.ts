@@ -3,6 +3,7 @@ import type { ScapeConfig } from '../config.ts'
 import type { WindState } from '../wind.ts'
 import { MAX_DEPTH } from './shore-mask.ts'
 import { hypot } from '../hypot.ts'
+import { FRAME_GLSL, repeatKeepGlsl } from '../frame.ts'
 
 
 /**
@@ -232,6 +233,43 @@ export function advanceSwell (clock: SwellClock, elapsed: number, speed: number)
 
 /** Fold a number into glsl source without an integer literal sneaking through. */
 const glsl = (value: number): string => value.toFixed(6)
+
+/**
+ * Between how many repeats of the main train across the frame the swell's
+ * faces give way to their mean — flat shade, an untilted normal.
+ *
+ * A 70 m train is thirty-odd crests across the archipelago frame, and three
+ * plain sines that regular read as ruled diagonal stripes over the whole sea,
+ * not as swell: from a kilometre and a half up the eye resolves the slicks,
+ * the squalls and the sky in the water, never one wave. A close frame keeps
+ * every face, and a frame that drops them skips all three wave reads.
+ */
+export const SWELL_REPEATS = [ 10, 22 ] as const
+
+/**
+ * The swell as the fragment stage reads it: the height here and a step east
+ * and north, the 1.6 m the slope is differenced across. Fragment-only, because
+ * it reads the frame off the projection (`frame.ts`).
+ */
+export const WATER_SWELL_FACES_GLSL = /* glsl */`
+${FRAME_GLSL}
+
+  vec3 scapeSwellFaces (vec2 p, float gain) {
+    float keep = ${repeatKeepGlsl(`scapeFrameMetres() * uSwellK * ${glsl(1 / (Math.PI * 2))}`, SWELL_REPEATS)};
+
+    if (keep <= 0.0)
+      return vec3(0.0);
+
+    gain *= keep;
+
+    return vec3(
+      scapeWave(p, gain),
+      scapeWave(p + vec2(1.6, 0.0), gain),
+      scapeWave(p + vec2(0.0, 1.6), gain)
+    );
+  }
+`
+
 
 /**
  * The swell and the shelf it crosses, shared verbatim by both stages.

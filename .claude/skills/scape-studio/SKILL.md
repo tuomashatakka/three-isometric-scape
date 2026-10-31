@@ -45,6 +45,9 @@ rather than a mesh, zero its knob instead (`--set atmosphere.cloudShadow=0`,
 meshes come back on the next look. A change to `scripts/scape-studio.ts` itself
 needs `studio stop` and `serve` again; a change under `src/` reloads by itself.
 
+- A look on a page that threw before it was ready (a shader template that
+  throws at import, a bad export) fails at once with `page error: …`. Fix the
+  source and look again; the page reloads by itself.
 - Captures land in `.scape/studio/<name>.png`. Read the png only when the numbers
   are not enough; one image costs far more tokens than the census line.
 - Every look starts from the page's opening config (`STILL` applied, clocks

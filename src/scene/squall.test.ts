@@ -3,6 +3,7 @@ import { SCAPE_CONFIG } from './config.ts'
 import { atmosphereQuality } from './quality.ts'
 import { showerAmount } from './weather.ts'
 import {
+  fallMarks,
   squallBandWidth,
   squallCover,
   squallOffset,
@@ -222,5 +223,19 @@ describe('the default shower', () => {
     // A share, so `wind.speed=0` — which every capture sets — holds the stipple
     // without this knob being named separately. It is named in `STILL` anyway.
     expect(squall.drift).toBeGreaterThan(0)
+  })
+})
+
+describe('fallMarks', () => {
+  test('hands the shower over: marks and squall always add to one', () => {
+    for (let view = camera.minViewSize; view <= camera.maxViewSize; view += 7)
+      expect(fallMarks(view, camera) + squallReveal(view, camera)).toBeCloseTo(1, 9)
+  })
+
+  test('draws every mark in the farmyard and none over the archipelago', () => {
+    // The tour's `near` pose is a ten-metre frame and its `default` is the
+    // configured view: a stone there was drawn metres wide over open sea.
+    expect(fallMarks(10, camera)).toBe(1)
+    expect(fallMarks(camera.viewSize, camera)).toBe(0)
   })
 })

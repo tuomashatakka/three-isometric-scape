@@ -15,6 +15,7 @@ import type { SeasonState } from './season.ts'
 import type { WeatherState } from './weather.ts'
 import type { WindState } from './wind.ts'
 import { LAYER } from './layers.ts'
+import { fallMarks } from './squall.ts'
 
 
 export interface RainOptions {
@@ -194,15 +195,17 @@ export function createRainLayer ({
       const sleet   = weather.sleet
       const falling = weather.fall
 
-      material.uniforms.uOpacity.value = falling * DROP_ALPHA
-      mesh.visible                     = falling > 0.004
+      const viewSize = camera.userData.viewSize as number ?? config().camera.viewSize
+      const seen     = falling * fallMarks(viewSize, config().camera)
+
+      material.uniforms.uOpacity.value = seen * DROP_ALPHA
+      mesh.visible                     = seen > 0.004
 
       if (!mesh.visible)
         return
 
-      const viewSize = camera.userData.viewSize as number ?? config().camera.viewSize
-      const focus    = camera.userData.target as readonly [number, number, number] | undefined
-      const rise     = sizeFallColumn(viewSize, box)
+      const focus = camera.userData.target as readonly [number, number, number] | undefined
+      const rise  = sizeFallColumn(viewSize, box)
 
       // Constant in screen terms: both are shares of the frame's height, so a
       // streak that reads as sixteen pixels at a ten-metre view reads as
