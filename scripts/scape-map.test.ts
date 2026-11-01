@@ -267,10 +267,10 @@ describe('the command line', () => {
   test('overrides land on the path they name', () => {
     const config = clone()
 
-    applyOverrides(config, [ 'seed=42', 'look.bloom=0', 'look.grade=noir' ])
+    applyOverrides(config, [ 'seed=42', 'look.glare=0', 'look.grade=noir' ])
 
     expect(config.seed).toBe(42)
-    expect(config.look.bloom).toBe(0)
+    expect(config.look.glare).toBe(0)
     expect(config.look.grade).toBe('noir')
   })
 

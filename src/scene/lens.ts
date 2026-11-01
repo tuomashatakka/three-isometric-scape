@@ -1,5 +1,5 @@
 import { Vector2 } from 'three'
-import type { Data3DTexture } from 'three'
+import type { Data3DTexture, Texture } from 'three'
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js'
 
 
@@ -12,9 +12,12 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js'
  * piece of glass and one piece of film, and so does this:
  *
  * - **defocus** — a Vogel disc around every fragment whose radius grows with
- *   the distance from the focused band. A disc rather than a gaussian, because
- *   that is what an aperture draws: a lit window out of focus is a soft coin,
- *   not a smudge. Bright taps weigh more, so highlights bloom into discs.
+ *   its distance from the focal plane (`focal.ts` measures it off the depth
+ *   buffer). A disc rather than a gaussian, because that is what an aperture
+ *   draws: a lit window out of focus is a soft coin, not a smudge. Bright taps
+ *   weigh more, so highlights bloom into discs. {@link apertureReach} is why
+ *   the disc closes as the frame widens — the one thing that decides whether
+ *   this is a photograph of a coast or of a model of one.
  * - **lateral chromatic aberration** — red and blue land a fraction of a pixel
  *   either side of green, growing with the square of the distance from the
  *   centre, which is what an uncorrected wide lens does at its corners.
@@ -35,6 +38,13 @@ export interface LensOptions {
   taps:  LensTaps
   grain: boolean
   lut:   Data3DTexture
+
+  /**
+   * The focal pass's map, or null. Without it the lens defocuses a band of the
+   * screen — the same plane for flat ground, wrong only for what stands up out
+   * of it.
+   */
+  defocus: Texture | null
 }
 
 export interface LensLook {
@@ -55,6 +65,33 @@ export interface LensPass extends ShaderPass {
   look(look: LensLook): void
   aim(focus: number, time: number): void
   size(width: number, height: number): void
+}
+
+/** The frame, in metres of view height, at which the disc is its nominal size. */
+export const APERTURE_REFERENCE = 12
+
+/** The most the disc opens past nominal on a close frame. */
+export const APERTURE_MAX = 1.8
+
+/**
+ * How wide the disc is for a frame `viewSize` metres tall, as a multiple of
+ * its nominal reach.
+ *
+ * **Inverse in the frame, with no floor — and the floor was the miniature.**
+ * A camera that frames twice as much ground stands twice as far off, and the
+ * blur circle as a share of the picture is aperture × depth range ÷ distance
+ * ÷ frame: the depth range grows with the frame and so does the distance, so
+ * the share falls as one over it. The lens this replaces clamped that at 0.7,
+ * so the whole 1.4 km archipelago went soft at its edges as hard as a yard
+ * ten metres across did — which is the trick tilt-shift photographers use to
+ * make a real town look like a model of one. A real camera that can see six
+ * islands sees all of them sharp.
+ *
+ * The ceiling is the macro end: past it the disc is wider than its taps can
+ * fill without printing their pattern.
+ */
+export function apertureReach (viewSize: number): number {
+  return Math.min(APERTURE_MAX, APERTURE_REFERENCE / Math.max(1, viewSize))
 }
 
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5))
@@ -85,7 +122,7 @@ function discGlsl (taps: number): string {
   return `const vec2 DISC[${taps}] = vec2[${taps}](\n    ${points}\n  );`
 }
 
-function fragment (taps: number, grain: boolean): string {
+function fragment (taps: number, grain: boolean, focal: boolean): string {
   return /* glsl */ `
   precision highp sampler3D;
 
@@ -94,6 +131,7 @@ function fragment (taps: number, grain: boolean): string {
   uniform float uLutSize, uLutIntensity;
   uniform vec2  uTexel, uAspect;
   uniform float uFocus, uBlur, uAberration, uVignette, uSharpen, uGrain, uTime;
+  ${focal ? 'uniform sampler2D tDefocus;' : ''}
 
   varying vec2 vUv;
 
@@ -108,8 +146,12 @@ function fragment (taps: number, grain: boolean): string {
     vec3  col    = source.rgb;
     float open   = 0.0;
 
-    // How far out of the focused band this fragment is, 0..1 across half a frame.
-    float defocus = clamp(abs(vUv.y - uFocus) * 2.0, 0.0, 1.0);
+    // How far off the focal plane this fragment is, 0..1 at half a frame of
+    // ground: measured off the depth by the focal pass when the chain has one,
+    // and off the band of the screen the same ground occupies when it does not.
+    float defocus = ${focal
+      ? 'textureLod(tDefocus, vUv, 0.0).r'
+      : 'clamp(abs(vUv.y - uFocus) * 2.0, 0.0, 1.0)'};
 
     ${taps > 0
       ? `
@@ -186,10 +228,11 @@ const VERTEX = /* glsl */ `
   }
 `
 
-export function createLensPass ({ taps, grain, lut }: LensOptions): LensPass {
+export function createLensPass ({ taps, grain, lut, defocus }: LensOptions): LensPass {
   const pass = new ShaderPass({
     uniforms: {
       tDiffuse:      { value: null },
+      tDefocus:      { value: null },
       uLut:          { value: lut },
       uLutSize:      { value: lut.image.width },
       uLutIntensity: { value: 1 },
@@ -204,10 +247,14 @@ export function createLensPass ({ taps, grain, lut }: LensOptions): LensPass {
       uTime:         { value: 0 },
     },
     vertexShader:   VERTEX,
-    fragmentShader: fragment(Math.max(0, Math.round(taps)), grain),
+    fragmentShader: fragment(Math.max(0, Math.round(taps)), grain, defocus !== null),
   }) as LensPass
 
   const uniforms = pass.uniforms
+
+  // After construction, not in the literal: `ShaderPass` clones its uniforms,
+  // and three's clone drops a render target's texture to null with a warning.
+  uniforms.tDefocus.value = defocus
 
   pass.look = look => {
     uniforms.uBlur.value         = look.blur
@@ -240,5 +287,7 @@ export function createLensPass ({ taps, grain, lut }: LensOptions): LensPass {
 }
 
 // perf: one full-screen pass in place of seven on desktop. The defocus is
-// `taps` fetches only where the disc is wider than a third of a pixel, the
-// micro-contrast four only in the focused band, the aberration two.
+// `taps` fetches only where the disc is wider than a third of a pixel — which
+// at the opening 1400 m frame is nowhere, so the widest frame is also the
+// cheapest — the micro-contrast four only in the focused band, the aberration
+// two, the focal map one.

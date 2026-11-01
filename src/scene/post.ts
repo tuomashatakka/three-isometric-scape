@@ -1,4 +1,4 @@
-import { Vector3 } from 'three'
+import { Vector2, Vector3 } from 'three'
 import type { Mesh, OrthographicCamera } from 'three'
 import type { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
 import type { Pass } from 'three/addons/postprocessing/Pass.js'
@@ -8,7 +8,9 @@ import { createGodRaysPass, postProcessing } from 'threejs-scene/modules/post'
 import type { EffectContext, GodRaysPass } from 'threejs-scene/modules/post'
 import { createAnamorphic, createAo, createSsr, createTraa } from 'threejs-scene/modules/post/webgl'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
-import { createLensPass } from './lens.ts'
+import { createFocalPass, depthDefocus } from './focal.ts'
+import type { FocalPass } from './focal.ts'
+import { apertureReach, createLensPass } from './lens.ts'
 import type { LensPass } from './lens.ts'
 import { createGradeLUTs } from './lut.ts'
 import type { AtmosphereQuality } from './quality.ts'
@@ -30,18 +32,29 @@ export interface PostOptions {
 /**
  * What one unit of `look.lens` is, per effect of the glass.
  *
- * The blur is the old two-pair tilt-shift's reach at the frame edge — its two
- * gaussians compose to σ ≈ 14 px per unit at half a frame, and a disc of
- * radius 2σ reads the same — and the vignette is the old default amount.
+ * The blur is the disc's radius at half a frame of ground off the focal plane,
+ * in buffer pixels, for a frame `APERTURE_REFERENCE` metres tall;
+ * `apertureReach` scales it with the frame. It was 12.5 on a lens that never
+ * closed below 0.7 of that, which is the depth of field of a macro lens a
+ * hand's breadth from a model railway. A camera that frames twelve metres of
+ * yard keeps most of it sharp, and five pixels at the frame edge is the most a
+ * photograph of a place shows. The vignette is the old default amount.
  */
-const LENS_BLUR       = 12.5
+const LENS_BLUR       = 5
 const LENS_VIGNETTE   = 0.34
 const LENS_ABERRATION = 3.5
 const LENS_SHARPEN    = 0.4
-const BLUR_REFERENCE  = 54
-const BLUR_MIN        = 0.7
-const BLUR_MAX        = 1.8
 const GRAIN_SCALE     = 0.09
+
+/**
+ * What one unit of `look.glare` is: the bloom's strength and the anamorphic
+ * streak's scale. One knob, because they are one physical thing — the light a
+ * bright point scatters inside the glass, round off the elements and drawn
+ * into a line by a cylindrical one — and two sliders let a run tune a lens
+ * that scatters a lot but streaks nothing, which no lens does.
+ */
+const GLARE_BLOOM  = 0.34
+const GLARE_STREAK = 1.2
 
 /** Exponential approach rate for the focus band easing, in e-folds per second. */
 const SETTLE_RATE = 6.2
@@ -49,6 +62,8 @@ const SETTLE_RATE = 6.2
 const projected = new Vector3()
 const target    = new Vector3()
 const sunNdc    = new Vector3()
+const facing    = new Vector3()
+const focusUv   = new Vector2()
 
 // How far outside the frame the virtual sun may sit before the shafts are gone.
 const RAY_EDGE_IN  = 0.55
@@ -90,6 +105,7 @@ export function createAtmospherePost ({
   const luts = createGradeLUTs()
 
   let composer: EffectComposer | null = null
+  let focal: FocalPass | null         = null
   let bloom: UnrealBloomPass | null   = null
   let lens: LensPass | null           = null
   let godRays: GodRaysPass | null     = null
@@ -137,6 +153,22 @@ export function createAtmospherePost ({
       : focusNow + (wanted - focusNow) * (1 - Math.exp(-frameDelta * SETTLE_RATE))
 
     lens?.aim(focusNow, elapsed)
+
+    if (!focal)
+      return
+
+    // The focal plane's tilt is the camera's elevation; its depth is read off
+    // the buffer at the focused point, on the look-at line's vertical.
+    camera.getWorldDirection(facing)
+
+    const tanElevation = -facing.y / Math.max(1e-3, Math.hypot(facing.x, facing.z))
+    const viewHeight   = (camera.top - camera.bottom) / camera.zoom
+
+    focal.aim({
+      focus:    focusUv.set(Math.min(1, Math.max(0, (projected.x + 1) / 2)), focusNow),
+      perMetre: depthDefocus(viewHeight, tanElevation),
+      span:     camera.far - camera.near,
+    })
   }
 
   /**
@@ -226,8 +258,8 @@ export function createAtmospherePost ({
         thickness:   0.4,
       }))
 
-    if (quality.anamorphic && config().look.anamorphic > 0)
-      built.push(createAnamorphic({ threshold: 0.86, scale: config().look.anamorphic * 3 }))
+    if (quality.anamorphic && config().look.glare > 0)
+      built.push(createAnamorphic({ threshold: 0.86, scale: config().look.glare * GLARE_STREAK }))
 
     if (quality.godRays && config().look.godRays > 0) {
       godRays = createGodRaysPass({ threshold: 0.94 })
@@ -275,12 +307,12 @@ export function createAtmospherePost ({
     const look = config().look
 
     // The defocus is the one effect of the glass that is frame-sized: a close
-    // frame is a macro lens and blurs more, the whole archipelago blurs less.
+    // frame is a macro lens and blurs, the whole archipelago is an aerial
+    // photograph and does not.
     const viewSize = camera.userData.viewSize as number ?? config().camera.viewSize
-    const zoom     = Math.min(BLUR_MAX, Math.max(BLUR_MIN, BLUR_REFERENCE / Math.max(1, viewSize)))
 
     lens?.look({
-      blur:       LENS_BLUR * look.lens * zoom,
+      blur:       LENS_BLUR * look.lens * apertureReach(viewSize),
       aberration: LENS_ABERRATION * look.lens,
       vignette:   LENS_VIGNETTE * look.lens,
       sharpen:    LENS_SHARPEN * Math.min(1, look.lens),
@@ -296,15 +328,15 @@ export function createAtmospherePost ({
     ) ?? null
 
     if (bloom)
-      bloom.strength = config().look.bloom
+      bloom.strength = look.glare * GLARE_BLOOM
   }
 
   const inner = postProcessing<ScapeConfig>({
-    depth: quality.ao || quality.ssr || quality.godRays,
+    depth: quality.ao || quality.ssr || quality.godRays || quality.lensTaps > 0,
 
     bloom: quality.bloom
       ? {
-        strength: config().look.bloom,
+        strength: config().look.glare * GLARE_BLOOM,
         radius:   0.7,
 
         // Above the fog, deliberately. Bloom is for highlights, and the fog
@@ -329,10 +361,18 @@ export function createAtmospherePost ({
 
       chain.push(...sceneEffects(ctx))
 
+      // Spliced in straight after the scene render, ahead of the bloom: the
+      // one place in the chain the shared depth is still the scene's. See focal.ts.
+      focal = quality.lensTaps > 0 && ctx.depthTexture ? createFocalPass(ctx.depthTexture) : null
+      // The composer sizes it from here on, at the drawing buffer's own ratio.
+      if (focal)
+        ctx.composer.insertPass(focal, 1)
+
       lens = createLensPass({
-        taps:  quality.lensTaps,
-        grain: quality.grain,
-        lut:   luts.get(config().look.grade),
+        taps:    quality.lensTaps,
+        grain:   quality.grain,
+        lut:     luts.get(config().look.grade),
+        defocus: focal?.map ?? null,
       })
       lens.size(ctx.width, ctx.height)
       chain.push(lens)
@@ -399,6 +439,7 @@ export function createAtmospherePost ({
 
     dispose () {
       lens?.dispose()
+      focal?.dispose()
       for (const pass of extras)
         pass.dispose?.()
       inner.dispose?.()
@@ -406,6 +447,7 @@ export function createAtmospherePost ({
 
       extras       = []
       lens         = null
+      focal        = null
       godRays      = null
       bloom        = null
       composer     = null

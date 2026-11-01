@@ -324,7 +324,7 @@ async function main (): Promise<void> {
       '  --season 0.5          the year, 0..1',
       '  --tier mobile         pinned, not detected — a detected tier is undiffable',
       '  --skip post,mist      drop scene families',
-      '  --set look.bloom=0    raw dotted-path override, repeatable',
+      '  --set look.glare=0    raw dotted-path override, repeatable',
       '  --size 800x500        viewport',
       '  --frames 40           frames the scape must draw before the shutter opens',
       '  --gpu                 real adapter instead of swiftshader (fast, noisy)',

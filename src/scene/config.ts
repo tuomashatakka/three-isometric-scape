@@ -1119,16 +1119,18 @@ export interface ScapeConfig extends CarterConfig, CreelConfig, CroppingConfig, 
     grade:     GradeName
     intensity: number
     grain:     number
-    bloom:     number
 
-    /** The glass: defocus off the focused band, colour fringes and vignetting, 0 is a pinhole. */
+    /**
+     * What the glass does to a bright point: the bloom round it and, on the
+     * ultra tier, the anamorphic streak through it. 0 is perfectly clean glass.
+     */
+    glare: number
+
+    /** The glass: defocus off the focal plane, colour fringes and vignetting, 0 is a pinhole. */
     lens: number
 
     /** Volumetric sun-shaft strength, 0 disables the pass. */
     godRays: number
-
-    /** Anamorphic streak strength on the ultra tier, 0 disables. */
-    anamorphic: number
 
     /** Ambient-occlusion strength on the ultra tier, 0 disables. */
     ao: number
@@ -1593,14 +1595,13 @@ export const SCAPE_CONFIG = {
     moonStrength: 0.16,
   },
   look: {
-    grade:      'nordic',
-    intensity:  0.78,
-    grain:      0.16,
-    bloom:      0.34,
-    lens:       1,
-    godRays:    0.26,
-    anamorphic: 0.4,
-    ao:         0.7,
+    grade:     'nordic',
+    intensity: 0.78,
+    grain:     0.16,
+    glare:     1,
+    lens:      1,
+    godRays:   0.26,
+    ao:        0.7,
   },
   ...SCAPE_PALETTE,
 

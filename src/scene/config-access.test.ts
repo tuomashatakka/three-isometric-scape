@@ -18,10 +18,10 @@ describe('who owns the config', () => {
   test('a write before the scape mounts leaves the authored object alone', () => {
     const config = access()
 
-    config.write('look.bloom', 0.9)
+    config.write('look.glare', 0.9)
 
-    expect(config.read().look.bloom).toBe(0.9)
-    expect(SCAPE_CONFIG.look.bloom).not.toBe(0.9)
+    expect(config.read().look.glare).toBe(0.9)
+    expect(SCAPE_CONFIG.look.glare).not.toBe(0.9)
   })
 
   test('once adopted, the store is what a read comes back from', () => {
@@ -29,10 +29,10 @@ describe('who owns the config', () => {
     const store  = createStore<ScapeConfig>(config.read())
 
     config.adopt(store)
-    config.write('look.bloom', 0.77)
+    config.write('look.glare', 0.77)
 
-    expect(store.get().look.bloom).toBe(0.77)
-    expect(config.read().look.bloom).toBe(0.77)
+    expect(store.get().look.glare).toBe(0.77)
+    expect(config.read().look.glare).toBe(0.77)
   })
 
   test('a write nobody would notice does not wake the store', () => {
@@ -46,8 +46,8 @@ describe('who owns the config', () => {
     })
     config.adopt(store)
 
-    config.write('look.bloom', 0.5)
-    config.write('look.bloom', 0.5)
+    config.write('look.glare', 0.5)
+    config.write('look.glare', 0.5)
 
     expect(woke).toBe(1)
   })
@@ -57,17 +57,17 @@ describe('who owns the config', () => {
     const store   = createStore<ScapeConfig>(config.read())
     const release = config.adopt(store)
 
-    config.write('look.bloom', 0.61)
+    config.write('look.glare', 0.61)
     release()
 
     // The scape is down and there is no store, but the next mount is built from
     // `read()` — and it has to open on the value the reader dragged, not on the
     // one that shipped.
-    expect(config.read().look.bloom).toBe(0.61)
+    expect(config.read().look.glare).toBe(0.61)
 
     config.write('look.lens', 0.2)
 
-    expect(config.read().look.bloom).toBe(0.61)
+    expect(config.read().look.glare).toBe(0.61)
     expect(config.read().look.lens).toBe(0.2)
   })
 })
