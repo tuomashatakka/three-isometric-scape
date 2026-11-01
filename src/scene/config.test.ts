@@ -56,3 +56,12 @@ describe('the tuning surface', () => {
     expect(broken).toEqual([])
   })
 })
+
+describe('the glass', () => {
+  test('spreads a highlight with one knob: bloom and streak are not tuned apart', () => {
+    const look = SCAPE_CONFIG.look as Record<string, unknown>
+    expect(look.glare).toBe(1)
+    expect(look.bloom).toBeUndefined()
+    expect(look.anamorphic).toBeUndefined()
+  })
+})

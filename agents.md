@@ -394,7 +394,7 @@ bun run scape:shot --poses rotation                 # the course each field is i
 bun run scape:shot --poses hjell                    # the drying racks above the harbour, 4 frames, loaded, bare, pulled back, and under snow
 bun run scape:shot --poses kiln                     # the lime kiln on the brae, 4 frames, burning, cold, pulled back, and with the wind put back
 bun run scape:shot --rot 30 --zoom 12 --time 0.02
-bun run scape:shot --tier ultra --set look.bloom=0
+bun run scape:shot --tier ultra --set look.glare=0
 bun run scape:shot --skip post                      # drop the optical chain
 bun run scape:shot --poses quick                    # one default frame, the cheapest named set
 bun run scape:shot --poses near,night               # tour poses by name, comma-separated
@@ -636,7 +636,7 @@ on the running page — useful on a device you cannot attach a debugger to:
 | `?ratio=<n>` | caps the pixel ratio at that, over the tier's |
 | `?aa=0\|1` | forces antialiasing either way |
 | `?effects=tier\|all` | `all` builds every effect on whatever tier is pinned — the drawer's switch, from the url |
-| `?set=look.bloom=0,daylight.time=0.5` | any dotted config path, comma separated, applied after local storage so the url wins |
+| `?set=look.glare=0,daylight.time=0.5` | any dotted config path, comma separated, applied after local storage so the url wins |
 | `?skip=water,mist,beacon,…` | leaves a whole family out — the list is `SCAPE_FAMILIES` in [`audit.ts`](src/scene/audit.ts) |
 | `?camera=fresh` | opens on the default camera rather than the one the last session stored; every capture sends it |
 | `?audit` | builds the scape, links and reports every program, never draws, and leaves no tier verdict behind |
@@ -768,7 +768,7 @@ the pointer bookkeeping — capture, live pointers, the pinch frame, tap detecti
 
 ### an atmospheric system
 
-`src/scene/*.ts` — `atmosphere.ts`, `mist.ts`, `clouds.ts`, `aurora.ts`, `nightsky.ts`, `rain.ts`, `birds.ts`, `beacon.ts`, `hearth.ts`, `windows.ts`, `post.ts` (the chain) and `lens.ts` (its one optical pass), the four clocks `daylight.ts` / `season.ts` / `weather.ts` / `wind.ts`, and `tide.ts`, which is not a fifth — it is the first two read against each other. composed in [`create-isometric-scape.ts`](src/scene/create-isometric-scape.ts). the hung sheets share [`sky-deck.ts`](src/scene/sky-deck.ts) — the zoom reveal and the focus they follow — so two decks cannot fade in at two different zooms.
+`src/scene/*.ts` — `atmosphere.ts`, `mist.ts`, `clouds.ts`, `aurora.ts`, `nightsky.ts`, `rain.ts`, `birds.ts`, `beacon.ts`, `hearth.ts`, `windows.ts`, `post.ts` (the chain), `lens.ts` (its one optical pass) and `focal.ts` (the depth it focuses on, taken before the chain touches it), the four clocks `daylight.ts` / `season.ts` / `weather.ts` / `wind.ts`, and `tide.ts`, which is not a fifth — it is the first two read against each other. composed in [`create-isometric-scape.ts`](src/scene/create-isometric-scape.ts). the hung sheets share [`sky-deck.ts`](src/scene/sky-deck.ts) — the zoom reveal and the focus they follow — so two decks cannot fade in at two different zooms.
 
 anything mounted *after* `atmosphere.module` sees this frame's day; anything before it sees the last one's. that is the whole reason the coastal light is a layer here rather than part of the landscape that surveys it — `beacon.ts` reads `daylight.day` and the landscape publishes `lanternHubs` for it.
 
@@ -826,7 +826,7 @@ state flows down (`store → module.update → scene`), input flows back through
 **in this repo the state *is* `SCAPE_CONFIG`.** `createApp<ScapeConfig>(canvas, { state: config })`, so the scape's tuning surface and the store's state are the same object, and there is exactly one of it. two rules follow, and both are enforced by the compiler rather than by remembering them:
 
 - **anything that outlives a tick takes `LiveConfig`, never a `ScapeConfig`.** `LiveConfig` is `() => ScapeConfig`. the store commits a *new* object on every write, so a section destructured at build time and read every frame is a section frozen at whatever it held before the reader touched a slider. a factory that reads per frame takes the reader and calls it; a pure builder called once takes the config and is handed `config()`. getting this backwards is a type error, not a bug.
-- **every write goes through [`config-access.ts`](src/scene/config-access.ts).** it knows whether the scape has mounted — before that a write is the next version of a plain object, after it the app's store is the single writer. [`state-path.ts`](src/scene/state-path.ts)'s `withPath` is `writePath` with structural sharing, so setting `look.bloom` copies two objects and keeps the other eighteen.
+- **every write goes through [`config-access.ts`](src/scene/config-access.ts).** it knows whether the scape has mounted — before that a write is the next version of a plain object, after it the app's store is the single writer. [`state-path.ts`](src/scene/state-path.ts)'s `withPath` is `writePath` with structural sharing, so setting `look.glare` copies two objects and keeps the other eighteen.
 
 **a capture cannot check either of these.** `?set=` is applied before the scape mounts and nothing in the harness drives the overlay, so a module that stopped answering after build would photograph identically at every pose. the liveness tests in [`config-access.test.ts`](src/scene/config-access.test.ts) are what actually check it: move a knob *after* the thing was built, and assert the thing noticed.
 
@@ -886,7 +886,7 @@ this list.
 
 | `createSelectiveBloom` / `createEmissiveBloom` | a two-composer technique that renders the scene **twice** per frame, and its bloom buffer is not reachable without its own final composer. the whole-frame bloom here already has a **0.94 threshold** tuned above the fog, so a light only has to be bright enough to cross it — see `beacon.glow`, which is that idea and costs no extra draw |
 
-**the threshold is the instrument.** `look.bloom` blooms whatever exceeds 0.94 in linear luminance and nothing else, which is why the night sky stays dark while
+**the threshold is the instrument.** `look.glare` blooms whatever exceeds 0.94 in linear luminance and nothing else, which is why the night sky stays dark while
 the beacon's lamp glows. anything that should glow should be *made bright enough to cross it*, not given a pass of its own. a vertex colour cannot do that —
 `bakeFacetColors` clamps to 0..1 — so overdrive the material colour, as `scene/beacon.ts` does.
 

@@ -298,6 +298,7 @@ src/
     ├── noise.ts                    deterministic height sampler
     ├── post.ts                     the chain: ao, ssr, bloom, sun shafts, the lens, traa
     ├── lens.ts                     one pass for the glass and the film: defocus, fringe, vignette, grade, grain
+    ├── focal.ts                    the focal plane: a half-res defocus map off the depth, taken before the chain touches it
     ├── quality.ts                  minimal/mobile/desktop/ultra gpu budgets, and the unlock
     ├── camera-path.ts              the waypoint tour, and the spline it flies
     ├── runtime.ts                  live pixel ratio, frame cap, shadow cadence
@@ -633,7 +634,7 @@ a tier is a bundle of decisions taken from what the device says about itself, an
 
 the end of the optical chain used to be seven full-screen passes on desktop — two separable tilt-shift pairs, a grade, a lut and a grain pass — each one a read and a write of a half-float frame, and between them a picture that looked rendered: a gaussian smudge where a lens draws a disc, a smoothstep ring where glass falls off by cos⁴, and edges as clean in the corners as in the middle. [`lens.ts`](src/scene/lens.ts) is one pass that does what one piece of glass and one piece of film do:
 
-- **defocus** — a [Vogel disc](src/scene/lens.ts) of `lensTaps` taps (16 desktop, 24 ultra, 0 compiles it out) whose radius grows with the distance from the focused band. bright taps weigh more, so an out-of-focus window is a soft coin and not a smear. the disc turns per pixel by interleaved gradient noise, which trades the taps' pattern for an even dither.
+- **defocus** — a [Vogel disc](src/scene/lens.ts) of `lensTaps` taps (16 desktop, 24 ultra, 0 compiles it out) whose radius grows with the distance from the focal plane (see *a photograph, not a model* below). bright taps weigh more, so an out-of-focus window is a soft coin and not a smear. the disc turns per pixel by interleaved gradient noise, which trades the taps' pattern for an even dither.
 - **lateral chromatic aberration** — red and blue a fraction of a pixel either side of green, growing with the square of the distance from the centre, added as the difference it makes so it rides on the defocus without re-sampling the disc per channel.
 - **natural vignetting** — the cos⁴ law of a lens whose half-diagonal sees about 40°.
 - **micro-contrast** — a four-tap unsharp mask in the focused band only, the crispness a sharp lens has and a multisampled render does not.
@@ -642,6 +643,15 @@ the end of the optical chain used to be seven full-screen passes on desktop — 
 **one knob.** `look.lens` drives the defocus, the fringe, the vignette and the micro-contrast together, because they are one optical decision — how much glass is in the picture — and four sliders for it let a reader dial a lens no one ever made. at 0 the scape is a pinhole; at 1 it is the old default tilt-shift and vignette; at 2 it is a cheap wide-angle. `look.tiltShift` and `look.vignette` are gone.
 
 **cost.** mobile and minimal have no post chain and are untouched. on desktop the chain is six passes shorter; the disc is `lensTaps` fetches only where it is wider than a third of a pixel, which is the out-of-focus part of the frame and none of the focused band.
+
+### a photograph, not a model
+
+the lens above still made the scape look like a miniature, and for the reason a tilt-shift photograph of a real town does: a depth of field far too shallow for the size of what it frames. its disc was clamped at 0.7 of nominal however wide the frame, so the whole 1.4 km archipelago went soft at its edges almost as hard as a yard ten metres across.
+
+- **the aperture closes with the frame.** `apertureReach` in [`lens.ts`](src/scene/lens.ts) is one over the view size with no floor — a camera that frames twice the ground stands twice as far off, and the blur circle as a share of the picture halves. the nominal disc is five pixels at a twelve-metre frame (`LENS_BLUR` in `post.ts`), opening to nine at the closest zoom and under half a pixel past a hundred metres, where the disc compiles to nothing at runtime. the archipelago frame is an aerial photograph, sharp from edge to edge.
+- **the plane is the depth, not a band of the screen.** [`focal.ts`](src/scene/focal.ts) reads the depth at the focused point and at every pixel, and writes how far off the plane each one is, calibrated by `depthDefocus` so flat ground defocuses exactly as the band did. a church tower in the focused band stays sharp instead of going soft by how tall it stands on screen.
+- **why it is its own pass.** the composer's two targets share one depth texture, and under multisampling each pass resolves its own never-written depth renderbuffer into it — by the lens the texture is one constant. `resolveDepthBuffer: false` invalidates the texture rather than sparing it, and without multisampling a read would be a feedback loop. so the focal pass is spliced in straight after the scene render, into a half-resolution eight-bit target of its own. a `ShaderPass` clones its uniforms and three's clone drops a render target's texture to null, which is why the lens takes the map after construction.
+- **one fewer knob.** `look.glare` replaces `look.bloom` and `look.anamorphic`: the light a bright point scatters inside the glass, round off the elements and drawn to a line by a cylindrical one. 1 is the old defaults.
 
 ## the tile that was still there
 
@@ -1326,7 +1336,7 @@ on the furthest skerry the ring has, there is a lighthouse: a battered stone tow
 **brightness is most of whether it reads as light at all.** the same geometry at `beacon.lamp` 0.62 is a solid shape and at 0.34 is a glow, because additive fill over near-black water saturates long before it looks bright. that is why the default is low and the slider goes to 2.
 
 **the bloom was never handed the lamp.** the material carries a note saying the haze around the light is the bloom's business rather than the mesh's, which was the
-right intent and did not happen: measured at the same pose with `look.bloom` on and off, **not one pixel of three hundred thousand differed by more than two levels**.
+right intent and did not happen: measured at the same pose with `look.bloom` (now `look.glare`) on and off, **not one pixel of three hundred thousand differed by more than two levels**.
 the arithmetic says why. the optic's warm white is `#ffdca8`, about 0.76 in linear luminance, and `beacon.lamp` opens it at 0.34 — so the frame saw about 0.26
 against a bloom threshold of 0.94, a quarter of what it needed, and no combination of the existing knobs could get it there.
 
@@ -3552,7 +3562,7 @@ a drawer on the right edge exposes the scene's optics, the three clocks, the air
 
 the thing worth knowing is that **it holds no state**. every control reads and writes `SCAPE_CONFIG` directly, and the scene modules re-read that config every frame — uniforms are refreshed in each module's `update`, not captured at build. so there is exactly one copy of every number, the panel and the scene cannot drift apart, and nothing has to be pushed anywhere when a slider moves.
 
-**a control is a path, not a closure.** each knob is declared as a dotted string into the config — `look.bloom`, `daylight.time` — rather than as a `get`/`set` pair. a closure can only be *called*; a string can be collected, compared and written to disk, which is why one declaration list drives the panel, the local-storage snapshot, the reset and the `?set=` url without any of them enumerating the scene's settings a second time.
+**a control is a path, not a closure.** each knob is declared as a dotted string into the config — `look.glare`, `daylight.time` — rather than as a `get`/`set` pair. a closure can only be *called*; a string can be collected, compared and written to disk, which is why one declaration list drives the panel, the local-storage snapshot, the reset and the `?set=` url without any of them enumerating the scene's settings a second time.
 
 there is no `enabled` flag anywhere in the config: an effect is off when its strength is zero. so a switch is a view of the number underneath it — it remembers what it turned off at, restores that on the way back, and follows its own slider if you drag that to zero yourself. what a slider cannot do is change the *shape* of the chain: which passes exist is a quality-tier decision made once when the composer is built, so a knob whose pass the tier never created renders greyed rather than lying.
 

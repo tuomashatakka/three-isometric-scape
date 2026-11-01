@@ -2,6 +2,14 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## a photograph of the coast, not a model of it
+
+the desktop lens made a real place look like a model of one. its depth of field was clamped at 0.7 of nominal however wide the frame, which is the tilt-shift trick, so the opening 1.4 km archipelago frame was smeared at every edge. it also focused on a band of the screen, so anything standing up in the band went soft by how tall it was. the aperture now closes as one over the frame: the archipelago, far and noon frames are sharp from edge to edge, the way an aerial photograph is. close frames keep a gentle falloff, about 5 px at the frame edge at a 12 m view, where it was 22. the focal plane is now read off the depth buffer by [`focal.ts`](src/scene/focal.ts), so a church tower at the focused distance stays sharp.
+
+- **one knob fewer:** `look.glare` replaces `look.bloom` and `look.anamorphic`. it is the light the glass scatters off a bright point. the panel's `bloom` becomes `glare`.
+- **cost:** on desktop and ultra, one half-resolution, eight-bit pass right after the scene render. it does two depth fetches per fragment and draws one quad. the lens's disc now runs nowhere at the opening frame, so the widest frame is the cheapest. mobile and minimal have no chain and are untouched (census unchanged: default 145 draws / 0.95M tris). desktop census: default 161 → 162 draws, 2.28M tris; near 221 → 222, 4.79M.
+- **found on the way:** the shared depth texture is unreadable by the end of the chain under msaa, and a `ShaderPass` silently nulls a render-target texture uniform. both are written up in the readme under *a photograph, not a model*.
+
 ## the lens, in one pass
 
 the desktop frame was finished by seven full-screen passes: two separable tilt-shift pairs, a grade, a lut and a grain pass. it looked rendered. the defocus was a gaussian smudge where a lens draws a disc, the vignette was a smoothstep ring, and the corners were as clean as the middle. [`lens.ts`](src/scene/lens.ts) does it all in one pass, the way one piece of glass and one piece of film would. out-of-focus ground and roofs now go to soft discs, and lit highlights bloom into coins. red and blue fringe a little toward the corners, the light falls off by cos⁴, and the focused band gets the micro-contrast a sharp lens has.
