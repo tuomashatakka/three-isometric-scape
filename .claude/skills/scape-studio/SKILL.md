@@ -71,7 +71,7 @@ on a mesh. It runs in the same queue as looks, against the state the last look l
 `probe` the point (names, nearest first), then `--hide` the suspects one shot at a
 time — far cheaper than reasoning from pixels. When the culprit is a *shader term*
 rather than a mesh, zero its knob instead (`--set atmosphere.cloudShadow=0`,
-`terrain.detailGrain=0`, `terrain.detailMacro=0`, `look.lens=0`): one shot per
+`terrain.detailGrain=0`, `look.ao=0`, `look.lens=0`): one shot per
 suspect. Hidden meshes come back on the next look.
 
 ## traps

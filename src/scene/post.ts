@@ -6,7 +6,7 @@ import type { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPas
 import { defineModule, smoothstep } from 'threejs-scene'
 import { createGodRaysPass, postProcessing } from 'threejs-scene/modules/post'
 import type { EffectContext, GodRaysPass } from 'threejs-scene/modules/post'
-import { createAnamorphic, createAo, createSsr, createTraa } from 'threejs-scene/modules/post/webgl'
+import { createAnamorphic, createSsr, createTraa } from 'threejs-scene/modules/post/webgl'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import { createFocalPass, depthDefocus } from './focal.ts'
 import type { FocalPass } from './focal.ts'
@@ -227,16 +227,16 @@ export function createAtmospherePost ({
 
   /**
    * The tier-gated passes that operate on the *scene* rather than on the frame:
-   * occlusion, reflections, and light that scatters. Everything here needs the
+   * reflections, and light that scatters. Everything here needs the
    * shared depth texture, which is why `depth` is on whenever any of them is.
    */
   function sceneEffects (ctx: EffectContext): Pass[] {
     const built: Pass[] = []
     const lake          = water()
 
-    if (quality.ao && config().look.ao > 0)
-      built.push(createAo(ctx))
-
+    // No occlusion pass: the shade where things meet the ground is baked once
+    // into the sky map every tier reads (`sky-occlusion.ts`), not re-guessed
+    // from the depth buffer every frame on one tier.
     // `selects` and no `groundReflector`, which is not a simplification.
     //
     // Three's `SSRPass` calls `groundReflector.doRender()` on whatever it is
@@ -332,7 +332,7 @@ export function createAtmospherePost ({
   }
 
   const inner = postProcessing<ScapeConfig>({
-    depth: quality.ao || quality.ssr || quality.godRays || quality.lensTaps > 0,
+    depth: quality.ssr || quality.godRays || quality.lensTaps > 0,
 
     bloom: quality.bloom
       ? {
@@ -459,7 +459,7 @@ export function createAtmospherePost ({
 }
 
 // perf: the chain is off on mobile. Desktop runs bloom, god rays and the one
-// lens pass (16 defocus taps, grain) over 4x msaa. Ultra adds GTAO, screen-space
+// lens pass (16 defocus taps, grain) over 4x msaa. Ultra adds screen-space
 // reflections on the lake, anamorphic streaks and a TRAA resolve. Every target
 // in the chain is reallocated only when the drawing buffer behind it actually
 // changed size.

@@ -8,7 +8,7 @@ import { createWeather } from '../weather.ts'
 import { SWASH_DRY } from '../landscape/swash.ts'
 import { CLOUD_REPEATS } from '../cloud-shadow.ts'
 import { repeatKeep } from '../frame.ts'
-import { GRAIN_REPEATS, WEAR_REPEATS, WEAR_TILE, createScapeMaterials } from './material.ts'
+import { DETAIL_TILE, GRAIN_REPEATS, WEAR_REPEATS, WEAR_TILE, createScapeMaterials } from './material.ts'
 
 
 /**
@@ -242,7 +242,7 @@ describe('the two compasses the snow line swings on', () => {
 
 describe('the grain the frame can resolve', () => {
   // Frame widths in metres, at the authored 7.5 m grain tile.
-  const repeats = (metres: number): number => metres / SCAPE_CONFIG.terrain.detailScale
+  const repeats = (metres: number): number => metres / DETAIL_TILE
 
   test('a ground-level frame keeps every map', () => {
     expect(repeatKeep(repeats(40), GRAIN_REPEATS)).toBe(1)

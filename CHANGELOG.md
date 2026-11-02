@@ -2,6 +2,14 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the light the ground cannot see
+
+the mobile frame had no shadows: phones skip the shadow map, so every wall, boulder and byre stood on evenly lit ground at every hour. the only ambient occlusion was a gtao pass on ultra. [`sky-occlusion.ts`](src/scene/sky-occlusion.ts) rasterises every solid from above once, after the dressing stands. it bakes how much sky each point sees, at ground level and at the top surface, into one rgba8 world texture. both scape materials read it where three applies an ao map. the result is soft contact shade at every wall foot, dark soil under canopies, self-shaded crowns and darker gullies, on every tier. on mobile and minimal the same map is marched toward the sun, so every prop and slope casts a soft shadow that moves with the hour, for the first time.
+
+- **knobs:** `look.ao` drives the sky map on every tier and is in the optics panel as *occlusion*. `terrain.detailScale` and `terrain.detailMacro` are now constants, so the panel loses two sliders and gains one. `quality.ao` is gone; `skyTexels` (1024 / 1536 / 2048 / 2048) and `sunMarch` (4 / 6 / 0 / 0) replace it.
+- **cost:** no new draws, triangles or programs. census unchanged: mobile default 139 / 0.95M, near 87 / 0.89M; desktop default 162 / 2.28M, near 222 / 4.79M. the bake runs once after the first dressed frame (0.34 s on mobile here) and uploads 9.4 mb on mobile. the march costs 6 fetches per ground and foliage fragment on mobile. ultra runs one full-resolution pass fewer.
+- **moved:** the mobile near frame (35% of pixels, mean 15.5 levels). every wide frame moved by about 1 level.
+
 ## a photograph of the coast, not a model of it
 
 the desktop lens made a real place look like a model of one. its depth of field was clamped at 0.7 of nominal however wide the frame, which is the tilt-shift trick, so the opening 1.4 km archipelago frame was smeared at every edge. it also focused on a band of the screen, so anything standing up in the band went soft by how tall it was. the aperture now closes as one over the frame: the archipelago, far and noon frames are sharp from edge to edge, the way an aerial photograph is. close frames keep a gentle falloff, about 5 px at the frame edge at a 12 m view, where it was 22. the focal plane is now read off the depth buffer by [`focal.ts`](src/scene/focal.ts), so a church tower at the focused distance stays sharp.

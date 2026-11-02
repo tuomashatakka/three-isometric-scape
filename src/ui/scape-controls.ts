@@ -166,6 +166,7 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         range('look.intensity', 'grade strength', 0, 1, 0.01),
         toggled('glare', range('look.glare', 'bloom and streak', 0, 3, 0.01, quality.bloom), 1),
         toggled('lens', range('look.lens', 'defocus, fringe and falloff', 0, 2, 0.01), 1),
+        toggled('occlusion', range('look.ao', 'shade where things meet', 0, 2, 0.01), 1),
         toggled('film grain', range('look.grain', 'amount', 0, 1, 0.01, quality.grain), 0.16),
         toggled('sun shafts', range('look.godRays', 'strength', 0, 1, 0.01, quality.godRays), 0.26),
       ],
@@ -832,8 +833,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         // and there is no second one able to describe deep grit with no
         // contrast on it. 0 is flat, unlit paper — and it is the switch.
         range('terrain.detailGrain', 'soil grain & relief', 0, 1, 0.01),
-        range('terrain.detailMacro', 'soil patches', 0, 1.5, 0.01),
-        range('terrain.detailScale', 'grain scale', 1, 24, 0.5),
         // The other half of the same injection: everything upright, which the
         // soil terms cannot reach because they weigh themselves by how
         // horizontal a face is.

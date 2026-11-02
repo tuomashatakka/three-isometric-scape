@@ -30,7 +30,7 @@ export type TextureId =
   'ground.grain' | 'ground.normal' | 'ground.wear' | 'prop.bark' | 'sky.cloudShadow' |
   'water.ripple' | 'water.wave' | 'water.shoreMask' | 'water.shelterMask' |
   'weather.squall' | 'sky.deck' | 'sky.aurora' | 'sky.gradient' | 'mist.field' | 'mist.mask' |
-  'haar.field' | 'post.lut'
+  'haar.field' | 'ground.sky' | 'post.lut'
 
 /**
  * Where a texture's pixels come from.
@@ -193,6 +193,14 @@ export const TEXTURES: readonly TextureEntry[] = [
     size:      128,
     module:    'haar.ts',
     consumers: [ 'map' ],
+  },
+  {
+    id:        'ground.sky',
+    origin:    'baked',
+    purpose:   'how much sky each point sees, and the heights the sun is marched across, baked once the dressing stands',
+    size:      2048,
+    module:    'sky-occlusion.ts',
+    consumers: [ 'uSkyMap' ],
   },
   {
     id:        'post.lut',

@@ -4,6 +4,8 @@ import { kitMaterial, markShared } from 'threejs-scene/modules/assets'
 import { NOTHING_SKIPPED } from '../audit.ts'
 import type { ScapeSkips } from '../audit.ts'
 import { CLOUD_SHADOW_GLSL, createCloudShadow } from '../cloud-shadow.ts'
+import { SKY_OCCLUSION_FRAGMENT, createSkyOcclusion } from '../sky-occlusion.ts'
+import type { SkyOcclusion } from '../sky-occlusion.ts'
 import type { CloudShadow } from '../cloud-shadow.ts'
 import type { LiveConfig } from '../config.ts'
 import { FRAME_GLSL, repeatKeepGlsl } from '../frame.ts'
@@ -37,6 +39,15 @@ export interface ScapeMaterials {
   update(wind: WindState, season: SeasonState, weather: WeatherState, swash: SwashState): void
   dispose(): void
 }
+
+/**
+ * World metres per tile of the ground grain, and the weight of its broad second
+ * octave against the fine one. Both were knobs; neither was ever a decision
+ * about the place rather than about the texture, so they are constants now and
+ * `terrain.detailGrain` is the one soil knob.
+ */
+export const DETAIL_TILE  = 7.5
+export const DETAIL_MACRO = 0.62
 
 /**
  * The world position the cloud shadow is read at, and nothing else.
@@ -84,6 +95,16 @@ const CLOUD_PARS_FRAGMENT = /* glsl */`
   varying vec2 vScapeGround;
 ${CLOUD_SHADOW_GLSL}
 `
+
+/**
+ * The sky map's read wants the world height too, and gets it the way the snow
+ * line does — off `vViewPosition` and the rigid view matrix — so the ground's
+ * position costs no third varying component.
+ */
+const SKY_FRAGMENT = SKY_OCCLUSION_FRAGMENT.replace(
+  'SCAPE_SKY_AT',
+  'vec3(vScapeGround.x, cameraPosition.y - dot(vViewPosition, viewMatrix[1].xyz), vScapeGround.y)',
+)
 
 const CLOUD_FRAGMENT = /* glsl */`
   #include <color_fragment>
@@ -210,7 +231,7 @@ const WIND_VERTEX = /* glsl */`
 const DETAIL_PARS_FRAGMENT = /* glsl */`
   uniform sampler2D uDetailMap;
   uniform sampler2D uBarkMap;
-  uniform float uDetailScale;
+  const float scapeDetailScale = ${(1 / DETAIL_TILE).toFixed(6)};
   uniform float uDetailStrength;
   uniform float uPropGrain;
 ${FRAME_GLSL}
@@ -229,7 +250,7 @@ ${FRAME_GLSL}
 const DETAIL_FULL_PARS_FRAGMENT = /* glsl */`
   uniform sampler2D uGroundNormalMap;
   uniform sampler2D uWearMap;
-  uniform float uDetailMacro;
+  const float scapeDetailMacro = ${DETAIL_MACRO.toFixed(2)};
 `
 
 /**
@@ -242,7 +263,7 @@ const DETAIL_FULL_PARS_FRAGMENT = /* glsl */`
  * read as gravel, and past that as rubble.
  *
  * Expressed as a fraction of the *tile* rather than of the world, which is what
- * makes it independent of `detailScale` — a coarser grain is bigger grit, not
+ * makes it independent of `DETAIL_TILE` — a coarser grain is bigger grit, not
  * deeper grit, and the shift on screen grows with the tile on its own.
  */
 const RELIEF_DEPTH = 0.02
@@ -311,8 +332,8 @@ const PROP_GRAIN_FRAGMENT = /* glsl */`
   if (scapeSteep > 0.001) {
     float scapeUpright = cameraPosition.y - dot(vViewPosition, viewMatrix[1].xyz);
     vec2 scapeBarkUv   = vec2(
-      (vScapeGround.x + vScapeGround.y) * uDetailScale * 0.7,
-      scapeUpright * uDetailScale * 0.16
+      (vScapeGround.x + vScapeGround.y) * scapeDetailScale * 0.7,
+      scapeUpright * scapeDetailScale * 0.16
     );
     // Stretched hard, and then stretched again. Four octaves of value noise pile
     // up around their own mean, so the raw fetch varies by a few per cent and a
@@ -344,7 +365,7 @@ export const WEAR_REPEATS  = [ 5, 14 ] as const
 export const WEAR_TILE = 0.14
 
 const REPEATS_FRAGMENT = /* glsl */`
-  float scapeRepeats   = scapeFrameMetres() * uDetailScale;
+  float scapeRepeats   = scapeFrameMetres() * scapeDetailScale;
   float scapeGrainKeep = ${repeatKeepGlsl('scapeRepeats', GRAIN_REPEATS)};
   float scapeWearKeep  = ${repeatKeepGlsl(`scapeRepeats * ${WEAR_TILE.toFixed(2)}`, WEAR_REPEATS)};
 `
@@ -381,7 +402,7 @@ const DETAIL_FRAGMENT_LITE = /* glsl */`
   float scapeFlat = smoothstep(0.3, 0.9, vScapeFace.x);
   float scapeAmt  = uDetailStrength * scapeFlat;
 ${REPEATS_FRAGMENT}
-  float grain     = texture2D(uDetailMap, vScapeGround * uDetailScale).r;
+  float grain     = texture2D(uDetailMap, vScapeGround * scapeDetailScale).r;
 ${GRAIN_FRAGMENT}
 ${PROP_GRAIN_FRAGMENT}
 `
@@ -391,7 +412,7 @@ function detailFragment (steps: number): string {
   #include <normal_fragment_begin>
   float scapeFlat = smoothstep(0.3, 0.9, vScapeFace.x);
   float scapeAmt  = uDetailStrength * scapeFlat;
-  vec2 scapeUv    = vScapeGround * uDetailScale;
+  vec2 scapeUv    = vScapeGround * scapeDetailScale;
 ${REPEATS_FRAGMENT}
 ${steps > 0 ? `  if (scapeAmt * scapeGrainKeep > 0.001) {${reliefFragment(steps)}  }\n` : ''}
 
@@ -407,7 +428,7 @@ ${GRAIN_FRAGMENT}
   // so a frame too wide to show the patches does not fetch them.
   if (scapeWearKeep > 0.0) {
     float wear = texture2D(uWearMap, wearUv).r - 0.5;
-    float macro = scapeAmt * scapeWearKeep * uDetailMacro * wear;
+    float macro = scapeAmt * scapeWearKeep * scapeDetailMacro * wear;
 
     diffuseColor.rgb *= 1.0 + macro * 1.15;
 
@@ -625,6 +646,10 @@ export function createScapeMaterials (
   // frame where only one of them is written. A default for the tests and the
   // prop viewer, which have no lake to disagree with.
   shadow: CloudShadow = createCloudShadow(config, textures),
+
+  // The same arrangement for the same reason: the landscape bakes it once the
+  // dressing stands, and both materials read the one map.
+  occlusion: SkyOcclusion = createSkyOcclusion(),
 ): ScapeMaterials {
   // The lite path has one fetch to spend and no relief to march through, so a
   // tier below the full tap budget is a tier with flat soil whatever its relief
@@ -659,6 +684,7 @@ export function createScapeMaterials (
   const driftScratch: Vec2               = { x: 0, z: 0 }
   const shared: Record<string, IUniform> = {
     ...shadow.uniforms,
+    ...occlusion.uniforms,
     uShadeDir: shadeDir,
     uDriftDir: driftDir,
   }
@@ -673,9 +699,7 @@ export function createScapeMaterials (
     uGroundNormalMap: { value: normalMap },
     uWearMap:         { value: wearMap },
     uBarkMap:         { value: barkMap },
-    uDetailScale:     { value: 1 / Math.max(0.5, config().terrain.detailScale) },
     uDetailStrength:  { value: config().terrain.detailGrain },
-    uDetailMacro:     { value: config().terrain.detailMacro },
     uPropGrain:       { value: config().terrain.propGrain },
   }
 
@@ -803,6 +827,7 @@ export function createScapeMaterials (
           .replace('#include <common>', [
             '#include <common>',
             CLOUD_PARS_FRAGMENT,
+            occlusion.glsl,
             up ? UP_PARS_FRAGMENT : '',
             detailPars,
             extra.lie ? WET_PARS_FRAGMENT : '',
@@ -810,6 +835,7 @@ export function createScapeMaterials (
             extra.lie ? SEASON_PARS_FRAGMENT : '',
           ].join('\n'))
           .replace('#include <color_fragment>', CLOUD_FRAGMENT)
+          .replace('#include <aomap_fragment>', SKY_FRAGMENT)
 
         if (extra.detail || extra.lie)
           program.fragmentShader = program.fragmentShader
@@ -818,7 +844,7 @@ export function createScapeMaterials (
     // The taps belong in the key: two materials that differ only by an injected
     // shader are identical as far as three's own cache is concerned, and it
     // would hand the second one the first one's program.
-    material.customProgramCacheKey = () => `${key}:${detailTaps}:${relief}`
+    material.customProgramCacheKey = () => `${key}:${detailTaps}:${relief}:${occlusion.march}`
 
     // The same key doubles as the material's name, because a name is the only
     // thing three prints when a program fails to link — `Material Name:` on an
@@ -857,8 +883,6 @@ export function createScapeMaterials (
       wind.uWindPhase.value        = breeze.travel
       wind.uWindStrength.value     = breeze.strength
       detail.uDetailStrength.value = config().terrain.detailGrain
-      detail.uDetailScale.value    = 1 / Math.max(0.5, config().terrain.detailScale)
-      detail.uDetailMacro.value    = config().terrain.detailMacro
       detail.uPropGrain.value      = config().terrain.propGrain
 
       seasonTint.value.copy(year.tint)

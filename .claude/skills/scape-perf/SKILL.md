@@ -39,7 +39,7 @@ out-of-focus part of the frame), plus the fixed taps of the rest.
 | --- | --- | --- |
 | minimal, mobile | off — no composer at all | 0 |
 | desktop | on, 4× msaa | 16 |
-| ultra | on, 8× msaa, + GTAO, SSR, anamorphic, TRAA | 24 |
+| ultra | on, 8× msaa, + SSR, anamorphic, TRAA | 24 |
 | any, `runtime.effects=all` | on | ≥ 12 (`UNLOCKED_FLOOR`) |
 
 - The taps are compiled into the program as a constant array: a different count
