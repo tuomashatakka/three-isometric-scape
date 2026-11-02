@@ -344,14 +344,8 @@ export interface ScapeConfig extends CarterConfig, CreelConfig, CroppingConfig, 
      */
     isles: readonly Isle[]
 
-    /** World units per tile of the ground grain. */
-    detailScale: number
-
-    /** Ground grain contrast, 0..1. */
+    /** Ground grain contrast, 0..1 — the one soil knob; the tile and its broad octave are constants in `props/material.ts`. */
     detailGrain: number
-
-    /** Weight of the broad second octave of grain, relative to the fine one. */
-    detailMacro: number
 
     /**
      * Fraction of the island kept gentle, 0..1.
@@ -1132,7 +1126,11 @@ export interface ScapeConfig extends CarterConfig, CreelConfig, CroppingConfig, 
     /** Volumetric sun-shaft strength, 0 disables the pass. */
     godRays: number
 
-    /** Ambient-occlusion strength on the ultra tier, 0 disables. */
+    /**
+     * How much of the light a surface loses to whatever stands near it — the
+     * baked sky map (`sky-occlusion.ts`), on every tier. 0 is a scape lit as
+     * though nothing stood on it; 1 is the bake as measured; 2 squares it.
+     */
     ao: number
   }
   palette: ScapePalette
@@ -1274,9 +1272,7 @@ export const SCAPE_CONFIG = {
       { x: -0.577, z: 0.643, radius: 0.045, height: 2.5 },
       { x: 0.372, z: 0.735, radius: 0.042, height: 2.4 },
     ],
-    detailScale: 7.5,
     detailGrain: 0.34,
-    detailMacro: 0.62,
 
     // The home island has no fjord, and `depth: 0` is how it says so — every
     // island that omits the section inherits this one, so an archipelago is
@@ -1601,7 +1597,7 @@ export const SCAPE_CONFIG = {
     glare:     1,
     lens:      1,
     godRays:   0.26,
-    ao:        0.7,
+    ao:        1,
   },
   ...SCAPE_PALETTE,
 

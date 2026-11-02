@@ -383,8 +383,22 @@ export interface AtmosphereQuality {
   /** Multiplier on every dressing budget. */
   scatterScale: number
 
-  /** Screen-space ambient occlusion. */
-  ao: boolean
+  /**
+   * Texels a side of the baked sky-occlusion map (`sky-occlusion.ts`), over
+   * the whole world. 1536 is a metre a texel at the default 1 520 m world —
+   * fine enough for the dark line at a wall foot; 1024 keeps the shade under a
+   * stand and a byre and loses the stone's own skirt. The cost is the bake's
+   * time after the first frame and an RGBA8 upload; nothing per frame but one
+   * fetch.
+   */
+  skyTexels: number
+
+  /**
+   * Taps the sun's shadow walks across the sky map's heights. 0 on a tier with
+   * a shadow map, which already has one. Each tap is one fetch on every ground
+   * and foliage fragment, so this is fill rate and nothing else.
+   */
+  sunMarch: number
 
   /** Screen-space reflections on the lake. */
   ssr: boolean
@@ -729,7 +743,8 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     terrainSegments: 60,
     rigCuts:         0,
     scatterScale:    0.16,
-    ao:              false,
+    skyTexels:       1024,
+    sunMarch:        4,
     ssr:             false,
     godRays:         false,
     traa:            false,
@@ -789,7 +804,8 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     terrainSegments: 84,
     rigCuts:         7,
     scatterScale:    0.32,
-    ao:              false,
+    skyTexels:       1536,
+    sunMarch:        6,
     ssr:             false,
     godRays:         false,
     traa:            false,
@@ -865,7 +881,8 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     terrainSegments: 208,
     rigCuts:         18,
     scatterScale:    1,
-    ao:              false,
+    skyTexels:       2048,
+    sunMarch:        0,
     ssr:             false,
     godRays:         true,
     traa:            false,
@@ -925,7 +942,8 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     terrainSegments: 288,
     rigCuts:         26,
     scatterScale:    1.5,
-    ao:              true,
+    skyTexels:       2048,
+    sunMarch:        0,
     ssr:             true,
     godRays:         true,
     traa:            true,
@@ -1024,9 +1042,9 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
   return {
     ...quality,
     shadows:      true,
+    sunMarch:     0,
     bloom:        true,
     grain:        true,
-    ao:           true,
     ssr:          true,
     godRays:      true,
     traa:         true,

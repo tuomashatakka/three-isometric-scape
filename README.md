@@ -226,6 +226,7 @@ src/
     ├── beacon.ts                   the coastal light: the lamp, and the beams it sweeps
     ├── clouds.ts                   sky deck, faded in as the view pulls back
     ├── cloud-shadow.ts             the shadow that deck throws: one cut, one drift, one projection, four programs
+    ├── sky-occlusion.ts            the sky map: every solid rasterised from above once, how much sky each point sees, and the sun's shadow marched across it
     ├── frame.ts                    how many repeats of a world-space tile the frame is wide, and how much of it a reader keeps
     ├── weather-bank.ts             the one world-sized field: what stops every frame-sized tile reading as wallpaper
     ├── config.ts                   the public tuning surface
@@ -495,9 +496,9 @@ one `createApp` render loop; the post module is the only frame renderer. teardow
 
 **the default pixel ratio is 1.0 on every tier that is actually detected.** this scape is drawn through a per-pixel post chain — bloom, god rays, the lens pass — so a retina desktop at 1.75 pays roughly three times the fill to sharpen an image whose whole look is soft focus and grain. `runtime.pixelRatio` in the overlay raises it when the point is a crisp still rather than a smooth scape.
 
-the `ultra` tier adds ambient occlusion, screen-space reflections on the lake, anamorphic streaks and a traa resolve; it is only selected for a wide viewport on a many-core machine with a mouse.
+the `ultra` tier adds screen-space reflections on the lake, anamorphic streaks and a traa resolve; it is only selected for a wide viewport on a many-core machine with a mouse.
 
-the touch tier is the one with a hard ceiling to respect. it drops the pmrem room environment — twelve megabytes of rgba16f for an ambient term the hemisphere light already approximates — paces the draw at 30 fps, and sizes the lake to the fog rather than to the map. phone tiers also skip hardware shadow maps, avoiding the hidden mesh-depth pass firefox rejects on the pixel 10, while keeping cloud shadow and direct-light shape. the loop parks whenever the document is hidden, because a backgrounded phone that keeps drawing is a phone heating up for nobody.
+the touch tier is the one with a hard ceiling to respect. it drops the pmrem room environment — twelve megabytes of rgba16f for an ambient term the hemisphere light already approximates — paces the draw at 30 fps, and sizes the lake to the fog rather than to the map. phone tiers also skip hardware shadow maps, avoiding the hidden mesh-depth pass firefox rejects on the pixel 10, and get their cast shadows from the sky map's march instead (see *the light the ground cannot see*). the loop parks whenever the document is hidden, because a backgrounded phone that keeps drawing is a phone heating up for nobody.
 
 if the gpu takes the context away anyway, that is treated as the device answering a question about its budget: `reduceAtmosphereQuality` steps one tier down, the canvas is replaced with a fresh one — a canvas only ever hands out a single context, restored or not — and the scape rebuilds itself. the `minimal` tier at the bottom is never detected into; it gives up the post chain entirely. once there is nothing left to give up the scape says so rather than looping.
 
@@ -629,6 +630,21 @@ a tier is a bundle of decisions taken from what the device says about itself, an
 **`moleArmour` is the newest, and the third variation on the same theme.** the breakwater's mound is the same on every tier, because it is merged into a draw that already exists and a wedge of stone is what the structure *is*. what the tier decides is the apron of larger blocks tipped against the seaward face: `minimal` gets **zero**, which is an arm nobody has re-armoured since it was built — a thing that exists on every coast of this kind — and mobile gets one block every 2.4 m against ultra's 1.15. it is *not* in `UNLOCKED_FLOOR`, and that is deliberate and shared with `weirStakes` and `fencePalings`: those three are spacings in metres where smaller means more, so the floor's `Math.max` would turn unlocking into stripping, and a zero there is a real structure rather than a missing one.
 
 **`haloArcs` is the newest count, and the one that went the other way.** the three paragraphs above are all a cheap tier being given less; this is a phone being given everything. the halo's second grant is the two mock suns and the shaft — two gaussians and a column on fragments one quad already covers — and withholding it from mobile would have been free, except that the capture harness pins `--tier mobile`. a grant the harness cannot reach is a sight no still in this repository can ever show, and the mock suns are the half of this system that *moves*. so `minimal` gets 0 — no quad, no program, no ring — the unlocked floor gets the ring on its own, and every detected tier gets both.
+
+## the light the ground cannot see
+
+the mobile frame had no shadows at all. phones skip the shadow map — the hidden depth pass is what firefox on the pixel 10 rejects — so every wall, boulder, fence and byre stood on evenly lit ground at every hour, pasted on rather than standing. the only ambient occlusion in the scape was a screen-space gtao pass on ultra, one tier in four, which cost a full-resolution pass and forgot every occluder off the edge of the screen.
+
+[`sky-occlusion.ts`](src/scene/sky-occlusion.ts) answers both from one bake, once, after the dressing stands:
+
+- **the heights.** the terrain is rasterised from above into a world-wide grid of *ground* heights (`quality.skyTexels` a side: 1024 minimal, 1536 mobile — a metre a texel — 2048 desktop and ultra). every solid on the two scape materials goes into a grid of *top* heights. a scattered family is rasterised once, not once per scatter tile. a triangle under half a texel adds only the ground it covers from above, at its mean height. without that, a 5 cm grass blade counts as a metre-wide column and a meadow shades itself like a forest. the first version did exactly that and darkened all the grassland evenly.
+- **the sky.** how much of the sky a point sees is how far the average top round it stands above it, at three reaches: 1.2 m (a stone's skirt, the line at a wall foot), 3.5 m (a byre's shade on its yard) and 9 m (a gully, the foot of a crag). three box blurs answer that for every texel whatever the reach. ground level and top surface are both stored, with both heights, in one rgba8 texture. a fragment blends between them by where it stands, so the soil under a spruce is dark, its lower boughs less so and its tip not at all.
+- **the sun.** on a tier without a shadow map, the same texture is asked whether anything stands between a point and the key light. `scapeSunLit` walks the top heights toward `Atmosphere.sunPosition` (`quality.sunMarch` taps: 4 minimal, 6 mobile, 0 where a shadow map exists, so the loop compiles out). the penumbra widens with reach. every wall, stone, crown and hill casts a soft shadow that moves with the sun, the moon at night included.
+- **where it lands.** after three sums the lights, at `aomap_fragment`. the hemisphere light and its reflection take the whole visibility, and the direct light takes a third of it times the march. both materials, one fetch plus the march, no draws.
+
+**one knob for occlusion.** `look.ao` was the strength of the ultra-only gtao. it is now the strength of the sky map on every tier, and 0 turns off both the shade and the march's shadow. it is in the optics panel as *occlusion*. `terrain.detailScale` and `terrain.detailMacro` are constants (`DETAIL_TILE`, `DETAIL_MACRO` in `props/material.ts`): neither was ever a decision about the place. the panel loses two soil sliders and gains one.
+
+**cost.** no draws, no triangles, the same 30 programs. the bake runs once, in the task after the first dressed frame. on this container it takes 0.34 s on mobile; desktop measured 1.0 s before the box blur was rewritten to walk rows, which cut the blur from 353 to 135 ms at 1536². the texture is an rgba8 upload of 9.4 mb on mobile and 16.8 mb on desktop. ultra runs one full-resolution pass fewer.
 
 ## the lens, in one pass
 

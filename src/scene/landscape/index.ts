@@ -4,6 +4,8 @@ import { defineModule } from 'threejs-scene'
 import { NOTHING_SKIPPED } from '../audit.ts'
 import type { ScapeSkips } from '../audit.ts'
 import { createCloudShadow } from '../cloud-shadow.ts'
+import { createSkyOcclusion, skyGrid } from '../sky-occlusion.ts'
+import type { SkyOcclusion } from '../sky-occlusion.ts'
 import type { LiveConfig, ScapeConfig, ScapeModule } from '../config.ts'
 import { BEACON_SINK, LANTERN_HEIGHT } from '../props/beacon.ts'
 import type { HearthStack } from '../hearth.ts'
@@ -83,7 +85,10 @@ export interface Landscape {
   module: ScapeModule
 
   /** What click-to-focus raycasts against: terrain and water, nothing else. */
-  surfaces:    Object3D[]
+  surfaces: Object3D[]
+
+  /** The baked sky map both materials read; aimed at the key light by whoever owns it. */
+  occlusion:   SkyOcclusion
   heightAt(x: number, z: number): number
   layout:      ScapeLayout
   archipelago: ArchipelagoSurvey
@@ -216,9 +221,8 @@ export function createLandscape (
 
   // Each island resolves in the original local survey, then their fields, paths
   // and ports are projected into one deterministic world.
-  const archipelago = surveyArchipelago(config())
-  const { field }   = archipelago
-  const { layout }  = archipelago.home.survey
+  const archipelago                           = surveyArchipelago(config())
+  const { field, home: { survey: { layout }}} = archipelago
 
   // The year lives here rather than beside the day, because everything that
   // reads it — the ground, the growing things and the lake — is in this module.
@@ -243,6 +247,16 @@ export function createLandscape (
   // catalogue above — so it is built beside the survey rather than in `build`,
   // and survives a rebuild the way the season and the weather do.
   const shadow = createCloudShadow(config, textures)
+
+  // The shade where things meet the ground, kept beside the cloud shadow for
+  // the same reason: both materials read it and neither owns it. Baked in
+  // `launch`, once everything that stands is standing — see `sky-occlusion.ts`.
+  const occlusion = createSkyOcclusion({
+    grid:  skyGrid(config().archipelago.worldSize, quality.skyTexels),
+    solid: material => material === materials?.ground || material === materials?.foliage,
+    march: quality.shadows ? 0 : quality.sunMarch,
+    floor: config().terrain.waterLevel,
+  })
 
   let root: Group | null               = null
 
@@ -545,6 +559,10 @@ export function createLandscape (
       if (!root || !materials)
         return
 
+      // First, because the frame it changes is the one already on screen.
+      // Only what stands still is baked: the fleets below move.
+      occlusion.bake(surfaces, dressing ? [ dressing.object ] : [])
+
       fleet = createBoatFleet({
         config,
         network:  archipelago.waterways,
@@ -582,6 +600,7 @@ export function createLandscape (
         textures,
         quality.reliefSteps,
         shadow,
+        occlusion,
       )
 
       const terrain = createArchipelagoTerrain(
@@ -680,6 +699,7 @@ export function createLandscape (
       // read the same four uniforms, so the shadow is placed once and then
       // three programs are handed the answer.
       shadow.update(wind)
+      occlusion.update(config().look.ao)
 
       advancePopulated(frame.delta, year.time, now, front.fall)
       dressing?.update(ctx.camera, ctx.renderer.domElement.clientHeight, config().lod)
@@ -714,6 +734,7 @@ export function createLandscape (
       }
 
       materials?.dispose()
+      occlusion.dispose()
       textures.dispose()
 
       surfaces.length = 0
@@ -741,6 +762,7 @@ export function createLandscape (
   return {
     module,
     surfaces,
+    occlusion,
     heightAt:  field.heightAt,
     layout,
     archipelago,

@@ -472,6 +472,9 @@ export function createIsometricScape (
     shadowDue: runtime.shadowDue,
   })
 
+  // The sky map's shadow walks toward whatever the key light is tonight.
+  landscape.occlusion.follow(atmosphere.sunPosition)
+
   const skies = hangSkies({
     camera,
     config:   readConfig,

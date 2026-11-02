@@ -82,7 +82,7 @@ describe('selectAtmosphereQuality', () => {
     }))
 
     expect(quality.tier).toBe('ultra')
-    expect(quality.ao).toBe(true)
+    expect(quality.skyTexels).toBe(2048)
     expect(quality.ssr).toBe(true)
     expect(quality.traa).toBe(true)
     expect(quality.terrainSegments).toBe(288)
@@ -176,7 +176,6 @@ describe('unlocking every effect', () => {
       expect(all.grain).toBe(true)
       expect(all.godRays).toBe(true)
       expect(all.environment).toBe(true)
-      expect(all.ao).toBe(true)
       expect(all.ssr).toBe(true)
       expect(all.traa).toBe(true)
       expect(all.anamorphic).toBe(true)
