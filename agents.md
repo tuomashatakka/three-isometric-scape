@@ -731,6 +731,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `carters.ts` | every cart being worked in one dynamic `InstancedMesh`, told the time rather than a delta |
 | `water.ts` | baked bathymetry, swell, foam, glitter, winter ice and shader boat wakes |
 | `swell.ts` | the shape of the sea — the deep-water dispersion, the fan of three trains the wind turns, green's law on the mask's own depth, the integrated clock `water.waveSpeed` drives, and the glsl both stages share |
+| `water-body.ts` | the water's own colour: the wet bed seen through beer–lambert absorption, against `deepWater`; water's 2 % reflectance |
 | `water-caustics.ts` | the net the sun draws on the bottom of the shallows, and how bright it is today |
 | `water-caps.ts` | the white the open sound puts on when it blows, the wind curve under it, and the lee that is spared |
 | `shelter.ts` | how much of the weather the land upwind has already taken: sixteen rays out of every texel of the depth grid, kept as a mean and a first harmonic so the shader can resolve any wind bearing with one dot product, plus the swell's own shorter shadow in the fourth channel |
@@ -747,6 +748,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `dressing-enclosures.ts` | the walled ground: the pasture wall, the churchyard wall and its graves, the plot fences |
 | `dressing.ts` | placement, hero merge, instanced scatter |
 | `littoral.test.ts` | the tidal band on the guard: the sampler lands on rock, the two zones do not overlap, and both reach every rock |
+| `water-body.test.ts` | the shallows lose red first, the body is monotonic in depth, water's f0 is 2 %, and three still spells the view direction the eye replaces |
 | `water-caustics.test.ts` | the net is a daylight effect: nothing under the horizon, nothing in the polar night, a ramp rather than a step, and rain dims it without putting it out |
 | `beck.test.ts` | the sheet never runs uphill, lies flat across the channel, opens out with it, stops at the tideline, and locks after the sea does |
 | `tarn.test.ts` | no rim point stands below the water, the carve only goes down and only inside its radius, water actually stands in every basin, the pool is off the farm, and it locks ahead of the sea |

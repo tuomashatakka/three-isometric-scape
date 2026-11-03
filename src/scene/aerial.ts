@@ -38,6 +38,22 @@ export interface HazeRange {
   far: number
 }
 
+/**
+ * How much more of each channel a metre of air takes, relative to the grey
+ * extinction `fogFar` names: red, green, blue.
+ *
+ * Air scatters short wavelengths out of a ray before long ones — Rayleigh goes
+ * as one over the fourth power, and the salt haze over a coast is grey Mie
+ * scattering that does not care — so a coast's air is part of each. A single
+ * grey factor turned every far island and the whole open sea toward one olive
+ * veil; with the blue taken out first, a dark sea and a far shore go to the
+ * blue-grey of distance before they go to the horizon's colour, and a sunlit
+ * strand keeps its warmth longer. Weighted so its luminance (rec. 709) is one,
+ * which is what keeps every frame exactly as bright as the grey haze left it —
+ * this moves the hue of distance and not the amount of it.
+ */
+export const AIR_SPECTRUM = [ 0.85, 1, 1.4 ] as const
+
 /** Extinction length at zero and at full density, metres. */
 const CLEAR_EXTINCTION = 1800
 const THICK_EXTINCTION = 240
@@ -65,6 +81,21 @@ export function aerialHaze (along: number, across: number, height: number, range
 
   return 1 - Math.exp(-tau)
 }
+
+/** The same haze, per channel — what the fragment mixes each of r, g and b by. */
+export function aerialHazeRgb (
+  along: number,
+  across: number,
+  height: number,
+  range: HazeRange,
+  hazeHeight: number,
+): [number, number, number] {
+  const tau = -Math.log(1 - aerialHaze(along, across, height, range, hazeHeight))
+
+  return AIR_SPECTRUM.map(k => 1 - Math.exp(-tau * k)) as [number, number, number]
+}
+
+const AIR_SPECTRUM_GLSL = `vec3( ${AIR_SPECTRUM.map(k => k.toFixed(3)).join(', ')} )`
 
 const PARS_VERTEX = /* glsl */`
 #ifdef USE_FOG
@@ -106,12 +137,12 @@ const PARS_FRAGMENT = /* glsl */`
 const FRAGMENT = (hazeHeight: number) => /* glsl */`
 #ifdef USE_FOG
   #ifdef FOG_EXP2
-    float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vAerial.x * vAerial.x );
+    float aerialTau = fogDensity * fogDensity * vAerial.x * vAerial.x;
   #else
     float aerialPath = max( 0.0, vAerial.x + ${AERIAL_SKEW.toFixed(3)} * vAerial.y - fogNear );
-    float fogFactor  = 1.0 - exp( - aerialPath / fogFar * exp( - max( vAerial.z, 0.0 ) / ${hazeHeight.toFixed(3)} ) );
+    float aerialTau  = aerialPath / fogFar * exp( - max( vAerial.z, 0.0 ) / ${hazeHeight.toFixed(3)} );
   #endif
-  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );
+  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, 1.0 - exp( - aerialTau * ${AIR_SPECTRUM_GLSL} ) );
 #endif
 `
 

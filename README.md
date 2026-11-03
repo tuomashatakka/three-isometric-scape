@@ -214,7 +214,7 @@ src/
 │   ├── scape-controls.ts           which config paths it exposes, in grouped sections
 │   └── settings-store.ts           local-storage snapshot of those same paths
 └── scene/
-    ├── aerial.ts                   aerial perspective: three's fog chunks, re-read as distance from the focus and thinning with height
+    ├── aerial.ts                   aerial perspective: three's fog chunks, re-read as distance from the focus, thinning with height, blue first
     ├── atmosphere.ts               gradient sky, the haze range, sun and fill rig
     ├── alpha-field.ts               the DataTexture the three sheet layers share
     ├── aurora.ts                   auroral veils over the dark half of the year
@@ -390,6 +390,7 @@ src/
     │   ├── water.ts                swell, surf, foam, glitter, winter ice
     │   ├── swell.ts              the shape of the sea: its dispersion, the fan the wind turns it by, and what a bank does to it
     │   ├── swash.ts              the band the sea wets: hunt's run-up on the ground's own gradient, and the survey of it
+    │   ├── water-body.ts          the water's own colour: the bed through beer–lambert absorption, against the deep
     │   ├── water-caustics.ts      the sun's net on the bottom of the shallows
     │   ├── water-gleam.ts         the light that never got in: the sky it mirrors, the moon's track, the fire in torn water
     │   ├── water-caps.ts          the white the open sound puts on when it blows, and the lee that is spared it
@@ -631,6 +632,20 @@ a tier is a bundle of decisions taken from what the device says about itself, an
 **`moleArmour` is the newest, and the third variation on the same theme.** the breakwater's mound is the same on every tier, because it is merged into a draw that already exists and a wedge of stone is what the structure *is*. what the tier decides is the apron of larger blocks tipped against the seaward face: `minimal` gets **zero**, which is an arm nobody has re-armoured since it was built — a thing that exists on every coast of this kind — and mobile gets one block every 2.4 m against ultra's 1.15. it is *not* in `UNLOCKED_FLOOR`, and that is deliberate and shared with `weirStakes` and `fencePalings`: those three are spacings in metres where smaller means more, so the floor's `Math.max` would turn unlocking into stripping, and a zero there is a real structure rather than a missing one.
 
 **`haloArcs` is the newest count, and the one that went the other way.** the three paragraphs above are all a cheap tier being given less; this is a phone being given everything. the halo's second grant is the two mock suns and the shaft — two gaussians and a column on fragments one quad already covers — and withholding it from mobile would have been free, except that the capture harness pins `--tier mobile`. a grant the harness cannot reach is a sight no still in this repository can ever show, and the mock suns are the half of this system that *moves*. so `minimal` gets 0 — no quad, no program, no ring — the unlocked floor gets the ring on its own, and every detected tier gets both.
+
+## blue in the air and the water
+
+the opening frame had no blue anywhere in it. the sea was a khaki plate (≈ rgb 86 89 80 with the fog off), and distance faded everything to one grey-green veil. finding out why took eight captures, each turning off one term (`--hide cloud-,mist-,…`, `atmosphere.sunStrength=0`, `palette.deepWater=0`, `water.roughness=1`), and the answer was not the water's colour at all. **with the albedo set to black, the sea still came out at 76 grey.** the sun's specular lobe made it, along with the sky and the cloud layers over it.
+
+- **the eye stands somewhere.** an orthographic camera looks along one direction from every pixel, so every fragment of a flat sea saw the sun's lobe at one angle, and a lobe wide enough to be stable laid one even sheen over the whole sound. `EYE_GLSL` in [`frame.ts`](src/scene/frame.ts) gives the water a perspective eye `EYE_DISTANCE` (1.2) frame widths back along the camera's axis, about a 45° lens. `eyeLights` swaps it into three's light loop for the lake alone. the specular lands in one patch, the mirror takes more sky toward the far edge, and the glitter path and the fresnel read the same eye. it throws if three ever respells the line it replaces, and `water-body.test.ts` checks that against the installed three.
+- **water reflects 2 %, not 4 %.** three's standard material assumes ior 1.5. water is 1.333, so the direct sun's specular is scaled by `WATER_F0 / THREE_F0`.
+- **the cloud takes the sun's reflection too.** the cloud shadow was a multiply on the albedo, which on water is the small half. the direct specular is now shaded by the same `cloudShade`.
+- **the water has a body.** [`landscape/water-body.ts`](src/scene/landscape/water-body.ts) replaces the two grey stops with beer–lambert: the beach's own sand, wetted (`BED_WET`), seen down and back up through `WATER_ABSORPTION` per metre (red 1.2, green 0.42, blue 0.55: coastal water, peat-stained, so the shelves go green-turquoise and not caribbean cyan), against `deepWater`, which is now the colour a deep body scatters back. `palette.shallowWater` is gone.
+- **distance takes the blue first.** [`aerial.ts`](src/scene/aerial.ts) mixes each channel by its own optical depth, `AIR_SPECTRUM` (0.85, 1, 1.4), weighted to unit luminance so the haze is exactly as strong as before and only its hue moved. the sky and haze palette (`sky`, `fog`, `skyTop`) moved from grey-green to the blue-grey of a northern overcast.
+
+the full and lite lake fragments were two near-copies kept in step by hand. they are one generator now, `waterColorFragment(full)`, and differ only in the trim and the glitter: the three reads the phone cannot afford.
+
+**cost.** no draws, triangles, programs or textures. it is a few multiplies per water and fogged fragment. census identical to main: mobile default 139 / 0.95M, near 87 / 0.89M, far 115 / 1.38M, night 146, winter 145; desktop near 222 / 4.79M.
 
 ## the light the ground cannot see
 
@@ -2180,7 +2195,7 @@ the archipelago is nineteen per cent land, so the largest thing in any night fra
 
 **the fire is the other half, and it is the half you can see from across the room.** broken water on a northern coast burns: the plankton in it light when they are torn, so the surf, and a boat's own wake, carry a glow that nothing on the flat between them has. it is additive into `outgoingLight` and never into the albedo, for the same reason the reflection is — it is light *leaving* the water rather than a colour the water has, and folded into `diffuseColor` it would be shaded a second time by a key light that is, on the nights this fires at all, almost nothing.
 
-**it reuses `breakers` and `boatWake` rather than deriving its own mask, and that is a constraint before it is a tidiness.** the chunk is injected into the lite program as well as the full one, and `WATER_COLOR_FRAGMENT_LITE` declares a strictly smaller set of locals — it has no `foam`, because the cheap tier draws no separate shore trim. the first cut reached for `foam`, and the failure is worth writing down because it has no error in it anywhere: the shader does not compile, the scene never finishes booting, and `scape:shot` reports `BOOTING · draws 0 · err 0`. a glow beside the breakers rather than in them is the other failure this effect has, and reusing the surf's own mask is what makes it impossible.
+**it reuses `breakers` and `boatWake` rather than deriving its own mask, and that is a constraint before it is a tidiness.** the chunk is injected into the lite program as well as the full one, and `waterColorFragment(false)` declares a strictly smaller set of locals — it has no `foam`, because the cheap tier draws no separate shore trim. the first cut reached for `foam`, and the failure is worth writing down because it has no error in it anywhere: the shader does not compile, the scene never finishes booting, and `scape:shot` reports `BOOTING · draws 0 · err 0`. a glow beside the breakers rather than in them is the other failure this effect has, and reusing the surf's own mask is what makes it impossible.
 
 **the two are coupled on purpose, and the coupling is the design rather than a tidiness.** a moon bright enough to lay a track is a moon bright enough to wash a faint glow out of the water under it, so `phosphorAmount` quenches the fire on the same `DaylightState.moon` the track is bought with — fully out by about a tenth of a noon sun, which the tour's own night clock is comfortably past. so the fortnight either side of a new moon is the fire's, the fortnight around a full moon is the track's, and **no fragment ever pays for both at once**: each block early-outs on its own strength, and the strengths are never both up. that is also why neither is gated on `AtmosphereQuality` — the worst case is bounded by the coupling, and the mobile tier gets the whole of it.
 

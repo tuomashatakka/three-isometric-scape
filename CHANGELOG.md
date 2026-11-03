@@ -2,6 +2,15 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## blue in the air and the water
+
+the opening archipelago frame had no blue in it. the sea was a khaki plate and distance was one olive veil. the culprit was the sun's specular, not the water's colour: under an orthographic camera every fragment of the sea sees the lobe at the same angle, so it laid one grey sheen over the whole sound (black albedo still rendered at 76 grey). the lake now has a perspective eye (`EYE_GLSL` in `frame.ts`, 1.2 frame widths back), so the glint lands in one patch and the mirror takes more sky toward the far edge. it reflects at water's own 2 % rather than glass's 4 %, and its sun specular sits under the cloud shadow like its albedo does. the water body is beer–lambert ([`water-body.ts`](src/scene/landscape/water-body.ts)): wet sand seen through peat-stained coastal water, going to a deep blue-green. aerial perspective takes the blue first (`AIR_SPECTRUM`, at unit luminance, so the amount of haze is unchanged), and the sky and haze palette moved from grey-green to blue-grey.
+
+- **one knob fewer:** `palette.shallowWater` is retired. the shallows come from the bed and the absorption.
+- **refactor:** the full and lite lake colour fragments, two hand-synced near-copies, are one generator (`waterColorFragment`). water.ts is 50 lines shorter.
+- **cost:** no new draws, triangles, programs or textures. census identical to main: mobile default 139 / 0.95M, near 87 / 0.89M, far 115 / 1.38M, night 146, winter 145; desktop near 222 / 4.79M.
+- **moved:** every frame with sea or distance in it (default, far, noon, night). the near yard is unchanged.
+
 ## stone, worn rather than cut
 
 every stone in the scape was a cut gem: a deformed icosahedron with one normal and one colour per face. that covered erratics, field stones, cobbles, cairns, every dyke course, the weir, the mole, the howe and the shieling walls, and it made the near frame read as a low-poly diorama. [`props/soften.ts`](src/scene/props/soften.ts) splits each point's corners into smoothing groups by a crease angle. each group gets one area-weighted normal and one averaged facet colour, so a rolled stone shades round and its colour grades across it, while a joint sharper than 50° keeps its edge. the talus block keeps its fresh-split facets at 24°. `stonePart(rock, place)` in `stone.ts` is now the one way a stone is made, and all 19 rock call sites across 10 prop modules go through it. on desktop and ultra, every upright face also gets relief: one fetch of the soil's normal map, laid along the face at four times the soil's tile. it is let go with the soil grain, so wide frames pay nothing.

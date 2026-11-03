@@ -22,11 +22,10 @@
  * about what a slider does.
  */
 export interface ScapePalette {
-  sky:          number
-  fog:          number
-  deepWater:    number
-  shallowWater: number
-  foam:         number
+  sky:       number
+  fog:       number
+  deepWater: number
+  foam:      number
 
   /**
    * The light in torn water, and the one entry here that is not a surface.
@@ -267,51 +266,50 @@ type SCAPE_PALETTEType = { palette: ScapePalette }
 
 export const SCAPE_PALETTE: SCAPE_PALETTEType = {
   palette: {
-    sky:          0x9daaa2,
-    fog:          0x8d9a93,
-    deepWater:    0x263a3d,
-    shallowWater: 0x44605a,
-    foam:         0xd9e2da,
-    phosphor:     0x3fdba6,
-    silt:         0x565b4a,
-    shore:        0xa9977a,
-    dune:         0xd8d0b2,
-    meadow:       0x5d6b3c,
-    dryGrass:     0x8f8a51,
-    heath:        0x6b6a52,
-    farForest:    0x2e3a30,
-    scree:        0x7d7a72,
-    lichen:       0x9aa088,
-    wrack:        0x3f3a20,
-    seaRock:      0x4b5150,
-    guano:        0xd9d2bc,
-    moss:         0x3d5a30,
-    pasture:      0x76803f,
-    streambed:    0x585f57,
+    sky:         0x98a9b4,
+    fog:         0x8c9ba5,
+    deepWater:   0x183a49,
+    foam:        0xd9e2da,
+    phosphor:    0x3fdba6,
+    silt:        0x565b4a,
+    shore:       0xa9977a,
+    dune:        0xd8d0b2,
+    meadow:      0x5d6b3c,
+    dryGrass:    0x8f8a51,
+    heath:       0x6b6a52,
+    farForest:   0x2e3a30,
+    scree:       0x7d7a72,
+    lichen:      0x9aa088,
+    wrack:       0x3f3a20,
+    seaRock:     0x4b5150,
+    guano:       0xd9d2bc,
+    moss:        0x3d5a30,
+    pasture:     0x76803f,
+    streambed:   0x585f57,
     // Measured against `silt` rather than chosen: the seabed is 0x565b4a, and
     // tidal mud is the same deposit with the water off it — two and a half
     // stops lighter and turned toward brown, which is what a drying flat does
     // between one tide and the next. The turf is a fifth of the way from
     // `meadow` toward `scree` and desaturated, which is a sward with salt in it.
-    slob:         0x7a6f55,
-    saltings:     0x66714a,
-    peat:         0x342a20,
-    trodden:      0x6c6049,
-    track:        0x7d6a4f,
-    tilled:       0x6d5a44,
-    crop:         0x7c8a3d,
-    yard:         0x8a8560,
-    snow:         0xe6ecf0,
-    autumn:       0xb4762f,
-    ice:          0xa8bcc0,
-    glacier:      0xd8e6ee,
-    crevasse:     0x3f6f96,
-    rain:         0xc6d2d8,
-    star:         0xdce8ff,
-    moon:         0xe4e9e0,
-    smoke:        0xb7b1a6,
-    gull:         0xf2f4f1,
-    aurora:       0x6df2a8,
-    auroraCrown:  0x7a5bd6,
+    slob:        0x7a6f55,
+    saltings:    0x66714a,
+    peat:        0x342a20,
+    trodden:     0x6c6049,
+    track:       0x7d6a4f,
+    tilled:      0x6d5a44,
+    crop:        0x7c8a3d,
+    yard:        0x8a8560,
+    snow:        0xe6ecf0,
+    autumn:      0xb4762f,
+    ice:         0xa8bcc0,
+    glacier:     0xd8e6ee,
+    crevasse:    0x3f6f96,
+    rain:        0xc6d2d8,
+    star:        0xdce8ff,
+    moon:        0xe4e9e0,
+    smoke:       0xb7b1a6,
+    gull:        0xf2f4f1,
+    aurora:      0x6df2a8,
+    auroraCrown: 0x7a5bd6,
   },
 }

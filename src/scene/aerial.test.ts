@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { aerialHaze, hazeRange } from './aerial.ts'
+import { AIR_SPECTRUM, aerialHaze, aerialHazeRgb, hazeRange } from './aerial.ts'
 
 
 describe('aerial perspective', () => {
@@ -26,5 +26,19 @@ describe('aerial perspective', () => {
   test('thickens with density and clamps the breath', () => {
     expect(hazeRange(0.8).far).toBeLessThan(range.far)
     expect(hazeRange(1, 2)).toEqual(hazeRange(0.94))
+  })
+
+  test('distance takes the blue first and keeps the brightness the grey haze had', () => {
+    const [ r, g, b ] = aerialHazeRgb(500, 0, 0, range, 42)
+    const grey        = aerialHaze(500, 0, 0, range, 42)
+
+    expect(b).toBeGreaterThan(g)
+    expect(g).toBeGreaterThan(r)
+    expect(Math.abs(0.2126 * r + 0.7152 * g + 0.0722 * b - grey)).toBeLessThan(0.01)
+    expect(Math.abs(0.2126 * AIR_SPECTRUM[0] + 0.7152 * AIR_SPECTRUM[1] + 0.0722 * AIR_SPECTRUM[2] - 1)).toBeLessThan(0.01)
+  })
+
+  test('the focus stays clear in every channel', () => {
+    expect(aerialHazeRgb(0, 0, 0, range, 42)).toEqual([ 0, 0, 0 ])
   })
 })
