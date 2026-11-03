@@ -1,6 +1,7 @@
 import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
-import { box, createRockGeometry, cyl, deg, mergeParts, part } from 'threejs-scene/modules/assets'
+import { createRockGeometry, box, cyl, deg, mergeParts, part } from 'threejs-scene/modules/assets'
+import { stonePart } from './stone.ts'
 import type { NordicPalette } from './palette.ts'
 import { claddingPlanks, gableEnd, gabledRoof } from './timber.ts'
 
@@ -245,7 +246,7 @@ function layTailRace (parts: BufferGeometry[], rng: SeededRng, palette: NordicPa
     const across = -1.15 + stone % 5 / 4 * 2.3
     const along  = -WHEEL_REACH - 0.46 - Math.floor(stone / 5) * 0.55
 
-    parts.push(part(
+    parts.push(stonePart(
       createRockGeometry({ radius: 0.3, detail: 0, rng, roughness: 0.55, scale: [ 1.2, 0.45, 1.1 ]}),
       {
         at:     [ across, -0.12, along ],

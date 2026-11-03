@@ -1,6 +1,7 @@
 import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
 import { createRockGeometry, cyl, deg, mergeParts, part } from 'threejs-scene/modules/assets'
+import { stonePart } from './stone.ts'
 import type { NordicPalette } from './palette.ts'
 import { hypot } from '../hypot.ts'
 
@@ -127,7 +128,7 @@ export function buildHowe (rng: SeededRng, palette: NordicPalette): BufferGeomet
   for (let stone = 0; stone < KERB_STONES; stone += 1) {
     const around = stone / KERB_STONES * Math.PI * 2
 
-    parts.push(part(
+    parts.push(stonePart(
       createRockGeometry({ radius: 0.44, detail: 0, rng, roughness: 0.46, scale: [ 0.6, 1.3, 1.1 ]}),
       {
         at:     [ Math.cos(around) * FOOT, KERB_SHOW - 0.44 * 1.3, Math.sin(around) * FOOT ],
@@ -161,7 +162,7 @@ export function buildHowe (rng: SeededRng, palette: NordicPalette): BufferGeomet
     const out   = DIG_RADIUS + 0.5 + stone / SPOIL * (FOOT - DIG_RADIUS - 0.9)
     const drift = rng.range(-0.8, 0.8)
 
-    parts.push(part(
+    parts.push(stonePart(
       createRockGeometry({ radius: 0.3, detail: 0, rng, roughness: 0.58, scale: [ 1.1, 0.7, 1 ]}),
       {
         at:     [ drift, flankAt(hypot(drift, out)) + 0.1, out ],

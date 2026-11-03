@@ -1,6 +1,7 @@
 import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
-import { box, createRockGeometry, cyl, deg, mergeParts, part } from 'threejs-scene/modules/assets'
+import { createRockGeometry, box, cyl, deg, mergeParts, part } from 'threejs-scene/modules/assets'
+import { stonePart } from './stone.ts'
 import type { NordicPalette } from './palette.ts'
 import { gableEnd, gabledRoof } from './timber.ts'
 
@@ -99,7 +100,7 @@ export function buildShieling (rng: SeededRng, palette: NordicPalette): BufferGe
       const t = (along + 0.5 + shift) / RUN
 
       for (const side of [ -1, 1 ])
-        parts.push(part(
+        parts.push(stonePart(
           createRockGeometry({ radius: 0.24, detail: 0, rng, roughness: 0.5, scale: [ 1.5, 0.8, 0.9 ]}),
           {
             at:     [ -HALF_LENGTH + t * HALF_LENGTH * 2, y, side * HALF_DEPTH ],
@@ -117,7 +118,7 @@ export function buildShieling (rng: SeededRng, palette: NordicPalette): BufferGe
       const t = (along + 0.5 + shift) / 4
 
       for (const side of [ -1, 1 ])
-        parts.push(part(
+        parts.push(stonePart(
           createRockGeometry({ radius: 0.24, detail: 0, rng, roughness: 0.5, scale: [ 0.9, 0.8, 1.4 ]}),
           {
             at:     [ side * HALF_LENGTH, y, -HALF_DEPTH + t * HALF_DEPTH * 2 ],
@@ -175,7 +176,7 @@ export function buildShieling (rng: SeededRng, palette: NordicPalette): BufferGe
 
   for (const [ x, z, around ] of laid)
     for (let course = 0; course < FOLD_COURSES; course += 1)
-      parts.push(part(
+      parts.push(stonePart(
         createRockGeometry({ radius: 0.26, detail: 0, rng, roughness: 0.62, scale: [ 1.2, 0.7, 1.1 ]}),
         {
           at:     [ x, 0.1 + course * FOLD_COURSE, z ],

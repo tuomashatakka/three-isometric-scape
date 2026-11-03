@@ -675,7 +675,8 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `mill.ts` | the post mill and its trestle, plus the sail wheel — **the one geometry not based at `y = 0`** |
 | `beacon.ts` | the lighthouse tower, and the optic — a halo plus two crossed, vertex-graded fans per panel |
 | `vegetation.ts` | spruce, pine, birch, grass, reeds, crops — and all four runtime vertex deformers: `applyTaper`/`applyBend`/`applyTwist` on a blade, `displaceByNoise` on every canopy |
-| `stone.ts` | erratics, field stones, cobbles, cairns |
+| `stone.ts` | erratics, field stones, cobbles, cairns; `stonePart`, the one way any prop makes a stone |
+| `soften.ts` | smoothing groups over a `part()` soup: worn stones shade round, joints past the crease keep their edge |
 | `objects.ts` | hollow clinker rowboat, bales, firewood, barrel, mailbox, driftwood |
 | `fence.ts` / `wall.ts` | ground-following runs — take a polyline, not an rng |
 | `ploppable.ts` | 2d placement with a ground-following foundation |

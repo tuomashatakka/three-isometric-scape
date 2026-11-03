@@ -1,7 +1,34 @@
 import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
+import type { PartOptions } from 'threejs-scene/modules/assets'
 import { createRockGeometry, hedron, mergeParts, part } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
+import { soften } from './soften.ts'
+
+
+/**
+ * The turn between two faces past which a stone keeps its edge, in radians.
+ *
+ * 50° sits above the 42° a regular icosahedron turns at each edge, so a
+ * stone the generator barely roughened shades as a pebble. Above it are the
+ * roughest dents and ridges, which are the joints a real stone keeps.
+ */
+export const STONE_CREASE = 50 * Math.PI / 180
+
+/** A fresh block's crease: under the icosahedron's own turn, so its facets stay cut. */
+const TALUS_CREASE = 24 * Math.PI / 180
+
+/**
+ * A worn stone: a rock, placed and coloured by `part()`, then shaded round by
+ * `soften`. The one way a stone gets into the scape, so a dyke course, a
+ * cairn and an erratic weather alike. It takes the rock already built, so the
+ * rock draws from the rng before its placement does, exactly as
+ * `stonePart(createRockGeometry(…), …)` did, and every placement after it is
+ * unchanged.
+ */
+export function stonePart (rock: BufferGeometry, place: PartOptions, crease = STONE_CREASE): BufferGeometry {
+  return soften(part(rock, place), crease)
+}
 
 
 /**
@@ -21,7 +48,7 @@ function graniteBody (
 ): BufferGeometry {
   const parts: BufferGeometry[] = []
 
-  parts.push(part(
+  parts.push(stonePart(
     createRockGeometry({ radius, detail: 1, rng, roughness, scale: [ 1.15, 0.74, 0.94 ]}),
     { at: [ 0, radius * 0.6, 0 ], color: palette.granite, jitter: 0.13, rng },
   ))
@@ -65,7 +92,7 @@ export function buildTalusBlock (rng: SeededRng, palette: NordicPalette): Buffer
 
   return mergeParts(
     [
-      part(
+      stonePart(
         createRockGeometry({
           radius,
           detail:    0,
@@ -85,6 +112,9 @@ export function buildTalusBlock (rng: SeededRng, palette: NordicPalette): Buffer
           jitter: 0.16,
           rng,
         },
+        // The one stone that keeps its edges: it split along a joint and has
+        // not been rolled since, so only its gentlest turns are shaded round.
+        TALUS_CREASE,
       ),
     ],
     // Grimed hard and from the ground up: the bottom of a block on a shore
@@ -103,7 +133,7 @@ export function buildCobble (rng: SeededRng, palette: NordicPalette): BufferGeom
   const parts: BufferGeometry[] = []
 
   for (let stone = 0; stone < 3; stone += 1)
-    parts.push(part(
+    parts.push(stonePart(
       createRockGeometry({ radius: rng.range(0.14, 0.26), detail: 0, rng, roughness: 0.34 }),
       {
         at:     [ rng.range(-0.28, 0.28), 0.09, rng.range(-0.28, 0.28) ],
@@ -127,7 +157,7 @@ export function buildCairn (rng: SeededRng, palette: NordicPalette): BufferGeome
 
     for (let stone = 0; stone < count; stone += 1) {
       const angle = rng.range(0, Math.PI * 2) + stone * (Math.PI * 2 / count)
-      parts.push(part(
+      parts.push(stonePart(
         createRockGeometry({ radius: 0.3 - layer * 0.03, detail: 0, rng, roughness: 0.3 }),
         {
           at:     [ Math.cos(angle) * radius, 0.2 + layer * 0.29, Math.sin(angle) * radius ],

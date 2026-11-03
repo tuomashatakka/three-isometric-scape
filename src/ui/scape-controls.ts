@@ -832,11 +832,10 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         // through are the same field, so one number says how much grit there is
         // and there is no second one able to describe deep grit with no
         // contrast on it. 0 is flat, unlit paper — and it is the switch.
-        range('terrain.detailGrain', 'soil grain & relief', 0, 1, 0.01),
-        // The other half of the same injection: everything upright, which the
-        // soil terms cannot reach because they weigh themselves by how
-        // horizontal a face is.
-        range('terrain.propGrain', 'timber & stone grain', 0, 1, 0.01),
+        // The walls and stones standing on that ground take the same number,
+        // because grit on the soil and grain on what stands in it are one
+        // decision about how weathered the place is.
+        range('terrain.detailGrain', 'surface grain & relief', 0, 1, 0.01),
         // Scaled by the wind's live strength rather than standing apart from it,
         // so a still day already stops the wheel and this is only the gearing.
         range('mill.spin', 'mill sails', 0, 4, 0.01),

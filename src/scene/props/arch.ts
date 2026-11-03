@@ -1,6 +1,7 @@
 import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
-import { createRockGeometry, mergeParts, part } from 'threejs-scene/modules/assets'
+import { createRockGeometry, mergeParts } from 'threejs-scene/modules/assets'
+import { stonePart } from './stone.ts'
 import type { NordicPalette } from './palette.ts'
 import { hypot } from '../hypot.ts'
 
@@ -142,7 +143,7 @@ function leg (
   ]
 
   for (const course of courses)
-    parts.push(part(createRockGeometry({ radius: 1, detail: 1, rng, roughness: ROUGH, scale: UNIT }), {
+    parts.push(stonePart(createRockGeometry({ radius: 1, detail: 1, rng, roughness: ROUGH, scale: UNIT }), {
       at:     [ footing.x, course.base + course.height * 0.5, footing.z ],
       scale:  [ girth * course.wide, course.height * 0.5, girth * course.wide ],
       rotate: [ 0, across, 0 ],
@@ -177,7 +178,7 @@ function span (parts: BufferGeometry[], options: ArchSpanOptions): void {
     if (depth <= 0)
       continue
 
-    parts.push(part(createRockGeometry({ radius: 1, detail: 1, rng, roughness: ROUGH, scale: UNIT }), {
+    parts.push(stonePart(createRockGeometry({ radius: 1, detail: 1, rng, roughness: ROUGH, scale: UNIT }), {
       at:     [ inner.x + stepX * (block + 0.5), under + depth * 0.5, inner.z + stepZ * (block + 0.5) ],
       scale:  [ length * KEY * 0.5, depth * 0.5, girth ],
       rotate: [ 0, -across, 0 ],
@@ -211,7 +212,7 @@ export function buildArchSpan (options: ArchSpanOptions): BufferGeometry {
   // does not — it is the one band in the geometry that is not granite, and it
   // is what tells the far zoom which leg is in the water.
   if (options.water > outer.bed)
-    parts.push(part(createRockGeometry({ radius: 1, detail: 0, rng, roughness: ROUGH, scale: UNIT }), {
+    parts.push(stonePart(createRockGeometry({ radius: 1, detail: 0, rng, roughness: ROUGH, scale: UNIT }), {
       at:     [ outer.x, options.water, outer.z ],
       scale:  [ options.girth * 1.04, WRACK * 0.5, options.girth * 1.04 ],
       rotate: [ 0, across, 0 ],
