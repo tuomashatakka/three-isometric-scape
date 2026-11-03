@@ -1,6 +1,7 @@
 import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
-import { box, createRockGeometry, mergeParts, part } from 'threejs-scene/modules/assets'
+import { createRockGeometry, box, mergeParts, part } from 'threejs-scene/modules/assets'
+import { stonePart } from './stone.ts'
 import { resamplePath } from './fence.ts'
 import type { FencePoint } from './fence.ts'
 import type { NordicPalette } from './palette.ts'
@@ -164,7 +165,7 @@ function mound (parts: BufferGeometry[], options: MoleRunOptions, stations: read
       const spread = spreadAt(options, height, course.rise)
 
       for (const offset of course.across)
-        parts.push(part(
+        parts.push(stonePart(
           createRockGeometry({ radius, detail: 0, rng, roughness: 0.4, scale: SHAPE }),
           {
             at:     [ station.x + cos * offset * spread, top, station.z + sin * offset * spread ],
@@ -219,7 +220,7 @@ function armourFlank (parts: BufferGeometry[], options: MoleRunOptions, course: 
     const across = along + Math.PI / 2
     const out    = spreadAt(options, height, 0) + radius * ARMOUR_STANDOFF
 
-    parts.push(part(
+    parts.push(stonePart(
       createRockGeometry({ radius, detail: 0, rng, roughness: 0.46, scale: SHAPE }),
       {
         at: [

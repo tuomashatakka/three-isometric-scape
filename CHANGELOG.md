@@ -2,6 +2,14 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## stone, worn rather than cut
+
+every stone in the scape was a cut gem: a deformed icosahedron with one normal and one colour per face. that covered erratics, field stones, cobbles, cairns, every dyke course, the weir, the mole, the howe and the shieling walls, and it made the near frame read as a low-poly diorama. [`props/soften.ts`](src/scene/props/soften.ts) splits each point's corners into smoothing groups by a crease angle. each group gets one area-weighted normal and one averaged facet colour, so a rolled stone shades round and its colour grades across it, while a joint sharper than 50° keeps its edge. the talus block keeps its fresh-split facets at 24°. `stonePart(rock, place)` in `stone.ts` is now the one way a stone is made, and all 19 rock call sites across 10 prop modules go through it. on desktop and ultra, every upright face also gets relief: one fetch of the soil's normal map, laid along the face at four times the soil's tile. it is let go with the soil grain, so wide frames pay nothing.
+
+- **one knob fewer:** `terrain.propGrain` is retired. `terrain.detailGrain` drives the soil and the upright grain at the authored ratio (`PROP_GRAIN_GAIN` 2.4), and the panel's two grain sliders become one, *surface grain & relief*.
+- **cost:** no new draws, triangles, programs or textures, and the census is identical to main on every pose. mobile: default 139 / 0.95M, near 87 / 0.89M, far 115 / 1.38M, night 146, winter 145. desktop: default 162 / 2.28M, near 222 / 4.79M. the softening is build-time, O(corners) per stone type. the relief is one extra fetch per upright fragment on the six-tap path only. mobile and minimal keep their one fetch and get the round stones without the pitting.
+- **caught on the way:** a first `stonePart` that took the rock's options built the rock after its placement had drawn from the rng. that moved every cobble, and the `far` census showed a cobble family that should have been culled. `soften.test.ts` now pins the rng order.
+
 ## the light the ground cannot see
 
 the mobile frame had no shadows: phones skip the shadow map, so every wall, boulder and byre stood on evenly lit ground at every hour. the only ambient occlusion was a gtao pass on ultra. [`sky-occlusion.ts`](src/scene/sky-occlusion.ts) rasterises every solid from above once, after the dressing stands. it bakes how much sky each point sees, at ground level and at the top surface, into one rgba8 world texture. both scape materials read it where three applies an ao map. the result is soft contact shade at every wall foot, dark soil under canopies, self-shaded crowns and darker gullies, on every tier. on mobile and minimal the same map is marched toward the sun, so every prop and slope casts a soft shadow that moves with the hour, for the first time.

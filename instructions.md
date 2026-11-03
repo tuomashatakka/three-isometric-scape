@@ -19,11 +19,12 @@ written to be read cold. a run starts with no memory of the previous one. everyt
 the world already has more sites than most frames show — six islands, a hundred surveyed landforms and buildings. what it lacks is the *rendering*: light, material, atmosphere and scale that read as a photograph of a nordic coast rather than as a diorama of one. so a run's headline is about how the **whole frame** looks or what it costs, not about one more prop:
 
 - **light** — shadow quality and softness, sky and bounce light, ambient occlusion where things meet the ground, a sun that warms and a cloud that cools, exposure that adapts between noon and a midsummer night
-- **material** — smooth terrain with real normal detail, wet versus dry, specular water with the sky in it, roughness that varies, snow that sits on top of things and not inside them, foliage that transmits light
+- **material** — smooth terrain with real normal detail, wet versus dry, specular water with the sky in it, roughness that varies, snow that sits on top of things and not inside them, foliage that transmits light, stone and timber with relief rather than flat facets
 - **atmosphere** — aerial perspective with distance, haze that is denser low, fog that lies in the valleys, rain that darkens and streaks
 - **scale and detail** — what close zoom shows (richer geometry, texture detail), what wide zoom shows (silhouettes, coastline, the sea), and an lod that makes the first cost nothing at the second
 - **cost** — fewer draws, fewer triangles, cheaper passes, a faster first load (`scape:bench`); every tier, mobile first
 - **the optical pipeline** — the post chain is a camera, not a stack of filters: one pass per physical stage (scene light, then the glass and the film in [`lens.ts`](src/scene/lens.ts)), merged rather than appended. a new screen-space effect folds into an existing pass when it reads the same pixels
+- **the shared kit over the single prop** — a look that belongs to a *kind* of thing (every stone, every board, every roof) lands once, in the helper every prop of that kind is built through (`stonePart`, `soften`, the two scape materials), so one change reaches every island
 - **fewer, broader knobs** — one parameter per physical decision (`look.lens` is defocus, fringe and vignette at once). a run that adds a knob should look for two it can merge or retire; the panel only shrinks
 
 a new prop or site is still allowed, when it is the cheapest way to make a frame more believable. it is no longer the default.

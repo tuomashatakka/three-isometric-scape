@@ -1,6 +1,7 @@
 import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
 import { createRockGeometry, cyl, mergeParts, part } from 'threejs-scene/modules/assets'
+import { stonePart } from './stone.ts'
 import { resamplePath } from './fence.ts'
 import type { FencePoint } from './fence.ts'
 import type { NordicPalette } from './palette.ts'
@@ -137,7 +138,7 @@ function band (
       const top = bed + height * course.rise - radius * SHAPE[1]
 
       for (const offset of course.across)
-        parts.push(part(
+        parts.push(stonePart(
           createRockGeometry({ radius, detail: 0, rng, roughness: 0.34, scale: SHAPE }),
           {
             at:     [ station.x + cos * offset * width, top, station.z + sin * offset * width ],

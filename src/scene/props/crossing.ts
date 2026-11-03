@@ -1,6 +1,7 @@
 import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
-import { box, createRockGeometry, mergeParts, part, spread } from 'threejs-scene/modules/assets'
+import { createRockGeometry, box, mergeParts, part, spread } from 'threejs-scene/modules/assets'
+import { stonePart } from './stone.ts'
 import type { NordicPalette } from './palette.ts'
 import { hypot } from '../hypot.ts'
 
@@ -231,7 +232,7 @@ function standAbutments (parts: BufferGeometry[], options: FootbridgeOptions, al
         const lean = hand * (width / 2 - 0.16)
         const back = into * (0.12 + course * 0.05)
 
-        parts.push(part(
+        parts.push(stonePart(
           createRockGeometry({ radius: 0.3, detail: 0, rng, roughness: 0.45, scale: [ 1.2, 0.7, 1.1 ]}),
           {
             at: [

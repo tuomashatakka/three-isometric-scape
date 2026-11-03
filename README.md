@@ -443,7 +443,8 @@ src/
         ├── croft.ts                the croft — boarded walls, turf roof, stone flue, oars at the gable
         ├── wreck.ts                the wreck — keel, broken frames, the strakes the bedded side kept
         ├── objects.ts              rowboat, bales, firewood, peat rick, barrel, mailbox, driftwood
-        ├── stone.ts                erratics, field stones, cobbles, cairns
+        ├── stone.ts                erratics, field stones, cobbles, cairns; stonePart, the one way a stone is made
+        ├── soften.ts               smoothing groups: worn stones shade round, joints keep their edge
         ├── littoral.ts             bladderwrack and rock lichen — the tidal band
         ├── kelp.ts                 the oarweed plant — one metre of stipe and crown, scaled to its water
         ├── creel.ts                the pot marker — the float, the staff, the flag — and the stack ashore
@@ -508,7 +509,7 @@ if the gpu takes the context away anyway, that is treated as the device answerin
 
 ## props
 
-every prop is a pure geometry factory — `(rng, palette) => BufferGeometry` — built from many `part()` primitives and collapsed with `mergeParts({ grime })` into one non-indexed, vertex-coloured geometry with its base at `y = 0`. `applyGrime` darkens each prop toward its base, which is free baked ambient occlusion and most of what makes a prop feel placed rather than floating.
+every prop is a pure geometry factory — `(rng, palette) => BufferGeometry` — built from many `part()` primitives and collapsed with `mergeParts({ grime })` into one non-indexed, vertex-coloured geometry with its base at `y = 0`. `applyGrime` darkens each prop toward its base, which is free baked ambient occlusion and most of what makes a prop feel placed rather than floating. a stone in any prop is a `stonePart(createRockGeometry(…), place)`, never a bare `part`, so every stone in the place is worn the same way (see *stone, worn rather than cut*).
 
 that shape is what keeps the budget honest — detail costs vertices, not draw calls:
 
@@ -722,11 +723,23 @@ the terrain's grain has always been one texture read six ways, weighted by `scap
 
 **the broad octave was the fine one read slowly.** a single field sampled at two frequencies is self-similar by construction, so the metre-wide patches landed exactly where the centimetre-wide grit was already darkest and the two reinforced into a lumpy weave instead of reading as two different histories. `ground.wear` is now its own noise — few octaves, because wear is smooth — and it also *dulls* the roughness where it is damp, which is most of what tells wet ground from dry at this distance. the albedo barely moves.
 
-**and the `1 - flat` case had never been written.** every wall, gable, hull, jetty timber and granite face in the scape had no surface at all: flat-shaded colour, and nothing at the scale of a plank or a grain of stone. two materials carry the whole place, so "the props have no texture" was really "the injection only ever handled the ground". `prop.bark` is the other half, with the projection turned on its side to match — the horizontal coordinate wraps several times around a stem or along a wall while the vertical one crawls, which is what makes the read run *along* a board rather than across it. one fetch, weighted to nothing on ground the soil terms already own, so the two never argue over the same fragment. `terrain.propGrain` at 0 is the scape as it looked before it existed.
+**and the `1 - flat` case had never been written.** every wall, gable, hull, jetty timber and granite face in the scape had no surface at all: flat-shaded colour, and nothing at the scale of a plank or a grain of stone. two materials carry the whole place, so "the props have no texture" was really "the injection only ever handled the ground". `prop.bark` is the other half, with the projection turned on its side to match — the horizontal coordinate wraps several times around a stem or along a wall while the vertical one crawls, which is what makes the read run *along* a board rather than across it. one fetch, weighted to nothing on ground the soil terms already own, so the two never argue over the same fragment. it was its own knob, `terrain.propGrain`, until the run below folded it into `terrain.detailGrain`.
 
 **the normal it perturbed by was the inverse of the surface it came from.** the grain reached the lighting as a finite difference — `vec3(grainX - grain, 0.0, grainZ - grain)` — and the normal of a height field is `(-dh/dx, 1, -dh/dz)`. both signs wrong, so every grain of soil in the scape was lit as a pit. it is a baked map now: [`textures/normals.ts`](src/scene/textures/normals.ts) takes the gradient once, at full texel resolution rather than across a seven-texel stride, with the sign the physics has, and the shader reads **one texel where it read six**. `normals.test.ts` measures both formulas over the real grain field and holds them within a fifth of each other, so what changed is the sign and the cost and not the amount of relief.
 
 the macro octave keeps its albedo and its roughness and deliberately loses its normal. a metre-wide patch of wear is *damp* ground, not raised ground — there is nothing there to catch the light on, and the two fetches it took to say so were two fetches spent agreeing with a flat surface.
+
+## stone, worn rather than cut
+
+every stone in the scape was a deformed icosahedron with one normal and one colour per face: erratics, field stones, cobbles, cairns, every dyke course, the weir, the mole, the howe, the shieling walls. it shaded as cut gems, and at the farmyard zoom the near frame read as a low-poly diorama however good the light on it was. a real erratic was rolled under a mile of ice, and a dyke stone was handled by every generation that rebuilt the wall. their edges are gone.
+
+**[`props/soften.ts`](src/scene/props/soften.ts) shades the edges round without adding a triangle.** at every point it splits the corners into smoothing groups. two faces share a group when a chain of faces links them with every step turning by less than a crease. each group gets one area-weighted normal *and* one averaged facet colour, so the light rolls over the stone and its colour grades across it rather than jumping from facet to facet. a crease line through a point splits it in two, so a real joint keeps its edge. `STONE_CREASE` is 50°, just above the 42° a regular icosahedron turns at each edge. the talus block alone uses 24°, because it split off a face last winter and has not been rolled since.
+
+**`stonePart(rock, place)` in [`props/stone.ts`](src/scene/props/stone.ts) is the one way a stone gets into the scape.** it is `soften(part(rock, place))`, and it takes the rock already built on purpose. the first version took the rock's *options* and built it inside, which drew the placement's rng before the rock's and moved every cobble in the archipelago. the census caught it (a cobble family that should have been size-culled at the `far` pose was drawn), and `soften.test.ts` now pins the rng order.
+
+**and the upright grain got relief.** the bark grain that tints every wall and stone face is broad and stretched, too smooth to light. so the six-tap path reads the soil's normal map once more on upright faces, along the face and four times coarser than the soil (`PIT_TILE`), and lays its tangent on the face's own horizontal and vertical. that gives a board's figure and the pitting on a granite face. it is let go with the soil grain (`scapeGrainKeep`), so the archipelago frame neither fetches it nor shimmers with it. the phone path keeps its single fetch and gets the round stones without the pitting.
+
+**one knob fewer.** `terrain.propGrain` (0.82) is gone: `terrain.detailGrain` drives both halves at the ratio they were authored at (`PROP_GRAIN_GAIN`, 2.4). nobody wanted grit on the ground without grain on the walls standing in it. the panel's *soil grain & relief* and *timber & stone grain* become *surface grain & relief*.
 
 ## the ground stands up
 

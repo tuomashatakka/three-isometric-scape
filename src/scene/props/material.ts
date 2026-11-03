@@ -306,6 +306,24 @@ function reliefFragment (steps: number): string {
 }
 
 /**
+ * The upright grain's strength per unit of `terrain.detailGrain`. It was its
+ * own knob, `terrain.propGrain`, at 0.82 against the soil's 0.34, and no one
+ * ever wanted grit on the ground without grain on the walls standing on it, so
+ * the one knob carries both at the ratio they were authored at.
+ */
+export const PROP_GRAIN_GAIN = 2.4
+
+/** How hard the upright grain turns the normal at full grain, against the soil's `GROUND_NORMAL_GAIN`. */
+export const PROP_RELIEF = 2.6
+
+/**
+ * The upright relief's tile, as a share of the soil grain's: four times
+ * coarser. A stone is seen from further up than the soil it lies in is, and
+ * at the soil's scale the farmyard frame mips the relief flat.
+ */
+const PIT_TILE = '0.25'
+
+/**
  * The half of the scape the ground grain never reached.
  *
  * Every term above weighs itself by `scapeFlat` — how horizontal the face is —
@@ -326,10 +344,8 @@ function reliefFragment (steps: number): string {
  * the view matrix is rigid, so a point's height is the camera's less that
  * position projected onto the matrix's second column. No extra varying.
  */
-const PROP_GRAIN_FRAGMENT = /* glsl */`
-  float scapeSteep = (1.0 - scapeFlat) * uPropGrain;
-
-  if (scapeSteep > 0.001) {
+function propGrainFragment (relief: boolean): string {
+  const fetch = /* glsl */`
     float scapeUpright = cameraPosition.y - dot(vViewPosition, viewMatrix[1].xyz);
     vec2 scapeBarkUv   = vec2(
       (vScapeGround.x + vScapeGround.y) * scapeDetailScale * 0.7,
@@ -342,15 +358,44 @@ const PROP_GRAIN_FRAGMENT = /* glsl */`
     // is two octaves for the same reason, and the remap is what turns the rest
     // of the range into boards.
     float scapeBark = clamp((texture2D(uBarkMap, scapeBarkUv).r - 0.5) * 2.4 + 0.5, 0.0, 1.0);
-
+  `
+  const tint = /* glsl */`
     diffuseColor.rgb *= 1.0 + scapeSteep * (scapeBark - 0.5) * 1.5;
 
     // Weathering runs downward. The underside of a course of boards and the foot
     // of a wall stay damp longest, so the darker half of the grain also dulls.
     diffuseColor.rgb *= 1.0 - scapeSteep * 0.22 * pow(1.0 - scapeBark, 3.0);
     roughnessFactor   = clamp(roughnessFactor + scapeSteep * (0.5 - scapeBark) * 0.4, 0.05, 1.0);
-  }
+  `
+
+  // The full path also turns the normal. The grain the walls are tinted with
+  // is a broad, stretched field, too smooth to light; the fine one under the
+  // soil is the same scale as a board's figure or the pitting on a granite
+  // face. So it is read once more on the upright, along the face the way the
+  // tint is, and its tangent is laid on the face's own horizontal and vertical.
+  // The lite path keeps its one fetch and so has no relief.
+  //
+  // Let go with the soil's grain, on the same uniform branch, so a frame too
+  // wide to resolve it neither fetches it nor shimmers with it.
+  const turn = /* glsl */`
+    if (scapeGrainKeep > 0.0) {
+      vec2 scapePitUv = vec2(vScapeGround.x + vScapeGround.y, scapeUpright) * scapeDetailScale * ${PIT_TILE};
+      vec2 scapePit   = texture2D(uGroundNormalMap, scapePitUv).xy * 2.0 - 1.0;
+      vec3 scapeAlong = cross(viewMatrix[1].xyz, normal);
+      scapeAlong     /= max(length(scapeAlong), 1e-4);
+
+      normal = normalize(normal + (scapePit.x * scapeAlong + scapePit.y * cross(normal, scapeAlong)) *
+        scapeSteep * scapeGrainKeep * ${PROP_RELIEF.toFixed(2)});
+    }
+  `
+  const pit = relief ? turn : ''
+
+  return /* glsl */`
+  float scapeSteep = (1.0 - scapeFlat) * uPropGrain;
+
+  if (scapeSteep > 0.001) {${fetch}${pit}${tint}  }
 `
+}
 
 /**
  * The repeat counts the grain and the wear are let go between — see `frame.ts`.
@@ -404,7 +449,7 @@ const DETAIL_FRAGMENT_LITE = /* glsl */`
 ${REPEATS_FRAGMENT}
   float grain     = texture2D(uDetailMap, vScapeGround * scapeDetailScale).r;
 ${GRAIN_FRAGMENT}
-${PROP_GRAIN_FRAGMENT}
+${propGrainFragment(false)}
 `
 
 function detailFragment (steps: number): string {
@@ -456,7 +501,7 @@ ${GRAIN_FRAGMENT}
 
     normal = normalize(normal + mat3(viewMatrix) * scapeBump * scapeAmt * scapeGrainKeep);
   }
-${PROP_GRAIN_FRAGMENT}
+${propGrainFragment(true)}
 `
 }
 
@@ -634,6 +679,11 @@ const GROUND_DRIFT = 'vScapeFace.z'
  */
 const FOLIAGE_ASPECT = '0.0'
 
+/** The upright grain the one soil knob implies. */
+export function propGrain (detailGrain: number): number {
+  return Math.min(1, detailGrain * PROP_GRAIN_GAIN)
+}
+
 export function createScapeMaterials (
   config: LiveConfig,
   skip: ScapeSkips = NOTHING_SKIPPED,
@@ -700,7 +750,7 @@ export function createScapeMaterials (
     uWearMap:         { value: wearMap },
     uBarkMap:         { value: barkMap },
     uDetailStrength:  { value: config().terrain.detailGrain },
-    uPropGrain:       { value: config().terrain.propGrain },
+    uPropGrain:       { value: propGrain(config().terrain.detailGrain) },
   }
 
   // Both materials share these instances, so the year is written once a frame
@@ -883,7 +933,7 @@ export function createScapeMaterials (
       wind.uWindPhase.value        = breeze.travel
       wind.uWindStrength.value     = breeze.strength
       detail.uDetailStrength.value = config().terrain.detailGrain
-      detail.uPropGrain.value      = config().terrain.propGrain
+      detail.uPropGrain.value      = propGrain(config().terrain.detailGrain)
 
       seasonTint.value.copy(year.tint)
       seasonSnow.value.copy(year.snowColor)

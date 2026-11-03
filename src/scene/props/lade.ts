@@ -1,6 +1,7 @@
 import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
-import { box, createRockGeometry, mergeGeometryList, mergeParts, part } from 'threejs-scene/modules/assets'
+import { createRockGeometry, box, mergeGeometryList, mergeParts, part } from 'threejs-scene/modules/assets'
+import { stonePart } from './stone.ts'
 import type { NordicPalette } from './palette.ts'
 import { hypot } from '../hypot.ts'
 
@@ -216,7 +217,7 @@ function cutHeadwall (
     for (let course = 0; course < 3; course += 1) {
       const lean = side * (width / 2 + 0.22)
 
-      parts.push(part(
+      parts.push(stonePart(
         createRockGeometry({ radius: 0.26, detail: 0, rng, roughness: 0.5, scale: [ 1.1, 0.8, 1.3 ]}),
         {
           at: [

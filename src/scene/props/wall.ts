@@ -1,6 +1,7 @@
 import type { BufferGeometry } from 'three'
 import type { SeededRng } from 'threejs-scene'
-import { createRockGeometry, mergeParts, part } from 'threejs-scene/modules/assets'
+import { createRockGeometry, mergeParts } from 'threejs-scene/modules/assets'
+import { stonePart } from './stone.ts'
 import { resamplePath } from './fence.ts'
 import type { FencePoint } from './fence.ts'
 import type { NordicPalette } from './palette.ts'
@@ -91,7 +92,7 @@ export function buildStoneWallRun ({
       // dropping the big stones roughly and correcting on the way up.
       const sway = rng.range(-1, 1) * height * 0.2 * (1 - rise)
 
-      parts.push(part(
+      parts.push(stonePart(
         createRockGeometry({ radius, detail: 0, rng, roughness: 0.3, scale: [ 1.3, 0.78, 1 ]}),
         {
           at: [

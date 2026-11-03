@@ -344,7 +344,7 @@ export interface ScapeConfig extends CarterConfig, CreelConfig, CroppingConfig, 
      */
     isles: readonly Isle[]
 
-    /** Ground grain contrast, 0..1 — the one soil knob; the tile and its broad octave are constants in `props/material.ts`. */
+    /** Surface grain, 0..1: the soil's grit and relief, and the grain and relief on every upright face (`PROP_GRAIN_GAIN` in `props/material.ts`). */
     detailGrain: number
 
     /**
@@ -540,17 +540,6 @@ export interface ScapeConfig extends CarterConfig, CreelConfig, CroppingConfig, 
        */
       crevasseScale: number
     }
-
-    /**
-     * Grain on everything the ground grain cannot reach, 0..1.
-     *
-     * The soil treatment weighs itself by how horizontal a face is, so walls,
-     * gables, hulls, jetty timbers and granite faces get none of it — this is
-     * the same idea with the projection turned on its side, so the read runs
-     * along a board rather than across it. 0 leaves every upright surface flat
-     * shaded, which is what the scape looked like before it existed.
-     */
-    propGrain: number
 
     /**
      * How green the ground goes on the faces turned away from the sun, 0..1.
@@ -1305,7 +1294,6 @@ export const SCAPE_CONFIG = {
 
     ruggedness:      0.45,
     reliefSmoothing: 0.6,
-    propGrain:       0.82,
 
     // The moss carries further than the bleach because it is the darker move of
     // the two, and dark reads across a hillside that pale does not.
