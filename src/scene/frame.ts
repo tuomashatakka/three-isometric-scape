@@ -48,3 +48,46 @@ export const FRAME_GLSL = /* glsl */`
   }
 #endif
 `
+
+/**
+ * How far behind the frame a perspective eye would stand, in frame widths.
+ *
+ * About a 45° lens: the view a person on a hill, or a camera on a mast, has of
+ * the ground the orthographic frame shows.
+ */
+export const EYE_DISTANCE = 1.2
+
+/**
+ * The direction from a fragment to the eye, for the one surface that has to
+ * know where the eye *is* rather than which way it looks: water.
+ *
+ * An orthographic camera looks along one direction from every pixel, so every
+ * fragment of a flat sea sees the sun's specular lobe at the same angle, and a
+ * lobe wide enough to be stable laid one even sheen over the whole sound —
+ * grey, at every hour, and brighter than the water under it. A photograph of a
+ * sea from above has one glint patch where the sun's reflection is, the body
+ * colour of the water everywhere else, and more of the sky in it toward the far
+ * edge, where the eye looks across the surface rather than into it. The eye
+ * here stands `EYE_DISTANCE` frame widths back along the camera's axis, so the
+ * angle to it swings across the frame the way it does for a real lens, and the
+ * lobe lands in one place. Needs `FRAME_GLSL` and the standard material's
+ * `vViewPosition`.
+ */
+export const EYE_GLSL = /* glsl */`
+  vec3 scapeEye () {
+    return isOrthographic
+      ? normalize(vec3(vViewPosition.xy, scapeFrameMetres() * ${EYE_DISTANCE.toFixed(2)}))
+      : normalize(vViewPosition);
+  }
+`
+
+/** Three's own view direction in the light loop, as the chunk spells it. */
+export const THREE_VIEW_DIR = '( isOrthographic ) ? vec3( 0, 0, 1 ) : normalize( vViewPosition )'
+
+/** A `lights_fragment_begin` whose specular is seen from `scapeEye()`. */
+export function eyeLights (chunk: string): string {
+  if (!chunk.includes(THREE_VIEW_DIR))
+    throw new Error('lights_fragment_begin no longer spells the view direction the eye replaces')
+
+  return chunk.replace(THREE_VIEW_DIR, 'scapeEye()')
+}

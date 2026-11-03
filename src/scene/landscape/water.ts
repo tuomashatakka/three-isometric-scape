@@ -3,6 +3,7 @@ import {
   Mesh,
   MeshStandardMaterial,
   PlaneGeometry,
+  ShaderChunk,
   Vector2,
   Vector3,
   Vector4,
@@ -36,6 +37,8 @@ import {
   WATER_CAUSTIC_GLSL,
   causticStrength,
 } from './water-caustics.ts'
+import { THREE_F0, WATER_BODY_GLSL, WATER_F0 } from './water-body.ts'
+import { EYE_GLSL, eyeLights } from '../frame.ts'
 import {
   WATER_REFLECTION_FRAGMENT,
   phosphorAmount,
@@ -312,8 +315,6 @@ ${UNTILE_GLSL}
   uniform sampler2D uRippleMap;
   uniform sampler2D uWaveMap;
   uniform vec2 uRippleOffset;
-  uniform vec3 uDeep;
-  uniform vec3 uShallow;
   uniform vec3 uFoam;
   uniform vec3 uIce;
   uniform float uRippleScale;
@@ -342,6 +343,7 @@ ${UNTILE_GLSL}
   varying vec2 vWaterGround;
 ${WATER_SWELL_GLSL}
 ${WATER_SWELL_FACES_GLSL}
+${EYE_GLSL}
 ${SHORE_GLSL}
 ${WATER_SHELTER_GLSL}
 ${WATER_ICE_GLSL}
@@ -349,6 +351,7 @@ ${WATER_SURF_GLSL}
 ${WATER_CAPS_GLSL}
 ${WATER_ROOST_GLSL}
 ${WATER_CAUSTIC_GLSL}
+${WATER_BODY_GLSL}
 ${BOAT_WAKE_GLSL}
 `
 
@@ -391,7 +394,44 @@ const WATER_ROUGHNESS_FRAGMENT = /* glsl */`
   roughnessFactor = mix(roughnessFactor, 0.88, iceCover);
 `
 
-const WATER_COLOR_FRAGMENT = /* glsl */`
+/**
+ * The cloud over the sea takes the sun's reflection off it as well as its light.
+ *
+ * The cloud shadow was only ever a multiply on the albedo, which on the ground
+ * is the whole of what the sun does. On water the albedo is the small half: the
+ * sun's specular lobe is most of what a sunlit sea sends back, and it went on
+ * shining at full strength under a squall that had already darkened the water
+ * beneath it — the whole sound a flat grey glare on the darkest morning of the
+ * week. Only the direct term: the sky's own reflection is the cloud's underside
+ * already, and is shaded where the mirror is mixed (water-gleam.ts).
+ *
+ * And at water's own reflectance. Three's standard material reflects 4 % at
+ * normal incidence, which is glass (ior 1.5); water is 1.33, which is 2 %
+ * (\`WATER_F0\` over three's). The lobe was twice as bright as the sea can make
+ * it, and it was the larger half of the grey.
+ */
+const WATER_SUN_SHADE_FRAGMENT = /* glsl */`
+  reflectedLight.directSpecular *= cloudShade * ${(WATER_F0 / THREE_F0).toFixed(3)};
+  #include <aomap_fragment>
+`
+
+/**
+ * The colour of the lake, as one program for every tier.
+ *
+ * The full and the cheap lake were two near-copies of this chunk that had to be
+ * kept in step by hand; they differ in exactly two places, the shore trim and
+ * the sun glitter, which are three dependent reads the phone cannot afford. The
+ * cheap lake reads the depth mask, the shelter and the albedo sheen. The swell
+ * is procedural (`scapeWave`), so it still moves and still catches the sun
+ * along the wave fronts. See `quality.detailTaps`.
+ *
+ * The cheap lake gains, rather than loses, the surf, the caps and the race:
+ * all three are arithmetic on the fetches it already makes (the caps add one
+ * read), and the capture harness pins `--tier mobile`, so a sea this program
+ * could not draw is a sea no still in this repository could show.
+ */
+function waterColorFragment (full: boolean): string {
+  return /* glsl */`
   #include <map_fragment>
   vec4 shore       = scapeShore(vWaterGround);
   float waterDepth = shore.r;
@@ -405,51 +445,37 @@ const WATER_COLOR_FRAGMENT = /* glsl */`
   float swellCalm = scapeShelterCalm(shelter);
 
   // Resolved here rather than in the normal chunk because the shore fetch is
-  // here: three statements down this is a local the whole rest of main() can
-  // see, and a second read of the same sampler at the same uv is exactly the
-  // tap the surf band already refuses to make.
+  // here: a second read of the same sampler at the same uv is exactly the tap
+  // the surf band already refuses to make.
   float swellShoal = scapeShoal(waterDepth) * swellCalm;
-  vec3 swellFaces = scapeSwellFaces(vWaterGround, swellShoal);
+  vec3 swellFaces  = scapeSwellFaces(vWaterGround, swellShoal);
   float swell      = swellFaces.x;
   float swellX     = swellFaces.y;
   float swellZ     = swellFaces.z;
   float boatWake   = scapeBoatWake(vWaterGround) * openWater * (1.0 - iceCover);
 
-  // Foam is a band hugging the bank, not a wash over everything shallow: it
-  // fades in off the shore and back out into open water. Ice takes it away —
-  // surf is what a swell does at a bank, and the bank is where the ice is.
-  float shoreline = smoothstep(0.0, 0.035, waterDepth) * smoothstep(0.14, 0.05, waterDepth);
-  vec2 foamUv = vWaterGround * uRippleScale * 0.55 + uRippleOffset * 1.6;
-  float foam = shoreline * (0.35 + 0.5 * texture2D(uRippleMap, foamUv).r) * (1.0 - iceCover);
-
-  // The breakers stand off the trim rather than replacing it: the trim is the
-  // wash at the waterline, which every coast has, and this is the white water
-  // over the shelf, which only the coast the sea is running at gets.
+  // The white over the shelf, out in the sound and in the narrows. The surf and
+  // the race are arithmetic on the mask fetch; the caps are one read of the
+  // fractal map. See surf.ts, water-caps.ts and roost.ts.
   float breakers = scapeSurf(vWaterGround, shore, waterDepth) * (1.0 - iceCover);
+  float caps     = scapeCaps(vWaterGround, shelter, openWater) * (1.0 - iceCover);
+  float roost    = scapeRoost(vWaterGround, shore, waterDepth) * (1.0 - iceCover);
 
-  // The white out in the sound, off the mask fetch already made and one read of
-  // the fractal map. See water-caps.ts.
-  float caps = scapeCaps(vWaterGround, shelter, openWater) * (1.0 - iceCover);
-
-  // The white in the narrows, off the same fetch and no read at all: the gate is
-  // the mask's fourth channel and the overfalls are two sines. See roost.ts.
-  float roost = scapeRoost(vWaterGround, shore, waterDepth) * (1.0 - iceCover);
-
-  diffuseColor.rgb = mix(uShallow, uDeep, smoothstep(0.0, 0.5, waterDepth));
+  // The body: the bed seen through the water, against what deep water sends
+  // back. See water-body.ts.
+  diffuseColor.rgb = scapeWaterBody(waterDepth);
 
 ${WATER_CAUSTIC_FRAGMENT}
-
-  // The race *adds* where the four before it take a maximum, and that is the
-  // physics rather than an oversight. The trim, the breakers and the caps are
-  // three readings of one thing — a wave breaking — so the whitest of them is
-  // the answer. An overfall is a different thing happening in the same water: a
+${full ? WATER_TRIM_FRAGMENT : ''}
+  // The race *adds* where the others take a maximum, and that is the physics.
+  // The trim, the breakers and the caps are three readings of one thing — a
+  // wave breaking — so the whitest of them is the answer. An overfall is a
   // standing break the stream is driving, under whatever the wind is doing on
-  // top of it. A gate in a sea that is already capped is whiter than either, and
-  // a maximum there drew a race that vanished the moment the sound got up.
+  // top of it, and a gate in a sea that is already capped is whiter than either.
   diffuseColor.rgb = mix(
     diffuseColor.rgb,
     uFoam,
-    clamp(max(max(foam, breakers), caps) + roost + boatWake * 0.72, 0.0, 0.86)
+    clamp(max(${full ? 'max(foam, breakers)' : 'breakers'}, caps) + roost + boatWake * ${full ? '0.72' : '0.62'}, 0.0, 0.86)
   );
 
   // Texture the albedo, not just the normal. A normal-only ripple is invisible
@@ -458,38 +484,19 @@ ${WATER_CAUSTIC_FRAGMENT}
   float sheen = scapeUntiled(uRippleMap, vWaterGround * uRippleScale + uRippleOffset);
   diffuseColor.rgb *= 0.93 + 0.15 * sheen;
 
-  // And the swell, for the reason written directly above about the ripple. A
-  // sea whose shape only ever moved a normal is flat paint from half the angles
-  // this camera has, and the measurement said so: twelve times the authored
-  // amplitude moved one level of 255 at the tour's frames. This is the slope
-  // along the run rather than the height, so what it paints is the faces — the
-  // side turned up into the light and the side turned away — in ranks lying
-  // across the way the sea is going.
+  // And the swell, for the same reason: the slope along the run rather than the
+  // height, so what it paints is the faces — the side turned up into the light
+  // and the side turned away — in ranks lying across the way the sea is going.
   float swellShade = scapeSwellShade(swell, swellX, swellZ, iceCover);
   diffuseColor.rgb *= swellShade;
-
-  // Sun glitter. Two noise fields at incommensurate scales, multiplied and then
-  // raised to a high power: the product is near zero almost everywhere and
-  // spikes only where both crests coincide, which is how glints are actually
-  // distributed on water — isolated, and never a pattern you can read. The
-  // exponent is the whole control. Threshold it gently instead and the mean of
-  // the product clears the cut, every fragment lights up, and the lake becomes
-  // a sheet of white paper.
-  vec2 sparkUv = vWaterGround * uSparkleScale;
-  float glintA = texture2D(uRippleMap, sparkUv + uRippleOffset * 2.1).r;
-  float glintB = texture2D(uRippleMap, sparkUv * 1.37 - uRippleOffset * 1.63).r;
-  float glint  = pow(clamp(glintA * glintB * 1.42, 0.0, 1.0), 5.0);
-  diffuseColor.rgb += uFoam * glint * uSparkle * openWater * (1.0 - iceCover);
-
+${full ? WATER_GLINT_FRAGMENT : ''}
 ${WATER_ICE_FRAGMENT}
 
-  // The weather between the sun and the sea, and the half of this scape the
-  // shadow never used to reach: the same fetch, the same cut, the same drift
-  // and the same throw the ground takes, at the lake's own world position.
-  // Laid over the ice as well as the water, because a shadow crossing a frozen
-  // bay is the one place in the archipelago where it has something white to
-  // cross. Held in a local because the reflection reads it again — see
-  // water-gleam.ts, where the larger half of this happens.
+  // The weather between the sun and the sea: the same fetch, cut, drift and
+  // throw the ground takes, at the lake's own world position. Laid over the ice
+  // as well, because a shadow crossing a frozen bay is the one place it has
+  // something white to cross. Held in a local because the reflection reads it
+  // again — see water-gleam.ts, where the larger half of this happens.
   float cloudShade = scapeCloudShade(vWaterGround);
   diffuseColor.rgb *= cloudShade;
 
@@ -499,96 +506,36 @@ ${WATER_ICE_FRAGMENT}
 
 ${WATER_SURF_ALPHA}
 `
+}
 
 /**
- * The lake, for a gpu that cannot afford seven looks at it.
- *
- * Two dependent texture reads instead of seven: the depth mask, which decides
- * the colour and where the plane is water at all, and the albedo sheen. The
- * foam band and the sun glitter go, and so do the ripple normals — but the
- * swell is procedural (`scapeWave`), so the surface still moves and still
- * catches the sun along the wave fronts. See `quality.detailTaps`.
+ * The trim: a band hugging the bank, not a wash over everything shallow. It
+ * fades in off the shore and back out into open water, and ice takes it away —
+ * surf is what a swell does at a bank, and the bank is where the ice is. The
+ * breakers stand off it rather than replacing it: the trim is the wash at the
+ * waterline, which every coast has. One read, so the full lake only.
  */
-const WATER_COLOR_FRAGMENT_LITE = /* glsl */`
-  #include <map_fragment>
-  vec4 shore       = scapeShore(vWaterGround);
-  float waterDepth = shore.r;
-  float iceCover   = scapeIce(vWaterGround, waterDepth);
-  float openWater  = smoothstep(0.04, 0.3, waterDepth);
+const WATER_TRIM_FRAGMENT = /* glsl */`
+  float shoreline = smoothstep(0.0, 0.035, waterDepth) * smoothstep(0.14, 0.05, waterDepth);
+  vec2 foamUv     = vWaterGround * uRippleScale * 0.55 + uRippleOffset * 1.6;
+  float foam      = shoreline * (0.35 + 0.5 * texture2D(uRippleMap, foamUv).r) * (1.0 - iceCover);
+`
 
-  // The lee the archipelago throws, in one read. One fetch, three readers: the
-  // swell's gain on the line below, the caps' own lee further down, and the
-  // vertex stage's copy of the first of those. See shelter.ts.
-  vec4 shelter    = scapeShelter(vWaterGround);
-  float swellCalm = scapeShelterCalm(shelter);
-
-  // Resolved here rather than in the normal chunk because the shore fetch is
-  // here: three statements down this is a local the whole rest of main() can
-  // see, and a second read of the same sampler at the same uv is exactly the
-  // tap the surf band already refuses to make.
-  float swellShoal = scapeShoal(waterDepth) * swellCalm;
-  vec3 swellFaces = scapeSwellFaces(vWaterGround, swellShoal);
-  float swell      = swellFaces.x;
-  float swellX     = swellFaces.y;
-  float swellZ     = swellFaces.z;
-  float boatWake   = scapeBoatWake(vWaterGround) * openWater * (1.0 - iceCover);
-
-  // The one thing the cheap lake gains rather than loses. The trim it cannot
-  // afford was a second dependent read; the surf is arithmetic on the fetch it
-  // is already making, so the phone gets the coastline the desktop gets — and
-  // gets it *instead* of the fetch, not as well as one.
-  float breakers = scapeSurf(vWaterGround, shore, waterDepth) * (1.0 - iceCover);
-
-  diffuseColor.rgb = mix(uShallow, uDeep, smoothstep(0.0, 0.5, waterDepth));
-
-${WATER_CAUSTIC_FRAGMENT}
-
-  float sheen = scapeUntiled(uRippleMap, vWaterGround * uRippleScale + uRippleOffset);
-  diffuseColor.rgb *= 0.93 + 0.15 * sheen;
-
-  // And the swell, for the reason written directly above about the ripple. A
-  // sea whose shape only ever moved a normal is flat paint from half the angles
-  // this camera has, and the measurement said so: twelve times the authored
-  // amplitude moved one level of 255 at the tour's frames. This is the slope
-  // along the run rather than the height, so what it paints is the faces — the
-  // side turned up into the light and the side turned away — in ranks lying
-  // across the way the sea is going.
-  float swellShade = scapeSwellShade(swell, swellX, swellZ, iceCover);
-  diffuseColor.rgb *= swellShade;
-
-  // The one thing the cheap lake gains twice over. The caps are the same chunk
-  // the full program runs, verbatim, and they have to be: the capture harness
-  // pins --tier mobile, so a sea this program could not draw is a sea no still
-  // in this repository could show. One read, which takes this lake from two to
-  // three.
-  float caps = scapeCaps(vWaterGround, shelter, openWater) * (1.0 - iceCover);
-
-  // And the third thing the cheap lake gains rather than loses. The race is
-  // arithmetic on the fetch it made in its first line — no read, no gate, and
-  // the same chunk the full program runs. See roost.ts.
-  float roost = scapeRoost(vWaterGround, shore, waterDepth) * (1.0 - iceCover);
-
-  diffuseColor.rgb = mix(
-    diffuseColor.rgb,
-    uFoam,
-    clamp(max(breakers, caps) + roost + boatWake * 0.62, 0.0, 0.86)
-  );
-
-${WATER_ICE_FRAGMENT}
-
-  // The weather between the sun and the sea, and the half of this scape the
-  // shadow never used to reach: the same fetch, the same cut, the same drift
-  // and the same throw the ground takes, at the lake's own world position.
-  // Laid over the ice as well as the water, because a shadow crossing a frozen
-  // bay is the one place in the archipelago where it has something white to
-  // cross. Held in a local because the reflection reads it again — see
-  // water-gleam.ts, where the larger half of this happens.
-  float cloudShade = scapeCloudShade(vWaterGround);
-  diffuseColor.rgb *= cloudShade;
-
-  diffuseColor.a *= smoothstep(0.0, 0.03, waterDepth) * clamp(0.5 + waterDepth * 1.7, 0.0, 1.0);
-
-${WATER_SURF_ALPHA}
+/**
+ * Sun glitter. Two noise fields at incommensurate scales, multiplied and then
+ * raised to a high power: the product is near zero almost everywhere and spikes
+ * only where both crests coincide, which is how glints are actually distributed
+ * on water — isolated, and never a pattern you can read. The exponent is the
+ * whole control. Threshold it gently instead and the mean of the product clears
+ * the cut, every fragment lights up, and the lake becomes a sheet of white
+ * paper. Two reads, so the full lake only.
+ */
+const WATER_GLINT_FRAGMENT = /* glsl */`
+  vec2 sparkUv = vWaterGround * uSparkleScale;
+  float glintA = texture2D(uRippleMap, sparkUv + uRippleOffset * 2.1).r;
+  float glintB = texture2D(uRippleMap, sparkUv * 1.37 - uRippleOffset * 1.63).r;
+  float glint  = pow(clamp(glintA * glintB * 1.42, 0.0, 1.0), 5.0);
+  diffuseColor.rgb += uFoam * glint * uSparkle * openWater * (1.0 - iceCover);
 `
 
 /**
@@ -771,7 +718,7 @@ export function createWater (
     uWaveMap:            { value: waveMap },
     uRippleOffset:       rippleOffset,
     uDeep:               { value: new Color(config().palette.deepWater) },
-    uShallow:            { value: new Color(config().palette.shallowWater) },
+    uSeabed:             { value: new Color(config().palette.shore) },
     uFoam:               { value: new Color(config().palette.foam) },
     uIce:                iceColor,
     uShoreScale:         { value: 1 / maskSpan },
@@ -891,9 +838,11 @@ export function createWater (
 
     program.fragmentShader = program.fragmentShader
       .replace('#include <common>', `#include <common>\n${WATER_PARS_FRAGMENT}`)
-      .replace('#include <map_fragment>', lite ? WATER_COLOR_FRAGMENT_LITE : WATER_COLOR_FRAGMENT)
+      .replace('#include <map_fragment>', waterColorFragment(!lite))
       .replace('#include <roughnessmap_fragment>', WATER_ROUGHNESS_FRAGMENT)
       .replace('#include <normal_fragment_begin>', lite ? WATER_NORMAL_FRAGMENT_LITE : WATER_NORMAL_FRAGMENT)
+      .replace('#include <lights_fragment_begin>', eyeLights(ShaderChunk.lights_fragment_begin))
+      .replace('#include <aomap_fragment>', WATER_SUN_SHADE_FRAGMENT)
       .replace('#include <opaque_fragment>', `${WATER_REFLECTION_FRAGMENT}\n#include <opaque_fragment>`)
   }
   material.customProgramCacheKey = () => `scape-water:${lite ? 'lite' : 'full'}`

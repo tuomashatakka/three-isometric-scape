@@ -168,10 +168,14 @@ describe('the lookup itself', () => {
 describe('and which lakes take it', () => {
   const lake = readFileSync(new URL('landscape/water.ts', import.meta.url).pathname, 'utf8')
 
+  // Both programs are one generator now (`waterColorFragment`), and the shade
+  // is written outside either of its tier branches — so one occurrence, and the
+  // generator called for whichever lake is built, is both lakes reading it.
   test('both water programs read the shadow, and read the same one', () => {
     const applied = lake.match(/diffuseColor\.rgb \*= cloudShade;/g)
 
-    expect(applied).toHaveLength(2)
+    expect(applied).toHaveLength(1)
+    expect(lake).toContain('waterColorFragment(!lite)')
   })
 
   /**
@@ -203,7 +207,7 @@ describe('and which lakes take it', () => {
       'utf8',
     )
 
-    expect(held).toHaveLength(2)
+    expect(held).toHaveLength(1)
     expect(gleam).toContain('mix(uSkyHorizon, uSkyTop, facing) * cloudShade')
   })
 })

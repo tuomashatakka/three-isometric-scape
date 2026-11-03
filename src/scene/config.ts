@@ -1524,7 +1524,7 @@ export const SCAPE_CONFIG = {
     hazeHeight:   120,
     mistAmount:   0.34,
     mistDrag:     0.36,
-    skyTop:       0x5c727e,
+    skyTop:       0x55728a,
     sunColor:     0xffe8bd,
     sunStrength:  2.85,
     hemiSky:      0xc2cfd2,

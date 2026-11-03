@@ -113,7 +113,7 @@ export function phosphorAmount (dark: number, moon: number, strength: number): n
  *
  * **Those two and no others, and that is a constraint rather than a choice.**
  * This chunk is injected into the lite program as well as the full one, and
- * `WATER_COLOR_FRAGMENT_LITE` declares a strictly smaller set of locals — it
+ * `waterColorFragment(false)` declares a strictly smaller set of locals — it
  * has no `foam`, because the cheap tier draws no separate shore trim. Reaching
  * for one costs a shader that will not compile on the tiers that matter most,
  * and it fails as a scape that never finishes booting rather than as an error
@@ -180,7 +180,10 @@ const KEY_GLITTER = 2.6
 
 export const WATER_REFLECTION_FRAGMENT = /* glsl */`
   {
-    vec3 viewDir    = normalize(vViewPosition);
+    // Where the eye is, not only which way it looks — see \`EYE_GLSL\` in
+    // frame.ts. The mirror takes more sky toward the far edge of the frame, and
+    // the glitter lands in one patch rather than evenly over the sound.
+    vec3 viewDir    = scapeEye();
     float facing    = clamp(dot(normalize(normal), viewDir), 0.0, 1.0);
     float fresnel   = 0.02 + 0.98 * pow(1.0 - facing, 5.0);
 
