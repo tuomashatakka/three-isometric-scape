@@ -18,6 +18,7 @@ import type { AtmosphereQuality } from '../quality.ts'
 import type { SeasonState } from '../season.ts'
 import type { TextureCatalogue } from '../textures/catalogue.ts'
 import { UNTILE_GLSL } from '../textures/untile.ts'
+import { RIPPLE_REPEATS, SLICK_GLASS, SLICK_BODY_GLSL, SLICK_RIPPLE_GLSL, SLICK_ROUGHNESS_GLSL, seaChopGlsl, setSlick } from './water-slick.ts'
 import type { WeatherState } from '../weather.ts'
 import type { TideState } from '../tide.ts'
 import type { WindState } from '../wind.ts'
@@ -38,7 +39,7 @@ import {
   causticStrength,
 } from './water-caustics.ts'
 import { THREE_F0, WATER_BODY_GLSL, WATER_F0 } from './water-body.ts'
-import { EYE_GLSL, eyeLights } from '../frame.ts'
+import { EYE_GLSL, eyeLights, repeatKeepGlsl } from '../frame.ts'
 import {
   WATER_REFLECTION_FRAGMENT,
   phosphorAmount,
@@ -311,7 +312,6 @@ ${CLOUD_SHADOW_GLSL}
 ${UNTILE_GLSL}
   uniform vec3 uSkyHorizon;
   uniform vec3 uSkyTop;
-  uniform float uReflectionStrength;
   uniform sampler2D uRippleMap;
   uniform sampler2D uWaveMap;
   uniform vec2 uRippleOffset;
@@ -379,13 +379,14 @@ const WATER_ICE_FRAGMENT = /* glsl */`
  * The tempting move is the opposite one — new ice is glassy, so drop the
  * roughness and let it glare. But the camera's elevation sweeps across the
  * sun's as it zooms, and a near-mirror plane at that crossing reflects the sun
- * into every fragment at once; that is the whole reason `water.roughness` sits
+ * into every fragment at once; that is the whole reason even a slick (`SLICK_GLASS`) sits
  * where it does. A frozen bay is the same flat plane with the swell taken out
  * of it, which makes it a *better* candidate for that white-out, not a worse
  * one. Snow-blown ice reads correctly matte and cannot blow out.
  */
 const WATER_ROUGHNESS_FRAGMENT = /* glsl */`
   #include <roughnessmap_fragment>
+  roughnessFactor = ${SLICK_ROUGHNESS_GLSL};
 
   // Broken water is air in water, and air in water is matte. Without this the
   // surf takes the same specular lobe the open sea does and the white band
@@ -444,6 +445,15 @@ function waterColorFragment (full: boolean): string {
   vec4 shelter    = scapeShelter(vWaterGround);
   float swellCalm = scapeShelterCalm(shelter);
 
+  // How hard the wind has the surface up here, 0 glass to 1 chop: rows down the
+  // wind, glass in the lee, none under ice. Read by the roughness, the mirror
+  // and the ripple. See water-slick.ts.
+  float seaChop = scapeSeaChop(vWaterGround, shelter.a) * (1.0 - iceCover);
+
+  // How much of the 34 m ripple tile this frame can resolve. Past it the sheen
+  // and the ripple normal are their own mean and skip their reads.
+  float rippleKeep = ${repeatKeepGlsl(`scapeFrameMetres() * ${(1 / 34).toFixed(6)}`, RIPPLE_REPEATS)};
+
   // Resolved here rather than in the normal chunk because the shore fetch is
   // here: a second read of the same sampler at the same uv is exactly the tap
   // the surf band already refuses to make.
@@ -481,8 +491,15 @@ ${full ? WATER_TRIM_FRAGMENT : ''}
   // Texture the albedo, not just the normal. A normal-only ripple is invisible
   // wherever the specular lobe does not reach, so the sea reads as flat paint
   // from half the angles the camera can orbit to.
-  float sheen = scapeUntiled(uRippleMap, vWaterGround * uRippleScale + uRippleOffset);
+  float sheen = rippleKeep > 0.0
+    ? mix(0.5, scapeUntiled(uRippleMap, vWaterGround * uRippleScale + uRippleOffset), rippleKeep)
+    : 0.5;
   diffuseColor.rgb *= 0.93 + 0.15 * sheen;
+
+  // The chop's body: broken facets throw the sky's diffuse light back up and
+  // a slick lets the eye down into the dark water — at this camera's angles
+  // the larger half of how a slick reads. See water-slick.ts.
+  diffuseColor.rgb *= ${SLICK_BODY_GLSL};
 
   // And the swell, for the same reason: the slope along the run rather than the
   // height, so what it paints is the faces — the side turned up into the light
@@ -576,16 +593,24 @@ const WATER_NORMAL_FRAGMENT = /* glsl */`
   // Both reads are untiled. A 34 m ripple tile on one lattice was the sea's half
   // of the wallpaper — forty-five identical rows of the same normal from coast
   // to coast, read off the specular as plainly as off the albedo.
-  float ripplA = scapeUntiled(uWaveMap, rippleUv + uRippleOffset);
-  float ripplB = scapeUntiled(uWaveMap, rippleUv * 1.73 - uRippleOffset * 1.31);
+  float ripplA = 0.5;
+  float ripplB = 0.5;
+
+  if (rippleKeep > 0.0) {
+    ripplA = mix(0.5, scapeUntiled(uWaveMap, rippleUv + uRippleOffset), rippleKeep);
+    ripplB = mix(0.5, scapeUntiled(uWaveMap, rippleUv * 1.73 - uRippleOffset * 1.31), rippleKeep);
+  }
+
+  // A slick has had its capillary waves damped flat; the chop keeps them all.
+  float rippleGain = uRippleStrength * ${SLICK_RIPPLE_GLSL};
 
   // Everything the surface does to its own normal goes away under ice, in one
   // multiply: a shelf is flat, and a ripple normal on it is the giveaway that
   // the freeze is paint rather than a state the water is in.
   normal = normalize(normal + vec3(
-    (ripplA - 0.5) * uRippleStrength - (swellX - swell) * uWaveHeight * 2.4,
+    (ripplA - 0.5) * rippleGain - (swellX - swell) * uWaveHeight * 2.4,
     0.0,
-    (ripplB - 0.5) * uRippleStrength - (swellZ - swell) * uWaveHeight * 2.4
+    (ripplB - 0.5) * rippleGain - (swellZ - swell) * uWaveHeight * 2.4
   ) * (1.0 - iceCover) * ${WATER_ROOST_NORMAL});
 `
 
@@ -707,59 +732,59 @@ export function createWater (
     moonFace: new Color(config().palette.moon),
   }
 
-  const skyHorizon: IUniform<Color>          = { value: new Color() }
-  const skyTop: IUniform<Color>              = { value: new Color() }
-  const reflectionStrength: IUniform<number> = { value: 1 }
+  const skyHorizon: IUniform<Color> = { value: new Color() }
+  const skyTop: IUniform<Color>     = { value: new Color() }
+  const slick: IUniform<Vector2>    = { value: new Vector2() }
 
   const uniforms: Record<string, IUniform> = {
-    uShoreMap:           { value: shoreMap },
-    uShelterMap:         { value: shelterMap },
-    uRippleMap:          { value: rippleMap },
-    uWaveMap:            { value: waveMap },
-    uRippleOffset:       rippleOffset,
-    uDeep:               { value: new Color(config().palette.deepWater) },
-    uSeabed:             { value: new Color(config().palette.shore) },
-    uFoam:               { value: new Color(config().palette.foam) },
-    uIce:                iceColor,
-    uShoreScale:         { value: 1 / maskSpan },
-    uFreeze:             { value: 0 },
-    uIceReach:           { value: config().water.iceReach },
-    uIceBreak:           { value: config().water.iceBreak },
-    uFloeScale:          { value: config().terrain.size / config().archipelago.worldSize },
-    uRippleScale:        { value: 1 / 34 },
-    uRippleStrength:     { value: config().water.rippleStrength },
-    uBoatWakeStrength:   { value: config().water.wakeStrength },
-    uTrailPos0:          { value: trailPos[0] },
-    uTrailPos1:          { value: trailPos[1] },
-    uTrailPos2:          { value: trailPos[2] },
-    uTrailDir0:          { value: trailDir[0] },
-    uTrailDir1:          { value: trailDir[1] },
-    uTrailDir2:          { value: trailDir[2] },
-    uTrailDist0:         { value: trailDist[0] },
-    uTrailDist1:         { value: trailDist[1] },
-    uTrailDist2:         { value: trailDist[2] },
-    uTrailCount0:        { value: 0 },
-    uTrailCount1:        { value: 0 },
-    uTrailCount2:        { value: 0 },
-    uSunDir:             sunDir,
-    uSunColor:           sunColor,
-    uTrackColor:         gleam.color,
-    uTrack:              gleam.track,
-    uPhosphor:           gleam.phosphor,
-    uPhosphorColor:      { value: new Color(config().palette.phosphor) },
-    uSkyHorizon:         skyHorizon,
-    uSkyTop:             skyTop,
-    uReflectionStrength: reflectionStrength,
-    uSparkleScale:       { value: 1 / 14 },
-    uSparkle:            { value: config().water.sparkle },
-    uWaveTime:           waveTime,
-    uWaveHeight:         { value: config().water.waveHeight },
-    uSwell:              swell,
-    uSwellRun:           swellRun,
-    uSwellK:             { value: swellWavenumber(config().water.swellLength) },
-    uSwellRate:          { value: swellRate(config().water.swellLength) },
-    uSwellShoal:         { value: config().water.swellShoal },
-    uSurf:               { value: config().water.surf },
+    uShoreMap:         { value: shoreMap },
+    uShelterMap:       { value: shelterMap },
+    uRippleMap:        { value: rippleMap },
+    uWaveMap:          { value: waveMap },
+    uRippleOffset:     rippleOffset,
+    uDeep:             { value: new Color(config().palette.deepWater) },
+    uSeabed:           { value: new Color(config().palette.shore) },
+    uFoam:             { value: new Color(config().palette.foam) },
+    uIce:              iceColor,
+    uShoreScale:       { value: 1 / maskSpan },
+    uFreeze:           { value: 0 },
+    uIceReach:         { value: config().water.iceReach },
+    uIceBreak:         { value: config().water.iceBreak },
+    uFloeScale:        { value: config().terrain.size / config().archipelago.worldSize },
+    uRippleScale:      { value: 1 / 34 },
+    uRippleStrength:   { value: config().water.rippleStrength },
+    uBoatWakeStrength: { value: config().water.wakeStrength },
+    uTrailPos0:        { value: trailPos[0] },
+    uTrailPos1:        { value: trailPos[1] },
+    uTrailPos2:        { value: trailPos[2] },
+    uTrailDir0:        { value: trailDir[0] },
+    uTrailDir1:        { value: trailDir[1] },
+    uTrailDir2:        { value: trailDir[2] },
+    uTrailDist0:       { value: trailDist[0] },
+    uTrailDist1:       { value: trailDist[1] },
+    uTrailDist2:       { value: trailDist[2] },
+    uTrailCount0:      { value: 0 },
+    uTrailCount1:      { value: 0 },
+    uTrailCount2:      { value: 0 },
+    uSunDir:           sunDir,
+    uSunColor:         sunColor,
+    uTrackColor:       gleam.color,
+    uTrack:            gleam.track,
+    uPhosphor:         gleam.phosphor,
+    uPhosphorColor:    { value: new Color(config().palette.phosphor) },
+    uSkyHorizon:       skyHorizon,
+    uSkyTop:           skyTop,
+    uSlick:            slick,
+    uSparkleScale:     { value: 1 / 14 },
+    uSparkle:          { value: config().water.sparkle },
+    uWaveTime:         waveTime,
+    uWaveHeight:       { value: config().water.waveHeight },
+    uSwell:            swell,
+    uSwellRun:         swellRun,
+    uSwellK:           { value: swellWavenumber(config().water.swellLength) },
+    uSwellRate:        { value: swellRate(config().water.swellLength) },
+    uSwellShoal:       { value: config().water.swellShoal },
+    uSurf:             { value: config().water.surf },
 
     // Metres in, fractions of `MAX_DEPTH` out — the mask's depth channel is a
     // fraction of that, so this is where the one conversion happens rather than
@@ -822,7 +847,7 @@ export function createWater (
     color:           0xffffff,
     transparent:     true,
     opacity:         1,
-    roughness:       config().water.roughness,
+    roughness:       SLICK_GLASS,
     metalness:       0.02,
     envMapIntensity: 0.3,
     depthWrite:      false,
@@ -837,7 +862,7 @@ export function createWater (
       .replace('#include <project_vertex>', WATER_WORLD_VERTEX)
 
     program.fragmentShader = program.fragmentShader
-      .replace('#include <common>', `#include <common>\n${WATER_PARS_FRAGMENT}`)
+      .replace('#include <common>', `#include <common>\n${WATER_PARS_FRAGMENT}\n${seaChopGlsl(!lite)}`)
       .replace('#include <map_fragment>', waterColorFragment(!lite))
       .replace('#include <roughnessmap_fragment>', WATER_ROUGHNESS_FRAGMENT)
       .replace('#include <normal_fragment_begin>', lite ? WATER_NORMAL_FRAGMENT_LITE : WATER_NORMAL_FRAGMENT)
@@ -1017,10 +1042,7 @@ export function createWater (
       gleam.phosphor.value = phosphorAmount(now.dark, now.moon, config().water.phosphor)
       skyHorizon.value.copy(now.horizon)
       skyTop.value.copy(now.skyTop)
-      reflectionStrength.value = config().water.roughness < 0.4 ? 0.6 : 1
-
-      if (material.roughness !== config().water.roughness)
-        material.roughness = config().water.roughness
+      setSlick(slick.value, wind.travel, wind.strength)
     },
 
     dispose () {

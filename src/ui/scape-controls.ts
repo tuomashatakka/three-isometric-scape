@@ -560,7 +560,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           ],
         ),
         toggled('boat wakes', range('water.wakeStrength', 'wake strength', 0, 1.5, 0.01), 0.78),
-        range('water.roughness', 'roughness', 0.05, 1, 0.01),
         range('boats.speed', 'boat speed', 0, 12, 0.1),
       ],
     },

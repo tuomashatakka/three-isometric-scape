@@ -208,6 +208,6 @@ describe('and which lakes take it', () => {
     )
 
     expect(held).toHaveLength(1)
-    expect(gleam).toContain('mix(uSkyHorizon, uSkyTop, facing) * cloudShade')
+    expect(gleam).toContain('mix(uSkyHorizon, uSkyTop, skyChop.x) * cloudShade')
   })
 })

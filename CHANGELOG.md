@@ -2,6 +2,16 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the wind on the water
+
+the sea from the air was one even plate: a single roughness for the whole sound, and nothing past the frame the swell can hold. [`water-slick.ts`](src/scene/landscape/water-slick.ts) gives it the texture an aerial photograph of a coast is made of — rough rows streaked down the wind, glassy water in every island's lee, drifting with the air. one scalar per lake fragment (the lake's own fractal noise in the wind's frame, cut by the wind's strength, calmed by the shelter map) drives the body (a slick reads deep and dark, the chop pale), the roughness, the mirror and the ripple.
+
+- **one knob fewer:** `water.roughness` is retired; how rough the sea is belongs to the wind.
+- **cost cut:** the 34 m ripple's sheen and normal reads go to their mean past 40 repeats of the tile and skip their fetches, which pays for the field's one fetch on mobile and two on desktop at the wide frames.
+- **cost:** no new draws, triangles, programs or textures. census identical to main: mobile default 139 / 0.95M, near 87 / 0.89M, far 115 / 1.38M, night 146, winter 145; desktop near 222 / 4.79M.
+- **caught on the way:** `water.wave`'s distribution at this seed is not the one the caps' note quotes (median 0.42, not 0.557). the test reads the real map and pins the cut to it.
+- **moved:** every frame with open sea in it (default, far, noon). the near yard is unchanged.
+
 ## blue in the air and the water
 
 the opening archipelago frame had no blue in it. the sea was a khaki plate and distance was one olive veil. the culprit was the sun's specular, not the water's colour: under an orthographic camera every fragment of the sea sees the lobe at the same angle, so it laid one grey sheen over the whole sound (black albedo still rendered at 76 grey). the lake now has a perspective eye (`EYE_GLSL` in `frame.ts`, 1.2 frame widths back), so the glint lands in one patch and the mirror takes more sky toward the far edge. it reflects at water's own 2 % rather than glass's 4 %, and its sun specular sits under the cloud shadow like its albedo does. the water body is beer–lambert ([`water-body.ts`](src/scene/landscape/water-body.ts)): wet sand seen through peat-stained coastal water, going to a deep blue-green. aerial perspective takes the blue first (`AIR_SPECTRUM`, at unit luminance, so the amount of haze is unchanged), and the sky and haze palette moved from grey-green to blue-grey.

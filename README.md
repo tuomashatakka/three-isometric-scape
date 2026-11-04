@@ -394,6 +394,7 @@ src/
     │   ├── water-caustics.ts      the sun's net on the bottom of the shallows
     │   ├── water-gleam.ts         the light that never got in: the sky it mirrors, the moon's track, the fire in torn water
     │   ├── water-caps.ts          the white the open sound puts on when it blows, and the lee that is spared it
+    │   ├── water-slick.ts         the wind's texture on the sea: rough rows down the wind, glass in the lee
     │   ├── roost.ts               the gates the tide hurries through, found in the bathymetry and packed into it
     │   ├── shelter.ts             how much of the weather the land upwind has already taken, as a mean and a harmonic
     │   ├── water-wake.ts          the water a hull leaves behind it
@@ -632,6 +633,24 @@ a tier is a bundle of decisions taken from what the device says about itself, an
 **`moleArmour` is the newest, and the third variation on the same theme.** the breakwater's mound is the same on every tier, because it is merged into a draw that already exists and a wedge of stone is what the structure *is*. what the tier decides is the apron of larger blocks tipped against the seaward face: `minimal` gets **zero**, which is an arm nobody has re-armoured since it was built — a thing that exists on every coast of this kind — and mobile gets one block every 2.4 m against ultra's 1.15. it is *not* in `UNLOCKED_FLOOR`, and that is deliberate and shared with `weirStakes` and `fencePalings`: those three are spacings in metres where smaller means more, so the floor's `Math.max` would turn unlocking into stripping, and a zero there is a real structure rather than a missing one.
 
 **`haloArcs` is the newest count, and the one that went the other way.** the three paragraphs above are all a cheap tier being given less; this is a phone being given everything. the halo's second grant is the two mock suns and the shaft — two gaussians and a column on fragments one quad already covers — and withholding it from mobile would have been free, except that the capture harness pins `--tier mobile`. a grant the harness cannot reach is a sight no still in this repository can ever show, and the mock suns are the half of this system that *moves*. so `minimal` gets 0 — no quad, no program, no ring — the unlocked floor gets the ring on its own, and every detected tier gets both.
+
+## the wind on the water
+
+from a kilometre up the eye cannot resolve a wave. what it resolves on a sea is the *texture of the surface*: long rows of water the wind has roughened beside rows it has not, and glassy lees behind every island where the gust never touches down. the scape had none of it. one `water.roughness` covered the whole sound, and past the frame the swell can hold (`SWELL_REPEATS`) the sea was one even plate.
+
+[`landscape/water-slick.ts`](src/scene/landscape/water-slick.ts) gives every lake fragment one scalar, `seaChop`, 0 glass to 1 chop. it is the lake's own fractal noise (`water.wave`) read in the wind's frame, stretched 2.5:1 down the wind and drifting on `wind.travel`, cut at a level the wind's strength sets, and calmed by the shelter map the lake already fetches. three readers take it, inside the chunks that were already there:
+
+- **the body.** a slick lets the eye down into dark water; broken facets throw the sky's diffuse light back up (`mix(0.8, 1.18, chop)`). at this camera's angles the fresnel mirror is a few per cent, so this is the larger half of how a slick reads, and the first cut — mirror only — moved nothing anyone could see.
+- **the roughness**, 0.48 in a slick to 0.8 in the chop, where the knob was one number.
+- **the mirror and the ripple.** a rough facet mirrors a higher part of the dome and less of it; a slick's capillary waves are damped to a third.
+
+**the cut is measured off the map.** the caps' note gives `water.wave` a median of 0.557; at this seed and size it is 0.42 (tenth 0.26, ninetieth 0.62), and a cut written from the caps' numbers left 4 % of a calm sea rough. `water-slick.test.ts` reads the real map: a still (where `STILL` zeroes the wind) is 10–50 % rough, a gale is nearly all of it, and at the authored wind the mean roughness sits within a tenth of the retired knob's 0.62.
+
+**the ripple goes to its mean where the frame cannot hold it.** the 34 m ripple tile is forty repeats across the archipelago frame, a print rather than a surface. its albedo sheen and its two normal reads now fade between 16 and 40 repeats (`RIPPLE_REPEATS`) and skip their fetches past it. that pays for the field: the phone reads it once, the full lake through both untile lattices.
+
+**one knob fewer.** `water.roughness` is gone; how rough the sea is belongs to the wind, and where to its bearing and the coast.
+
+**cost.** no draws, triangles, programs or textures; census identical on every pose. per water fragment: one fetch on mobile, two on desktop, and at frames past 1360 m the ripple's one (mobile) or three (desktop) fetches are skipped.
 
 ## blue in the air and the water
 

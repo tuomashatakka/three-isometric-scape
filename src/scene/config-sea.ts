@@ -234,12 +234,6 @@ export interface SeaConfig {
     swellLee: number
 
     /**
-     * Specular spread. Low values concentrate the sun into a lobe narrow
-     * enough to flare the whole lake white at the angle that catches it.
-     */
-    roughness: number
-
-    /**
      * How brightly the sun draws its net on the bottom, 0..1.
      *
      * The switch for the caustics, and the only one: 0 is a sea the light goes
@@ -381,7 +375,6 @@ export const SCAPE_SEA: SeaConfig = {
     swellShoal:     0.85,
     rippleStrength: 0.2,
     wakeStrength:   0.78,
-    roughness:      0.62,
     iceReach:       0.62,
     iceBreak:       0.5,
     surf:           1,

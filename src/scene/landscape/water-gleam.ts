@@ -31,6 +31,8 @@
  */
 
 
+import { SKY_CHOP_GLSL } from './water-slick.ts'
+
 /**
  * How much of a noon sun's worth of moonlight washes the fire out of the water.
  *
@@ -187,6 +189,10 @@ export const WATER_REFLECTION_FRAGMENT = /* glsl */`
     float facing    = clamp(dot(normalize(normal), viewDir), 0.0, 1.0);
     float fresnel   = 0.02 + 0.98 * pow(1.0 - facing, 5.0);
 
+    // The wind's texture on the surface: a rough patch mirrors a higher, darker
+    // part of the dome and less of it; a slick mirrors the bright horizon. See
+    // water-slick.ts — seaChop is declared in the colour fragment.
+${SKY_CHOP_GLSL}
     // Toward the horizon at grazing angles and toward the zenith looking down,
     // which is what the reflected ray would have found anyway. Cheaper than
     // reflecting the vector and sampling, and at this camera's range of angles
@@ -207,11 +213,11 @@ export const WATER_REFLECTION_FRAGMENT = /* glsl */`
     // into the sky mirrors a different part of it from the face behind it, so
     // the ranks read in the mirror rather than only in the paint.
     // swellShade is declared in the colour fragment above, in both programs.
-    vec3 sky = mix(uSkyHorizon, uSkyTop, facing) * cloudShade * swellShade;
+    vec3 sky = mix(uSkyHorizon, uSkyTop, skyChop.x) * cloudShade * swellShade;
 
     // Only over water deep enough to have a surface, and never over ice, which
     // is rough and scatters rather than mirrors.
-    float mirror = fresnel * uReflectionStrength *
+    float mirror = fresnel * skyChop.y *
       smoothstep(0.0, 0.35, waterDepth);
 
     outgoingLight = mix(outgoingLight, sky, clamp(mirror, 0.0, 0.82));
