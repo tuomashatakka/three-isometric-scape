@@ -5,6 +5,7 @@ import { SHORE_STEPS, surveyFarShore } from './farshore.ts'
 import type { FarShore } from './farshore.ts'
 import { surveyShoreLights } from './shore-lights.ts'
 import type { ShoreLight } from './shore-lights.ts'
+import { sectionAt } from './skyline.ts'
 
 
 const shore = surveyFarShore(SCAPE_CONFIG)
@@ -71,6 +72,26 @@ describe('the lights of the places on the far coast', () => {
       // slope it would otherwise be half-buried in.
       expect(radius).toBeGreaterThanOrEqual(sample.distance - half * sample.land - 4 - 1e-6)
       expect(radius).toBeLessThanOrEqual(sample.distance - 4 + 1e-6)
+    }
+  })
+
+  test('every light stands on the ground the sweep draws', () => {
+    // The face is carved now, not a straight line, and the lights read it
+    // through the sweep's own `sectionAt` rather than a copy of the formula.
+    // A lamp below its ridge is on the hillside to the centimetre (less the
+    // seaward standoff); one the ground never reaches is on the ridge itself.
+    for (const light of lit.lights) {
+      const sample = sampleOf(light)
+      const radius = Math.hypot(light.x, light.z) + 4
+      const ridge  = sectionAt(SCAPE_CONFIG, sample, 0)
+
+      if (Math.abs(radius - ridge.radius) < 1e-3)
+        continue
+
+      const half = sample.distance * SCAPE_CONFIG.farShore.width * 0.5
+      const u    = (radius - sample.distance) / (half * sample.land)
+
+      expect(sectionAt(SCAPE_CONFIG, sample, u).y).toBeCloseTo(light.y, 1)
     }
   })
 

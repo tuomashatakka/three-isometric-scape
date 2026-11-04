@@ -2,7 +2,8 @@ import { createSeededRng } from 'threejs-scene'
 import type { SeededRng } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 import { openDistance, SHORE_STEPS } from './farshore.ts'
-import type { FarShore } from './farshore.ts'
+import type { FarShore, ShoreSample } from './farshore.ts'
+import { sectionAt } from './skyline.ts'
 
 
 /**
@@ -212,17 +213,11 @@ function arcBetween (from: number, to: number): number {
 /**
  * Put one light on the seaward face, at `height` metres over mean water.
  *
- * The inverse of the sweep in `skyline.ts`, and it has to be read against it:
- * the toe stands at `distance - half · land` and sinks to the seabed as the
- * taper closes, the ridge stands at `distance` and carries the crest, and
- * everything between the two is a straight line in both radius and height. So
- * the share of the way up the face is the share of the way up in *height*, and
- * the radius follows from it.
- *
- * Clamped at both ends rather than trusted: a bearing whose crest is under the
- * height asked for would otherwise put the light out past the ridge line and
- * into the vale behind it, where the hill it is supposed to be on is in front
- * of it.
+ * Read off the sweep's own surface (`sectionAt` in `skyline.ts`) rather than
+ * a second copy of it: the face is carved into spurs and gullies and is no
+ * longer a straight line from the toe to the ridge, so the light walks up the
+ * section from the toe and stands where the ground first reaches its height.
+ * A bearing whose ground never gets that high puts it on the ridge.
  */
 function placeLight (
   config: ScapeConfig,
@@ -231,23 +226,51 @@ function placeLight (
   height: number,
   warmth: number,
 ): ShoreLight {
-  const { terrain, farShore } = config
-  const sample                = shore.samples[step]
-  const half                  = sample.distance * farShore.width * 0.5
-  const seabed                = terrain.waterLevel - terrain.seabedDrop
-  const toeY                  = seabed + (terrain.waterLevel - farShore.sink - seabed) * sample.land
-  const ridgeY                = seabed + (terrain.waterLevel + sample.crest - seabed) * sample.land
-  const up                    = Math.min(1, Math.max(0, (terrain.waterLevel + height - toeY) / Math.max(1e-6, ridgeY - toeY)))
-  const radius                = sample.distance - half * sample.land * (1 - up) - PROUD
+  const sample = shore.samples[step]
+  const target = config.terrain.waterLevel + height
+  const point  = sectionAt(config, sample, faceClimb(config, sample, target))
+  const radius = point.radius - PROUD
 
   return {
     x:       Math.cos(sample.bearing) * radius,
-    y:       terrain.waterLevel + height,
+    y:       target,
     z:       Math.sin(sample.bearing) * radius,
     bearing: sample.bearing,
     height,
     warmth,
   }
+}
+
+/** Steps the climb takes up the face before it bisects, and how often it bisects. */
+const CLIMB_STEPS  = 24
+const CLIMB_REFINE = 12
+
+/** The section parameter where the face first reaches `target`, toe (-1) to ridge (0). */
+function faceClimb (config: ScapeConfig, sample: ShoreSample, target: number): number {
+  const point = { x: 0, y: 0, z: 0, radius: 0 }
+  let low     = -1
+
+  for (let at = 1; at <= CLIMB_STEPS; at += 1) {
+    let high = -1 + at / CLIMB_STEPS
+
+    if (sectionAt(config, sample, high, point).y < target) {
+      low = high
+      continue
+    }
+
+    for (let pass = 0; pass < CLIMB_REFINE; pass += 1) {
+      const middle = (low + high) * 0.5
+
+      if (sectionAt(config, sample, middle, point).y < target)
+        low = middle
+      else
+        high = middle
+    }
+
+    return high
+  }
+
+  return 0
 }
 
 interface SettlementSearch {

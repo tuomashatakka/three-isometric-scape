@@ -3,7 +3,7 @@ import { MeshStandardMaterial, Vector3 } from 'three'
 import { SCAPE_CONFIG } from '../config.ts'
 import type { ScapeConfig } from '../config.ts'
 import { SHORE_STEPS, patchReach, surveyFarShore } from './farshore.ts'
-import { createFarShore } from './skyline.ts'
+import { SKYLINE_RINGS, createFarShore, sectionAt, skylineSubdivision } from './skyline.ts'
 
 
 const material = new MeshStandardMaterial()
@@ -15,7 +15,7 @@ const indices  = mesh.geometry.getIndex()!
 
 const { farShore, terrain } = SCAPE_CONFIG
 const seabed                = terrain.waterLevel - terrain.seabedDrop
-const RINGS                 = 4
+const RINGS                 = SKYLINE_RINGS
 
 /** Every vertex, with the bearing and radius it was swept at. */
 function* swept (): Generator<{ at: number, ring: number, radius: number, y: number, bearing: number }> {
@@ -34,7 +34,7 @@ function* swept (): Generator<{ at: number, ring: number, radius: number, y: num
 }
 
 describe('the far coast, as geometry', () => {
-  test('one mesh, four rings a bearing, and nothing per frame', () => {
+  test('one mesh, a fixed ring count a bearing, and nothing per frame', () => {
     expect(position.count).toBe(SHORE_STEPS * RINGS)
     expect(indices.count / 3).toBe(SHORE_STEPS * (RINGS - 1) * 2)
     expect(mesh.material).toBe(material)
@@ -111,15 +111,43 @@ describe('the far coast, as geometry', () => {
     }
   })
 
-  test('the ridge stands exactly as high as the survey says it does', () => {
+  test('the relief only carves — nothing stands over the surveyed summit', () => {
+    // Spurs stand at the surveyed height and the gullies are cut down from
+    // it, so the summit is the survey's and a lamp placed on the face is never
+    // inside a hill that grew after it was placed. And it does stand: a carve
+    // that took the top off the range would be a range of hills.
     const highest = Math.max(...[ ...swept() ].map(vertex => vertex.y))
+    const summit  = terrain.waterLevel + (shore.summit?.crest ?? 0)
 
-    expect(highest).toBeCloseTo(terrain.waterLevel + (shore.summit?.crest ?? 0), 3)
+    expect(highest).toBeLessThanOrEqual(summit + 1e-3)
+    expect(highest).toBeGreaterThan(terrain.waterLevel + (shore.summit?.crest ?? 0) * 0.8)
+  })
+
+  test('the coastline wanders rather than following a ring', () => {
+    // Where the ground first crosses mean water, as a share of the way up the
+    // face, on every bearing that stands. The four-ring sweep put it at one
+    // share everywhere — a coast drawn with a compass. Bays push it well up
+    // the face in places and leave it at the foot in others.
+    const crossings: number[] = []
+
+    for (const sample of shore.samples) {
+      if (sample.land < 1)
+        continue
+
+      let u = -1
+
+      while (u < 0 && sectionAt(SCAPE_CONFIG, sample, u).y < terrain.waterLevel)
+        u += 0.01
+
+      crossings.push(u)
+    }
+
+    expect(Math.max(...crossings) - Math.min(...crossings)).toBeGreaterThan(0.2)
   })
 
   test('the toe is under water at the bottom of a spring tide', () => {
-    // `sink` is the margin that keeps the bottom edge of the range out of the
-    // picture, and half of `tide.range` is as far down as the sea ever goes.
+    // The toe is derived from the tide rather than a knob: half of
+    // `tide.range` is as far down as the sea ever goes.
     const spring = terrain.waterLevel - SCAPE_CONFIG.tide.range * 0.5
 
     for (const vertex of swept())
@@ -134,6 +162,16 @@ describe('the far coast, as geometry', () => {
       .toEqual(position.array as Float32Array)
     expect(again.geometry.getAttribute('color').array)
       .toEqual(mesh.geometry.getAttribute('color').array as Float32Array)
+  })
+
+  test('the tiers that draw fine terrain draw the coast finely, and mobile as before', () => {
+    expect(skylineSubdivision(60)).toBe(1)
+    expect(skylineSubdivision(84)).toBe(1)
+    expect(skylineSubdivision(208)).toBe(3)
+    expect(skylineSubdivision(288)).toBe(4)
+
+    const fine = createFarShore(SCAPE_CONFIG, shore, material, 3)!
+    expect(fine.geometry.getAttribute('position').count).toBe(SHORE_STEPS * 3 * RINGS)
   })
 
   test('a scape with no far coast draws nothing at all', () => {

@@ -331,7 +331,7 @@ src/
     │   ├── shoal.ts                the drowned banks trailing off the islands' downdrift flanks
     │   ├── fjord.ts                the drowned valley cut through one island's coast
     │   ├── farshore.ts             the coast on the other side of the water, solved a bearing at a time
-    │   ├── skyline.ts              that coast as one static mesh, swept round the ring
+    │   ├── skyline.ts              that coast as one static mesh: a carved range with a wandering waterline
     │   ├── shore-lights.ts        where the people on that coast live, and where their windows are
     │   ├── icecap.ts               the ice standing on the northern island, and what it buries
     │   ├── coast.ts                the waterline on every bearing, solved once for both coastal landforms
@@ -739,7 +739,7 @@ a tile goes to its **mean**, not to nothing: the grain's dirt term keeps its ave
 
 the swell was the same fault on the water: three plain sines thirty crests across the archipelago frame ruled the whole sea in diagonal stripes. past the band its shade and normal go flat (`SWELL_REPEATS` in [`swell.ts`](src/scene/landscape/swell.ts)) and the three wave reads are skipped; the vertex swell stays, sub-pixel there. the falling weather has the same rule on another axis: rain streaks and hail stones are screen-sized marks, right in the farmyard and a column of white confetti over open sea, so `fallMarks` in [`squall.ts`](src/scene/squall.ts) fades them out on exactly the curve the squall on the water fades in, and past it both layers are hidden.
 
-with the print gone the far shore showed what it was underneath: one tan blend from `seaRock` to `scree`. [`skyline.ts`](src/scene/landscape/skyline.ts) now paints it as a northern coast — wet rock at the water, `palette.farForest` over the lower slopes and the vales, heath in the clearings, and scree only above a treeline at 62–100 % of `farShore.rise`. the stands come from two broad octaves of the ring's own wrapped noise. a fine octave was tried and drew spokes, because the colour is swept across the ring's whole depth.
+with the print gone the far shore showed what it was underneath: one tan blend from `seaRock` to `scree`. [`skyline.ts`](src/scene/landscape/skyline.ts) now paints it as a northern coast — wet rock at the water, `palette.farForest` over the lower slopes and the vales, heath in the clearings, and scree only above a treeline at 62–100 % of `farShore.rise`. the stands now come from world-space noise and the rock from the slope the normals give, so neither draws spokes (see *a range, not a cutout*).
 
 ## every texture, in one list
 
@@ -2942,7 +2942,7 @@ the subject is 3.46 m long and 1.71 m tall against a tour whose closest pose fra
 
 every landform in this scape until now stood inside the archipelago plane, and the plane always ended in open water on every bearing. six islands, a sea four times the world wide to hide the edge of it, and behind them nothing. pull the camera out at any hour and the picture was an island group floating in the middle of an ocean — which is not what an island group is. an archipelago is the *fringe* of somewhere, and this one had no somewhere.
 
-there is a coast out there now. [`landscape/farshore.ts`](src/scene/landscape/farshore.ts) solves it, [`landscape/skyline.ts`](src/scene/landscape/skyline.ts) sweeps it into one mesh, and the ten knobs are [`config-farshore.ts`](src/scene/config-farshore.ts).
+there is a coast out there now. [`landscape/farshore.ts`](src/scene/landscape/farshore.ts) solves it, [`landscape/skyline.ts`](src/scene/landscape/skyline.ts) sweeps it into one mesh, and the nine knobs are [`config-farshore.ts`](src/scene/config-farshore.ts).
 
 ### it is a ring in the world, not a flat on the camera
 
@@ -2968,7 +2968,19 @@ so the radius is a floor rather than an answer. `patchReach` is the support func
 
 the first build swept a prism — toe, crest, toe — and a prism is an island. the capture said so at once: a dark ribbon curled round the archipelago with open sea on both sides of it. what makes a far shore a far shore is not its height, it is that **the sea ends**, and a sea that closes again 160 m later has not ended.
 
-the cross-section is four rings now: a toe under the water, the coastal ridge, a vale behind it, and an outer rim past the corner of the widest frame the camera has. `farShore.hinterland` is how far that is, and it is the one number in the section sized against `camera.maxViewSize` rather than against the world — what it has to cover is the picture. it costs nothing: one more ring of vertices, two more triangles a bearing, and a quad that leaves an orthographic frustum is clipped rather than shaded.
+the cross-section has four parts: a toe under the water, the coastal ridge, a vale behind it, and an outer rim past the corner of the widest frame the camera has. `farShore.hinterland` is how far that is, and it is the one number in the section sized against `camera.maxViewSize` rather than against the world — what it has to cover is the picture. it costs nothing: one more ring of vertices, two more triangles a bearing, and a quad that leaves an orthographic frustum is clipped rather than shaded.
+
+### a range, not a cutout
+
+four rings a bearing — toe, ridge, vale, rim — is a smooth collar. from the opening frame it read as a cardboard cutout laid round the archipelago, with a clean outline where it met the sea. it had no spur, no gully and no summit, and its coastline was drawn with a compass. the sweep is now fifteen rings, packed toward the toe because the first fifth of the face is where the coastline is decided. `sectionAt` in [`skyline.ts`](src/scene/landscape/skyline.ts) is the single definition of the surface:
+
+- **relief that only carves.** two broad world-space ridged octaves (170 m and 75 m) make the massif. the drainage is ridged noise *along the bearing*, 110 gullies round the horizon, wandered sideways by a world-space warp. it is periodic by construction, so the ring still closes. gullies run downslope, so the pattern is fine across the face and long down it. that needs fine bearings rather than fine rings, and the drainage fades out behind the ridge, where a straight kilometre-long gully would read as a spoke. spurs stand at the surveyed crest and gullies are cut down from it, so nothing stands over `shore.summit`.
+- **a waterline that wanders.** world-space bays drop the foot of the face under the sea in patches, so the coast is wherever the ground happens to cross the water.
+- **colour from the ground, after the normals.** wet rock at the water, forest stands and heath clearings from world-space noise, bare rock wherever the slope is too steep to hold soil, scree above a treeline that climbs with the stand, and the radial haze as before.
+- **the toe is not a knob.** `farShore.sink` is retired. the toe stands a metre under the bottom of a spring tide, read off `tide.range`.
+- **the lights stand on it.** `shore-lights.ts` climbs `sectionAt` from the toe instead of keeping its own copy of a straight-line face, so a lamp is on the carved hillside, less its seaward standoff.
+
+bearings are one a degree on mobile and up to four a degree on the tiers with fine terrain (`skylineSubdivision(quality.terrainSegments)`): the far coast is terrain, and it gets the terrain's density.
 
 ### the sounds cost a few triangles rather than a branch
 
@@ -2987,7 +2999,7 @@ the one thing baked rather than inherited is **aerial perspective across the ran
 
 ### what it costs
 
-**one draw call and 2160 triangles, on every tier.** no texture, no uniform, no work in `update` — the land does not move, so it has no speed, and nothing of it goes in `STILL`. it casts no shadow and receives none: the sun's shadow camera is fitted to the ground the view can see, and a two-kilometre ring of mountains in the caster list would open that fit up and spend the islands' shadow resolution on a thing the air has half dissolved.
+**one draw call, on every tier: 10k triangles on mobile, 30–40k where the terrain is fine.** no texture, no uniform, no work in `update` — the land does not move, so it has no speed, and nothing of it goes in `STILL`. it casts no shadow and receives none: the sun's shadow camera is fitted to the ground the view can see, and a two-kilometre ring of mountains in the caster list would open that fit up and spend the islands' shadow resolution on a thing the air has half dissolved.
 
 there is no `AtmosphereQuality` number for it, for the reason there is none for the ice cap: a system that costs a phone exactly what it costs a workstation does not need a budget, and a tier knob that reads the same on all five tiers is a knob lying about having a choice in it.
 
@@ -3193,7 +3205,7 @@ both score terms are smooth around a col, so the nine highest-scoring samples on
 
 the thing that could silently go wrong here is a light that is *near* the coast rather than on it. the seaward face is a slope between a toe three metres under the water and a crest a hundred metres over it, and the two are at **different radii** — so a light at the right height and the wrong radius floats off the coast, and from the default pose that is indistinguishable from a light on it.
 
-so the placement inverts the same cross-section `skyline.ts` sweeps: toe radius and toe height, ridge radius and ridge height, both scaled by the bearing's own taper, and the share of the way up in *height* is the share of the way out in *radius*. `shore-lights.test.ts` states the result as three facts about every light rather than as a comment — over the water, under the crest of its own bearing, and between the toe radius and the ridge radius.
+so the placement climbs the same cross-section `skyline.ts` sweeps (`sectionAt`) from the toe, and stands the lamp where the carved ground first reaches its height. `shore-lights.test.ts` states the result as three facts about every light rather than as a comment — over the water, under the crest of its own bearing, and between the toe radius and the ridge radius.
 
 one of those tests paid for itself immediately. the ceiling a light may climb to was taken from the crest at the **middle** of its place, and a cluster scatters up to 30% of the spread either side of that: the crest falls away fast toward a sound, and the harbour term puts most of these places two degrees from one. ask for a taller village and the outer lights hung forty-five metres over ground that stood nine. the ceiling is read at the light's own bearing now.
 

@@ -2,223 +2,369 @@ import { BufferAttribute, BufferGeometry, Color, Mesh } from 'three'
 import { smoothstep } from 'threejs-scene'
 import type { Material } from 'three'
 import type { ScapeConfig } from '../config.ts'
+import { valueNoise } from '../noise.ts'
 import { SHORE_STEPS, ringNoise } from './farshore.ts'
-import type { FarShore } from './farshore.ts'
+import type { FarShore, ShoreSample } from './farshore.ts'
 
 
 /**
- * The far coast, as one static mesh.
+ * The far coast, as one static mesh — a mountain range, not a band.
  *
  * ## a coast, not a reef
  *
- * The cross-section is four points swept round the ring the survey solved: a
- * toe under the water, the coastal ridge, a vale behind it, and an outer rim
- * out past the corner of the widest frame the camera has.
+ * The cross-section runs from a toe under the water, up the seaward face to the
+ * coastal ridge, down into a vale and back up to an outer rim past the corner
+ * of the widest frame the camera has. A cross-section that came back down into
+ * the water behind the ridge would be an island: what makes a far shore a far
+ * shore is that *the sea ends*. `farShore.hinterland` is how far out the rim is.
  *
- * The first build stopped at the ridge and brought a second toe back down into
- * the water behind it, which is a prism — and a prism is an island. The
- * capture said so immediately: a dark ribbon curled round the archipelago with
- * open sea on both sides of it, at every one of the four tour poses wide
- * enough to see it. The thing that makes a far shore a far shore is not its
- * height, it is that *the sea ends*, and a sea that closes again a hundred and
- * sixty metres later has not ended. So the land carries on outward until it is
- * off the picture, and `farShore.hinterland` is how far that is.
+ * ## a range, not a cutout
  *
- * It costs nothing to do it this way. The outer rim is one more ring of
- * vertices and the plain between is two more triangles a bearing, and the
- * camera is orthographic: a quad that leaves the frustum is clipped, not
- * shaded.
+ * The first coast was four rings a bearing — toe, ridge, vale, rim — and from
+ * the archipelago frame that is a smooth cardboard collar with a clean outline
+ * at the water: no spur, no gully, no summit, and a coastline drawn with a
+ * compass. Two things make a range read as one from a kilometre off, and this
+ * sweep now has both:
+ *
+ * - **relief that runs down the slopes.** {@link reliefAt} is ridged value
+ *   noise in *world* space, so it has no seam at due east and no spokes along
+ *   the bearings, and it only ever *carves*: spurs stand at the surveyed
+ *   height and the gullies between them are cut down from it. The summit is
+ *   therefore never higher than the survey says, and a shore light placed on
+ *   the face can never be inside a hill that was not there when it was placed.
+ * - **a waterline that wanders.** {@link bayAt} drops the foot of the face
+ *   under the sea in patches, so the coastline is where the ground happens to
+ *   cross the water rather than a ring a fixed share of the way up. The rings
+ *   are packed toward the toe ({@link FACE}) because that is where the
+ *   coastline is decided.
  *
  * ## the sounds cost a few triangles rather than a branch
  *
- * Where the sea runs out there is no land, and the obvious build is to break
- * the strip and start a new one. It is not worth it. The survey has already
- * tapered the crest down to zero on those bearings, so pushing the crest to the
- * toe's own depth collapses the whole cross-section — ridge, vale and rim — to a
- * line three metres under mean water: the strip stays one unbroken ring, the
- * index buffer stays a loop with no special cases at either end of a headland,
- * the sea runs out through the gap to the edge of the picture because there is
- * nothing standing in it, and the price is a few hundred degenerate triangles
- * under the water. A branch in that loop would have cost
- * more to read than the triangles cost to draw.
+ * Where the sea runs out the survey's `land` falls to zero, and every radial
+ * offset and every height is scaled by it toward the seabed, so an open bearing
+ * collapses to a single point on the bottom. The strip stays one unbroken ring
+ * and the index buffer a loop with no special case.
  *
- * ## what it is made of, and what it is not
+ * ## what it is made of
  *
- * The shared `ground` material, which is the whole reason this is as cheap as
- * it is: no program of its own, no uniform of its own, no texture. It picks up
- * the scape's linear fog — which is what hazes it, and `atmosphere.fogDensity`
- * is therefore its only live knob — the snow line, the wet pass and the cloud
- * shadow, all for nothing, because every one of those is already in the
- * material every other static surface in the scape draws with.
- *
- * It casts no shadow and receives none. The sun's shadow camera is fitted to
- * the ground the view can see; a kilometre-wide ring of mountains in the caster
- * list would blow that fit open and cost the islands their shadow resolution to
- * light a thing the fog has half dissolved anyway.
+ * The shared `ground` material: no program, uniform or texture of its own. It
+ * picks up the fog, the snow line, the wet pass and the cloud shadow for
+ * nothing. It casts no shadow and receives none — a kilometre-wide ring in the
+ * caster list would spend the islands' shadow resolution on a thing the air has
+ * half dissolved.
  */
 
 /**
- * The cross-section, as four radii and four heights.
+ * Where each ring stands, as a multiple of the half-width between the toe and
+ * the ridge (`-1` is the toe, `0` the ridge, {@link VALE} the vale floor), and
+ * then {@link INLAND} more spread out to the rim, which `farShore.hinterland`
+ * places per bearing.
  *
- * {@link RINGS} is where each ring stands, past the ridge, as a multiple of
- * the half-width between the waterline and the ridge — except the last, which
- * is `farShore.hinterland` and is resolved per build because it is sized
- * against the camera rather than against the coast.
- *
- * {@link HIGH} is what each one does with the bearing's crest height: the
- * ridge is the crest, the vale behind it keeps half, and the rim inland comes
- * back up to most of it. A rim at the same height as the ridge would be a
- * plateau, and a rim lower than the vale would be a second coast falling into
- * a sea that is not there.
+ * Packed toward the toe: the coastline is decided in the first fifth of the
+ * face, and a face drawn in four even steps has one chord where the coast is.
  */
-const RINGS = [ -1, 0, 1.6 ]
-const HIGH  = [ 0, 1, 0.5, 0.86 ]
+const VALE   = 1.6
+const FACE   = [ -1, -0.86, -0.72, -0.58, -0.44, -0.3, -0.15, 0, 0.35, 0.85, VALE ]
+const INLAND = 4
+const RINGS  = FACE.length + INLAND
+const RIDGE  = FACE.indexOf(0)
 
-/**
- * What each ring is made of.
- *
- * The first coast was one blend, `seaRock` at the toe to `scree` at the
- * summit, and from the archipelago frame that is a tan sheet: a hundred
- * kilometres of the same bare stone. A northern coast that far off reads as
- * three things — wet rock at the water, dark conifer forest over the lower
- * slopes and the vales, and bare scree and heath only where the ground stands
- * high enough to be above the trees.
- *
- * {@link TREELINE} is that last line, as a share of `farShore.rise`: a ring
- * whose own height is under it is forest, over it scree, with a soft band
- * between. The forest is not a band of paint either: {@link standAt} breaks
- * it along the bearing into stands and clearings, two octaves of the ring's
- * own wrapped noise, so the treeline climbs and falls with them. Broad
- * octaves only: the colour is swept across the whole ring's depth, so a fine
- * one draws spokes rather than stands.
- *
- * {@link HAZE} is aerial perspective, baked, and it is not a cheat. The
- * shader's haze is measured from the point the camera looks at, so the outer
- * rim, a kilometre further across the water than the ridge, is barely any
- * further from it than the ridge is. Distance through the air is radial here,
- * and this is that distance. It is an albedo rather than a light, so a hazier
- * rim is still a dark rim at night.
- */
-const TREELINE = [ 0.62, 1 ] as const
-const HAZE     = [ 0, 0.05, 0.18, 0.3 ]
-
-/** The stands, 0..1 along the bearing: clearings low, close forest high. */
-function standAt (bearing: number, seed: number): number {
-  return ringNoise(bearing, 29, 11.3 + seed * 0.031) * 0.7 +
-    ringNoise(bearing, 67, 23.9 - seed * 0.017) * 0.3
+/** The section parameter of one ring, given where this bearing's rim is. */
+function ringAt (ring: number, rimU: number): number {
+  return ring < FACE.length
+    ? FACE[ring]
+    : VALE + (rimU - VALE) * (ring - FACE.length + 1) / INLAND
 }
 
-const rockTone   = new Color()
-const screeTone  = new Color()
-const forestTone = new Color()
-const heathTone  = new Color()
-const hazeTone   = new Color()
-const blend      = new Color()
+/** The vale keeps half the ridge, the rim comes back up to most of it. */
+const VALE_HIGH = 0.5
+const RIM_HIGH  = 0.86
 
-/** The colour of one vertex, before the haze. */
-function groundTone (ring: number, height: number, stand: number, out: Color): Color {
-  if (ring === 0)
-    return out.copy(rockTone)
+/** The seaward face is concave — steep under the crest, gentle at the foot. */
+const FACE_CURVE = 1.4
 
-  // The clearings are heath, and a thin stand is half of each.
-  out.lerpColors(heathTone, forestTone, smoothstep(0.15, 0.45, stand))
+/**
+ * How deep a gully is cut, as a share of the ground standing above the water
+ * there. The ridged noise is ~1 on a spur and falls to 0 in a gully floor.
+ */
+const GULLY = 0.55
 
-  // The treeline, lowered where the stand is thin — trees give out first
-  // where they were already struggling.
-  const line = TREELINE[0] + (TREELINE[1] - TREELINE[0]) * (stand - 0.2)
+/**
+ * The massif's octaves, in metres. Only broad ones: the sweep is a degree a
+ * bearing on mobile — 14 m at the crest — and rings 25 m apart on the face, and
+ * a world-space octave finer than about twice that aliases into streaks.
+ */
+const MASSIF_SCALES = [ 170, 75 ]
 
-  return out.lerp(screeTone, smoothstep(line - 0.18, line + 0.12, height))
+/**
+ * The drainage: gullies down the face, as ridged noise *along the bearing* —
+ * periodic by construction, so the ring closes — and wandered sideways by a
+ * world-space warp so no gully runs straight. A gully runs downslope, so a
+ * pattern that is fine across the face and long down it is the right shape,
+ * and it needs fine bearings rather than fine rings. {@link GULLIES} round the
+ * whole horizon is about 50 m apart at the crest line: three bearings a gully
+ * on the coarsest tier.
+ */
+const GULLIES = 110
+const MEANDER = 1.6
+
+/**
+ * How far a bay drops the foot of the face, as a share of the crest, and the
+ * feature size of the bays in metres. Sized so the deepest bay reaches about a
+ * third of the way up the face before the ground wins.
+ */
+const BAY       = 0.26
+const BAY_SCALE = 46
+
+/** The toe stands this far under the bottom of a spring tide. */
+const TOE_MARGIN = 1
+
+/**
+ * Bearings per survey sample, from the tier's terrain density. The survey is
+ * one degree a step; at the crest line that is 14 m, coarser than the gullies,
+ * so the tiers that draw fine terrain draw this finely too. One number for
+ * both, for the reason `terrainSegments` and the scatter share one: the far
+ * coast is terrain.
+ */
+export function skylineSubdivision (terrainSegments: number): number {
+  return Math.min(4, Math.max(1, Math.round(terrainSegments / 72)))
+}
+
+/** Ridged, 0 in a valley floor and 1 on a crest. */
+function ridged (value: number): number {
+  const fold = 1 - Math.abs(value * 2 - 1)
+
+  return fold * fold
 }
 
 /**
- * Write the ring's four vertices per bearing — toe, ridge, vale, rim.
- *
- * Its own function because the build was past the lint config's statement
- * ceiling with it inline, and this is the seam worth cutting on: everything
- * above is the mesh's own bookkeeping and everything here is the cross-section.
+ * The relief at one point of the coast, 0 in a gully floor and 1 on a spur.
+ * Deterministic, and only ever used to *carve*. `drain` is how much of it is
+ * the drainage: all of it on the seaward face, none of it far inland, where a
+ * gully kept straight for a kilometre would be a spoke.
  */
-function sweepRing (
+export function reliefAt (x: number, z: number, bearing: number, seed: number, drain: number): number {
+  const massif = ridged(valueNoise(x / MASSIF_SCALES[0], z / MASSIF_SCALES[0], seed)) * 0.65 +
+    ridged(valueNoise(x / MASSIF_SCALES[1], z / MASSIF_SCALES[1], seed + 7.13)) * 0.35
+  const wander = (valueNoise(x / 130, z / 130, seed - 4.4) - 0.5) * MEANDER * Math.PI * 2 / GULLIES
+  const gully  = ridged(ringNoise(bearing + wander, GULLIES, 41.9 + seed * 0.013))
+
+  return massif * (1 - 0.45 * drain) + gully * 0.45 * drain
+}
+
+/** 0..1 — how far a bay has eaten into the foot of the face here. */
+export function bayAt (x: number, z: number, seed: number): number {
+  return smoothstep(0.42, 0.82, valueNoise(x / BAY_SCALE, z / BAY_SCALE, seed - 31.7))
+}
+
+/** One point of the cross-section, in world space. */
+export interface SectionPoint {
+  x:      number
+  y:      number
+  z:      number
+  radius: number
+}
+
+/** Mean water, the toe, and the seabed the sounds collapse to. */
+interface Levels {
+  water:  number
+  toe:    number
+  seabed: number
+}
+
+function levelsOf (config: ScapeConfig): Levels {
+  const { terrain, tide } = config
+
+  return {
+    water:  terrain.waterLevel,
+    toe:    terrain.waterLevel - tide.range * 0.5 - TOE_MARGIN,
+    seabed: terrain.waterLevel - terrain.seabedDrop,
+  }
+}
+
+/** How much of the crest a ring past the ridge keeps. */
+function inlandHigh (u: number, rimU: number): number {
+  if (u <= VALE)
+    return 1 - (1 - VALE_HIGH) * smoothstep(0, VALE, u)
+
+  return VALE_HIGH + (RIM_HIGH - VALE_HIGH) * smoothstep(VALE, rimU, u)
+}
+
+/**
+ * The ground at `u` across one bearing's section — the one definition of the
+ * far coast's surface. The sweep draws it and `shore-lights.ts` stands its
+ * lamps on it, so the two cannot disagree about where the hillside is.
+ */
+export function sectionAt (
+  config: ScapeConfig,
+  sample: ShoreSample,
+  u:      number,
+  out:    SectionPoint = { x: 0, y: 0, z: 0, radius: 0 },
+): SectionPoint {
+  const { farShore, seed }                 = config
+  const { water, toe, seabed }             = levelsOf(config)
+  const { bearing, distance, crest, land } = sample
+  const half                               = distance * farShore.width * 0.5
+  const rimU                               = distance * farShore.hinterland / Math.max(1e-6, half)
+  const radius                             = distance + half * Math.min(u, rimU) * land
+  const x                                  = Math.cos(bearing) * radius
+  const z                                  = Math.sin(bearing) * radius
+
+  let base  = water
+  let share = inlandHigh(u, rimU)
+  let dip   = 0
+
+  if (u < 0) {
+    const s = u + 1
+    base  = toe + (water - toe) * s
+    share = Math.pow(s, FACE_CURVE)
+    dip   = BAY * crest * bayAt(x, z, seed) * (1 - s) * (1 - s)
+  }
+
+  // The gullies bite deeper the higher up the face they are — a foot of
+  // shingle is not carved the way a summit is.
+  const bite   = GULLY * Math.min(1, 0.3 + (u + 1) * 0.7)
+  const ground = base + crest * share * (1 - bite * (1 - reliefAt(x, z, bearing, seed, 1 - smoothstep(0.2, VALE, u)))) - dip
+
+  out.x      = x
+  out.z      = z
+  out.radius = radius
+  out.y      = seabed + (ground - seabed) * land
+  return out
+}
+
+/** Survey samples are a degree apart; the sweep reads between them. */
+function sampleBetween (shore: FarShore, at: number, out: ShoreSample): ShoreSample {
+  const first = Math.floor(at)
+  const blend = at - first
+  const a     = shore.samples[first % SHORE_STEPS]
+  const b     = shore.samples[(first + 1) % SHORE_STEPS]
+
+  out.bearing  = at / SHORE_STEPS * Math.PI * 2
+  out.distance = a.distance + (b.distance - a.distance) * blend
+  out.crest    = a.crest + (b.crest - a.crest) * blend
+  out.land     = a.land + (b.land - a.land) * blend
+  return out
+}
+
+const tones = {
+  rock:   new Color(),
+  wet:    new Color(),
+  scree:  new Color(),
+  forest: new Color(),
+  heath:  new Color(),
+  haze:   new Color(),
+}
+const blend = new Color()
+
+/**
+ * What the ground is made of at one vertex, after the normals are known.
+ *
+ * Wet rock at the water; forest over the gentle low ground, broken into
+ * stands and heath clearings by world-space noise (the old bearing-swept
+ * stands drew spokes at any fine octave); bare rock wherever the face is too
+ * steep to hold soil; scree above a treeline that climbs where the stand is
+ * thick. Then aerial perspective by *radial* distance past the ridge, because
+ * the shader's haze is measured from the point the camera looks at and the
+ * rim is barely further from that than the ridge is.
+ */
+function groundTone (
+  height: number,
+  share:  number,
+  steep:  number,
+  stand:  number,
+  haze:   number,
+  out:    Color,
+): Color {
+  out.lerpColors(tones.heath, tones.forest, smoothstep(0.3, 0.6, stand))
+
+  const treeline = 0.5 + 0.3 * stand
+  out.lerp(tones.scree, smoothstep(treeline - 0.15, treeline + 0.1, share))
+  out.lerp(tones.rock, smoothstep(0.3, 0.6, steep))
+  out.lerp(tones.wet, 1 - smoothstep(0.5, 3, height))
+
+  return out.lerp(tones.haze, haze)
+}
+
+function setTones (config: ScapeConfig): void {
+  const { palette } = config
+
+  tones.rock.set(palette.scree).lerp(blend.set(palette.seaRock), 0.6)
+  tones.wet.set(palette.seaRock).multiplyScalar(0.7)
+  tones.scree.set(palette.scree)
+  tones.forest.set(palette.farForest)
+  tones.heath.set(palette.heath)
+  tones.haze.set(palette.fog)
+}
+
+/** Positions, ring by ring, bearing by bearing. */
+function sweepRing (config: ScapeConfig, shore: FarShore, bearings: number): Float32Array {
+  const rings    = RINGS
+  const position = new Float32Array(bearings * rings * 3)
+  const sample   = { bearing: 0, distance: 0, crest: 0, land: 0 }
+  const point    = { x: 0, y: 0, z: 0, radius: 0 }
+
+  for (let step = 0; step < bearings; step += 1) {
+    sampleBetween(shore, step / bearings * SHORE_STEPS, sample)
+
+    const half = sample.distance * config.farShore.width * 0.5
+    const rimU = sample.distance * config.farShore.hinterland / Math.max(1e-6, half)
+
+    for (let ring = 0; ring < rings; ring += 1) {
+      sectionAt(config, sample, ringAt(ring, rimU), point)
+      position.set([ point.x, point.y, point.z ], (step * rings + ring) * 3)
+    }
+  }
+
+  return position
+}
+
+/** Colours, from the swept positions and the normals they gave. */
+function paintRing (
   config:   ScapeConfig,
   shore:    FarShore,
   position: Float32Array,
-  colour:   Float32Array,
-): void {
-  const { farShore, terrain, palette } = config
-  const seabed                         = terrain.waterLevel - terrain.seabedDrop
-  const toeY                           = terrain.waterLevel - farShore.sink
-  const inland                         = farShore.hinterland
+  normal:   ArrayLike<number>,
+): Float32Array {
+  const rings  = RINGS
+  const colour = new Float32Array(position.length)
+  const rise   = Math.max(1e-6, shore.summit?.crest ?? config.farShore.rise)
+  const water  = config.terrain.waterLevel
 
-  // Where each ring stands before the taper has had it: the toe under the
-  // waterline, and everything inland measured up from the waterline itself.
-  // Derived off {@link HIGH} rather than written out, so a cross-section that
-  // grows a ring cannot grow one without a base to stand on.
-  const base = HIGH.map((_, ring) => ring === 0 ? toeY : terrain.waterLevel)
+  setTones(config)
 
-  rockTone.set(palette.seaRock)
-  screeTone.set(palette.scree)
-  forestTone.set(palette.farForest)
-  heathTone.set(palette.heath)
-  hazeTone.set(palette.fog)
+  for (let at = 0; at < position.length / 3; at += 1) {
+    const ring  = at % rings
+    const x     = position[at * 3]
+    const y     = position[at * 3 + 1]
+    const z     = position[at * 3 + 2]
+    const stand = valueNoise(x / 90, z / 90, config.seed + 3.1) * 0.7 +
+      valueNoise(x / 31, z / 31, config.seed + 9.7) * 0.3
+    const haze   = 0.3 * smoothstep(RIDGE, rings - 1, ring)
 
-  for (let step = 0; step < SHORE_STEPS; step += 1) {
-    const { bearing, distance, crest, land } = shore.samples[step]
-    const dirX                               = Math.cos(bearing)
-    const dirZ                               = Math.sin(bearing)
-    const half                               = distance * farShore.width * 0.5
-    const share                              = farShore.rise > 0 ? crest / farShore.rise : 0
-    const stand                              = standAt(bearing, config.seed)
-
-    for (let ring = 0; ring < RINGS.length + 1; ring += 1) {
-      const at     = (step * (RINGS.length + 1) + ring) * 3
-      const offset = ring < RINGS.length ? half * RINGS[ring] : distance * inland
-
-      // The taper does two things at once where the land runs out, and both
-      // were learned from a capture.
-      //
-      // It **shrinks** the cross-section, so a headland running into a sound
-      // closes to a point on the crest line rather than lying down flat where
-      // it stood. Sinking alone left a hundred-and-ninety-metre ramp of drowned land
-      // either side of every sound, reaching in under the water toward the
-      // islands — three dark spikes in the noon frame.
-      //
-      // And it **sinks** it to the seabed rather than to the toe's own depth.
-      // Three metres under mean water is inside the lake's depth tint, and
-      // that drew every sound as a pale bar straight across itself: a shoal
-      // nothing had surveyed, in the one place the coast has to be open.
-      const radius = distance + offset * land
-
-      position[at]     = dirX * radius
-      position[at + 1] = seabed + (base[ring] + crest * HIGH[ring] - seabed) * land
-      position[at + 2] = dirZ * radius
-
-      groundTone(ring, share * HIGH[ring], stand, blend).lerp(hazeTone, HAZE[ring])
-
-      colour[at]     = blend.r
-      colour[at + 1] = blend.g
-      colour[at + 2] = blend.b
-    }
+    groundTone(y - water, (y - water) / rise, 1 - normal[at * 3 + 1], stand, haze, blend)
+      .toArray(colour, at * 3)
   }
+
+  return colour
 }
 
 /**
  * Wind every band of the sweep so its face looks up.
  *
- * One rule for all three bands rather than one per face, and it falls out of
- * the cross product: for an inner ring `a` and the ring `b` outside it, the
- * triangles `(aᵢ, bⱼ, bᵢ)` and `(aᵢ, aⱼ, bⱼ)` give a normal whose vertical part
- * is the radial step between the two rings — positive whatever the *slope*
- * does. So a face that climbs away from the sea and a face that falls back
- * toward it are wound the same way and neither has to be special-cased, which
- * is the whole reason the sweep could grow from two bands to three without the
- * index buffer being rethought. `skyline.test.ts` asserts it against the
- * geometry rather than against this comment.
+ * For an inner ring `a` and the ring `b` outside it, the triangles
+ * `(aᵢ, bⱼ, bᵢ)` and `(aᵢ, aⱼ, bⱼ)` give a normal whose vertical part is the
+ * radial step between the two rings — positive whatever the slope does, so a
+ * face that climbs from the sea and one that falls back toward it wind the same
+ * way. `skyline.test.ts` asserts it against the geometry.
  */
-function windRing (index: Uint32Array, rings: number): void {
+function windRing (bearings: number, rings: number): Uint32Array {
   const bands = rings - 1
+  const index = new Uint32Array(bearings * bands * 6)
 
-  for (let step = 0; step < SHORE_STEPS; step += 1) {
+  for (let step = 0; step < bearings; step += 1) {
     const here = step * rings
-    const next = (step + 1) % SHORE_STEPS * rings
+    const next = (step + 1) % bearings * rings
 
     for (let band = 0; band < bands; band += 1)
       index.set([
@@ -226,37 +372,34 @@ function windRing (index: Uint32Array, rings: number): void {
         here + band, next + band, next + band + 1,
       ], (step * bands + band) * 6)
   }
+
+  return index
 }
 
 /**
- * Build the far coast, or `null` when the scape has none.
- *
- * Null rather than an empty mesh when nothing stands: `farShore.rise` at zero
- * is a scape with open ocean on every bearing, and an empty draw call is still
- * a draw call.
+ * Build the far coast, or `null` when the scape has none — `farShore.rise` at
+ * zero is open ocean on every bearing, and an empty draw is still a draw.
  */
 export function createFarShore (
-  config:   ScapeConfig,
-  shore:    FarShore,
-  material: Material,
+  config:      ScapeConfig,
+  shore:       FarShore,
+  material:    Material,
+  subdivision: number = 1,
 ): Mesh | null {
   if (!shore.headlands.length)
     return null
 
-  const rings    = RINGS.length + 1
-  const vertices = SHORE_STEPS * rings
-  const position = new Float32Array(vertices * 3)
-  const colour   = new Float32Array(vertices * 3)
-  const index    = new Uint32Array(SHORE_STEPS * (rings - 1) * 6)
-
-  sweepRing(config, shore, position, colour)
-  windRing(index, rings)
-
+  const bearings = SHORE_STEPS * Math.max(1, Math.round(subdivision))
+  const position = sweepRing(config, shore, bearings)
   const geometry = new BufferGeometry()
+
   geometry.setAttribute('position', new BufferAttribute(position, 3))
-  geometry.setAttribute('color', new BufferAttribute(colour, 3))
-  geometry.setIndex(new BufferAttribute(index, 1))
+  geometry.setIndex(new BufferAttribute(windRing(bearings, RINGS), 1))
   geometry.computeVertexNormals()
+  geometry.setAttribute('color', new BufferAttribute(
+    paintRing(config, shore, position, geometry.getAttribute('normal').array),
+    3,
+  ))
 
   const mesh         = new Mesh(geometry, material)
   mesh.name          = 'far-shore'
@@ -266,3 +409,6 @@ export function createFarShore (
   mesh.matrixAutoUpdate = false
   return mesh
 }
+
+/** Rings a bearing, for the tests and the census. */
+export const SKYLINE_RINGS = RINGS
