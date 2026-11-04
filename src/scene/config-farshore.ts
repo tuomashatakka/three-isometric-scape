@@ -38,9 +38,9 @@
  *   takes the far shore out with it, and {@link FarShoreConfig.farShore.standOff}
  *   — metres, and the exception that proves the rule — is the clearance it
  *   keeps past whatever the islands actually occupy on each bearing.
- * - **metres.** {@link FarShoreConfig.farShore.rise} and
- *   {@link FarShoreConfig.farShore.sink} are heights, and a mountain is the
- *   same mountain in a bigger world.
+ * - **metres.** {@link FarShoreConfig.farShore.rise} is a height, and a
+ *   mountain is the same mountain in a bigger world. The toe's depth is not a
+ *   knob: it is the bottom of a spring tide and a metre, read off `tide.range`.
  * - **dimensionless.** Everything else is a share: of the reach, of the
  *   horizon, of the rise, or of a revolution.
  *
@@ -188,20 +188,6 @@ export interface FarShoreConfig {
      * it has to cover is the picture rather than the sea.
      */
     hinterland: number
-
-    /**
-     * Metres the toe is pushed under mean water.
-     *
-     * Not a foundation — nothing here is lit from below and nothing swims past
-     * it. It is the margin that keeps the bottom edge of the range under the
-     * sea at the bottom of a spring tide, which is half of `tide.range` and
-     * well under a metre on this coast. Three metres is enough for any tide
-     * this scape can be given, and it is also what collapses the cross-section
-     * to nothing on the open bearings: the crest comes down to the toe, the toe
-     * is under water, and the sounds cost two triangles of geometry nobody can
-     * see rather than a branch in the loop that builds them.
-     */
-    sink: number
   }
 }
 
@@ -236,6 +222,5 @@ export const SCAPE_FAR_SHORE: FarShoreConfig = {
     taper:      5,
     width:      0.45,
     hinterland: 1.1,
-    sink:       3,
   },
 }

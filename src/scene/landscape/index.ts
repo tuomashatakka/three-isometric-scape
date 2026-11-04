@@ -71,7 +71,7 @@ import { createSeabirdCliffs } from './seabirds.ts'
 import type { SeabirdCliffs } from './seabirds.ts'
 import { createSealColony } from './seals.ts'
 import type { SealColony } from './seals.ts'
-import { createFarShore } from './skyline.ts'
+import { createFarShore, skylineSubdivision } from './skyline.ts'
 import { swashState } from './swash.ts'
 import { advanceSwell } from './swell.ts'
 import { createTarnWater } from './tarn-water.ts'
@@ -620,7 +620,12 @@ export function createLandscape (
       // the three metres of it that stand under the waterline. It is not in
       // `surfaces`: that list is the audit's set of injected programs, and this
       // mesh brought no program of its own.
-      const skyline = createFarShore(config(), archipelago.farShore, materials.ground)
+      const skyline = createFarShore(
+        config(),
+        archipelago.farShore,
+        materials.ground,
+        skylineSubdivision(quality.terrainSegments),
+      )
 
       if (skyline)
         root.add(skyline)

@@ -2,6 +2,15 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the far shore, a mountain range rather than a cutout
+
+the mainland round the archipelago was four rings a bearing. in the opening frame that drew a smooth cardboard collar with a compass-drawn outline at the sea. [`skyline.ts`](src/scene/landscape/skyline.ts) now sweeps fifteen rings, packed toward the toe, through one surface definition (`sectionAt`). world-space ridged relief carves the massif, and drainage gullies run down the face (periodic along the bearing, wandered by a world-space warp, faded out behind the ridge). world-space bays drop the foot of the face under the sea, so the coastline wanders. the colour is read off the slope and height after the normals: wet rock, forest stands, heath, bare rock on the steep ground, scree above a treeline. the relief only carves, so nothing stands over the surveyed summit.
+
+- **one knob fewer:** `farShore.sink` is retired. the toe is a metre under the bottom of a spring tide, read off `tide.range`.
+- **refactor:** `shore-lights.ts` no longer keeps a straight-line copy of the cross-section. it climbs `sectionAt` from the toe, so every lamp stands on the carved hillside (tested to the centimetre).
+- **cost:** still one draw, no program, texture or uniform. bearings follow the tier's terrain density (`skylineSubdivision`): mobile 2160 → 10k triangles (default 139 / 0.95M, unchanged at two figures; night 146 / 0.96M), desktop 4× bearings → 40k (default 162 / 2.28M → 2.31M).
+- **moved:** default, noon, night and winter, the frames that can see the coast. near and far do not reach 808 m and are unchanged.
+
 ## the wind on the water
 
 the sea from the air was one even plate: a single roughness for the whole sound, and nothing past the frame the swell can hold. [`water-slick.ts`](src/scene/landscape/water-slick.ts) gives it the texture an aerial photograph of a coast is made of — rough rows streaked down the wind, glassy water in every island's lee, drifting with the air. one scalar per lake fragment (the lake's own fractal noise in the wind's frame, cut by the wind's strength, calmed by the shelter map) drives the body (a slick reads deep and dark, the chop pale), the roughness, the mirror and the ripple.

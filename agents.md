@@ -717,7 +717,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `howe.ts` | the top a barrow stands on — the one search here scored on a *sightline* rather than on ground, swept as a grid rather than as rings, plus `skylineClearance` / `kerbFall` / `HOWE_FOOTING` / `HOWE_RADIUS` / `HOWE_HEIGHT` |
 | `croft.ts` | the free islet a croft is built on — scored on the row home from the harbour, and never the rock the light is already on |
 | `farshore.ts` | the coast on the other side of the water: the ring survey, the periodic `ringNoise` the three fields are read from, and `patchReach` — the support function that is the whole guarantee the far coast never stands inside the archipelago |
-| `skyline.ts` | that coast as one static mesh, four rings a bearing swept round the ring, collapsed to the seabed where the sounds are |
+| `skyline.ts` | that coast as one static mesh — fifteen rings a bearing, carved by relief and bays through `sectionAt` (which the shore lights stand on), collapsed to the seabed where the sounds are |
 | `shore-lights.ts` | the places on that coast and the windows they have lit — a search over the same ring, scored on shelter, nearness to a sound and whether the crest can carry the village's own roofline, plus `ROOFLINE` / `SCATTER` / `roomFor` |
 | `shoal.ts` | the drowned banks trailing off the islands' downdrift flanks — one per island the sound leaves room for, folded into the composite field after the bar and the guard, and drawn by nothing |
 | `wreck.ts` | the *lowest* rock in the ring — the beacon's search inverted — the line a hull came to rest on it along, and `WRECK_FOOTING` / `WRECK_BEARING` |
