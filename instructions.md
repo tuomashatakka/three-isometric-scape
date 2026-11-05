@@ -18,7 +18,7 @@ written to be read cold. a run starts with no memory of the previous one. everyt
 
 the world already has more sites than most frames show — six islands, a hundred surveyed landforms and buildings. what it lacks is the *rendering*: light, material, atmosphere and scale that read as a photograph of a nordic coast rather than as a diorama of one. so a run's headline is about how the **whole frame** looks or what it costs, not about one more prop:
 
-- **light** — shadow quality and softness, sky and bounce light, ambient occlusion where things meet the ground, a sun that warms and a cloud that cools, exposure that adapts between noon and a midsummer night
+- **light** — shadow quality and softness, sky and bounce light, ambient occlusion where things meet the ground, a sun that warms and a cloud that cools, exposure that adapts between noon and a midsummer night. the camera is white-balanced to the light ([`white-balance.ts`](src/scene/white-balance.ts)), so a colour cast over the whole frame is a light's colour, not a palette entry's
 - **material** — smooth terrain with real normal detail, wet versus dry, specular water with the sky in it, roughness that varies, snow that sits on top of things and not inside them, foliage that transmits light, stone and timber with relief rather than flat facets
 - **atmosphere** — aerial perspective with distance, haze that is denser low, fog that lies in the valleys, rain that darkens and streaks
 - **scale and detail** — what close zoom shows (richer geometry, texture detail), what wide zoom shows (silhouettes, coastline, the sea), and an lod that makes the first cost nothing at the second
@@ -103,6 +103,7 @@ bun run scape:map --stats                    # did the world model move?
 
 - the poses the change was aimed at moved, and the others did not. a lighting change that also moved an unrelated pose by a lot did something it did not intend.
 - **nothing moved** on a run claiming something visible means it is not visible — a failure.
+- **read the cast, not only the picture.** switch the haze off (`aerial.ts`) or set one colour to pure red with `--rebuild`, and sample the same pixels before and after. one number says which term paints the frame; six screenshots say only that it is grey.
 - quote the census before and after. a realism change that costs draws says how many and what mobile does about it.
 - `bun run scape:diff --ref origin/main --poses tour` gives the pixel table against main; run it once, at the end, when the pull request needs it.
 

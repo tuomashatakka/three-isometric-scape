@@ -2,6 +2,7 @@ import { Color, Vector3 } from 'three'
 import { smoothstep } from 'threejs-scene'
 import type { LiveConfig } from './config.ts'
 import type { SkyPlace } from './sky-deck.ts'
+import { adaptation, airlight, cardIlluminant, whiteBalance } from './white-balance.ts'
 
 
 /** Everything the lighting rig, the sky and the haze need for one instant of the day. */
@@ -15,6 +16,13 @@ export interface DaylightState {
   skyTop:     Color
   hemiSky:    Color
   hemiGround: Color
+
+  /**
+   * The camera's white balance for this instant, already multiplied into every
+   * colour above (`white-balance.ts`). Held for the lights built from a colour
+   * of their own, such as the ground bounce, which have to take the same gain.
+   */
+  balance: Color
 
   sunStrength:  number
   hemiStrength: number
@@ -91,6 +99,16 @@ export const KEY_FLOOR = 0.16
  * daylight half of the cycle is exactly the light it always was.
  */
 const STARLIGHT = 0.03
+
+/**
+ * The hemisphere's floor: the sky's light, come back off the meadow.
+ *
+ * It was `atmosphere.hemiGround`, an olive picked by hand, and it was a third
+ * of what put the olive cast on every frame. The floor of the sky is the
+ * ground's albedo under the sky's own light, so it is that, at the share of
+ * the sky a meadow sends back up.
+ */
+const GROUND_BOUNCE = 0.7
 
 /** How far the key light's colour is pulled to the moon's own face at full moon. */
 const MOON_TINT = 0.7
@@ -416,18 +434,19 @@ export function goldenAmount (height: number): number {
 export function createDaylight (config: LiveConfig): Daylight {
   const authored = config()
 
-  // The eight colours the arc lerps between are read once. Nothing on the
+  // The colours the arc lerps between are read once. Nothing on the
   // overlay writes a palette entry, so a rebuild is what changes them — and
   // eight fresh Colors a frame to re-read a constant nobody can move is a cost
   // with no knob behind it.
-  const noonSun    = new Color(authored.atmosphere.sunColor)
+  const noonSun    = new Color()
   const noonTop    = new Color(authored.atmosphere.skyTop)
   const noonSky    = new Color(authored.palette.sky)
   const noonHemi   = new Color(authored.atmosphere.hemiSky)
-  const noonGround = new Color(authored.atmosphere.hemiGround)
-  const dusk       = new Color(authored.daylight.dusk)
-  const night      = new Color(authored.daylight.night)
-  const deepNight  = new Color(authored.daylight.night).multiplyScalar(0.32)
+  const noonGround = new Color(authored.palette.meadow).multiply(noonHemi)
+    .multiplyScalar(GROUND_BOUNCE)
+  const dusk      = new Color(authored.daylight.dusk)
+  const night     = new Color(authored.daylight.night)
+  const deepNight = new Color(authored.daylight.night).multiplyScalar(0.32)
   // The key light's colour once the moon has it, and it is deliberately the
   // *disc's* own colour rather than a ninth entry beside the eight above: the
   // face in the sky and the light it throws on the snow are one thing, and a
@@ -441,6 +460,7 @@ export function createDaylight (config: LiveConfig): Daylight {
     skyTop:       new Color(),
     hemiSky:      new Color(),
     hemiGround:   new Color(),
+    balance:      new Color(1, 1, 1),
     sunStrength:  authored.atmosphere.sunStrength,
     hemiStrength: authored.atmosphere.hemiStrength,
     environment:  0.34,
@@ -455,6 +475,7 @@ export function createDaylight (config: LiveConfig): Daylight {
   const sunAt  = { height: 0, swing: 0 }
   const moonAt = { height: 0, swing: 0 }
   const keyAt  = { height: 0, swing: 0 }
+  const card   = new Color()
 
   return {
     state,
@@ -495,7 +516,10 @@ export function createDaylight (config: LiveConfig): Daylight {
         )
         .normalize()
 
-      state.sun.copy(noonSun).lerp(dusk, golden * 0.85)
+      // The sun's own colour is the air's (white-balance.ts); dusk still pulls a
+      // low sun toward the authored evening, which the air alone undersells.
+      airlight(height, noonSun)
+      state.sun.copy(noonSun).lerp(dusk, golden * 0.6)
         .lerp(night, dark)
         .lerp(moonFace, share * MOON_TINT)
       state.horizon.copy(noonSky).lerp(dusk, golden * 0.7)
@@ -517,6 +541,16 @@ export function createDaylight (config: LiveConfig): Daylight {
       state.day          = day
       state.moon         = lunar
       state.dark         = astro
+
+      // Last, so the gain is taken from the light as the rig will cast it.
+      cardIlluminant(state.sun, state.sunStrength, state.direction.y, state.hemiSky, state.hemiStrength, card)
+      whiteBalance(card, adaptation(day, golden), state.balance)
+
+      state.sun.multiply(state.balance)
+      state.horizon.multiply(state.balance)
+      state.skyTop.multiply(state.balance)
+      state.hemiSky.multiply(state.balance)
+      state.hemiGround.multiply(state.balance)
 
       return state
     },

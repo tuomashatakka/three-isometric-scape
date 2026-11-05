@@ -2,6 +2,14 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the camera, balanced to the light
+
+every frame had an olive cast. a cream key light, an olive hemisphere floor and a green bounce lit every surface together, and the blue haze greyed the result over, so the sea came out khaki and the far range brown cardboard. [`white-balance.ts`](src/scene/white-balance.ts) gives the scape what a camera has. `daylight.sample` takes the light on a flat white card and multiplies a partial von kries gain, at unit luminance, into every colour it hands out: the sun, the hemisphere, the sky dome, the haze, the water's mirror, the clouds and the bounce. the opening frame's sea goes from olive grey (74 84 79) to blue-grey (73 88 93), the far range reads as distant mountains, and the near yard's soil and stone print neutral. adaptation is partial (0.7 by day, 0.3 by night, less again for a golden sun), so an evening stays warm and a moonlit night stays blue.
+
+- **two knobs fewer:** `atmosphere.sunColor` is retired. the sun's hue is its white seen through the air mass at its height, using the same `AIR_SPECTRUM` the aerial perspective uses (`airlight`), so a sinking sun reddens on its own. `atmosphere.hemiGround` is retired too: the hemisphere's floor is the meadow under the sky. `palette.sky` gave back the blue it had been given to fight the cast.
+- **cost:** none. no draws, triangles, programs, textures or uniforms; a dozen multiplies per `sample`. census identical to main: mobile default 139 / 0.95M, near 87 / 0.90M, far 115 / 1.38M, night 146, winter 145; desktop default 162 / 2.31M, near 222 / 4.82M.
+- **moved:** every pose, in hue and not in exposure (`white-balance.test.ts` pins the card's luminance at every hour).
+
 ## the far shore, a mountain range rather than a cutout
 
 the mainland round the archipelago was four rings a bearing. in the opening frame that drew a smooth cardboard collar with a compass-drawn outline at the sea. [`skyline.ts`](src/scene/landscape/skyline.ts) now sweeps fifteen rings, packed toward the toe, through one surface definition (`sectionAt`). world-space ridged relief carves the massif, and drainage gullies run down the face (periodic along the bearing, wandered by a world-space warp, faded out behind the ridge). world-space bays drop the foot of the face under the sea, so the coastline wanders. the colour is read off the slope and height after the normals: wet rock, forest stands, heath, bare rock on the steep ground, scree above a treeline. the relief only carves, so nothing stands over the surveyed summit.
