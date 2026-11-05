@@ -2,6 +2,13 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## split light, in the grade
+
+a single lut cannot do what sun against sky does to every photograph: cool the shade and warm the light, and it does it the same way at noon and at dusk. the lens pass now ends its grade with a luminance-preserving split tone ([`splitTone`](src/scene/lens.ts)) — deep shade toward blue, bright light toward amber, mid-tones untouched — scaled by the grade strength, so `look.intensity` at 0 is still a neutral frame and no knob is added.
+
+- **cost:** none. one extra multiply inside the existing lens pass on desktop and ultra; mobile has no post chain. census identical to main (mobile default 139 / 0.95M, near 87 / 0.90M).
+- **moved:** desktop and ultra frames only, in hue and not in exposure (`lens-tone.test.ts` pins the tints at unit luminance); on the desktop near pose the grade strength alone moves 3.5% rmse.
+
 ## the camera, balanced to the light
 
 every frame had an olive cast. a cream key light, an olive hemisphere floor and a green bounce lit every surface together, and the blue haze greyed the result over, so the sea came out khaki and the far range brown cardboard. [`white-balance.ts`](src/scene/white-balance.ts) gives the scape what a camera has. `daylight.sample` takes the light on a flat white card and multiplies a partial von kries gain, at unit luminance, into every colour it hands out: the sun, the hemisphere, the sky dome, the haze, the water's mirror, the clouds and the bounce. the opening frame's sea goes from olive grey (74 84 79) to blue-grey (73 88 93), the far range reads as distant mountains, and the near yard's soil and stone print neutral. adaptation is partial (0.7 by day, 0.3 by night, less again for a golden sun), so an evening stays warm and a moonlit night stays blue.
