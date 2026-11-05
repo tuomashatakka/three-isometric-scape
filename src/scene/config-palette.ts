@@ -266,7 +266,7 @@ type SCAPE_PALETTEType = { palette: ScapePalette }
 
 export const SCAPE_PALETTE: SCAPE_PALETTEType = {
   palette: {
-    sky:         0x98a9b4,
+    sky:         0x9eaab0,
     fog:         0x8c9ba5,
     deepWater:   0x183a49,
     foam:        0xd9e2da,

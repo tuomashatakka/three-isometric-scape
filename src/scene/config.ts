@@ -905,10 +905,8 @@ export interface ScapeConfig extends CarterConfig, CreelConfig, CroppingConfig, 
      */
     mistDrag:     number
     skyTop:       number
-    sunColor:     number
     sunStrength:  number
     hemiSky:      number
-    hemiGround:   number
     hemiStrength: number
 
     /**
@@ -1525,10 +1523,8 @@ export const SCAPE_CONFIG = {
     mistAmount:   0.34,
     mistDrag:     0.36,
     skyTop:       0x55728a,
-    sunColor:     0xffe8bd,
     sunStrength:  2.85,
     hemiSky:      0xc2cfd2,
-    hemiGround:   0x3d4433,
     hemiStrength: 0.72,
     cloudShadow:  0.84,
     cloudScale:   92,

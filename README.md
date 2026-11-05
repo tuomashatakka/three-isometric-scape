@@ -277,6 +277,7 @@ src/
     ├── state-path.ts               writePath with structural sharing
     ├── create-isometric-scape.ts   app/module composition root
     ├── daylight.ts                 clock one: the arcs the sun and the moon run, and the sky and key light they make
+    ├── white-balance.ts            the camera balanced to the light it stands in: the sun's hue from the air, a partial von kries gain on every daylight colour
     ├── season.ts                   clock two: growth, turn, snow, ice, sea smoke
     ├── weather.ts                  clock three: the front, what falls, how long it stays wet
     ├── wind.ts                     clock four: one bearing, one gust, one travel every scroll shares
@@ -651,6 +652,20 @@ from a kilometre up the eye cannot resolve a wave. what it resolves on a sea is 
 **one knob fewer.** `water.roughness` is gone; how rough the sea is belongs to the wind, and where to its bearing and the coast.
 
 **cost.** no draws, triangles, programs or textures; census identical on every pose. per water fragment: one fetch on mobile, two on desktop, and at frames past 1360 m the ripple's one (mobile) or three (desktop) fetches are skipped.
+
+## the camera, balanced to the light
+
+every frame had an olive cast, and the haze only greyed it over. with the aerial perspective switched off, the opening frame's sea was rgb 85 96 80 and the far range was khaki. the cause was the light rig: a cream key light (`sunColor` 0xffe8bd), an olive floor to the hemisphere (`hemiGround` 0x3d4433) and the meadow-green bounce all land on every surface together. a photograph never shows that, because a camera divides out the colour of the light it was exposed under. a white card in the sun prints white, and what is left is the colour of the things.
+
+- **one gain, at the source.** [`white-balance.ts`](src/scene/white-balance.ts) takes the light on a flat white card (`cardIlluminant`: the key light by the sine of its height, plus the sky half of the hemisphere). it then works out a partial von kries gain (`whiteBalance`, `(lum / channel) ^ adapt` per channel, rescaled so the card's luminance is unchanged). `daylight.sample` multiplies that gain into every colour it hands out: the sun, the hemisphere, the sky dome, the haze, the water's mirror and the clouds. the bounce light takes it through `DaylightState.balance`. because it lands before any program sees a colour, it costs nothing on every tier.
+- **partial, as a camera on auto is.** `ADAPT_DAY` 0.7 in daylight, `ADAPT_NIGHT` 0.3 in the dark, and a golden sun takes back `GOLDEN_KEEP` (0.45) of it. an evening stays warm, a moonlit night stays blue, and noon prints neutral with a trace of warmth in the sunlit faces.
+- **the sun's hue is the air's.** `atmosphere.sunColor` is gone. `airlight(height)` is the sun's white seen through `AIR_COLUMN` × air mass of the same `AIR_SPECTRUM` the aerial perspective takes blue out of distance with. so the sun and the haze agree on what this air is, and the key light reddens as it sinks without a palette entry saying so.
+- **the hemisphere's floor is the meadow under the sky.** `atmosphere.hemiGround` is gone too. it is `palette.meadow × hemiSky × GROUND_BOUNCE` (0.7).
+- `palette.sky` moved from 0x98a9b4 to 0x9eaab0. the blue it had been given to fight the olive cast is now the balance's to give.
+
+`white-balance.test.ts` states the claim. a white card at a summer noon prints at least 1.5 × (1 − `ADAPT_DAY`) nearer neutral than the raw light. no hour moves its luminance. an evening card stays warm (r/b > 1.15) and a night card stays cold (r/b < 0.9).
+
+**cost.** no draws, triangles, programs, textures or uniforms; a dozen multiplies per `sample`, twice a frame. census identical to main: mobile default 139 / 0.95M, near 87 / 0.90M, far 115 / 1.38M, night 146, winter 145; desktop default 162 / 2.31M, near 222 / 4.82M.
 
 ## blue in the air and the water
 

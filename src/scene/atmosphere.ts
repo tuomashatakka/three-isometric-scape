@@ -249,7 +249,7 @@ export function createAtmosphereLayer ({
   const lighting = standardLighting<ScapeConfig>({
     env: quality.environment ? { intensity: sky.environment } : false,
     sun: {
-      color:         authored.atmosphere.sunColor,
+      color:         sky.sun.getHex(),
       intensity:     authored.atmosphere.sunStrength,
       position:      [ direction.x, direction.y, direction.z ],
       shadowMapSize: quality.shadowMapSize,
@@ -258,7 +258,7 @@ export function createAtmosphereLayer ({
     },
     hemi: {
       skyColor:    authored.atmosphere.hemiSky,
-      groundColor: authored.atmosphere.hemiGround,
+      groundColor: sky.hemiGround.getHex(),
       intensity:   authored.atmosphere.hemiStrength,
     },
   })
@@ -413,7 +413,8 @@ export function createAtmosphereLayer ({
     // The ground bounce carries a little of the key light's colour, so it warms
     // through golden hour and goes cold at night instead of staying a fixed
     // green fill that no longer belongs to any of the skies above it.
-    bounce.color.copy(bounceBase).lerp(sky.sun, 0.3)
+    bounce.color.copy(bounceBase).multiply(sky.balance)
+      .lerp(sky.sun, 0.3)
     // The moon's share is in it for the same reason: the bounce is the key
     // light coming back off the ground, and on a clear night the key light is
     // the moon rather than a floor.
