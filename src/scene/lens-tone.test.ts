@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { LIGHT_TINT, SHADE_TINT, splitTone } from './lens'
 
+
 const channels = [ 0, 1, 2 ] as const
 
 describe('the split tone', () => {
