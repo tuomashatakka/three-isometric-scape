@@ -4,6 +4,7 @@ import { SCAPE_CONFIG } from './config.ts'
 import { createDaylight } from './daylight.ts'
 import { ADAPT_DAY, adaptation, airlight, cardIlluminant, luminance, whiteBalance } from './white-balance.ts'
 
+
 const MIDSUMMER = 0.5
 const cast      = (c: Color): number => c.r / c.b
 
@@ -27,7 +28,7 @@ describe('white balance', () => {
   })
 
   it('moves the hue of the frame and never its exposure', () => {
-    for (const [ time, year ] of [ [ 0.5, MIDSUMMER ], [ 0.85, MIDSUMMER ], [ 0.02, 0.78 ], [ 0.5, 0.02 ] ])
+    for (const [ time, year ] of [[ 0.5, MIDSUMMER ], [ 0.85, MIDSUMMER ], [ 0.02, 0.78 ], [ 0.5, 0.02 ]])
       expect(luminance(card(time, year, true))).toBeCloseTo(luminance(card(time, year, false)), 6)
   })
 
