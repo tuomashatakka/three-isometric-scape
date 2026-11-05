@@ -704,7 +704,7 @@ the end of the optical chain used to be seven full-screen passes on desktop — 
 - **lateral chromatic aberration** — red and blue a fraction of a pixel either side of green, growing with the square of the distance from the centre, added as the difference it makes so it rides on the defocus without re-sampling the disc per channel.
 - **natural vignetting** — the cos⁴ law of a lens whose half-diagonal sees about 40°.
 - **micro-contrast** — a four-tap unsharp mask in the focused band only, the crispness a sharp lens has and a multisampled render does not.
-- **the grade and the grain** — contrast, saturation, the baked 3d lut, then grain that is strongest in the mid-tones, where film shows it.
+- **the grade and the grain** — contrast, saturation, the baked 3d lut, then the split tone (shade a touch cool, light a touch warm, mid-tones untouched, luminance-preserving, driven by `look.intensity` so it adds no knob), then grain that is strongest in the mid-tones, where film shows it.
 
 **one knob.** `look.lens` drives the defocus, the fringe, the vignette and the micro-contrast together, because they are one optical decision — how much glass is in the picture — and four sliders for it let a reader dial a lens no one ever made. at 0 the scape is a pinhole; at 1 it is the old default tilt-shift and vignette; at 2 it is a cheap wide-angle. `look.tiltShift` and `look.vignette` are gone.
 

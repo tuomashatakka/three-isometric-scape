@@ -1,4 +1,4 @@
-import { Vector2 } from 'three'
+import { Vector2, Vector3 } from 'three'
 import type { Data3DTexture, Texture } from 'three'
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js'
 
@@ -24,7 +24,10 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js'
  * - **natural vignetting** — the cos⁴ law, not a smoothstep ring.
  * - **micro-contrast** in the focused band — the crispness a sharp lens has
  *   and a multisampled render does not.
- * - **the grade** — contrast and saturation, then the baked 3d lut.
+ * - **the grade** — contrast and saturation, the baked 3d lut, then the split
+ *   tone: the shade a touch cool and the lit a touch warm, which is what sun
+ *   against sky does to any photograph and what a single lut cannot do on a
+ *   frame whose light moves. One strength — the grade's — drives both.
  * - **film grain**, strongest in the mid-tones where film shows it.
  *
  * It runs in linear hdr, before `OutputPass` tone-maps, exactly as the passes
@@ -94,6 +97,25 @@ export function apertureReach (viewSize: number): number {
   return Math.min(APERTURE_MAX, APERTURE_REFERENCE / Math.max(1, viewSize))
 }
 
+/** Multipliers on red, green, blue for the deepest shade and the brightest light. */
+export const SHADE_TINT = [ 0.95, 1, 1.07 ] as const
+export const LIGHT_TINT = [ 1.05, 1, 0.93 ] as const
+
+/** The most of the tint the split tone applies, at full grade strength. */
+export const SPLIT_REACH = 0.7
+
+/** The multiplier on one channel for a fragment of luminance `luma`, at `strength` 0..1. */
+export function splitTone (luma: number, channel: 0 | 1 | 2, strength: number): number {
+  const shade = 1 - smooth(0, 0.25, luma)
+  const light = smooth(0.35, 1.5, luma)
+  return 1 + strength * SPLIT_REACH * (shade * (SHADE_TINT[channel] - 1) + light * (LIGHT_TINT[channel] - 1))
+}
+
+function smooth (low: number, high: number, value: number): number {
+  const t = Math.min(1, Math.max(0, (value - low) / (high - low)))
+  return t * t * (3 - 2 * t)
+}
+
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5))
 
 /**
@@ -129,6 +151,7 @@ function fragment (taps: number, grain: boolean, focal: boolean): string {
   uniform sampler2D tDiffuse;
   uniform sampler3D uLut;
   uniform float uLutSize, uLutIntensity;
+  uniform vec3  uShade, uLight;
   uniform vec2  uTexel, uAspect;
   uniform float uFocus, uBlur, uAberration, uVignette, uSharpen, uGrain, uTime;
   ${focal ? 'uniform sampler2D tDefocus;' : ''}
@@ -208,6 +231,11 @@ function fragment (taps: number, grain: boolean, focal: boolean): string {
     vec3 uvw = vec3(0.5 / uLutSize) + clamp(col, 0.0, 1.0) * (1.0 - 1.0 / uLutSize);
     col = mix(col, textureLod(uLut, uvw, 0.0).rgb, uLutIntensity);
 
+    // The split tone: cool shade, warm light, mid-tones left alone.
+    float lit = luma(col);
+    col *= vec3(1.0) + uLutIntensity * ${SPLIT_REACH.toFixed(2)}
+         * ((1.0 - smoothstep(0.0, 0.25, lit)) * (uShade - 1.0) + smoothstep(0.35, 1.5, lit) * (uLight - 1.0));
+
     ${grain
       ? `
     float tone = clamp(luma(col), 0.0, 1.0);
@@ -236,6 +264,8 @@ export function createLensPass ({ taps, grain, lut, defocus }: LensOptions): Len
       uLut:          { value: lut },
       uLutSize:      { value: lut.image.width },
       uLutIntensity: { value: 1 },
+      uShade:        { value: new Vector3(...SHADE_TINT) },
+      uLight:        { value: new Vector3(...LIGHT_TINT) },
       uTexel:        { value: new Vector2(1, 1) },
       uAspect:       { value: new Vector2(1, 1) },
       uFocus:        { value: 0.5 },
