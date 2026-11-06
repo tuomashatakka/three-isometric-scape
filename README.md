@@ -723,6 +723,13 @@ the lens above still made the scape look like a miniature, and for the reason a 
 
 the grade's contrast is `gradeContrast(look.intensity)` (1 → 1.2) rather than a constant, and the focused band gets clarity — the micro-contrast cross again at five pixels (`CLARITY_RATIO` of it) — so a haze-flattened frame keeps mid-scale relief. both live in the one lens pass; no knob was added.
 
+## the dark at the foot of things
+
+props stood on the ground without touching it: a hay bale, a stone and a fence post each had a cast shadow and no contact shadow, the thin dark crease a real object leaves where it meets the soil. the focal pass already reads the scene's depth at half resolution, so it now writes a second channel there — [`contactWeight`](src/scene/focal.ts) over ten golden-angle taps within 0.7 m of the fragment. a neighbour counts when it is nearer the camera than this surface *after level ground's own depth ramp up the screen is subtracted* (`1 / tan(elevation)` per metre), full at one reach and back to zero by three, so a tall wall is a silhouette and not a halo. the lens multiplies it into the focused and defocused frame alike.
+
+- **no new pass, texture or knob.** the contact strength rides on `look.lens` with the defocus and the vignette (`LENS_CONTACT` 0.55); at 0 it is gone. the reach is in metres, so at archipelago zoom it is under a texel and the taps read their own pixel — it costs nothing and shows nothing there by itself.
+- **cost.** ten more depth fetches per half-resolution fragment on desktop and ultra, one shared eight-bit target; mobile has no chain and is unchanged (default 139 / 0.95M, near 87 / 0.90M).
+
 ## the tile that was still there
 
 the weather bank stopped the *cover* repeating, and the section above took that as the sky no longer repeating. it was not true, and the default frame said so to anyone who looked: under the bank, every comma it let through was still the same 92 m tile on the same perfect lattice. the ground carried sixteen rows of identical prints, and the sea carried a regular grid of pale "3"-shaped figures, about forty across the frame. that grid turned out to be the **sun shafts**: every sheet in the stack reads the cloud map once, so every sheet stamped the tile's holes onto the sea in rows. finding it took eight captures, each with one family switched off (`--set atmosphere.mistAmount=0`, `atmosphere.cloudShadow=0`, `water.whitecap=0`, `water.waveHeight=0`, `terrain.detailGrain=0`, then `--skip rain`, `--skip shafts,squall,clouds`, `--skip shafts`). it is written down because the next lattice will be found the same way.

@@ -14,6 +14,8 @@ written to be read cold. a run starts with no memory of the previous one. everyt
 
 ## the goal
 
+**standing emphasis — whole-app refactors, not single props.** every run should refactor broadly while it is in there (the repository is experimental; destructive changes are welcome when they leave less code): make the general rendering more immersive and realistic; make props more detailed *and more generic and reusable* by pushing detail into the shared kit; texture the environment and make geometry less faceted; merge controls under more generic parameters; and tune or fold new shader stages into the global effect chain. a prop-only run is the exception, not the default.
+
 **a more realistic picture, drawn for less.**
 
 the world already has more sites than most frames show — six islands, a hundred surveyed landforms and buildings. what it lacks is the *rendering*: light, material, atmosphere and scale that read as a photograph of a nordic coast rather than as a diorama of one. so a run's headline is about how the **whole frame** looks or what it costs, not about one more prop:

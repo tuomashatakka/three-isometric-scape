@@ -59,9 +59,12 @@ export interface LensLook {
   aberration: number
   vignette:   number
   sharpen:    number
-  grain:      number
-  lut:        Data3DTexture
-  intensity:  number
+
+  /** How dark the deepest contact crease gets, 0..1. */
+  contact:   number
+  grain:     number
+  lut:       Data3DTexture
+  intensity: number
 }
 
 export interface LensPass extends ShaderPass {
@@ -164,7 +167,7 @@ function fragment (taps: number, grain: boolean, focal: boolean): string {
   uniform float uLutSize, uLutIntensity, uContrast;
   uniform vec3  uShade, uLight;
   uniform vec2  uTexel, uAspect;
-  uniform float uFocus, uBlur, uAberration, uVignette, uSharpen, uGrain, uTime;
+  uniform float uFocus, uBlur, uAberration, uVignette, uSharpen, uGrain, uTime, uContact;
   ${focal ? 'uniform sampler2D tDefocus;' : ''}
 
   varying vec2 vUv;
@@ -228,6 +231,12 @@ function fragment (taps: number, grain: boolean, focal: boolean): string {
                  + textureLod(tDiffuse, vUv - vec2(0.0, wide.y), 0.0).rgb;
       col += (source.rgb - broad * 0.25) * crisp * ${CLARITY_RATIO.toFixed(2)};
     }
+
+    // Contact occlusion, from the focal pass: the dark a standing thing leaves
+    // in the ground at its foot, laid over the focused and the defocused frame alike.
+    ${focal
+      ? 'col *= 1.0 - uContact * textureLod(tDefocus, vUv, 0.0).g;'
+      : ''}
 
     // Lateral chromatic aberration, added as the difference it makes rather
     // than re-sampling the disc per channel. That difference is a sharp edge,
@@ -294,6 +303,7 @@ export function createLensPass ({ taps, grain, lut, defocus }: LensOptions): Len
       uAberration:   { value: 0 },
       uVignette:     { value: 0 },
       uSharpen:      { value: 0 },
+      uContact:      { value: 0 },
       uGrain:        { value: 0 },
       uTime:         { value: 0 },
     },
@@ -312,6 +322,7 @@ export function createLensPass ({ taps, grain, lut, defocus }: LensOptions): Len
     uniforms.uAberration.value   = look.aberration
     uniforms.uVignette.value     = look.vignette
     uniforms.uSharpen.value      = look.sharpen
+    uniforms.uContact.value      = look.contact
     uniforms.uGrain.value        = look.grain
     uniforms.uLut.value          = look.lut
     uniforms.uLutSize.value      = look.lut.image.width

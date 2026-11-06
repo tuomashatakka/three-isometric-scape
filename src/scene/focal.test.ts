@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { depthDefocus } from './focal.ts'
+import { CONTACT_REACH, contactWeight, depthDefocus } from './focal.ts'
 import { APERTURE_MAX, apertureReach } from './lens.ts'
 
 
@@ -36,5 +36,22 @@ describe('the focal plane', () => {
     for (const tan of [ 0, 1e9 ])
       expect(Number.isFinite(depthDefocus(40, tan))).toBe(true)
     expect(Number.isFinite(depthDefocus(0, 1))).toBe(true)
+  })
+})
+
+describe('contactWeight', () => {
+  test('level ground and anything below it casts nothing', () => {
+    expect(contactWeight(0)).toBe(0)
+    expect(contactWeight(-3)).toBe(0)
+  })
+
+  test('rises with height over the surface, full at one reach', () => {
+    expect(contactWeight(CONTACT_REACH * 0.5)).toBeGreaterThan(contactWeight(CONTACT_REACH * 0.2))
+    expect(contactWeight(CONTACT_REACH)).toBeCloseTo(0.95, 2)
+  })
+
+  test('a tall wall is a silhouette, not a crease: no halo past three reaches', () => {
+    expect(contactWeight(CONTACT_REACH * 3)).toBe(0)
+    expect(contactWeight(40)).toBe(0)
   })
 })

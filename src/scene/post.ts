@@ -44,6 +44,7 @@ const LENS_BLUR       = 5
 const LENS_VIGNETTE   = 0.34
 const LENS_ABERRATION = 3.5
 const LENS_SHARPEN    = 0.4
+const LENS_CONTACT    = 0.55
 const GRAIN_SCALE     = 0.09
 
 /**
@@ -168,6 +169,8 @@ export function createAtmospherePost ({
       focus:    focusUv.set(Math.min(1, Math.max(0, (projected.x + 1) / 2)), focusNow),
       perMetre: depthDefocus(viewHeight, tanElevation),
       span:     camera.far - camera.near,
+      viewHeight,
+      slope:    1 / Math.max(0.05, tanElevation),
     })
   }
 
@@ -316,6 +319,7 @@ export function createAtmospherePost ({
       aberration: LENS_ABERRATION * look.lens,
       vignette:   LENS_VIGNETTE * look.lens,
       sharpen:    LENS_SHARPEN * Math.min(1, look.lens),
+      contact:    LENS_CONTACT * Math.min(1, look.lens),
       grain:      quality.grain ? look.grain * GRAIN_SCALE : 0,
       lut:        luts.get(look.grade),
       intensity:  look.intensity,
