@@ -2,6 +2,13 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## depth in the grey, from the same glass
+
+the default frame was a flat blue-grey wash: haze compresses everything toward mid-grey and the grade's contrast was a fixed 1.04. the lens pass now takes its contrast from the grade strength ([`gradeContrast`](src/scene/lens.ts): 1 at no grade, 1.2 at full) and adds clarity — the micro-contrast cross repeated at five pixels, so hulls, ridges and tree crowns regain mid-scale relief without sharpening edges. no new knob: `look.intensity` carries the contrast, `look.lens` the clarity.
+
+- **cost:** four more fetches inside the existing lens pass, only in the focused band on desktop and ultra; no new pass, mobile has no chain. census identical (mobile default 139 / 0.95M, near 87 / 0.90M).
+- **moved:** desktop and ultra frames only; `gradeContrast` is pinned by `lens.test.ts`.
+
 ## split light, in the grade
 
 a single lut cannot do what sun against sky does to every photograph: cool the shade and warm the light, and it does it the same way at noon and at dusk. the lens pass now ends its grade with a luminance-preserving split tone ([`splitTone`](src/scene/lens.ts)) — deep shade toward blue, bright light toward amber, mid-tones untouched — scaled by the grade strength, so `look.intensity` at 0 is still a neutral frame and no knob is added.

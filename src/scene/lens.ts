@@ -116,6 +116,17 @@ function smooth (low: number, high: number, value: number): number {
   return t * t * (3 - 2 * t)
 }
 
+/** Contrast about mid-grey at full grade strength, over the 1.0 of no grade. */
+export const CONTRAST_REACH = 0.2
+
+/** The contrast the grade applies at `strength` 0..1 — the flat grey wash gains its depth here. */
+export function gradeContrast (strength: number): number {
+  return 1 + CONTRAST_REACH * Math.min(1, Math.max(0, strength))
+}
+
+/** Share of the wide-radius local contrast ("clarity") added per unit of micro-contrast. */
+export const CLARITY_RATIO = 1.5
+
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5))
 
 /**
@@ -150,7 +161,7 @@ function fragment (taps: number, grain: boolean, focal: boolean): string {
 
   uniform sampler2D tDiffuse;
   uniform sampler3D uLut;
-  uniform float uLutSize, uLutIntensity;
+  uniform float uLutSize, uLutIntensity, uContrast;
   uniform vec3  uShade, uLight;
   uniform vec2  uTexel, uAspect;
   uniform float uFocus, uBlur, uAberration, uVignette, uSharpen, uGrain, uTime;
@@ -199,6 +210,9 @@ function fragment (taps: number, grain: boolean, focal: boolean): string {
     }`
       : ''}
 
+    // Micro-contrast where the lens is sharp, and clarity with it: the same
+    // cross at a wider radius lifts the mid-scale relief (hulls, ridges, tree
+    // crowns) that a haze-grey frame flattens, without touching its edges.
     // Micro-contrast where the lens is sharp, faded out as the disc opens.
     float crisp = uSharpen * (1.0 - smoothstep(0.0, 0.35, defocus));
     if (crisp > 0.0) {
@@ -207,6 +221,12 @@ function fragment (taps: number, grain: boolean, focal: boolean): string {
                  + textureLod(tDiffuse, vUv + vec2(0.0, uTexel.y), 0.0).rgb
                  + textureLod(tDiffuse, vUv - vec2(0.0, uTexel.y), 0.0).rgb;
       col += (source.rgb - cross * 0.25) * crisp;
+      vec2 wide = uTexel * 5.0;
+      vec3 broad = textureLod(tDiffuse, vUv + vec2(wide.x, 0.0), 0.0).rgb
+                 + textureLod(tDiffuse, vUv - vec2(wide.x, 0.0), 0.0).rgb
+                 + textureLod(tDiffuse, vUv + vec2(0.0, wide.y), 0.0).rgb
+                 + textureLod(tDiffuse, vUv - vec2(0.0, wide.y), 0.0).rgb;
+      col += (source.rgb - broad * 0.25) * crisp * ${CLARITY_RATIO.toFixed(2)};
     }
 
     // Lateral chromatic aberration, added as the difference it makes rather
@@ -226,7 +246,7 @@ function fragment (taps: number, grain: boolean, focal: boolean): string {
     col *= mix(1.0, slant * slant, uVignette);
 
     // The grade: contrast about mid-grey, then saturation, then the lut.
-    col = max((col - 0.18) * 1.04 + 0.18, 0.0);
+    col = max((col - 0.18) * uContrast + 0.18, 0.0);
     col = mix(vec3(luma(col)), col, 1.06);
     vec3 uvw = vec3(0.5 / uLutSize) + clamp(col, 0.0, 1.0) * (1.0 - 1.0 / uLutSize);
     col = mix(col, textureLod(uLut, uvw, 0.0).rgb, uLutIntensity);
@@ -264,6 +284,7 @@ export function createLensPass ({ taps, grain, lut, defocus }: LensOptions): Len
       uLut:          { value: lut },
       uLutSize:      { value: lut.image.width },
       uLutIntensity: { value: 1 },
+      uContrast:     { value: 1 },
       uShade:        { value: new Vector3(...SHADE_TINT) },
       uLight:        { value: new Vector3(...LIGHT_TINT) },
       uTexel:        { value: new Vector2(1, 1) },
@@ -295,6 +316,7 @@ export function createLensPass ({ taps, grain, lut, defocus }: LensOptions): Len
     uniforms.uLut.value          = look.lut
     uniforms.uLutSize.value      = look.lut.image.width
     uniforms.uLutIntensity.value = look.intensity
+    uniforms.uContrast.value     = gradeContrast(look.intensity)
   }
 
   pass.aim = (focus, time) => {
