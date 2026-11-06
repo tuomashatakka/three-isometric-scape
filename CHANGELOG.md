@@ -2,6 +2,15 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the dark at the foot of things
+
+props stood on the ground without touching it: shadows were cast, but nothing creased where a bale, stone or post meets the soil. [`focal.ts`](src/scene/focal.ts) now writes contact occlusion into the green channel of the half-resolution depth target it already owned (ten taps, 0.7 m reach, level-ground depth ramp removed so flat ground never self-occludes), and the lens folds it into the frame before the glass.
+
+- **no knob added:** the strength rides on `look.lens`; the panel is unchanged.
+- **cost:** no new pass, texture or program; ten depth fetches per half-resolution fragment on desktop/ultra. mobile has no chain: census identical (default 139 / 0.95M, near 87 / 0.90M). desktop near 222 / 4.82M.
+- **moved:** desktop and ultra close-ups; at wide zoom the reach is sub-texel and the pass is a no-op. `contactWeight` is pinned by `focal.test.ts`.
+- **instructions:** `instructions.md` now leads with whole-frame rendering, shared-kit materials and a standing mandate to refactor broadly and retire knobs.
+
 ## depth in the grey, from the same glass
 
 the default frame was a flat blue-grey wash: haze compresses everything toward mid-grey and the grade's contrast was a fixed 1.04. the lens pass now takes its contrast from the grade strength ([`gradeContrast`](src/scene/lens.ts): 1 at no grade, 1.2 at full) and adds clarity — the micro-contrast cross repeated at five pixels, so hulls, ridges and tree crowns regain mid-scale relief without sharpening edges. no new knob: `look.intensity` carries the contrast, `look.lens` the clarity.
