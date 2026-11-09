@@ -299,6 +299,7 @@ src/
     ├── shafts.ts                   the daylight in the gaps of that deck: one stack, one draw, one cloud map
     ├── noise.ts                    deterministic height sampler
     ├── post.ts                     the chain: ao, ssr, bloom, sun shafts, the lens, traa
+    ├── exposure.ts                 the iris: tone-mapping exposure opens at night, stops down at noon
     ├── lens.ts                     one pass for the glass and the film: defocus, fringe, vignette, grade, grain
     ├── focal.ts                    the focal plane: a half-res defocus map off the depth, taken before the chain touches it
     ├── quality.ts                  minimal/mobile/desktop/ultra gpu budgets, and the unlock
@@ -695,6 +696,12 @@ the mobile frame had no shadows at all. phones skip the shadow map — the hidde
 **one knob for occlusion.** `look.ao` was the strength of the ultra-only gtao. it is now the strength of the sky map on every tier, and 0 turns off both the shade and the march's shadow. it is in the optics panel as *occlusion*. `terrain.detailScale` and `terrain.detailMacro` are constants (`DETAIL_TILE`, `DETAIL_MACRO` in `props/material.ts`): neither was ever a decision about the place. the panel loses two soil sliders and gains one.
 
 **cost.** no draws, no triangles, the same 30 programs. the bake runs once, in the task after the first dressed frame. on this container it takes 0.34 s on mobile; desktop measured 1.0 s before the box blur was rewritten to walk rows, which cut the blur from 353 to 135 ms at 1536². the texture is an rgba8 upload of 9.4 mb on mobile and 16.8 mb on desktop. ultra runs one full-resolution pass fewer.
+
+## the iris
+
+exposure was a constant 0.98, so noon and a moonlit night were metered alike and the night could only be dark by being dim. [`exposure.ts`](src/scene/exposure.ts) gives the renderer an iris: `targetExposure(day, moon)` runs from 0.92 in full sun to 1.16 in the dark (moonlight holds it a little shut), and `atmosphere.ts` eases `toneMappingExposure` toward it at 1.4 e-folds a second — an iris, not a cut. a scrub of the clock (a jump of more than 0.02 of a day in one frame) is metered at once, so a capture at `--time 0.95` is the night's exposure and not a drift toward it. it lives on the renderer, not in the lens, so **every tier has it**, mobile with no chain included.
+
+**one knob fewer:** `look.godRays` is retired. the sun's shafts are the same scattered light as the bloom and the streak, so they ride `look.glare` (`GLARE_RAYS` in `post.ts`); at 0 the pass is not built.
 
 ## the lens, in one pass
 
@@ -2419,7 +2426,7 @@ this settlement has had a mill since the post mill went up on its shoulder, and 
 
 the deck over this archipelago has cast a shadow since [`cloud-shadow.ts`](src/scene/cloud-shadow.ts) stopped being four uniforms only the ground could reach. it has never put any light back. that is half a system: a broken deck over a hazy sound lays the dapple down on the water *and* stands the beams up in the air under it, and a sky that only does the first reads as weather happening somewhere else. [`shafts.ts`](src/scene/shafts.ts) is the other half, [`config-shafts.ts`](src/scene/config-shafts.ts) is its three knobs, and `LAYER.shafts` is where it sits in the transparent ladder — under both fogs, because air with fog in front of it is dimmer air.
 
-**it is not the post chain's god rays, and the difference is not a matter of quality.** `look.godRays` is a screen-space radial smear out of whatever bright pixels lie near the sun's projected position. it knows the sun and nothing else — not where the cloud is, not where the gaps in it are, not what the ground under them is doing — and it is `quality.godRays`, which is `false` on both cheap tiers. the capture harness pins `--tier mobile`. so the scape has carried a sun-shaft effect for as long as it has had a post chain, and **no still in this repository has ever been able to show one.** this one draws on every tier that draws anything.
+**it is not the post chain's god rays, and the difference is not a matter of quality.** `look.glare` (its shafts share the knob with the bloom) is a screen-space radial smear out of whatever bright pixels lie near the sun's projected position. it knows the sun and nothing else — not where the cloud is, not where the gaps in it are, not what the ground under them is doing — and it is `quality.godRays`, which is `false` on both cheap tiers. the capture harness pins `--tier mobile`. so the scape has carried a sun-shaft effect for as long as it has had a post chain, and **no still in this repository has ever been able to show one.** this one draws on every tier that draws anything.
 
 **one map, read twice.** the beams sample the *same* `sky.cloudShadow` texture the ground's shadow multiplies by, at the same tile, drifting on the same wind at the same rate, thrown down the same key light. that is what the section actually claims, and it is stated as arithmetic rather than left to be preserved by hand: `shaftLift` is 1 at `y = 0`, which is the height `CLOUD_SHADOW_GLSL` assumes its ground is at, so the bottom sheet of the stack reads the cloud map **texel for texel** where the shadow reads it. a beam and the bright patch it lands on are one hole in one deck seen twice. the landscape publishes its `TextureCatalogue` for this and for nothing else: a second bake of the same recipe is two textures that agree until somebody edits one of them.
 

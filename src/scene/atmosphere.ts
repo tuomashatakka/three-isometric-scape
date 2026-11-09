@@ -21,6 +21,7 @@ import { hazeRange, installAerialPerspective } from './aerial.ts'
 import { landmassTerrain } from './config.ts'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import { createDaylight } from './daylight.ts'
+import { adaptExposure, targetExposure } from './exposure.ts'
 import type { DaylightState } from './daylight.ts'
 import type { AtmosphereQuality } from './quality.ts'
 
@@ -426,6 +427,9 @@ export function createAtmosphereLayer ({
     bounce.target.updateMatrixWorld()
   }
 
+  /** The clock at the last frame, to tell a scrub from the drift of the cycle. */
+  let lastClock = 0
+
   const module = defineModule<ScapeConfig>({
     name: 'atmosphere',
 
@@ -443,10 +447,21 @@ export function createAtmosphereLayer ({
       ctx.scene.background = skyTexture
 
       reframe(0, 0)
+      lastClock = config().daylight.time
+      ctx.renderer.toneMappingExposure = targetExposure(sky.day, sky.moon)
     },
 
-    update (_state, frame) {
+    update (_state, frame, ctx) {
       reframe(frame.elapsed, frame.delta)
+
+      // The iris: opens at night, stops down in the sun (`exposure.ts`). A
+      // scrub of the clock is a cut, not a drift, so it is metered at once.
+      const clock = config().daylight.time
+      const cut   = Math.abs(clock - lastClock) > 0.02 && Math.abs(clock - lastClock) < 0.98
+      lastClock   = clock
+      ctx.renderer.toneMappingExposure = cut
+        ? targetExposure(sky.day, sky.moon)
+        : adaptExposure(ctx.renderer.toneMappingExposure, targetExposure(sky.day, sky.moon), frame.delta)
     },
 
     dispose () {

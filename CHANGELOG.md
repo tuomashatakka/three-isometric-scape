@@ -2,6 +2,14 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the iris
+
+noon and a moonlit night were metered with the same constant exposure (0.98), so the night was dark only by being dim. [`exposure.ts`](src/scene/exposure.ts) opens the renderer's tone-mapping exposure toward 1.16 in the dark and stops it down to 0.92 in full sun, eased like an iris and snapped on a clock scrub. desktop night frame mean luma 82 → 90.
+
+- **one knob fewer:** `look.godRays` is retired; the sun shafts ride `look.glare` with the bloom and the streak. the panel loses a row.
+- **cost:** none. one multiply per frame; no draws, passes or programs. every tier gets it, mobile included. desktop night 241 → 241 draws / 4.26M tris unchanged (noon 264 / 4.26M).
+- **moved:** every pose in exposure only, noon about 6% darker, night about 10% brighter. `exposure.test.ts` pins the curve's ends, its monotonicity and frame-rate independence.
+
 ## the dark at the foot of things
 
 props stood on the ground without touching it: shadows were cast, but nothing creased where a bale, stone or post meets the soil. [`focal.ts`](src/scene/focal.ts) now writes contact occlusion into the green channel of the half-resolution depth target it already owned (ten taps, 0.7 m reach, level-ground depth ramp removed so flat ground never self-occludes), and the lens folds it into the frame before the glass.
