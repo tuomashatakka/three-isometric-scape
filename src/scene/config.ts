@@ -1103,15 +1103,12 @@ export interface ScapeConfig extends CarterConfig, CreelConfig, CroppingConfig, 
 
     /**
      * What the glass does to a bright point: the bloom round it and, on the
-     * ultra tier, the anamorphic streak through it. 0 is perfectly clean glass.
+     * ultra tier, the anamorphic streak through it and the shafts smeared off the sun. 0 is perfectly clean glass.
      */
     glare: number
 
     /** The glass: defocus off the focal plane, colour fringes and vignetting, 0 is a pinhole. */
     lens: number
-
-    /** Volumetric sun-shaft strength, 0 disables the pass. */
-    godRays: number
 
     /**
      * How much of the light a surface loses to whatever stands near it — the
@@ -1580,7 +1577,6 @@ export const SCAPE_CONFIG = {
     grain:     0.16,
     glare:     1,
     lens:      1,
-    godRays:   0.26,
     ao:        1,
   },
   ...SCAPE_PALETTE,

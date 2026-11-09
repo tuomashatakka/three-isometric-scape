@@ -49,13 +49,16 @@ const GRAIN_SCALE     = 0.09
 
 /**
  * What one unit of `look.glare` is: the bloom's strength and the anamorphic
- * streak's scale. One knob, because they are one physical thing — the light a
+ * streak's scale. One knob — it carries the sun shafts too — because they are one physical thing — the light a
  * bright point scatters inside the glass, round off the elements and drawn
  * into a line by a cylindrical one — and two sliders let a run tune a lens
  * that scatters a lot but streaks nothing, which no lens does.
  */
 const GLARE_BLOOM  = 0.34
 const GLARE_STREAK = 1.2
+
+/** The sun's shafts are the same scattered light, smeared out of the bright pixels round the sun. */
+const GLARE_RAYS = 0.26
 
 /** Exponential approach rate for the focus band easing, in e-folds per second. */
 const SETTLE_RATE = 6.2
@@ -225,7 +228,7 @@ export function createAtmospherePost ({
       sunNdc.x * rein * 0.5 + 0.5,
       sunNdc.y * rein * 0.5 + 0.5,
     )
-    godRays.uniforms.uExposure.value = 0.16 * config().look.godRays * fade
+    godRays.uniforms.uExposure.value = 0.16 * GLARE_RAYS * config().look.glare * fade
   }
 
   /**
@@ -264,7 +267,7 @@ export function createAtmospherePost ({
     if (quality.anamorphic && config().look.glare > 0)
       built.push(createAnamorphic({ threshold: 0.86, scale: config().look.glare * GLARE_STREAK }))
 
-    if (quality.godRays && config().look.godRays > 0) {
+    if (quality.godRays && config().look.glare > 0) {
       godRays = createGodRaysPass({ threshold: 0.94 })
       godRays.uniforms.uDensity.value = 0.55
       godRays.uniforms.uWeight.value  = 0.26

@@ -164,11 +164,10 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       controls: [
         { kind: 'select', path: 'look.grade', label: 'colour grade', options: GRADES },
         range('look.intensity', 'grade strength', 0, 1, 0.01),
-        toggled('glare', range('look.glare', 'bloom and streak', 0, 3, 0.01, quality.bloom), 1),
+        toggled('glare', range('look.glare', 'bloom, streak and shafts', 0, 3, 0.01, quality.bloom), 1),
         toggled('lens', range('look.lens', 'defocus, fringe and falloff', 0, 2, 0.01), 1),
         toggled('occlusion', range('look.ao', 'shade where things meet', 0, 2, 0.01), 1),
         toggled('film grain', range('look.grain', 'amount', 0, 1, 0.01, quality.grain), 0.16),
-        toggled('sun shafts', range('look.godRays', 'strength', 0, 1, 0.01, quality.godRays), 0.26),
       ],
     },
     {
@@ -404,10 +403,9 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         // switch; the other two are the shape of a beam rather than whether
         // there is one, so they are folded away behind it.
         toggled(
-          // Not 'sun shafts', which the optics section already has: that one is
-          // `look.godRays`, a screen-space smear out of the bright pixels near
-          // the sun, and this one is the volume under the cloud. Two controls
-          // under one label in one panel is a reader changing the wrong knob.
+          // Not the glare's shafts, which the optics section carries: those are
+          // a screen-space smear out of the bright pixels near the sun, and
+          // this one is the volume under the cloud.
           'light through the deck',
           range('shafts.strength', 'brightness', 0, 0.6, 0.005, quality.shaftSheets > 0),
           0.22,

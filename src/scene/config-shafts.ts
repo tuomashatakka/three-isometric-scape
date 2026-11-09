@@ -15,7 +15,7 @@
  *
  * ### it is not the post chain's god rays
  *
- * `look.godRays` is a screen-space radial smear out of whatever bright pixels
+ * `look.glare` is a screen-space radial smear out of whatever bright pixels
  * lie near the sun's projected position. It knows the sun and nothing else: not
  * where the cloud is, not where the gaps in it are, not what the ground under
  * them is doing. It is also `quality.godRays`, which is false on both of the
