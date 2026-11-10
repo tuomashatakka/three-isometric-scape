@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { CONTRAST_REACH, gradeContrast, vogelDisc } from './lens.ts'
+import { CONTRAST_REACH, gradeContrast, HALATION_TAPS, HALATION_THRESHOLD, halationSource, vogelDisc } from './lens.ts'
 
 
 describe('the lens defocus disc', () => {
@@ -30,5 +30,23 @@ describe('gradeContrast', () => {
     expect(gradeContrast(1)).toBeCloseTo(1 + CONTRAST_REACH)
     expect(gradeContrast(5)).toBeCloseTo(1 + CONTRAST_REACH)
     expect(gradeContrast(-1)).toBe(1)
+  })
+})
+
+describe('halation', () => {
+  test('nothing at or under paper white spills, so the frame is not hazed', () => {
+    expect(halationSource(0)).toBe(0)
+    expect(halationSource(HALATION_THRESHOLD)).toBe(0)
+    expect(halationSource(0.4)).toBe(0)
+  })
+
+  test('the excess spills, rising with brightness and capped for a hot pixel', () => {
+    expect(halationSource(HALATION_THRESHOLD + 1)).toBeCloseTo(1)
+    expect(halationSource(3)).toBeGreaterThan(halationSource(2))
+    expect(halationSource(1e6)).toBe(4)
+  })
+
+  test('the ring has taps to cover it', () => {
+    expect(HALATION_TAPS).toBeGreaterThanOrEqual(8)
   })
 })

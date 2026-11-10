@@ -28,6 +28,10 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js'
  *   tone: the shade a touch cool and the lit a touch warm, which is what sun
  *   against sky does to any photograph and what a single lut cannot do on a
  *   frame whose light moves. One strength — the grade's — drives both.
+ * - **halation** — the red-orange bloom of light that went through the film
+ *   and bounced off its backing: only what is brighter than the paper white of
+ *   the frame (sun glints, lit windows, the sun's own disc) spills, in a ring
+ *   wider than the bloom's, tinted warm, never a haze over the whole frame.
  * - **film grain**, strongest in the mid-tones where film shows it.
  *
  * It runs in linear hdr, before `OutputPass` tone-maps, exactly as the passes
@@ -61,7 +65,10 @@ export interface LensLook {
   sharpen:    number
 
   /** How dark the deepest contact crease gets, 0..1. */
-  contact:   number
+  contact: number
+
+  /** How much of a highlight's excess spills back as a warm ring. */
+  halation:  number
   grain:     number
   lut:       Data3DTexture
   intensity: number
@@ -127,6 +134,25 @@ export function gradeContrast (strength: number): number {
   return 1 + CONTRAST_REACH * Math.min(1, Math.max(0, strength))
 }
 
+/** The colour of halation: the red layer lets most light through and returns it, the blue none. */
+export const HALATION_TINT = [ 1, 0.34, 0.12 ] as const
+
+/** Luminance above which a pixel halates, in linear hdr where paper white is 1. */
+export const HALATION_THRESHOLD = 1
+
+/** Taps on the halation ring and its reach in buffer pixels. */
+export const HALATION_TAPS  = 8
+export const HALATION_REACH = 16
+
+/**
+ * What a fragment of `luma` contributes to a halo: nothing at or under the
+ * threshold, and the excess beyond it, capped so one hot pixel cannot paint a
+ * lamp across the street.
+ */
+export function halationSource (luma: number): number {
+  return Math.min(4, Math.max(0, luma - HALATION_THRESHOLD))
+}
+
 /** Share of the wide-radius local contrast ("clarity") added per unit of micro-contrast. */
 export const CLARITY_RATIO = 1.5
 
@@ -167,7 +193,7 @@ function fragment (taps: number, grain: boolean, focal: boolean): string {
   uniform float uLutSize, uLutIntensity, uContrast;
   uniform vec3  uShade, uLight;
   uniform vec2  uTexel, uAspect;
-  uniform float uFocus, uBlur, uAberration, uVignette, uSharpen, uGrain, uTime, uContact;
+  uniform float uFocus, uBlur, uAberration, uVignette, uSharpen, uGrain, uTime, uContact, uHalation;
   ${focal ? 'uniform sampler2D tDefocus;' : ''}
 
   varying vec2 vUv;
@@ -231,6 +257,22 @@ function fragment (taps: number, grain: boolean, focal: boolean): string {
                  + textureLod(tDiffuse, vUv - vec2(0.0, wide.y), 0.0).rgb;
       col += (source.rgb - broad * 0.25) * crisp * ${CLARITY_RATIO.toFixed(2)};
     }
+
+    ${taps > 0
+      ? `
+    // Halation: a ring of taps on the highlight excess, turned per pixel like
+    // the disc, tinted by the red layer of the film.
+    if (uHalation > 0.0) {
+      float spin = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) * 6.2831853;
+      vec3  halo = vec3(0.0);
+      for (int i = 0; i < ${HALATION_TAPS}; i++) {
+        float a   = spin + float(i) * ${(Math.PI * 2 / HALATION_TAPS).toFixed(5)};
+        vec3  tap = textureLod(tDiffuse, vUv + vec2(cos(a), sin(a)) * ${HALATION_REACH.toFixed(1)} * uTexel, 0.0).rgb;
+        halo += min(max(luma(tap) - ${HALATION_THRESHOLD.toFixed(2)}, 0.0), 4.0);
+      }
+      col += halo / ${HALATION_TAPS}.0 * uHalation * vec3(${HALATION_TINT.map(v => v.toFixed(2)).join(', ')});
+    }`
+      : ''}
 
     // Contact occlusion, from the focal pass: the dark a standing thing leaves
     // in the ground at its foot, laid over the focused and the defocused frame alike.
@@ -304,6 +346,7 @@ export function createLensPass ({ taps, grain, lut, defocus }: LensOptions): Len
       uVignette:     { value: 0 },
       uSharpen:      { value: 0 },
       uContact:      { value: 0 },
+      uHalation:     { value: 0 },
       uGrain:        { value: 0 },
       uTime:         { value: 0 },
     },
@@ -323,6 +366,7 @@ export function createLensPass ({ taps, grain, lut, defocus }: LensOptions): Len
     uniforms.uVignette.value     = look.vignette
     uniforms.uSharpen.value      = look.sharpen
     uniforms.uContact.value      = look.contact
+    uniforms.uHalation.value     = look.halation
     uniforms.uGrain.value        = look.grain
     uniforms.uLut.value          = look.lut
     uniforms.uLutSize.value      = look.lut.image.width
@@ -349,7 +393,8 @@ export function createLensPass ({ taps, grain, lut, defocus }: LensOptions): Len
   return pass
 }
 
-// perf: one full-screen pass in place of seven on desktop. The defocus is
+// perf: halation is eight more fetches per fragment, desktop and ultra only.
+// one full-screen pass in place of seven on desktop. The defocus is
 // `taps` fetches only where the disc is wider than a third of a pixel — which
 // at the opening 1400 m frame is nowhere, so the widest frame is also the
 // cheapest — the micro-contrast four only in the focused band, the aberration

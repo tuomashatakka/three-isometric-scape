@@ -1890,7 +1890,6 @@ export const STILL = [
   // the still a run about surf wants to be judged on.
   'wind.speed=0',
 
-  'look.grain=0',
   'atmosphere.auroraSpeed=0',
   // The sea's own rate, and not its amplitude. Until `water.waveSpeed` existed
   // the swell advanced on raw elapsed seconds and the only way to make a frame

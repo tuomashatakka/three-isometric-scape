@@ -165,9 +165,8 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         { kind: 'select', path: 'look.grade', label: 'colour grade', options: GRADES },
         range('look.intensity', 'grade strength', 0, 1, 0.01),
         toggled('glare', range('look.glare', 'bloom, streak and shafts', 0, 3, 0.01, quality.bloom), 1),
-        toggled('lens', range('look.lens', 'defocus, fringe and falloff', 0, 2, 0.01), 1),
+        toggled('lens', range('look.lens', 'defocus, fringe, halation, grain', 0, 2, 0.01), 1),
         toggled('occlusion', range('look.ao', 'shade where things meet', 0, 2, 0.01), 1),
-        toggled('film grain', range('look.grain', 'amount', 0, 1, 0.01, quality.grain), 0.16),
       ],
     },
     {

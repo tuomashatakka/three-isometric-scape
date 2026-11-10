@@ -27,7 +27,7 @@ the world already has more sites than most frames show — six islands, a hundre
 - **cost** — fewer draws, fewer triangles, cheaper passes, a faster first load (`scape:bench`); every tier, mobile first
 - **the optical pipeline** — the post chain is a camera, not a stack of filters: one pass per physical stage (scene light, then the glass and the film in [`lens.ts`](src/scene/lens.ts)), merged rather than appended. a new screen-space effect folds into an existing pass when it reads the same pixels
 - **the shared kit over the single prop** — a look that belongs to a *kind* of thing (every stone, every board, every roof) lands once, in the helper every prop of that kind is built through (`stonePart`, `soften`, the two scape materials), so one change reaches every island
-- **fewer, broader knobs** — one parameter per physical decision (`look.lens` is defocus, fringe and vignette at once). a run that adds a knob should look for two it can merge or retire; the panel only shrinks
+- **fewer, broader knobs** — one parameter per physical decision (`look.lens` is defocus, fringe, vignette, halation and grain at once). a run that adds a knob should look for two it can merge or retire; the panel only shrinks
 
 a new prop or site is still allowed, when it is the cheapest way to make a frame more believable. it is no longer the default.
 

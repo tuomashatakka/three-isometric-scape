@@ -2,6 +2,13 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## halation in the film, one knob fewer
+
+highlights ended hard at their edges; an emulsion scatters light back through itself and rings them in warm red. [`lens.ts`](src/scene/lens.ts) now spills the excess over paper white as an eight-tap warm ring (16 px) inside the existing lens pass, and `look.grain` is retired: grain and halation ride `look.lens`, whose panel row now reads "defocus, fringe, halation, grain". stills hold the grain with `wind.speed=0`.
+
+- **cost:** no new pass, texture or program; eight fetches per fragment on desktop and ultra. mobile has no chain: unchanged.
+- **moved:** desktop and ultra, around sun glints, water sparkle and lit windows. `halationSource` is pinned by `lens.test.ts`.
+
 ## the iris
 
 noon and a moonlit night were metered with the same constant exposure (0.98), so the night was dark only by being dim. [`exposure.ts`](src/scene/exposure.ts) opens the renderer's tone-mapping exposure toward 1.16 in the dark and stops it down to 0.92 in full sun, eased like an iris and snapped on a clock scrub. desktop night frame mean luma 82 → 90.
