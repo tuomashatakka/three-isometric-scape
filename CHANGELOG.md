@@ -2,6 +2,14 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## a quilt on the heath, a shoulder in the film, and a darker drawer
+
+close frames read as painted plastic: the meadow was one green, and the soil grain was so faint (0.34) that the yard was a smooth tan sheet. now the shared ground material puts a quilt of moss and heather over everything that leans green ([`props/material.ts`](src/scene/props/material.ts), `heathFragment`). patches are tens of metres across and stay up at the archipelago frame, so barns, stone and beaches are left alone, and `terrain.detailGrain` opens at 0.7. the lens pass grades highlights past paper white toward white the way film dyes do (`FILM_SHOULDER` in [`lens.ts`](src/scene/lens.ts)): lit snow and glare read as bright, not as a saturated block. the overlay is restyled after the *three-iso overlay concepts* canvas. the drawer is dark-first and docked full height (a bottom sheet on a phone). labels are tracked uppercase micro-labels, readouts are mono tabular numerals, sliders are hairline tracks filled to the value, and toggles are pill switches. the palette is one set of `--ui-*` tokens in [`style.css`](src/style.css).
+
+- **ten knobs fewer in the panel:** axial tilt, fog breath, the strike's flash length, wingbeats, wingspan, the gull ceiling, basking rolls, neap falloff, haar depth and swell fan. they are constants of the place, not looks; the config leaves stay for `--set` and the url.
+- **cost:** no draws, triangles or programs. each ground program does one more texture fetch: the wear map on the six-tap path, the grain map on the phone's one-tap path. the shoulder is arithmetic. mobile census matches main: default 139 / 0.95M, near 87 / 0.90M, night 146, winter 145. desktop near 222 / 4.82M, default 162 / 2.31M.
+- **moved:** every frame with meadow in it, near frames most. `material.test.ts` pins the quilt on both tap paths, and `lens-tone.test.ts` pins the shoulder.
+
 ## the sky in the puddles, six knobs fewer
 
 wet ground went darker and did nothing else, because a smooth film with no sky to mirror is just a darker ground. [`props/puddle.ts`](src/scene/props/puddle.ts) gives the shared ground material a fresnel sheen of the sky the sea already mirrors on every wet surface. on level terrain the hollows of the wear map, read at puddle scale, fill with mirror-flat standing water as the front's wetness rises: about a tenth of level ground in the authored shower, none when dry. the sky map's terrain height keeps the water off stone tops, roofs and rails, which share the material.

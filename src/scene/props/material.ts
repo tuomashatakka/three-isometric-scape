@@ -419,6 +419,41 @@ export const WEAR_REPEATS  = [ 5, 14 ] as const
 /** The tile the wear map is read at, as a share of the grain's. */
 export const WEAR_TILE = 0.14
 
+/**
+ * The heath's own map: how many grain tiles one patch of moss or heather spans.
+ *
+ * A meadow painted one green is the loudest tell in the close frames — real
+ * rough grazing is a quilt of moss, sedge, heather and bare peat, each a few
+ * tens of metres across. The wear map read at a sixth of its own frequency is
+ * a field decorrelated from both the grit and the damp patches, wide enough to
+ * read at the archipelago frame, so it is never let go with the zoom.
+ */
+export const HEATH_TILE = 0.06
+
+/** How far a patch pushes the albedo's hue and its lightness, at full grain. */
+export const HEATH_HUE   = 0.3
+export const HEATH_LIGHT = 0.2
+
+/**
+ * The quilt, weighed by how far the albedo leans green — the same test the
+ * season's tint uses — so a barn, a stone or a beach never takes it. One fetch,
+ * on the six-tap path only: the phone keeps its single read and an even meadow.
+ */
+function heathFragment (map: string): string {
+  return /* glsl */`
+  {
+    float heath = texture2D(${map}, vScapeGround * scapeDetailScale * ${HEATH_TILE.toFixed(3)}).r * 2.0 - 1.0;
+    vec3 c = diffuseColor.rgb;
+    float leaf = clamp((c.g * 2.0 - c.r - c.b) / (c.g + 0.05) * 2.0, 0.0, 1.0) * uDetailStrength;
+    vec3 heather = vec3(1.0 + ${HEATH_HUE}, 1.0 - ${HEATH_HUE} * 0.6, 1.0 - ${HEATH_HUE} * 0.1);
+    vec3 moss    = vec3(1.0 + ${HEATH_HUE} * 0.25, 1.0 + ${HEATH_HUE} * 0.35, 1.0 - ${HEATH_HUE});
+    vec3 hue = heath < 0.0 ? mix(vec3(1.0), heather, -heath) : mix(vec3(1.0), moss, heath);
+    diffuseColor.rgb = mix(c, c * hue * (1.0 + heath * ${HEATH_LIGHT}), leaf);
+    roughnessFactor = clamp(roughnessFactor + leaf * heath * 0.06, 0.05, 1.0);
+  }
+`
+}
+
 const REPEATS_FRAGMENT = /* glsl */`
   float scapeRepeats   = scapeFrameMetres() * scapeDetailScale;
   float scapeGrainKeep = ${repeatKeepGlsl('scapeRepeats', GRAIN_REPEATS)};
@@ -459,6 +494,7 @@ const DETAIL_FRAGMENT_LITE = /* glsl */`
 ${REPEATS_FRAGMENT}
   float grain     = texture2D(uDetailMap, vScapeGround * scapeDetailScale).r;
 ${GRAIN_FRAGMENT}
+${heathFragment('uDetailMap')}
 ${propGrainFragment(false)}
 `
 
@@ -492,6 +528,7 @@ ${PUDDLE_HOLLOW}
     // tells wet ground from dry at this distance — the albedo barely moves.
     roughnessFactor = clamp(roughnessFactor - macro * 0.3, 0.05, 1.0);
   }
+${heathFragment('uWearMap')}
 
   // One fetch, where there used to be four differenced by hand. The map's own
   // tangent is the grain's gradient resolved at full texel resolution and with

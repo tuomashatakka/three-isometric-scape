@@ -8,7 +8,7 @@ import { createWeather } from '../weather.ts'
 import { SWASH_DRY } from '../landscape/swash.ts'
 import { CLOUD_REPEATS } from '../cloud-shadow.ts'
 import { repeatKeep } from '../frame.ts'
-import { DETAIL_TILE, GRAIN_REPEATS, WEAR_REPEATS, WEAR_TILE, createScapeMaterials } from './material.ts'
+import { DETAIL_TILE, GRAIN_REPEATS, HEATH_TILE, WEAR_REPEATS, WEAR_TILE, createScapeMaterials } from './material.ts'
 
 
 /**
@@ -51,6 +51,18 @@ function compiled (detailTaps: number, reliefSteps: number): CompiledReturnType 
 
 
 describe('what the ground material actually compiles', () => {
+  test('every tier lays the heath quilt over the green ground, from a map it already binds', () => {
+    const full = compiled(6, 6).fragment
+    const lite = compiled(1, 0).fragment
+
+    expect(full).toContain(`texture2D(uWearMap, vScapeGround * scapeDetailScale * ${HEATH_TILE.toFixed(3)})`)
+    expect(lite).toContain(`texture2D(uDetailMap, vScapeGround * scapeDetailScale * ${HEATH_TILE.toFixed(3)})`)
+    expect(lite).not.toContain('uWearMap')
+
+    // A patch is tens of metres across: far wider than the wear, never a repeat the frame resolves as a grid.
+    expect(DETAIL_TILE / HEATH_TILE).toBeGreaterThan(DETAIL_TILE / WEAR_TILE * 2)
+  })
+
   test('the full tap budget reads the baked normal and marches the relief', () => {
     const { fragment } = compiled(6, 6)
 

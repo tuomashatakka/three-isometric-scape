@@ -1255,7 +1255,7 @@ export const SCAPE_CONFIG = {
       { x: -0.577, z: 0.643, radius: 0.045, height: 2.5 },
       { x: 0.372, z: 0.735, radius: 0.042, height: 2.4 },
     ],
-    detailGrain: 0.34,
+    detailGrain: 0.7,
 
     // The home island has no fjord, and `depth: 0` is how it says so — every
     // island that omits the section inherits this one, so an archipelago is

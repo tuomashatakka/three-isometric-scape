@@ -76,6 +76,12 @@ suspect. Hidden meshes come back on the next look.
 
 ## traps
 
+- **The studio opens on the mobile tier.** The ground draws through the one-tap
+  path there (`quality.detailTaps` 1), so a shader change made only on the
+  six-tap path (wear map, normal map, relief, puddles) is invisible in a
+  default look. If a shot does not move after a ground-shader edit, shoot again
+  with `--tier desktop` before you decide the edit did nothing.
+
 - **A frozen picture after an edit means vite died, not that the edit did
   nothing.** A look that returns in ~4 s, identical to the last one, after a
   `src/` change: `studio stop`, `studio serve` again. And the first look after a

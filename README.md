@@ -197,7 +197,7 @@ src/
 ├── bridge.ts                       the `?bridge` remote the studio drives: writes, reset, rebuild, census
 ├── context-recovery.ts             the scape's status store, and the fallback ladder
 ├── url-overrides.ts                every knob the query string may overrule
-├── style.css                       full-viewport responsive shell
+├── style.css                       full-viewport shell and the overlay's `--ui-*` tokens
 ├── prop-preview/                   /props.html — contact sheet and quad view
 │   ├── main.ts                     two-mode routing off the query string
 │   ├── contact-sheet.ts            the whole roster from one throwaway context
@@ -697,6 +697,14 @@ the mobile frame had no shadows at all. phones skip the shadow map — the hidde
 **one knob for occlusion.** `look.ao` was the strength of the ultra-only gtao. it is now the strength of the sky map on every tier, and 0 turns off both the shade and the march's shadow. it is in the optics panel as *occlusion*. `terrain.detailScale` and `terrain.detailMacro` are constants (`DETAIL_TILE`, `DETAIL_MACRO` in `props/material.ts`): neither was ever a decision about the place. the panel loses two soil sliders and gains one.
 
 **cost.** no draws, no triangles, the same 30 programs. the bake runs once, in the task after the first dressed frame. on this container it takes 0.34 s on mobile; desktop measured 1.0 s before the box blur was rewritten to walk rows, which cut the blur from 353 to 135 ms at 1536². the texture is an rgba8 upload of 9.4 mb on mobile and 16.8 mb on desktop. ultra runs one full-resolution pass fewer.
+
+## a quilt on the heath
+
+rough grazing on a northern coast is not a lawn: moss, sedge, heather and bare peat lie in patches a few tens of metres across. one meadow green was the loudest tell in the close frames. `heathFragment` in [`props/material.ts`](src/scene/props/material.ts) reads a field at `HEATH_TILE` (a 125 m tile) and pushes the albedo toward a warm heather or a yellow moss by up to `HEATH_HUE`, and the lightness by `HEATH_LIGHT`. it is weighted by the season tint's own green test, so paint, stone, sand and water never take it. it is not let go with the zoom, because the archipelago frame is where a quilt reads best. the six-tap path reads it off the wear map at a sixth of its frequency, decorrelated from the damp patches. the phone's one-tap path reads it off the grain map, the one texture it binds. so both tiers get it for one fetch. `terrain.detailGrain` opens at 0.7: at 0.34 the grit was there and invisible.
+
+## the shoulder of the film
+
+a sensor clips each channel on its own, so a lit gable goes to a flat saturated block. film's dyes saturate together, so a highlight runs off toward white. the lens pass's grade (`lens.ts`) takes up to `SHOULDER_PULL` of a fragment's chroma between luminance 0.7 and 1.8 (`FILM_SHOULDER`), scaled by the grade's strength. it adds no fetch, and nothing under paper white moves.
 
 ## the sky in the puddles
 
@@ -3677,6 +3685,8 @@ the ground it falls on carries **two octaves of grain, and a roughness break**. 
 ## the graphics overlay
 
 a drawer on the right edge exposes the scene's optics, the three clocks, the air, the ground and water, the camera and the device budget — with a switch per effect and its parameters nested underneath. it collapses to a handle, starts collapsed on touch and narrow viewports, and resets to the authored values.
+
+**one design system, in tokens.** every overlay surface — the card, the drawer, the vitals — is drawn from the `--ui-*` custom properties on `:root` in [`style.css`](src/style.css): dark-first neutrals (`#121212` → `#2a2a2a`), one accent (the scape's lime), and status colours. the grammar is three things: tracked uppercase micro-labels, mono readouts with tabular numerals, and glass panels on a hairline border. the drawer is docked flush to the right edge at full height, and on a phone it becomes a bottom sheet. sliders are a 3 px track filled to the value (`--fill`, written by `graphics-panel.ts`), and an effect's switch is a pill drawn over a native checkbox, so the keyboard and the semantics stay native. a new surface takes the tokens; it never carries its own hex.
 
 **its furniture is markup, not script.** the `<aside>`, the header, the collapse handle, the form and the footer ship in [`index.html`](index.html); [`graphics-panel.ts`](src/ui/graphics-panel.ts) fills the form and wires the two buttons. that is what lets the drawer survive the canvas being replaced under it after a context loss — and after the effects switch rebuilds the scape — and it gives the panel a shape before its module has parsed. only the controls are built at runtime, because only those depend on which tier resolved.
 

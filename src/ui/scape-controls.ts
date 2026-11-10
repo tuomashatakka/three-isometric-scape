@@ -181,7 +181,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         // dragging the coast north until the winter loses its daylight is a
         // slider that tells the truth about what it does.
         range('daylight.latitude', 'latitude °n', 0, 80, 0.5),
-        range('daylight.axialTilt', 'axial tilt', 0, 40, 0.1),
         range('daylight.azimuth', 'noon bearing', -180, 180, 1),
         range('daylight.nightLift', 'night lift', 0, 1, 0.01),
         // Live like the rest of them, and the one to drag at `time: 0.02`: it
@@ -304,7 +303,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           0.85,
           [
             range('storm.rate', 'strikes in a front', 0, 1, 0.01),
-            range('storm.flash', 'how long one lasts', 0, 0.006, 0.0002),
             range('storm.reach', 'how far it lights', 0.02, 0.3, 0.005),
             range('storm.fork', 'the channel itself', 0, 1, 0.01),
           ],
@@ -316,7 +314,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       title:    'atmosphere',
       controls: [
         range('atmosphere.fogDensity', 'fog density', 0, 0.9, 0.01),
-        range('atmosphere.fogBreath', 'fog breath', 0, 0.4, 0.01),
         range('atmosphere.cloudDrag', 'cloud drift', 0, 3, 0.01),
 
         // The shadow moved in under the deck, and that is the coupling rather
@@ -383,7 +380,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           0.85,
           [
             range('haar.top', 'top (m)', 0, 12, 0.1),
-            range('haar.depth', 'depth (m)', 0.2, 8, 0.1),
             range('haar.drag', 'drift', 0, 1.5, 0.01),
             range('haar.scour', 'scoured at (wind)', 0, 4, 0.05),
             range('haar.burn', 'burn-off', 0, 3, 0.05),
@@ -434,7 +430,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           [
             range('water.waveSpeed', 'rate', 0, 2, 0.01),
             range('water.swellLength', 'wavelength (m)', 12, 220, 1),
-            range('water.swellSpread', 'fan (rad)', 0, 1.2, 0.01),
             range('water.swellShoal', 'stands on a bank', 0, 1, 0.01),
 
             // What the lee keeps of it. The *map* behind this — how far upwind
@@ -546,7 +541,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           range('tide.range', 'spring range (m)', 0, 1.6, 0.01),
           0.8,
           [
-            range('tide.spring', 'neap falloff', 0, 1, 0.01),
             range('tide.lag', 'high-water lag (h)', 0, 12.4, 0.1),
           ],
         ),
@@ -571,9 +565,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           0.85,
           [
             range('birds.speed', 'wheeling', 0, 1.5, 0.01),
-            range('birds.flap', 'wingbeats a second', 0, 6, 0.1),
-            range('birds.wingspan', 'wingspan (m)', 0.4, 4, 0.05),
-            range('birds.ceiling', 'ceiling (m)', 4, 60, 0.5),
           ],
         ),
       ],
@@ -595,7 +586,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           0.78,
           [
             range('haulout.emerge', 'slips off within (m)', 0, 0.6, 0.01),
-            range('haulout.shuffle', 'basking rolls a minute', 0, 20, 0.5),
           ],
         ),
       ],
