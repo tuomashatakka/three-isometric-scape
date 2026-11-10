@@ -1099,7 +1099,6 @@ export interface ScapeConfig extends CarterConfig, CreelConfig, CroppingConfig, 
   look: {
     grade:     GradeName
     intensity: number
-    grain:     number
 
     /**
      * What the glass does to a bright point: the bloom round it and, on the
@@ -1107,7 +1106,7 @@ export interface ScapeConfig extends CarterConfig, CreelConfig, CroppingConfig, 
      */
     glare: number
 
-    /** The glass: defocus off the focal plane, colour fringes and vignetting, 0 is a pinhole. */
+    /** The glass and the film: defocus, fringes, vignetting, halation and grain; 0 is a pinhole on clean sensor. */
     lens: number
 
     /**
@@ -1574,7 +1573,6 @@ export const SCAPE_CONFIG = {
   look: {
     grade:     'nordic',
     intensity: 0.78,
-    grain:     0.16,
     glare:     1,
     lens:      1,
     ao:        1,

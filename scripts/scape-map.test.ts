@@ -306,7 +306,7 @@ describe('the capture url', () => {
     expect(set).toContain('daylight.speed=0')
     expect(set).toContain('season.speed=0')
     expect(set).toContain('wind.strength=0')
-    expect(set).toContain('look.grain=0')
+    expect(set).toContain('wind.speed=0')
     expect(set).toContain('boats.speed=0')
   })
 

@@ -31,7 +31,7 @@ tris; `near` ~84 / 0.9M. Re-measure; do not quote these.
 
 `src/scene/lens.ts` is the whole glass and film in **one** full-screen pass:
 defocus disc, chromatic aberration, vignette, micro-contrast, grade + lut,
-grain. It is one draw whatever it does, so its cost is fill: `lensTaps` texture
+halation (8 taps wherever `lensTaps > 0`), grain. It is one draw whatever it does, so its cost is fill: `lensTaps` texture
 fetches per pixel where the disc is wider than a third of a pixel (the
 out-of-focus part of the frame), plus the fixed taps of the rest.
 
@@ -44,7 +44,7 @@ out-of-focus part of the frame), plus the fixed taps of the rest.
 
 - The taps are compiled into the program as a constant array: a different count
   is a different program, and 0 compiles the defocus out.
-- `look.lens` scales defocus, fringe and vignette together, live; `look.lens=0`
+- `look.lens` scales defocus, fringe, vignette, halation and grain together, live; `look.lens=0`
   is the lens with no blur (the branch skips the disc) — the A/B for its picture.
 - To see or price the chain on the mobile build:
   `studio shot --set runtime.effects=all --rebuild` (expect several times the draws).

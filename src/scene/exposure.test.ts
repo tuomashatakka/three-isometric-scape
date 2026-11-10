@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { ADAPT_RATE, EXPOSURE_NIGHT, EXPOSURE_NOON, adaptExposure, targetExposure } from './exposure.ts'
 
+
 describe('exposure', () => {
   test('opens up in the dark and stops down in the sun', () => {
     expect(targetExposure(1, 0)).toBeCloseTo(EXPOSURE_NOON, 6)
@@ -29,6 +30,7 @@ describe('exposure', () => {
     expect(once).toBeGreaterThan(0.92)
     expect(once).toBeLessThan(1.16)
     expect(adaptExposure(1, 1, 0.5)).toBe(1)
+
     const halves = adaptExposure(adaptExposure(1.16, 0.92, 0.5), 0.92, 0.5)
     expect(halves).toBeCloseTo(once, 9)
     expect(ADAPT_RATE).toBeGreaterThan(0)

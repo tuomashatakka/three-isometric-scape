@@ -45,7 +45,8 @@ const LENS_VIGNETTE   = 0.34
 const LENS_ABERRATION = 3.5
 const LENS_SHARPEN    = 0.4
 const LENS_CONTACT    = 0.55
-const GRAIN_SCALE     = 0.09
+const LENS_GRAIN      = 0.0144
+const LENS_HALATION   = 0.35
 
 /**
  * What one unit of `look.glare` is: the bloom's strength and the anamorphic
@@ -156,7 +157,8 @@ export function createAtmospherePost ({
       ? wanted
       : focusNow + (wanted - focusNow) * (1 - Math.exp(-frameDelta * SETTLE_RATE))
 
-    lens?.aim(focusNow, elapsed)
+    // The film's clock is the world's: wind.speed 0 holds the grain still too.
+    lens?.aim(focusNow, config().wind.speed > 0 ? elapsed : 0)
 
     if (!focal)
       return
@@ -323,7 +325,8 @@ export function createAtmospherePost ({
       vignette:   LENS_VIGNETTE * look.lens,
       sharpen:    LENS_SHARPEN * Math.min(1, look.lens),
       contact:    LENS_CONTACT * Math.min(1, look.lens),
-      grain:      quality.grain ? look.grain * GRAIN_SCALE : 0,
+      halation:   quality.lensTaps > 0 ? LENS_HALATION * Math.min(1, look.lens) : 0,
+      grain:      quality.grain ? LENS_GRAIN * Math.min(1, look.lens) : 0,
       lut:        luts.get(look.grade),
       intensity:  look.intensity,
     })
