@@ -274,9 +274,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           0.85,
           [
             range('rainbow.secondary', 'the outer bow', 0, 1, 0.01, quality.rainbowArcs > 1),
-            range('rainbow.width', 'band width, degrees', 0.5, 6, 0.1),
-            range('rainbow.saturation', 'spectrum', 0, 1, 0.01),
-            range('rainbow.reach', 'how far out it hangs', 0.1, 1.2, 0.01),
           ],
         ),
 
@@ -293,9 +290,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
             range('halo.dogs', 'the mock suns', 0, 2, 0.01, quality.haloArcs > 1),
             range('halo.pillar', 'the shaft through it', 0, 2, 0.01, quality.haloArcs > 1),
             range('halo.lead', 'how far ahead of the fall', 0, 0.3, 0.005),
-            range('halo.width', 'band width, degrees', 0.5, 6, 0.1),
-            range('halo.saturation', 'colour in the ring', 0, 1, 0.01),
-            range('halo.reach', 'how far out it hangs', 0.1, 1.2, 0.01),
           ],
         ),
 

@@ -2,6 +2,14 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the sky in the puddles, six knobs fewer
+
+wet ground went darker and did nothing else, because a smooth film with no sky to mirror is just a darker ground. [`props/puddle.ts`](src/scene/props/puddle.ts) gives the shared ground material a fresnel sheen of the sky the sea already mirrors on every wet surface. on level terrain the hollows of the wear map, read at puddle scale, fill with mirror-flat standing water as the front's wetness rises: about a tenth of level ground in the authored shower, none when dry. the sky map's terrain height keeps the water off stone tops, roofs and rails, which share the material.
+
+- **six knobs fewer:** `rainbow.width/saturation/reach` and `halo.width/saturation/reach` are physical constants now (`BOW_WIDTH`, `BOW_SATURATION`, `HALO_WIDTH`, `HALO_SATURATION`, `SKY_OPTIC_REACH`).
+- **cost:** no draws, triangles or programs. the full ground program (desktop, ultra) does two more texture fetches and the sheen arithmetic. the mobile one-tap program gets the sheen only. census identical to main: mobile default 139 / 0.95M, near 87 / 0.90M, night 146, winter 145. desktop noon 264 / 4.26M, night 241 / 4.26M.
+- **moved:** rained-on ground in a warm season, desktop and ultra. the opening frames are sleet, which is dry, so they hold. `puddle.test.ts` pins the cover over the real wear and grain bytes.
+
 ## halation in the film, one knob fewer
 
 highlights ended hard at their edges; an emulsion scatters light back through itself and rings them in warm red. [`lens.ts`](src/scene/lens.ts) now spills the excess over paper white as an eight-tap warm ring (16 px) inside the existing lens pass, and `look.grain` is retired: grain and halation ride `look.lens`, whose panel row now reads "defocus, fringe, halation, grain". stills hold the grain with `wind.speed=0`.

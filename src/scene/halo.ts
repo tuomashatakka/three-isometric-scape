@@ -9,7 +9,7 @@ import { defineModule, smoothstep } from 'threejs-scene'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import { sunHeight, sunSwing } from './daylight.ts'
 import type { AtmosphereQuality } from './quality.ts'
-import { bowReveal } from './rainbow.ts'
+import { SKY_OPTIC_REACH, bowReveal } from './rainbow.ts'
 import { deckFocus, deckViewSize } from './sky-deck.ts'
 import type { SkyPlace } from './sky-deck.ts'
 import { showerAmount } from './weather.ts'
@@ -27,6 +27,15 @@ export interface HaloOptions {
 }
 
 const DEGREES = Math.PI / 180
+
+/**
+ * The ring's band in degrees of arc, and the colour it keeps. Constants, not
+ * knobs: the real ring's red lip is a degree and a half and its wash a little
+ * more, and a halo has less spectrum than a bow — one red edge and a white
+ * wash — so it keeps less of it than `BOW_SATURATION`.
+ */
+const HALO_WIDTH      = 2.2
+const HALO_SATURATION = 0.55
 
 /**
  * Refractive index of ice for visible light.
@@ -594,7 +603,7 @@ export function createHalo ({
       const focus         = deckFocus(camera)
       const bearing       = config().daylight.azimuth * DEGREES + place.swing
       const flat          = Math.sqrt(Math.max(0, 1 - place.height * place.height))
-      const { out, size } = haloSpan(span, haloConfig.reach)
+      const { out, size } = haloSpan(span, SKY_OPTIC_REACH)
 
       // Turned to face the camera, like the bow and the moon and for the same
       // reason: a ring lying on a deck is seen at the camera's own tilt, and a
@@ -622,8 +631,8 @@ export function createHalo ({
         : Math.max(0, haloConfig.dogs) * dogLight(place.height)
 
       material.uniforms.uOpacity.value    = light
-      material.uniforms.uWidth.value      = haloConfig.width * DEGREES
-      material.uniforms.uSaturation.value = Math.min(1, Math.max(0, haloConfig.saturation))
+      material.uniforms.uWidth.value      = HALO_WIDTH * DEGREES
+      material.uniforms.uSaturation.value = HALO_SATURATION
       material.uniforms.uHorizon.value    = haloHorizon(place.height)
       material.uniforms.uDogs.value       = dogs
       material.uniforms.uDogPlace.value   = dog === null || dogs <= 0
