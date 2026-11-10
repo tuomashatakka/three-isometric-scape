@@ -420,6 +420,7 @@ src/
         ├── index.ts                the roster, hero vs scattered
         ├── palette.ts              the nordic colour vocabulary
         ├── material.ts             shared materials, cloud shadow, wind, ground relief, wetness, snow, aspect
+        ├── puddle.ts               the sky in wet ground, and the standing water in its hollows
         ├── ploppable.ts            2d placement with a ground-following foundation
         ├── fence.ts / wall.ts      continuous ground-following runs
         ├── lamp.ts                 the pane in the reveal and the haze in front of it
@@ -696,6 +697,18 @@ the mobile frame had no shadows at all. phones skip the shadow map — the hidde
 **one knob for occlusion.** `look.ao` was the strength of the ultra-only gtao. it is now the strength of the sky map on every tier, and 0 turns off both the shade and the march's shadow. it is in the optics panel as *occlusion*. `terrain.detailScale` and `terrain.detailMacro` are constants (`DETAIL_TILE`, `DETAIL_MACRO` in `props/material.ts`): neither was ever a decision about the place. the panel loses two soil sliders and gains one.
 
 **cost.** no draws, no triangles, the same 30 programs. the bake runs once, in the task after the first dressed frame. on this container it takes 0.34 s on mobile; desktop measured 1.0 s before the box blur was rewritten to walk rows, which cut the blur from 353 to 135 ms at 1536². the texture is an rgba8 upload of 9.4 mb on mobile and 16.8 mb on desktop. ultra runs one full-resolution pass fewer.
+
+## the sky in the puddles
+
+wet ground was two multiplies: the albedo down, the roughness down. a smooth film with nothing to reflect is only a darker ground, so a rained-on yard read as one somebody had turned the lights down on. [`props/puddle.ts`](src/scene/props/puddle.ts) gives the shared ground material the two things a wet surface does in a photograph:
+
+- **the sky in the film.** every wet surface adds a schlick fresnel share of the sky the sea already mirrors (the daylight's `horizon` and `skyTop`, the same two colours `water-gleam.ts` reads), seen from `scapeEye()` and shaded by the cloud overhead. it is added to the outgoing light, not the albedo, so the sun does not shade it twice. `SKY_SHEEN` is 8 because a tone-mapped sky is about twice the brightness of the ground under it on screen, where a real overcast is five to ten times; at the physical gain the reflection is right and invisible. snow takes it off: standing water is under snow.
+- **the water that stands.** where the ground is level (`PUDDLE_LEVEL`, world normal y 0.85..0.95) and low, the film becomes water. the hollows are the wear map, read once more at `PUDDLE_TILE` (six times finer, a few metres a patch), with a 0.3 share of the broad wear and the grain ragging the shoreline. the water line `puddleLevel(wet)` rises through them with the front's own wetness, so no knob is added: about a tenth of level ground stands in water in the authored shower and under a quarter when soaked. the bed goes dark, the normal goes back to the geometry's and the roughness to a mirror's.
+- **only on the ground.** the props draw with the ground's material, and the first cut filled flat stone tops, roof ridges and fence rails before the yard. the bare terrain's height is already on the gpu, in the sky map's blue channel, so a fragment more than 0.18..0.4 m above it (`PUDDLE_BED`) holds none.
+
+the full ground program (desktop, ultra) gets puddles: one more wear fetch and one sky-map fetch. the one-tap program (mobile, minimal) gets the sheen and stands no water, so a phone shows a graceful absence rather than a different look. `puddle.test.ts` measures the cover over the real wear and grain bytes: none dry, monotonic in the wet, 3..16 % at the authored 0.62.
+
+**six knobs fewer.** the rainbow's and the halo's band width, saturation and reach were sliders, and none is a decision about the place: the band widths and spectra are the optics of a drop and a crystal (`BOW_WIDTH`, `BOW_SATURATION` in `rainbow.ts`, `HALO_WIDTH`, `HALO_SATURATION` in `halo.ts`), and the two were always meant to hang at one distance, `SKY_OPTIC_REACH`. the sky panel keeps strength, the outer bow, the mock suns, the pillar and the lead.
 
 ## the iris
 
@@ -1939,7 +1952,7 @@ the front had five consequences by then and every one of them was the shower its
 - **the violet end is dim.** an even ramp is six equal stripes, which is a flag rather than a rainbow. two thirds of the brightness comes off the short end, and what is left is the red-orange-through-green a photograph actually shows.
 - **no shower is even.** two slow waves along the arc vary its weight down its length. they are functions of the angle round the bow and of nothing else — no clock, no noise texture, no seed — so the same frame captures the same bow, and without them the arc is a decal however well it is coloured.
 
-the fade at the feet went from three degrees to eight for the same reason: at three, both arcs stopped dead at the same height and the ruled line across the bottom was the single thing that made the bow read as something stuck onto the sea. and the light itself came down from 0.85 to 0.65, because a bow is faint. `rainbow.width` came down with it — the band carries its width in its tail now rather than in its core, so it is half a degree over the real 2.2° instead of a degree and a half.
+the fade at the feet went from three degrees to eight for the same reason: at three, both arcs stopped dead at the same height and the ruled line across the bottom was the single thing that made the bow read as something stuck onto the sea. and the light itself came down from 0.85 to 0.65, because a bow is faint. the band width (`BOW_WIDTH` in `rainbow.ts` now, a constant rather than a slider) came down with it — the band carries its width in its tail now rather than in its core, so it is half a degree over the real 2.2° instead of a degree and a half.
 
 **a shader that compiles on its own can still fail to compile in the scape.** the wave along the arc wanted to be called `patch`, which is a reserved word once three's own prelude sits in front of the source — and reserved in a way the raw text does not show: compiling the fragment source alone, in both webgl and webgl2, returned `OK`. what it cost was a whole capture run of `BOOTING` with zero draws, a boot that hangs on the spinner, and no page error anywhere. the log line that actually says it is in the scape's own program audit (`rainbow · Fragment shader is not compiled`), and the driver's reason only comes out of a `compileShader` hook. if a new shader ever boots to a spinner, that is where to look first.
 

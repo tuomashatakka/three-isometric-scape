@@ -38,10 +38,10 @@
  * ### the scale classes
  *
  * Every angle here is **degrees of sky** and stays degrees — a ring is at
- * optical infinity and does not grow when the archipelago does. The one
- * frame-sized knob is {@link HaloConfig.halo.reach}, which is a share of the
- * live view and is therefore the only thing here that decides how large the
- * ring is *in the picture*. There is no world-sized length in this section at
+ * optical infinity and does not grow when the archipelago does. The ring
+ * hangs `SKY_OPTIC_REACH` frames out (`rainbow.ts`), a share of the live view,
+ * which is what decides how large it is *in the picture* — a constant, not a
+ * knob, since it is the bow's number too. There is no world-sized length in this section at
  * all, which is the whole of its audit.
  */
 export interface HaloConfig {
@@ -84,17 +84,6 @@ export interface HaloConfig {
     lead: number
 
     /**
-     * Width of the ring's band, in **degrees of arc**.
-     *
-     * Degrees, and they stay degrees. The real ring's bright inner edge is
-     * about a degree and a half of sky and its outer wash runs several more;
-     * anything wider is a decision about how much of that wash the picture
-     * gets, not about where the ring is. Where it *is* is 21.84°, which is not
-     * a knob — see `halo.ts`.
-     */
-    width: number
-
-    /**
      * The mock suns' share of the ring's brightness, 0..1.
      *
      * Its own knob rather than a fixed fraction, because this is the half of
@@ -114,28 +103,6 @@ export interface HaloConfig {
      * sun's own height takes it away.
      */
     pillar: number
-
-    /**
-     * How much colour the optics keep, 0..1.
-     *
-     * 1 is the ring a camera records on a clear cold morning: red inside,
-     * washing out through yellow to a white outer edge. 0 is the same geometry
-     * with the colour taken out, which is what a halo through thick enough
-     * cloud actually looks like — so this is a saturation rather than a palette
-     * entry, exactly as the bow's is.
-     */
-    saturation: number
-
-    /**
-     * How far out the ring hangs, in **frames**.
-     *
-     * Frame-sized, like everything else in the sky, and for the bow's reason: a
-     * halo is at optical infinity and does not get bigger as the eye pulls
-     * back, so the ring is hung a share of the live view away and its radius
-     * follows from the opening angle. A ring scaled against the archipelago
-     * would be a smudge at one zoom and four frames across at another.
-     */
-    reach: number
   }
 }
 
@@ -159,12 +126,6 @@ export const SCAPE_HALO: HaloConfig = {
     // which is the test this number was set by, rather than by a picture.
     lead: 0.09,
 
-    // Wider than the real ring's bright edge and narrower than the bow's band,
-    // because the two bands carry their width in opposite places. The bow's
-    // runs outward into a long tail and wants room for it; the ring's lip is
-    // the whole of what the eye reads and the wash past it is nearly white.
-    width: 2.2,
-
     // Over 1, and the only multiplier in the scape that is. Parhelia really are
     // brighter than the ring they sit on — the crystals that make them are
     // aligned rather than tumbling, so the same light goes into two patches
@@ -183,15 +144,5 @@ export const SCAPE_HALO: HaloConfig = {
     // first cut was 2.2 by 14 and came out a round blob sitting inside the
     // circle rather than a column standing through it.
     pillar: 1.6,
-
-    // Short of the bow's 0.7, because there is less spectrum in the thing: a
-    // halo's colour is one red lip and a wash, and a ring run up to the bow's
-    // saturation comes out as a drawn orange circle.
-    saturation: 0.55,
-
-    // The bow's reach, and deliberately the same number: two optics hung at
-    // different distances would be two different sizes of sky in one picture,
-    // and there is no hour at which both are out to give the discrepancy away.
-    reach: 0.3,
   },
 }

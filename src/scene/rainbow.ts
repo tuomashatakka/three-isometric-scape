@@ -40,6 +40,24 @@ const DEGREES = Math.PI / 180
 const PRIMARY   = 42
 const SECONDARY = 51
 
+/**
+ * The primary band's width in degrees of arc, and how much of the spectrum it
+ * keeps. Both were sliders and neither is a decision: the real bow is 2.2°
+ * across and the band carries half a degree more in its tail, and 0.7 is what
+ * survives the nordic grade without turning into a decal. A fogbow is a
+ * weather, not a setting.
+ */
+export const BOW_WIDTH      = 2.8
+export const BOW_SATURATION = 0.7
+
+/**
+ * How far out the sky's optics hang, in **frames**. Frame-sized because a bow
+ * is at optical infinity and does not grow as the eye pulls back. Shared with
+ * the halo on purpose: two optics hung at different distances would be two
+ * sizes of sky in one picture.
+ */
+export const SKY_OPTIC_REACH = 0.3
+
 /** How much wider the secondary band is than the primary. The real ratio. */
 export const SECONDARY_SPREAD = 1.6
 
@@ -47,8 +65,7 @@ export const SECONDARY_SPREAD = 1.6
  * Half-angle of the quad the arcs are drawn on, in degrees.
  *
  * Far enough out to hold the widest secondary the config can ask for — 51°
- * plus half of `SECONDARY_SPREAD` times the widest `rainbow.width` the overlay
- * offers — with a couple of degrees of margin, because the band's own bell
+ * plus half of `SECONDARY_SPREAD` times `BOW_WIDTH` — with a couple of degrees of margin, because the band's own bell
  * reaches zero exactly at its edge and a quad that clipped it would put a
  * straight cut across the outside of the bow.
  */
@@ -504,7 +521,7 @@ export function createRainbow ({
       const focus         = deckFocus(camera)
       const bearing       = config().daylight.azimuth * DEGREES + place.swing
       const flat          = Math.sqrt(Math.max(0, 1 - place.height * place.height))
-      const { out, size } = bowSpan(span, bowConfig.reach)
+      const { out, size } = bowSpan(span, SKY_OPTIC_REACH)
 
       // Turned to face the camera, like the moon and for the same reason: a ring
       // lying on a deck is seen at the camera's own tilt, and a rainbow squashed
@@ -518,8 +535,8 @@ export function createRainbow ({
       )
 
       material.uniforms.uOpacity.value    = light
-      material.uniforms.uWidth.value      = bowConfig.width * DEGREES
-      material.uniforms.uSaturation.value = Math.min(1, Math.max(0, bowConfig.saturation))
+      material.uniforms.uWidth.value      = BOW_WIDTH * DEGREES
+      material.uniforms.uSaturation.value = BOW_SATURATION
       material.uniforms.uHorizon.value    = bowHorizon(-place.height)
 
       // The tier's own answer, and the config's, in that order: a tier that

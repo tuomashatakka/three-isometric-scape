@@ -76,6 +76,17 @@ suspect. Hidden meshes come back on the next look.
 
 ## traps
 
+- **A frozen picture after an edit means vite died, not that the edit did
+  nothing.** A look that returns in ~4 s, identical to the last one, after a
+  `src/` change: `studio stop`, `studio serve` again. And the first look after a
+  reload can land mid-rebuild (the far default pose, horizontal tearing) — when
+  the picture is not the pose asked for, shoot it again.
+- **The page opens on `mobile`, which compiles the one-tap ground program.**
+  The normal map, the relief march and the puddles do not exist there, so a
+  change to any of them is invisible until `--tier desktop`.
+- **Wet ground is `rain × wet × (1 − sleet)` of the front.** `--set weather.rain=0`
+  dries the ground too, and the opening config's sleet keeps the yard dry; look
+  at wetness with `--season 0.55 --set weather.time=0.3`.
 - **Every look starts from the page's opening config** (`STILL` applied, clocks
   stopped), then applies the pose and `--set`s — poses never inherit each other.
 - **`--rebuild` leaves its build behind.** The next look resets the *config* but
