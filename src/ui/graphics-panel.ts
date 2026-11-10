@@ -136,6 +136,13 @@ export function createGraphicsPanel (options: GraphicsPanelOptions): GraphicsPan
     cleanup.push(() => node.removeEventListener(type, handler))
   }
 
+  /** The track's filled share, for the stylesheet — a native range has no fill of its own outside Firefox. */
+  function paintFill (input: HTMLInputElement): void {
+    const min  = Number(input.min)
+    const span = Number(input.max) - min || 1
+    input.style.setProperty('--fill', `${((input.valueAsNumber - min) / span * 100).toFixed(1)}%`)
+  }
+
   function buildRange (control: RangeControl, after?: () => void): HTMLElement {
     const row   = element('div', 'gfx-row')
     const label = element('label', 'gfx-label', control.label)
@@ -160,6 +167,7 @@ export function createGraphicsPanel (options: GraphicsPanelOptions): GraphicsPan
     listen(input, 'input', () => {
       config.write(control.path, input.valueAsNumber)
       value.value = format(input.valueAsNumber, control.step)
+      paintFill(input)
       after?.()
       onChange?.()
     })
@@ -167,6 +175,7 @@ export function createGraphicsPanel (options: GraphicsPanelOptions): GraphicsPan
     const update = (): void => {
       input.valueAsNumber = readNumberPath(config.read(), control.path)
       value.value         = format(input.valueAsNumber, control.step)
+      paintFill(input)
     }
 
     refresh.push(update)

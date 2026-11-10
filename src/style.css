@@ -9,10 +9,31 @@
   /* mirrored in the inline <style> block in index.html to prevent a flash of
      unstyled content — these values must stay in sync. */
   color: #e9e9dd;
-  font-family: Sofia Pro, Poppins, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  background: #19182e;
+  background: #121212;
+
+  /* The overlay's whole palette. Dark-first neutrals, one accent — the scape's
+     own lime — and status colours that mean the same thing everywhere. Every
+     surface below reads these; none carries its own hex. */
+  --ui-bg: #121212;
+  --ui-raised: #1a1a1a;
+  --ui-input: #2a2a2a;
+  --ui-hover: #333333;
+  --ui-text: #ffffff;
+  --ui-dim: #cccccc;
+  --ui-muted: #888888;
+  --ui-border: rgb(255 255 255 / 10%);
+  --ui-border-hi: rgb(255 255 255 / 20%);
+  --ui-accent: #d9f18f;
+  --ui-accent-muted: rgb(217 241 143 / 15%);
+  --ui-success: #38b000;
+  --ui-warning: #ffbe0b;
+  --ui-danger: #ff006e;
+  --ui-glass: rgb(18 18 18 / 86%);
+  --ui-mono: "SF Mono", Monaco, "Cascadia Code", ui-monospace, Menlo, Consolas, monospace;
+  --ui-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 * {
@@ -48,7 +69,7 @@ body {
   overflow: hidden;
   background:
     radial-gradient(circle at 70% 18%, rgb(191 162 145 / 20%), transparent 32%),
-    #161814;
+    var(--ui-bg);
 }
 
 .scape::after {
@@ -58,8 +79,8 @@ body {
   pointer-events: none;
   content: "";
   background:
-    linear-gradient(to bottom, rgb(10 11 9 / 12%), transparent 24%, transparent 76%, rgb(7 9 7 / 34%)),
-    radial-gradient(circle at center, transparent 54%, rgb(7 9 7 / 34%));
+    linear-gradient(90deg, rgb(18 18 18 / 46%) 0%, transparent 30%, transparent 70%, rgb(18 18 18 / 38%) 100%),
+    linear-gradient(to bottom, transparent 70%, rgb(18 18 18 / 30%));
 }
 
 canvas {
@@ -76,9 +97,49 @@ canvas:active {
 }
 
 canvas:focus-visible {
-  outline: 0.1875rem solid #d9f18f;
+  outline: 0.1875rem solid var(--ui-accent);
   outline-offset: -0.375rem;
 }
+
+/* ---- the shared grammar --------------------------------------------------- */
+
+/* Three things every overlay surface is made of: a tracked uppercase
+   micro-label, a mono readout with tabular numerals (a counter that twitches
+   sideways on every sample reads as the page being busy), and a glass panel on
+   a hairline border. Named once here so the card, the drawer and the vitals
+   cannot drift apart. */
+.scape-kicker,
+.scape-status,
+.gfx-title,
+.gfx-group-title,
+.gfx-summary,
+.gfx-foot {
+  font-weight: 600;
+  font-size: 0.625rem;
+  line-height: 1.2;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.gfx-value,
+.fps,
+.gfx-waypoint-name,
+.gfx-waypoint-where {
+  font-family: var(--ui-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.scape-card,
+.fps,
+.gfx-toggle,
+.card-toggle {
+  border: 1px solid var(--ui-border);
+  border-radius: 4px;
+  background: var(--ui-glass);
+  backdrop-filter: blur(0.5rem);
+}
+
+/* ---- the title card ------------------------------------------------------- */
 
 .scape-card {
   position: absolute;
@@ -86,12 +147,9 @@ canvas:focus-visible {
   top: var(--card-inset-y);
   left: var(--card-inset-x);
   width: var(--card-width);
-  padding: clamp(1rem, 2.2vw, 1.35rem);
-  border: 1px solid rgb(226 242 164 / 16%);
-  background: rgb(21 24 20 / 86%);
-  box-shadow: 0 1.5rem 4rem rgb(4 6 4 / 22%);
-  backdrop-filter: blur(0.5rem);
-  transition: transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  padding: clamp(1rem, 2.2vw, 1.5rem);
+  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 28%);
+  transition: transform 220ms var(--ui-ease);
 }
 
 /* Slid away rather than removed. The diagnostics log lives in here and goes on
@@ -103,71 +161,72 @@ canvas:focus-visible {
 }
 
 /* Pinned to the figure, not to the card, so it is still there once the card has
-   gone. When the card is out it steps aside to sit past its right edge.
-
-   Offset through `left` rather than a transform, and not by preference: a
-   percentage inside `translateX` resolves against the *element's own* width, so
-   `--card-width` — which carries a `calc(100% - 2rem)` — collapsed to a negative
-   six pixels against a 26px button and parked the handle on top of the card it
-   had just opened. In `left` the same percentage resolves against the
-   containing block, which is the figure, which is what the card measures too. */
+   gone. Offset through `left` rather than a transform: a percentage inside
+   `translateX` resolves against the element's own width, and `--card-width`
+   carries a `calc(100% - 2rem)` that must resolve against the figure. */
 .card-toggle {
   position: absolute;
   top: calc(var(--card-inset-y) + 0.55rem);
   left: calc(var(--card-inset-x) + var(--card-width) + 0.5rem);
-  transition: left 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  transition: left 220ms var(--ui-ease);
 }
 
 .scape:has(.scape-card[data-hidden="true"]) .card-toggle {
   left: var(--card-inset-x);
 }
 
-.scape-kicker,
-.scape-status {
-  color: #d9f18f;
-  font-weight: 700;
-  font-size: 0.7rem;
-  line-height: 1.2;
-  letter-spacing: 0.105rem;
-  text-transform: uppercase;
-}
-
+/* The kicker is a rule with a label on it — the label, then a hairline to the
+   card's edge. */
 .scape-kicker {
-  margin: 0 0 0.8rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0 0 1rem;
+  color: var(--ui-accent);
 }
 
-h1 {
-  margin: 0 0 0.8rem;
-  font-size: clamp(2rem, 4vw, 3.15rem);
-  line-height: 0.94;
-  letter-spacing: -0.12rem;
-}
-
-.scape-controls {
-  display: grid;
-  gap: 0.22rem;
-  margin: 0 0 0.9rem;
-  padding: 0;
-  color: rgb(233 233 221 / 72%);
-  font-size: clamp(0.72rem, 1.4vw, 0.82rem);
-  line-height: 1.42;
-  list-style: none;
+.scape-kicker::after {
+  flex: 1;
+  height: 1px;
+  content: "";
+  background: var(--ui-border);
 }
 
 .scape-status {
   display: block;
   min-height: 0.9rem;
+  color: var(--ui-accent);
 }
 
-/* The diagnostics log. Uppercase tracked-out display type is exactly wrong for
-   a column of timestamps and gl enums, so the log opts out of the status
-   element's own styling and becomes a small scrollable monospace pane. Newest
-   line first, so the thing that just happened needs no scrolling to read. */
+h1 {
+  margin: 0 0 0.75rem;
+  color: var(--ui-text);
+  font-weight: 700;
+  font-size: clamp(1.75rem, 3vw, 2rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.scape-controls {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  color: var(--ui-dim);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  list-style: none;
+}
+
+/* The diagnostics log. Tracked display type is exactly wrong for a column of
+   timestamps and gl enums, so the log opts out of the status styling and
+   becomes a small scrollable mono pane, newest line first. */
 .scape-status[data-log="true"] {
   max-height: min(38vh, 15rem);
   overflow-y: auto;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.62rem;
+  color: var(--ui-dim);
+  font-family: var(--ui-mono);
+  font-size: 0.625rem;
   font-weight: 400;
   line-height: 1.45;
   letter-spacing: 0;
@@ -183,154 +242,160 @@ h1 {
   display: none;
 }
 
-/* ---- frame readout ------------------------------------------------------- */
+/* ---- the vitals ----------------------------------------------------------- */
 
-/* Its own corner, deliberately. The card and the panel are both things you put
-   away, and a frame counter you have to open is a frame counter that was not
-   measuring the thing you were looking at when it got slow. */
+/* Its own corner, deliberately. The card and the drawer are both things you
+   put away, and a frame counter you have to open was not measuring the thing
+   you were looking at when it got slow. */
 .fps {
   position: absolute;
   z-index: 2;
-  bottom: max(1rem, env(safe-area-inset-bottom));
-  left: max(1rem, env(safe-area-inset-left));
-  padding: 0.3rem 0.55rem;
-  color: #d9f18f;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.66rem;
-  line-height: 1.2;
-  letter-spacing: 0.04rem;
-
-  /* Digits that keep their column. Proportional numerals make a counter twitch
-     sideways on every sample, which reads as the page being busy. */
-  font-variant-numeric: tabular-nums;
+  bottom: max(1.5rem, env(safe-area-inset-bottom));
+  left: max(1.5rem, env(safe-area-inset-left));
+  padding: 0.5rem 1rem;
+  color: var(--ui-dim);
+  font-size: 0.75rem;
+  line-height: 1.5;
   white-space: pre-line;
   pointer-events: none;
-  background: rgb(21 24 20 / 86%);
-  border: 1px solid rgb(226 242 164 / 16%);
-  backdrop-filter: blur(0.5rem);
 }
 
-/* ---- graphics overlay ---------------------------------------------------- */
+.fps::first-line {
+  color: var(--ui-success);
+}
 
+/* ---- the graphics drawer -------------------------------------------------- */
+
+/* Docked to the edge, the full height of the frame: a drawer, not a floating
+   card, so the scape keeps one clean rectangle to the left of it. */
 .gfx {
   position: absolute;
   z-index: 2;
-  top: max(1rem, env(safe-area-inset-top));
-  right: max(1rem, env(safe-area-inset-right));
-  bottom: max(1rem, env(safe-area-inset-bottom));
+  top: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
-  width: min(19rem, calc(100% - 2rem));
-  border: 1px solid rgb(226 242 164 / 16%);
-  background: rgb(21 24 20 / 86%);
-  box-shadow: 0 1.5rem 4rem rgb(4 6 4 / 22%);
-  backdrop-filter: blur(0.5rem);
-  transition: transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  width: min(22.5rem, 100%);
+  padding-right: env(safe-area-inset-right);
+  color: var(--ui-text);
+  background: rgb(18 18 18 / 94%);
+  border-left: 1px solid var(--ui-border);
+  backdrop-filter: blur(0.75rem);
+  transition: transform 220ms var(--ui-ease);
 }
 
 .gfx[data-collapsed="true"] {
-  transform: translateX(calc(100% + max(1rem, env(safe-area-inset-right))));
+  transform: translateX(100%);
 }
 
 .gfx-head {
   display: flex;
   gap: 0.5rem;
   align-items: center;
-  padding: 0.85rem 0.9rem 0.7rem;
-  border-bottom: 1px solid rgb(226 242 164 / 12%);
+  padding: 1rem;
+  padding-top: max(1rem, env(safe-area-inset-top));
+  border-bottom: 1px solid var(--ui-border);
 }
 
 .gfx-title {
   flex: 1;
   margin: 0;
-  color: #d9f18f;
-  font-weight: 700;
-  font-size: 0.7rem;
-  letter-spacing: 0.105rem;
-  text-transform: uppercase;
+  color: var(--ui-text);
+  letter-spacing: 0.16em;
 }
 
-.gfx-reset {
-  padding: 0.25rem 0.5rem;
-  color: rgb(233 233 221 / 78%);
+/* One button grammar: hairline ghost at rest, the accent filled on hover. */
+.gfx-reset,
+.gfx-action,
+.gfx-waypoint-drop {
+  height: 1.5rem;
+  padding: 0 0.5rem;
+  color: var(--ui-muted);
   font: inherit;
-  font-size: 0.62rem;
-  letter-spacing: 0.08rem;
+  font-weight: 600;
+  font-size: 0.625rem;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   cursor: pointer;
   background: transparent;
-  border: 1px solid rgb(226 242 164 / 22%);
+  border: 1px solid var(--ui-border-hi);
+  border-radius: 2px;
+  transition: color 120ms, background 120ms, border-color 120ms;
 }
 
 .gfx-reset:hover,
-.gfx-reset:focus-visible {
-  color: #19182e;
-  background: #d9f18f;
+.gfx-reset:focus-visible,
+.gfx-action:hover:not(:disabled),
+.gfx-action:focus-visible:not(:disabled),
+.gfx-waypoint-drop:hover,
+.gfx-waypoint-drop:focus-visible,
+.gfx-toggle:hover,
+.gfx-toggle:focus-visible,
+.card-toggle:hover,
+.card-toggle:focus-visible {
+  color: var(--ui-bg);
+  background: var(--ui-accent);
+  border-color: var(--ui-accent);
 }
 
-/* The handle stays outside the panel so it can still be reached once the panel
-   has slid off the edge — a collapse control that collapses with the thing it
-   controls is a one-way door. The card's handle at the other corner is the same
-   idea and the same object, so it is the same rule. */
+/* The handle stays outside the drawer so it can still be reached once the
+   drawer has slid off the edge — a collapse control that collapses with the
+   thing it controls is a one-way door. */
 .gfx-toggle {
   position: absolute;
-  top: 0.55rem;
-  right: calc(100% + 0.5rem);
+  top: max(1rem, env(safe-area-inset-top));
+  right: calc(100% + 0.75rem);
 }
 
 .gfx-toggle,
 .card-toggle {
   z-index: 2;
-  width: 1.6rem;
-  height: 1.6rem;
-  color: #d9f18f;
+  width: 2rem;
+  height: 2rem;
+  color: var(--ui-accent);
   font: inherit;
-  font-size: 0.95rem;
+  font-size: 1rem;
   line-height: 1;
   cursor: pointer;
-  background: rgb(21 24 20 / 86%);
-  border: 1px solid rgb(226 242 164 / 16%);
-  backdrop-filter: blur(0.5rem);
-}
-
-.gfx-toggle:hover,
-.gfx-toggle:focus-visible,
-.card-toggle:hover,
-.card-toggle:focus-visible {
-  color: #19182e;
-  background: #d9f18f;
 }
 
 .gfx-body {
   flex: 1;
   overflow-y: auto;
-  padding: 0.2rem 0.9rem 0.9rem;
+  padding: 0 1rem 1rem;
+  scrollbar-color: var(--ui-input) transparent;
+  scrollbar-width: thin;
   overscroll-behavior: contain;
 }
 
-/* A run of sections under one heading. The drawer had ten flat legends in it and
-   finding the snow line meant reading every one on the way past. */
+/* A run of sections under one heading: the label, then a hairline. */
 .gfx-block {
-  padding: 0.55rem 0 0;
+  padding: 1.25rem 0 0;
 }
 
 .gfx-block + .gfx-block {
-  margin-top: 0.55rem;
-  border-top: 1px solid rgb(226 242 164 / 10%);
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--ui-border);
 }
 
 .gfx-group-title {
-  margin: 0.35rem 0 0.1rem;
-  color: rgb(217 241 143 / 62%);
-  font-weight: 700;
-  font-size: 0.58rem;
-  letter-spacing: 0.16rem;
-  text-transform: uppercase;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0 0 0.5rem;
+  color: var(--ui-muted);
+}
+
+.gfx-group-title::after {
+  flex: 1;
+  height: 1px;
+  content: "";
+  background: var(--ui-border);
 }
 
 /* `<details>` rather than a fieldset and a click handler: it collapses, takes
-   the keyboard, announces its state to a screen reader and animates, and none of
-   that is this stylesheet's or the panel module's to implement. */
+   the keyboard, announces its state and animates on its own. */
 .gfx-section {
   margin: 0;
   border: 0;
@@ -338,13 +403,10 @@ h1 {
 
 .gfx-summary {
   display: flex;
-  gap: 0.4rem;
+  gap: 0.5rem;
   align-items: center;
-  padding: 0.42rem 0;
-  color: rgb(233 233 221 / 62%);
-  font-size: 0.62rem;
-  letter-spacing: 0.13rem;
-  text-transform: uppercase;
+  padding: 0.5rem 0;
+  color: var(--ui-muted);
   cursor: pointer;
   list-style: none;
   user-select: none;
@@ -354,49 +416,44 @@ h1 {
   display: none;
 }
 
-/* The marker is drawn rather than borrowed, so it can be rotated. A disclosure
-   triangle that snaps is the one part of a native `<details>` that reads as
-   unfinished next to a panel where everything else eases. */
+/* A drawn chevron, so it can turn rather than snap. */
 .gfx-summary::before {
-  width: 0.5rem;
-  color: rgb(217 241 143 / 70%);
-  content: "\25b8";
-  transition: rotate 200ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  width: 0.375rem;
+  height: 0.375rem;
+  margin: 0 0.125rem;
+  content: "";
+  border-right: 1.5px solid currentcolor;
+  border-bottom: 1.5px solid currentcolor;
+  rotate: -45deg;
+  transition: rotate 200ms var(--ui-ease);
 }
 
 .gfx-section[open] > .gfx-summary::before {
-  rotate: 90deg;
+  rotate: 45deg;
 }
 
 .gfx-summary:hover,
 .gfx-section[open] > .gfx-summary {
-  color: rgb(233 233 221 / 92%);
+  color: var(--ui-text);
 }
 
 .gfx-summary:focus-visible {
-  outline: 1px solid #d9f18f;
+  outline: 1px solid var(--ui-accent);
   outline-offset: 2px;
 }
 
 .gfx-fields {
-  padding: 0 0 0.5rem 0.9rem;
+  padding: 0 0 0.75rem;
 }
 
-/* The whole open/close animation, in five declarations and no script.
-
-   `interpolate-size` is what lets `block-size` animate to and from `auto` at
-   all — without it there is no pair of numbers to interpolate between and the
-   section simply appears. `allow-discrete` carries `content-visibility` across
-   the same window so the contents are not hidden the instant the close starts.
-
-   Both are progressive: a browser without them opens and closes the section
-   instantly, which is exactly what a `<details>` has always done. Nothing here
-   is load-bearing for the panel working. */
+/* The open/close animation, in five declarations and no script. Progressive:
+   without `interpolate-size` a section opens instantly, as `<details>` always
+   has. */
 .gfx-section::details-content {
   overflow: hidden;
   block-size: 0;
   transition:
-    block-size 220ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    block-size 220ms var(--ui-ease),
     content-visibility 220ms allow-discrete;
 }
 
@@ -407,20 +464,21 @@ h1 {
 .gfx-row {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 0 0.5rem;
+  gap: 0.375rem 0.5rem;
   align-items: center;
-  padding: 0.28rem 0;
+  padding: 0.3rem 0;
 }
 
 .gfx-label {
-  color: rgb(233 233 221 / 72%);
-  font-size: 0.72rem;
+  color: var(--ui-dim);
+  font-size: 0.75rem;
 }
 
 .gfx-value {
-  color: #d9f18f;
-  font-size: 0.68rem;
-  font-variant-numeric: tabular-nums;
+  grid-row: 1;
+  grid-column: 2;
+  color: var(--ui-accent);
+  font-size: 0.75rem;
 }
 
 .gfx-range,
@@ -429,37 +487,131 @@ h1 {
   width: 100%;
 }
 
+/* A hairline track filled to the value, and a small round knob with a halo.
+   `--fill` is written by the panel (`ui/graphics-panel.ts`); without it the
+   track is simply unfilled. */
 .gfx-range {
-  height: 1rem;
+  --fill: 0%;
+
+  height: 0.875rem;
   margin: 0;
-  accent-color: #d9f18f;
+  cursor: pointer;
+  background: transparent;
+  appearance: none;
+}
+
+.gfx-range::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--ui-accent) var(--fill), var(--ui-input) var(--fill));
+}
+
+.gfx-range::-moz-range-track {
+  height: 3px;
+  border-radius: 9999px;
+  background: var(--ui-input);
+}
+
+.gfx-range::-moz-range-progress {
+  height: 3px;
+  border-radius: 9999px;
+  background: var(--ui-accent);
+}
+
+.gfx-range::-webkit-slider-thumb {
+  width: 11px;
+  height: 11px;
+  margin-top: -4px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--ui-accent);
+  box-shadow: 0 0 0 3px rgb(255 255 255 / 6%);
+  appearance: none;
+  transition: box-shadow 120ms;
+}
+
+.gfx-range::-moz-range-thumb {
+  width: 11px;
+  height: 11px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--ui-accent);
+  box-shadow: 0 0 0 3px rgb(255 255 255 / 6%);
+}
+
+.gfx-range:hover::-webkit-slider-thumb,
+.gfx-range:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 5px var(--ui-accent-muted);
+}
+
+.gfx-range:focus-visible {
+  outline: none;
 }
 
 .gfx-select {
-  padding: 0.25rem 0.3rem;
-  color: #e9e9dd;
+  height: 2rem;
+  padding: 0 0.75rem;
+  color: var(--ui-text);
   font: inherit;
-  font-size: 0.72rem;
-  background: rgb(12 14 11 / 90%);
-  border: 1px solid rgb(226 242 164 / 18%);
+  font-size: 0.75rem;
+  background: var(--ui-input);
+  border: 1px solid var(--ui-border);
+  border-radius: 4px;
 }
 
 .gfx-group {
-  padding: 0.28rem 0;
+  padding: 0.375rem 0;
 }
 
+/* The on/off for a whole effect, drawn as a pill switch over a native
+   checkbox — the checkbox keeps the keyboard and the semantics. */
 .gfx-switch {
   display: flex;
-  gap: 0.45rem;
+  gap: 0.75rem;
   align-items: center;
-  color: rgb(233 233 221 / 88%);
-  font-size: 0.76rem;
+  color: var(--ui-text);
+  font-weight: 500;
+  font-size: 0.75rem;
   cursor: pointer;
 }
 
 .gfx-switch input {
+  position: relative;
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1rem;
   margin: 0;
-  accent-color: #d9f18f;
+  cursor: pointer;
+  background: var(--ui-input);
+  border-radius: 9999px;
+  appearance: none;
+  transition: background 160ms;
+}
+
+.gfx-switch input::after {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  content: "";
+  background: #555555;
+  border-radius: 9999px;
+  transition: translate 160ms var(--ui-ease), background 160ms;
+}
+
+.gfx-switch input:checked {
+  background: var(--ui-accent);
+}
+
+.gfx-switch input:checked::after {
+  background: var(--ui-bg);
+  translate: 0.75rem 0;
+}
+
+.gfx-switch input:focus-visible {
+  outline: 1px solid var(--ui-accent);
+  outline-offset: 2px;
 }
 
 /* Collapsed rather than removed: the knobs stay in the DOM so their values keep
@@ -467,9 +619,9 @@ h1 {
 .gfx-nested {
   display: grid;
   grid-template-rows: 0fr;
-  margin-left: 0.35rem;
-  padding-left: 1.15rem;
-  border-left: 1px solid rgb(226 242 164 / 12%);
+  margin: 0.25rem 0 0 0.8rem;
+  padding-left: 1.6rem;
+  border-left: 1px solid var(--ui-border);
   transition: grid-template-rows 180ms ease;
 }
 
@@ -482,17 +634,17 @@ h1 {
   min-height: 0;
 }
 
-/* ---- the waypoint tour --------------------------------------------------- */
+/* ---- the waypoint tour ---------------------------------------------------- */
 
 .gfx-note {
-  margin: 0.1rem 0 0.4rem;
-  color: rgb(233 233 221 / 42%);
-  font-size: 0.66rem;
-  line-height: 1.45;
+  margin: 0.125rem 0 0.5rem;
+  color: var(--ui-muted);
+  font-size: 0.625rem;
+  line-height: 1.5;
 }
 
 .gfx-waypoints {
-  margin: 0 0 0.45rem;
+  margin: 0 0 0.5rem;
   padding: 0;
   list-style: none;
   counter-reset: stop;
@@ -500,70 +652,42 @@ h1 {
 
 .gfx-waypoint {
   display: grid;
-  grid-template-columns: 1.1rem 1fr 1.1rem;
-  gap: 0.35rem;
+  grid-template-columns: 1.25rem 1fr 1.5rem;
+  gap: 0.5rem;
   align-items: center;
-  padding: 0.16rem 0;
-  border-bottom: 1px solid rgb(226 242 164 / 8%);
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--ui-border);
 }
 
 .gfx-waypoint-name {
-  color: #d9f18f;
-  font-size: 0.64rem;
-  font-variant-numeric: tabular-nums;
+  color: var(--ui-accent);
+  font-size: 0.6875rem;
 }
 
 .gfx-waypoint-where {
   overflow: hidden;
-  color: rgb(233 233 221 / 62%);
-  font-size: 0.64rem;
-  font-variant-numeric: tabular-nums;
+  color: var(--ui-dim);
+  font-size: 0.6875rem;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
 .gfx-waypoint-drop {
-  width: 1.1rem;
-  height: 1.1rem;
+  width: 1.5rem;
   padding: 0;
-  color: rgb(233 233 221 / 55%);
-  font: inherit;
   font-size: 0.8rem;
-  line-height: 1;
-  cursor: pointer;
-  background: transparent;
-  border: 1px solid rgb(226 242 164 / 16%);
-}
-
-.gfx-waypoint-drop:hover,
-.gfx-waypoint-drop:focus-visible {
-  color: #19182e;
-  background: #d9f18f;
 }
 
 .gfx-actions {
   display: flex;
-  gap: 0.35rem;
-  padding: 0.15rem 0 0.35rem;
+  gap: 0.5rem;
+  padding: 0.25rem 0 0.5rem;
 }
 
 .gfx-action {
   flex: 1;
-  padding: 0.32rem 0.2rem;
-  color: rgb(233 233 221 / 82%);
-  font: inherit;
-  font-size: 0.62rem;
-  letter-spacing: 0.06rem;
-  text-transform: uppercase;
-  cursor: pointer;
-  background: transparent;
-  border: 1px solid rgb(226 242 164 / 22%);
-}
-
-.gfx-action:hover:not(:disabled),
-.gfx-action:focus-visible:not(:disabled) {
-  color: #19182e;
-  background: #d9f18f;
+  height: 2rem;
+  color: var(--ui-dim);
 }
 
 .gfx-action:disabled {
@@ -572,17 +696,16 @@ h1 {
 }
 
 [data-unavailable="true"] {
-  opacity: 0.38;
+  opacity: 0.45;
 }
 
+/* The footer is a row of chips: what this device was given. */
 .gfx-foot {
   margin: 0;
-  padding: 0.55rem 0.9rem 0.7rem;
-  color: rgb(233 233 221 / 40%);
-  font-size: 0.6rem;
-  letter-spacing: 0.08rem;
-  text-transform: uppercase;
-  border-top: 1px solid rgb(226 242 164 / 12%);
+  padding: 0.75rem 1rem;
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  color: var(--ui-muted);
+  border-top: 1px solid var(--ui-border);
 }
 
 noscript {
@@ -625,9 +748,12 @@ noscript {
   }
 
   .fps {
-    bottom: max(0.75rem, env(safe-area-inset-bottom));
-    left: max(0.75rem, env(safe-area-inset-left));
-    font-size: 0.62rem;
+    top: max(0.75rem, env(safe-area-inset-top));
+    right: max(0.75rem, env(safe-area-inset-right));
+    bottom: auto;
+    left: auto;
+    padding: 0.35rem 0.6rem;
+    font-size: 0.625rem;
   }
 
   .scape-kicker {
@@ -636,20 +762,33 @@ noscript {
 
   h1 {
     margin-bottom: 0.6rem;
-    font-size: 1.8rem;
-    letter-spacing: -0.07rem;
+    font-size: 1.6rem;
   }
 
   .scape-controls {
     margin-bottom: 0.6rem;
   }
 
+  /* A bottom sheet on a phone: the full width, under the thumb, sliding down
+     out of the way rather than off the side. */
   .gfx {
     top: auto;
+    left: 0;
+    width: 100%;
+    max-height: min(62vh, 30rem);
+    border-top: 1px solid var(--ui-border);
+    border-left: 0;
+    border-radius: 12px 12px 0 0;
+  }
+
+  .gfx[data-collapsed="true"] {
+    transform: translateY(100%);
+  }
+
+  .gfx-toggle {
+    top: auto;
     right: max(0.75rem, env(safe-area-inset-right));
-    bottom: max(0.75rem, env(safe-area-inset-bottom));
-    width: min(17rem, calc(100% - 1.5rem));
-    max-height: min(60vh, 26rem);
+    bottom: calc(100% + 0.75rem);
   }
 }
 
@@ -659,7 +798,7 @@ noscript {
   .gfx-toggle,
   .card-toggle,
   .fps {
-    background: #151814;
+    background: var(--ui-bg);
     backdrop-filter: none;
   }
 }
@@ -677,6 +816,6 @@ noscript {
 
   /* The rotation still has to happen, it just must not be animated to. */
   .gfx-section[open] > .gfx-summary::before {
-    rotate: 90deg;
+    rotate: 45deg;
   }
 }

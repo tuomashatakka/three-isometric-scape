@@ -114,6 +114,26 @@ export const LIGHT_TINT = [ 1.05, 1, 0.93 ] as const
 /** The most of the tint the split tone applies, at full grade strength. */
 export const SPLIT_REACH = 0.7
 
+/**
+ * The film's shoulder: how far a highlight past paper white loses its colour.
+ *
+ * A digital sensor clips each channel on its own, so a bright sail or a sunlit
+ * gable goes to a flat saturated block; film's dyes saturate together and a
+ * highlight runs off toward white. That roll-off is most of why a photograph's
+ * sky glare and lit snow look *bright* rather than *coloured*. It costs no
+ * fetch, rides on the grade's strength, and starts at a luminance only the
+ * lit highlights reach, so the mid-tones and every shadow are untouched.
+ */
+export const FILM_SHOULDER = [ 0.7, 1.8 ] as const
+export const SHOULDER_PULL = 0.55
+
+/** The share of a fragment's chroma the shoulder takes, at grade strength `intensity`. */
+export function shoulder (luma: number, intensity: number): number {
+  const [ from, to ] = FILM_SHOULDER
+  const t            = Math.min(1, Math.max(0, (luma - from) / (to - from)))
+  return t * t * (3 - 2 * t) * SHOULDER_PULL * intensity
+}
+
 /** The multiplier on one channel for a fragment of luminance `luma`, at `strength` 0..1. */
 export function splitTone (luma: number, channel: 0 | 1 | 2, strength: number): number {
   const shade = 1 - smooth(0, 0.25, luma)
@@ -299,6 +319,10 @@ function fragment (taps: number, grain: boolean, focal: boolean): string {
     // The grade: contrast about mid-grey, then saturation, then the lut.
     col = max((col - 0.18) * uContrast + 0.18, 0.0);
     col = mix(vec3(luma(col)), col, 1.06);
+
+    // The film's shoulder: a highlight past paper white runs off toward white.
+    float bright = luma(col);
+    col = mix(col, vec3(bright), smoothstep(${FILM_SHOULDER[0].toFixed(2)}, ${FILM_SHOULDER[1].toFixed(2)}, bright) * ${SHOULDER_PULL.toFixed(2)} * uLutIntensity);
     vec3 uvw = vec3(0.5 / uLutSize) + clamp(col, 0.0, 1.0) * (1.0 - 1.0 / uLutSize);
     col = mix(col, textureLod(uLut, uvw, 0.0).rgb, uLutIntensity);
 
