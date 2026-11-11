@@ -246,19 +246,13 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         // that puts it there and the rain's own clock that takes it away again.
         range('weather.wet', 'wet ground', 0, 1, 0.01),
 
-        // The same front, seen from outside it. `lead` is the knob worth
-        // dragging with `weather.time` frozen: it walks the band forwards and
-        // backwards through the squall the coast is about to get.
+        // The same front, seen from outside it. Its lead, reach, span and drift
+        // are the shape of a north-sea squall line, not looks: config leaves for
+        // `--set` and the url, not rows.
         toggled(
           'far squall',
           range('squall.strength', 'how heavy it lies', 0, 1, 0.01, quality.squallSheets > 0),
           0.7,
-          [
-            range('squall.lead', 'how far ahead of here', 0, 0.3, 0.005),
-            range('squall.reach', 'how far it sweeps', 0, 3, 0.05),
-            range('squall.span', 'how wide it runs', 0.05, 1, 0.01),
-            range('squall.drift', 'travel with the wind', 0, 2, 0.01),
-          ],
         ),
 
         // Under the weather with the squall, because it is the same front and
@@ -278,9 +272,8 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
 
         // Under the bow, because it is the bow's other half: the same front
         // decides when both are out and the year decides which of the two the
-        // sky is doing. `lead` is the one worth dragging with the front parked
-        // — it is how far ahead of the rain the ice veil runs, and therefore
-        // which part of a pass of the weather has a ring in it at all.
+        // sky is doing. How far ahead of the rain the ice veil runs is a
+        // constant of the front (`halo.lead`, still a config leaf).
         toggled(
           'halo',
           range('halo.strength', 'how brightly it stands', 0, 1, 0.01, quality.haloArcs > 0),
@@ -288,7 +281,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           [
             range('halo.dogs', 'the mock suns', 0, 2, 0.01, quality.haloArcs > 1),
             range('halo.pillar', 'the shaft through it', 0, 2, 0.01, quality.haloArcs > 1),
-            range('halo.lead', 'how far ahead of the fall', 0, 0.3, 0.005),
           ],
         ),
 
@@ -303,8 +295,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           0.85,
           [
             range('storm.rate', 'strikes in a front', 0, 1, 0.01),
-            range('storm.reach', 'how far it lights', 0.02, 0.3, 0.005),
-            range('storm.fork', 'the channel itself', 0, 1, 0.01),
           ],
         ),
       ],
@@ -372,8 +362,9 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
 
         // Beside the mist because it is the same substance, and separate from it
         // because it is the opposite claim: the haze above has no top and this
-        // is nothing but one. `top` and `depth` are the two that are worth
-        // dragging — the whole picture is which ground is left standing.
+        // is nothing but one. `top` is the one worth dragging — the whole
+        // picture is which ground is left standing; scour, burn-off and damp
+        // are the coast's physics and stay config leaves.
         toggled(
           'the night bank',
           range('haar.strength', 'thickness', 0, 1, 0.01, quality.haarSheets > 0),
@@ -381,16 +372,12 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           [
             range('haar.top', 'top (m)', 0, 12, 0.1),
             range('haar.drag', 'drift', 0, 1.5, 0.01),
-            range('haar.scour', 'scoured at (wind)', 0, 4, 0.05),
-            range('haar.burn', 'burn-off', 0, 3, 0.05),
-            range('haar.damp', 'after rain', 0, 1, 0.01),
           ],
         ),
 
         // Under the two fogs because it is the third thing hung in the same air,
         // and the one that is only out while they are not. `strength` is the
-        // switch; the other two are the shape of a beam rather than whether
-        // there is one, so they are folded away behind it.
+        // one row; reach and taper are the shape of a beam, config leaves.
         toggled(
           // Not the glare's shafts, which the optics section carries: those are
           // a screen-space smear out of the bright pixels near the sun, and
@@ -398,10 +385,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           'light through the deck',
           range('shafts.strength', 'brightness', 0, 0.6, 0.005, quality.shaftSheets > 0),
           0.22,
-          [
-            range('shafts.reach', 'reach up the deck', 0.1, 1, 0.01),
-            range('shafts.taper', 'kept at the bottom', 0, 1, 0.01),
-          ],
         ),
       ],
     },

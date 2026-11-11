@@ -421,6 +421,7 @@ src/
         ├── palette.ts              the nordic colour vocabulary
         ├── material.ts             shared materials, cloud shadow, wind, ground relief, wetness, snow, aspect
         ├── puddle.ts               the sky in wet ground, and the standing water in its hollows
+        ├── weathering.ts           moss on the tops, lichen on the faces: every grey stone, slate and old board
         ├── ploppable.ts            2d placement with a ground-following foundation
         ├── fence.ts / wall.ts      continuous ground-following runs
         ├── lamp.ts                 the pane in the reveal and the haze in front of it
@@ -701,6 +702,14 @@ the mobile frame had no shadows at all. phones skip the shadow map — the hidde
 ## a quilt on the heath
 
 rough grazing on a northern coast is not a lawn: moss, sedge, heather and bare peat lie in patches a few tens of metres across. one meadow green was the loudest tell in the close frames. `heathFragment` in [`props/material.ts`](src/scene/props/material.ts) reads a field at `HEATH_TILE` (a 125 m tile) and pushes the albedo toward a warm heather or a yellow moss by up to `HEATH_HUE`, and the lightness by `HEATH_LIGHT`. it is weighted by the season tint's own green test, so paint, stone, sand and water never take it. it is not let go with the zoom, because the archipelago frame is where a quilt reads best. the six-tap path reads it off the wear map at a sixth of its frequency, decorrelated from the damp patches. the phone's one-tap path reads it off the grain map, the one texture it binds. so both tiers get it for one fetch. `terrain.detailGrain` opens at 0.7: at 0.34 the grit was there and invisible.
+
+## a hundred winters on every stone
+
+grey stone and silvered timber in a coastal photograph are never the colour they were cut. moss takes every top and the faces turned from the sun, and lichen crusts whatever the moss has left: pale grey-green inland, and the orange of *xanthoria* in the splash zone (`SPLASH_ZONE`, 3 m above the waterline). [`props/weathering.ts`](src/scene/props/weathering.ts) adds this to the shared ground material on both tap paths, so one term reaches every boulder, wall, cairn, slate roof and outcrop on every island.
+
+- **keyed on the albedo, not on a prop flag.** `weatherable` takes near-neutral mid-greys only. chroma is measured on the square root of the linear albedo, so the band reads like the palette. paint, plants, sand, straw, soil, whitewash and snow keep their colour. `weathering.test.ts` pins this against the palette: granite, slate, dead wood and driftwood weather, falu red, trim white, grass, sand, hay and soil do not.
+- **one fetch, one field.** the grain map is read along the face (the upright grain's skewed projection, so nothing smears down a wall) at `LICHEN_TILE`, a 1.5 m repeat. the high half of the field is moss and the low tail is lichen, so they never fight over a texel. past `LICHEN_REPEATS` the rosettes would shimmer, so the mean cover stands in for them.
+- **no knob.** it rides on `terrain.detailGrain`. wet darkens it and snow lies over it, in the order the world does them.
 
 ## the shoulder of the film
 

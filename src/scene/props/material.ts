@@ -21,6 +21,7 @@ import type { TextureCatalogue } from '../textures/catalogue.ts'
 import { GROUND_NORMAL_GAIN } from '../textures/normals.ts'
 import { PUDDLE_DECLARE, PUDDLE_FRAGMENT, PUDDLE_HOLLOW, PUDDLE_PARS_FRAGMENT, SHEEN_FRAGMENT } from './puddle.ts'
 import type { WeatherState } from '../weather.ts'
+import { weatheringFragment } from './weathering.ts'
 import type { WindState } from '../wind.ts'
 
 /** The sky-in-wet-ground chunks one program takes. */
@@ -496,6 +497,7 @@ ${REPEATS_FRAGMENT}
 ${GRAIN_FRAGMENT}
 ${heathFragment('uDetailMap')}
 ${propGrainFragment(false)}
+${weatheringFragment('uDetailMap')}
 `
 
 function detailFragment (steps: number): string {
@@ -550,6 +552,7 @@ ${heathFragment('uWearMap')}
     normal = normalize(normal + mat3(viewMatrix) * scapeBump * scapeAmt * scapeGrainKeep);
   }
 ${propGrainFragment(true)}
+${weatheringFragment('uDetailMap')}
 `
 }
 
