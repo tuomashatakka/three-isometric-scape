@@ -467,9 +467,10 @@ export function createIsometricScape (
   const landscape  = createLandscape(readConfig, quality, wind.state, tide.state, skip)
   const atmosphere = createAtmosphereLayer({
     camera,
-    config:    readConfig,
+    config:     readConfig,
     quality,
-    shadowDue: runtime.shadowDue,
+    shadowDue:  runtime.shadowDue,
+    directFilm: !(quality.post && !skip.has('post')),
   })
 
   // The sky map's shadow walks toward whatever the key light is tonight.

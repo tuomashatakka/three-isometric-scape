@@ -267,11 +267,11 @@ describe('the command line', () => {
   test('overrides land on the path they name', () => {
     const config = clone()
 
-    applyOverrides(config, [ 'seed=42', 'look.glare=0', 'look.grade=noir' ])
+    applyOverrides(config, [ 'seed=42', 'look.glare=0', 'runtime.effects=all' ])
 
     expect(config.seed).toBe(42)
     expect(config.look.glare).toBe(0)
-    expect(config.look.grade).toBe('noir')
+    expect(config.runtime.effects).toBe('all')
   })
 
   test('a --set without a value is refused rather than half-applied', () => {

@@ -1,6 +1,7 @@
-import { Vector2, Vector3 } from 'three'
-import type { Data3DTexture, Texture } from 'three'
+import { Vector2 } from 'three'
+import type { Texture } from 'three'
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js'
+import { FILM_GLSL } from './film.ts'
 
 
 /**
@@ -24,10 +25,9 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js'
  * - **natural vignetting** — the cos⁴ law, not a smoothstep ring.
  * - **micro-contrast** in the focused band — the crispness a sharp lens has
  *   and a multisampled render does not.
- * - **the grade** — contrast and saturation, the baked 3d lut, then the split
- *   tone: the shade a touch cool and the lit a touch warm, which is what sun
- *   against sky does to any photograph and what a single lut cannot do on a
- *   frame whose light moves. One strength — the grade's — drives both.
+ * - **the grade** — `film.ts`'s one function: contrast and saturation, the
+ *   shoulder, the stock, then the split tone. The same function develops the
+ *   frame inside the materials on a tier with no chain.
  * - **halation** — the red-orange bloom of light that went through the film
  *   and bounced off its backing: only what is brighter than the paper white of
  *   the frame (sun glints, lit windows, the sun's own disc) spills, in a ring
@@ -44,7 +44,6 @@ export type LensTaps = number
 export interface LensOptions {
   taps:  LensTaps
   grain: boolean
-  lut:   Data3DTexture
 
   /**
    * The focal pass's map, or null. Without it the lens defocuses a band of the
@@ -70,7 +69,6 @@ export interface LensLook {
   /** How much of a highlight's excess spills back as a warm ring. */
   halation:  number
   grain:     number
-  lut:       Data3DTexture
   intensity: number
 }
 
@@ -105,53 +103,6 @@ export const APERTURE_MAX = 1.8
  */
 export function apertureReach (viewSize: number): number {
   return Math.min(APERTURE_MAX, APERTURE_REFERENCE / Math.max(1, viewSize))
-}
-
-/** Multipliers on red, green, blue for the deepest shade and the brightest light. */
-export const SHADE_TINT = [ 0.95, 1, 1.07 ] as const
-export const LIGHT_TINT = [ 1.05, 1, 0.93 ] as const
-
-/** The most of the tint the split tone applies, at full grade strength. */
-export const SPLIT_REACH = 0.7
-
-/**
- * The film's shoulder: how far a highlight past paper white loses its colour.
- *
- * A digital sensor clips each channel on its own, so a bright sail or a sunlit
- * gable goes to a flat saturated block; film's dyes saturate together and a
- * highlight runs off toward white. That roll-off is most of why a photograph's
- * sky glare and lit snow look *bright* rather than *coloured*. It costs no
- * fetch, rides on the grade's strength, and starts at a luminance only the
- * lit highlights reach, so the mid-tones and every shadow are untouched.
- */
-export const FILM_SHOULDER = [ 0.7, 1.8 ] as const
-export const SHOULDER_PULL = 0.55
-
-/** The share of a fragment's chroma the shoulder takes, at grade strength `intensity`. */
-export function shoulder (luma: number, intensity: number): number {
-  const [ from, to ] = FILM_SHOULDER
-  const t            = Math.min(1, Math.max(0, (luma - from) / (to - from)))
-  return t * t * (3 - 2 * t) * SHOULDER_PULL * intensity
-}
-
-/** The multiplier on one channel for a fragment of luminance `luma`, at `strength` 0..1. */
-export function splitTone (luma: number, channel: 0 | 1 | 2, strength: number): number {
-  const shade = 1 - smooth(0, 0.25, luma)
-  const light = smooth(0.35, 1.5, luma)
-  return 1 + strength * SPLIT_REACH * (shade * (SHADE_TINT[channel] - 1) + light * (LIGHT_TINT[channel] - 1))
-}
-
-function smooth (low: number, high: number, value: number): number {
-  const t = Math.min(1, Math.max(0, (value - low) / (high - low)))
-  return t * t * (3 - 2 * t)
-}
-
-/** Contrast about mid-grey at full grade strength, over the 1.0 of no grade. */
-export const CONTRAST_REACH = 0.2
-
-/** The contrast the grade applies at `strength` 0..1 — the flat grey wash gains its depth here. */
-export function gradeContrast (strength: number): number {
-  return 1 + CONTRAST_REACH * Math.min(1, Math.max(0, strength))
 }
 
 /** The colour of halation: the red layer lets most light through and returns it, the blue none. */
@@ -206,12 +157,8 @@ function discGlsl (taps: number): string {
 
 function fragment (taps: number, grain: boolean, focal: boolean): string {
   return /* glsl */ `
-  precision highp sampler3D;
-
   uniform sampler2D tDiffuse;
-  uniform sampler3D uLut;
-  uniform float uLutSize, uLutIntensity, uContrast;
-  uniform vec3  uShade, uLight;
+  uniform float uGrade;
   uniform vec2  uTexel, uAspect;
   uniform float uFocus, uBlur, uAberration, uVignette, uSharpen, uGrain, uTime, uContact, uHalation;
   ${focal ? 'uniform sampler2D tDefocus;' : ''}
@@ -221,6 +168,8 @@ function fragment (taps: number, grain: boolean, focal: boolean): string {
   ${discGlsl(taps)}
 
   float luma (vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+
+  ${FILM_GLSL}
 
   float hash (vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 
@@ -316,20 +265,7 @@ function fragment (taps: number, grain: boolean, focal: boolean): string {
     float slant = 1.0 / (1.0 + reach * 1.4);
     col *= mix(1.0, slant * slant, uVignette);
 
-    // The grade: contrast about mid-grey, then saturation, then the lut.
-    col = max((col - 0.18) * uContrast + 0.18, 0.0);
-    col = mix(vec3(luma(col)), col, 1.06);
-
-    // The film's shoulder: a highlight past paper white runs off toward white.
-    float bright = luma(col);
-    col = mix(col, vec3(bright), smoothstep(${FILM_SHOULDER[0].toFixed(2)}, ${FILM_SHOULDER[1].toFixed(2)}, bright) * ${SHOULDER_PULL.toFixed(2)} * uLutIntensity);
-    vec3 uvw = vec3(0.5 / uLutSize) + clamp(col, 0.0, 1.0) * (1.0 - 1.0 / uLutSize);
-    col = mix(col, textureLod(uLut, uvw, 0.0).rgb, uLutIntensity);
-
-    // The split tone: cool shade, warm light, mid-tones left alone.
-    float lit = luma(col);
-    col *= vec3(1.0) + uLutIntensity * ${SPLIT_REACH.toFixed(2)}
-         * ((1.0 - smoothstep(0.0, 0.25, lit)) * (uShade - 1.0) + smoothstep(0.35, 1.5, lit) * (uLight - 1.0));
+    col = scapeFilm(col, uGrade);
 
     ${grain
       ? `
@@ -351,28 +287,23 @@ const VERTEX = /* glsl */ `
   }
 `
 
-export function createLensPass ({ taps, grain, lut, defocus }: LensOptions): LensPass {
+export function createLensPass ({ taps, grain, defocus }: LensOptions): LensPass {
   const pass = new ShaderPass({
     uniforms: {
-      tDiffuse:      { value: null },
-      tDefocus:      { value: null },
-      uLut:          { value: lut },
-      uLutSize:      { value: lut.image.width },
-      uLutIntensity: { value: 1 },
-      uContrast:     { value: 1 },
-      uShade:        { value: new Vector3(...SHADE_TINT) },
-      uLight:        { value: new Vector3(...LIGHT_TINT) },
-      uTexel:        { value: new Vector2(1, 1) },
-      uAspect:       { value: new Vector2(1, 1) },
-      uFocus:        { value: 0.5 },
-      uBlur:         { value: 0 },
-      uAberration:   { value: 0 },
-      uVignette:     { value: 0 },
-      uSharpen:      { value: 0 },
-      uContact:      { value: 0 },
-      uHalation:     { value: 0 },
-      uGrain:        { value: 0 },
-      uTime:         { value: 0 },
+      tDiffuse:    { value: null },
+      tDefocus:    { value: null },
+      uGrade:      { value: 1 },
+      uTexel:      { value: new Vector2(1, 1) },
+      uAspect:     { value: new Vector2(1, 1) },
+      uFocus:      { value: 0.5 },
+      uBlur:       { value: 0 },
+      uAberration: { value: 0 },
+      uVignette:   { value: 0 },
+      uSharpen:    { value: 0 },
+      uContact:    { value: 0 },
+      uHalation:   { value: 0 },
+      uGrain:      { value: 0 },
+      uTime:       { value: 0 },
     },
     vertexShader:   VERTEX,
     fragmentShader: fragment(Math.max(0, Math.round(taps)), grain, defocus !== null),
@@ -385,17 +316,14 @@ export function createLensPass ({ taps, grain, lut, defocus }: LensOptions): Len
   uniforms.tDefocus.value = defocus
 
   pass.look = look => {
-    uniforms.uBlur.value         = look.blur
-    uniforms.uAberration.value   = look.aberration
-    uniforms.uVignette.value     = look.vignette
-    uniforms.uSharpen.value      = look.sharpen
-    uniforms.uContact.value      = look.contact
-    uniforms.uHalation.value     = look.halation
-    uniforms.uGrain.value        = look.grain
-    uniforms.uLut.value          = look.lut
-    uniforms.uLutSize.value      = look.lut.image.width
-    uniforms.uLutIntensity.value = look.intensity
-    uniforms.uContrast.value     = gradeContrast(look.intensity)
+    uniforms.uBlur.value       = look.blur
+    uniforms.uAberration.value = look.aberration
+    uniforms.uVignette.value   = look.vignette
+    uniforms.uSharpen.value    = look.sharpen
+    uniforms.uContact.value    = look.contact
+    uniforms.uHalation.value   = look.halation
+    uniforms.uGrain.value      = look.grain
+    uniforms.uGrade.value      = look.intensity
   }
 
   pass.aim = (focus, time) => {

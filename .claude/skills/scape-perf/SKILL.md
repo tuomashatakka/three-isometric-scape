@@ -30,7 +30,8 @@ tris; `near` ~84 / 0.9M. Re-measure; do not quote these.
 ## passes the census cannot price — the lens
 
 `src/scene/lens.ts` is the whole glass and film in **one** full-screen pass:
-defocus disc, chromatic aberration, vignette, micro-contrast, grade + lut,
+defocus disc, chromatic aberration, vignette, micro-contrast, the grade
+(`film.ts`'s `scapeFilm`, alu only — no lut),
 halation (8 taps wherever `lensTaps > 0`), grain. It is one draw whatever it does, so its cost is fill: `lensTaps` texture
 fetches per pixel where the disc is wider than a third of a pixel (the
 out-of-focus part of the frame), plus the fixed taps of the rest.

@@ -138,7 +138,7 @@ the noise floor was measured, not guessed. two independent captures of the same 
 - **and the shadow that deck throws, on the sound as well as on the islands**: the same cut the deck is drawn with, so the shadow has edges and gaps rather than being an even haze; laid where the key light actually puts it, 37 m downsun of its cloud at the default hour and two hundred at the bottom of the arc, swinging round the compass through the day; on the water through the mirror and the glitter path as well as the albedo, because at this camera's angles the reflection is most of what the sea's colour is; and gone entirely under a clear sky or on a night with nothing up to block
 - **and the light that gets past that same deck, standing up in the air under it**: a stack of level sheets between the water and the cloud, each one lighting the holes in the *same* map the shadow is cut from and each reading it further back upsun than the one below, so a beam leaning thirty-two metres across a twenty-nine-metre column and the bright patch it lands on are one hole in one deck seen twice — out only while there is a sun up, and gone under a clear sky and under an overcast alike, because one has no cloud to cut the light into beams and the other has no holes left to let it through
 - view-reactive fog, a gradient sky, deterministic drifting ground mist, and a sky cloud deck
-- one lens pass: disc defocus off the focused band, lateral chromatic aberration, cos⁴ vignetting, micro-contrast, a 3d-lut grade, film halation and film grain — plus bloom
+- one lens pass: disc defocus off the focused band, lateral chromatic aberration, cos⁴ vignetting, micro-contrast, the film's grade, halation and grain — plus bloom
 - a live graphics overlay that persists to local storage and reloads what you left it at
 - mobile and desktop atmosphere budgets selected from pointer, viewport and pixel-density signals
 - a scape that survives a lost webgl context: it rebuilds one tier cheaper rather than asking you to reload, and remembers the verdict
@@ -293,7 +293,7 @@ src/
     ├── hearth.ts                   the smoke over the farmsteads, and the year that banks it
     ├── windows.ts                  lamplight in the farmstead windows, and the household that lights it
     ├── shore-lights.ts             the far coast's lit windows, as one camera-facing points draw
-    ├── lut.ts                      cached cinematic colour-grade recipes
+    ├── film.ts                     the grade as one function: in the lens with a chain, in the materials' tone mapping without
     ├── mist.ts                     ground-mist sheets, and the sea smoke off the coast
     ├── haar.ts                     the night fog bank: level sheets, and the four gates that make one
     ├── shafts.ts                   the daylight in the gaps of that deck: one stack, one draw, one cloud map
@@ -499,7 +499,7 @@ scripts/
 
 ## budget
 
-one `createApp` render loop; the post module is the only frame renderer. teardown releases geometries, materials, sky, mist, cloud-shadow and bathymetry textures, composer targets, fullscreen passes and every baked lut.
+one `createApp` render loop; the post module is the only frame renderer. teardown releases geometries, materials, sky, mist, cloud-shadow and bathymetry textures, composer targets, and fullscreen passes.
 
 **the default pixel ratio is 1.0 on every tier that is actually detected.** this scape is drawn through a per-pixel post chain — bloom, god rays, the lens pass — so a retina desktop at 1.75 pays roughly three times the fill to sharpen an image whose whole look is soft focus and grain. `runtime.pixelRatio` in the overlay raises it when the point is a crisp still rather than a smooth scape.
 
@@ -711,9 +711,26 @@ grey stone and silvered timber in a coastal photograph are never the colour they
 - **one fetch, one field.** the grain map is read along the face (the upright grain's skewed projection, so nothing smears down a wall) at `LICHEN_TILE`, a 1.5 m repeat. the high half of the field is moss and the low tail is lichen, so they never fight over a texel. past `LICHEN_REPEATS` the rosettes would shimmer, so the mean cover stands in for them.
 - **no knob.** it rides on `terrain.detailGrain`. wet darkens it and snow lies over it, in the order the world does them.
 
+## the film, on every tier
+
+the phone tier has no post chain — it loses its context linking one — so the frames most people see went out ungraded: no contrast about mid-grey, no shoulder, no stock, no split tone. the grade lived in the lens pass as a 33³ lookup texture, one of seven recipes, and a lookup needs a pass to sample it in.
+
+the lookup was only ever a closed-form function baked into a cube. [`film.ts`](src/scene/film.ts) is that function again (`FILM_GLSL`, with `film()` beside it for the tests), and it runs in whichever stage the tier has:
+
+- **with a chain**, the lens pass calls it on the composed frame, where the lut fetch was.
+- **without one**, it is three's `CustomToneMapping`: every material develops its own fragment, then runs the same ACES curve the bare renderer already ran there. no render target, no pass, no extra program — the grade rides in programs the tier links anyway, which is the one place the context-loss budget has room.
+
+**the strength rides in the exposure.** a bare renderer hands every program exactly one global uniform at that stage, `toneMappingExposure`. `packExposure` puts the grade's strength in multiples of four above the exposure (which is always under four) and the shader takes them apart again, so `look.intensity` is live on the phone with no uniform plumbed through eighty materials. the iris (`atmosphere.ts`) keeps its own value and never reads the renderer's back.
+
+**the stock develops in display space.** the cube was indexed by linear light, so its s-curve turned about half of *linear* white and crushed every shade under 6% to the lift — a barn wall in shadow went to one flat blue-black. the curve runs on the square root of the colour now and is squared back, so mid-grey stays where the exposure put it and the shade keeps its detail. this moves desktop too (near: median luma 74 → 86, shade open).
+
+**one stock.** the camera is white-balanced to the light, and a selector of seven looks was seven ways to undo that. `look.grade`, `lut.ts`, the seven recipes and the cube are gone; `look.intensity` is the one knob (*film grade*).
+
+**cost.** mobile census unchanged — near 87 / 0.90M, default 139 / 0.95M, 30 programs — plus about forty scalar operations per fragment. desktop near 222 / 4.82M, 63 programs; the lens loses a 3d fetch and the app a 144 kB texture and its bake. what the direct path cannot do is anything that reads a neighbour: defocus, halation, micro-contrast and the vignette stay the lens's.
+
 ## the shoulder of the film
 
-a sensor clips each channel on its own, so a lit gable goes to a flat saturated block. film's dyes saturate together, so a highlight runs off toward white. the lens pass's grade (`lens.ts`) takes up to `SHOULDER_PULL` of a fragment's chroma between luminance 0.7 and 1.8 (`FILM_SHOULDER`), scaled by the grade's strength. it adds no fetch, and nothing under paper white moves.
+a sensor clips each channel on its own, so a lit gable goes to a flat saturated block. film's dyes saturate together, so a highlight runs off toward white. the film's grade (`film.ts`) takes up to `SHOULDER_PULL` of a fragment's chroma between luminance 0.7 and 1.8 (`FILM_SHOULDER`), scaled by the grade's strength. it adds no fetch, and nothing under paper white moves.
 
 ## the sky in the puddles
 
@@ -742,7 +759,7 @@ the end of the optical chain used to be seven full-screen passes on desktop — 
 - **natural vignetting** — the cos⁴ law of a lens whose half-diagonal sees about 40°.
 - **micro-contrast** — a four-tap unsharp mask in the focused band only, the crispness a sharp lens has and a multisampled render does not.
 - **halation** — the film's red ring round whatever is brighter than paper white ([`halationSource`](src/scene/lens.ts)): eight turned taps at 16 px on the highlight excess, tinted `HALATION_TINT`, so sun glints, lit windows and the sun's disc glow warm at their edges and the rest of the frame is untouched. desktop and ultra only. it rides `look.lens`, as does the grain: **`look.grain` is retired** and the panel's film-grain row with it. the grain's clock is the wind's, so `wind.speed=0` holds it for stills.
-- **the grade and the grain** — contrast, saturation, the baked 3d lut, then the split tone (shade a touch cool, light a touch warm, mid-tones untouched, luminance-preserving, driven by `look.intensity` so it adds no knob), then grain that is strongest in the mid-tones, where film shows it.
+- **the grade and the grain** — contrast, saturation, the stock, then the split tone — one function, [`film.ts`](src/scene/film.ts) — (shade a touch cool, light a touch warm, mid-tones untouched, luminance-preserving, driven by `look.intensity` so it adds no knob), then grain that is strongest in the mid-tones, where film shows it.
 
 **one knob.** `look.lens` drives the defocus, the fringe, the vignette and the micro-contrast together, because they are one optical decision — how much glass is in the picture — and four sliders for it let a reader dial a lens no one ever made. at 0 the scape is a pinhole; at 1 it is the old default tilt-shift and vignette; at 2 it is a cheap wide-angle. `look.tiltShift` and `look.vignette` are gone.
 

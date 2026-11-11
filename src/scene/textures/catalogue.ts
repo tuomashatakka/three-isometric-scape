@@ -30,7 +30,7 @@ export type TextureId =
   'ground.grain' | 'ground.normal' | 'ground.wear' | 'prop.bark' | 'sky.cloudShadow' |
   'water.ripple' | 'water.wave' | 'water.shoreMask' | 'water.shelterMask' |
   'weather.squall' | 'sky.deck' | 'sky.aurora' | 'sky.gradient' | 'mist.field' | 'mist.mask' |
-  'haar.field' | 'ground.sky' | 'post.lut'
+  'haar.field' | 'ground.sky'
 
 /**
  * Where a texture's pixels come from.
@@ -201,14 +201,6 @@ export const TEXTURES: readonly TextureEntry[] = [
     size:      2048,
     module:    'sky-occlusion.ts',
     consumers: [ 'uSkyMap' ],
-  },
-  {
-    id:        'post.lut',
-    origin:    'baked',
-    purpose:   'the colour grade, one 3d lut per named grade, cached on first use',
-    size:      32,
-    module:    'lut.ts',
-    consumers: [ 'LUTPass' ],
   },
 ]
 
