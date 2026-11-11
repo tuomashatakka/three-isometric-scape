@@ -26,10 +26,19 @@ the world already has more sites than most frames show — six islands, a hundre
 - **scale and detail** — what close zoom shows (richer geometry, texture detail), what wide zoom shows (silhouettes, coastline, the sea), and an lod that makes the first cost nothing at the second
 - **cost** — fewer draws, fewer triangles, cheaper passes, a faster first load (`scape:bench`); every tier, mobile first
 - **the optical pipeline** — the post chain is a camera, not a stack of filters: one pass per physical stage (scene light, then the glass and the film in [`lens.ts`](src/scene/lens.ts)), merged rather than appended. a new screen-space effect folds into an existing pass when it reads the same pixels
-- **the shared kit over the single prop** — a look that belongs to a *kind* of thing (every stone, every board, every roof) lands once, in the helper every prop of that kind is built through (`stonePart`, `soften`, the two scape materials), so one change reaches every island
+- **the shared kit over the single prop** — a look that belongs to a *kind* of thing (every stone, every board, every roof) lands once, in the helper every prop of that kind is built through (`stonePart`, `soften`, the two scape materials), so one change reaches every island. a term keyed on what the albedo already is (`heathFragment` on greens, `weatheringFragment` on neutral greys) reaches every prop of a kind with no per-prop flag and no new program
 - **fewer, broader knobs** — one parameter per physical decision (`look.lens` is defocus, fringe, vignette, halation and grain at once). a run that adds a knob should look for two it can merge or retire; the panel only shrinks
 
 a new prop or site is still allowed, when it is the cheapest way to make a frame more believable. it is no longer the default.
+
+**the open rendering backlog** — whole-frame candidates, roughly by what they would buy. strike one through when a run lands it:
+
+- the phone has no post chain at all (`quality.post` false on mobile): a one-pass, no-depth grade and vignette that survives the context-loss budget would change every frame most people see
+- terrain normals from the height field at close zoom, so slopes stop shading as broad facets
+- height fog that lies in the valleys and thins up the slopes, on every tier, not only the haar sheets
+- stone geometry: boulders and cairn blocks read as smooth blobs in silhouette; a shared displaced-stone builder in the kit, not per prop
+- timber end grain and board seams on the upright path (the bark map is one stretched field)
+- per-instance colour and scale variation on every scattered family, read from the instance matrix rather than authored per prop
 
 what a run may **not** do is ship something that does not pass the gate, adds cost on the mobile tier without an answer for it, breaks determinism, or leaves the repository harder to read.
 

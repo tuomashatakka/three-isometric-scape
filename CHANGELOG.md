@@ -2,6 +2,14 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## a hundred winters on every stone, and twelve knobs fewer
+
+close frames showed boulders as smooth grey blobs and slate as new: nothing looked like it had been out in the weather. [`props/weathering.ts`](src/scene/props/weathering.ts) puts moss on every top and every face turned from the sun, and a lichen crust on whatever the moss leaves. the crust is pale grey-green inland and *xanthoria* orange in the splash zone. it is in the shared ground material on both tap paths, so every stone, cairn, wall, slate roof and outcrop on every island weathers at once, the phone included. it keys on the albedo (near-neutral mid-greys), so paint, plants, sand, straw and snow are untouched, and it rides on `terrain.detailGrain`, adding no knob.
+
+- **twelve rows fewer in the panel:** squall lead/reach/span/drift, halo lead, lightning reach/fork, night-bank scour/burn-off/damp, and the deck shafts' reach/taper. they are the coast's physics, not looks; the config leaves stay for `--set` and the url.
+- **cost:** no draws, triangles or programs. one grain fetch per ground fragment that is grey enough to weather, skipped by a uniform branch at the archipelago frame. mobile census matches main: near 87 / 0.90M, default 139 / 0.95M. desktop near 222 / 4.82M, noon 264 / 4.26M.
+- **moved:** every frame with stone or slate in it, close frames most. `weathering.test.ts` pins which palette colours weather.
+
 ## a quilt on the heath, a shoulder in the film, and a darker drawer
 
 close frames read as painted plastic: the meadow was one green, and the soil grain was so faint (0.34) that the yard was a smooth tan sheet. now the shared ground material puts a quilt of moss and heather over everything that leans green ([`props/material.ts`](src/scene/props/material.ts), `heathFragment`). patches are tens of metres across and stay up at the archipelago frame, so barns, stone and beaches are left alone, and `terrain.detailGrain` opens at 0.7. the lens pass grades highlights past paper white toward white the way film dyes do (`FILM_SHOULDER` in [`lens.ts`](src/scene/lens.ts)): lit snow and glare read as bright, not as a saturated block. the overlay is restyled after the *three-iso overlay concepts* canvas. the drawer is dark-first and docked full height (a bottom sheet on a phone). labels are tracked uppercase micro-labels, readouts are mono tabular numerals, sliders are hairline tracks filled to the value, and toggles are pill switches. the palette is one set of `--ui-*` tokens in [`style.css`](src/style.css).
