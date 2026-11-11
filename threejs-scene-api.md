@@ -7,7 +7,7 @@ Every symbol the runtime exports, and whether this scape uses it. **Read this be
 writing a helper** — the reinvention this file exists to stop was never a discipline
 problem, it was that nothing here said what was already available.
 
-**74 of 415 exports used.** Everything marked `—` is available and unused.
+**73 of 415 exports used.** Everything marked `—` is available and unused.
 
 ## `threejs-scene`
 
@@ -38,7 +38,7 @@ problem, it was that nothing here said what was already available.
 | `createIsoCamera` | function | src/scene/create-isometric-scape.ts |
 | `createLadderMemory` | function | src/scene/tier-memory.ts |
 | `createRenderer` | function | src/scene/create-isometric-scape.ts, src/prop-preview/quad-view.ts |
-| `createSeededRng` | function | src/scene/storm.test.ts, src/scene/fall-column.ts, src/scene/beacon.ts +69 |
+| `createSeededRng` | function | src/scene/storm.test.ts, src/scene/fall-column.ts, src/scene/beacon.ts +70 |
 | `createStateAccess` | function | src/scene/config-access.ts |
 | `createStore` | function | src/scene/config-access.test.ts, src/context-recovery.ts |
 | `defineModule` | function | src/scene/mist.ts, src/scene/camera-controls.ts, src/scene/tide.ts +23 |
@@ -85,7 +85,7 @@ problem, it was that nothing here said what was already available.
 | `SceneContext` | interface | src/scene/atmosphere.ts, src/scene/vitals.test.ts, src/scene/tide.test.ts +1 |
 | `SeededRng` | interface | src/scene/storm.ts, src/scene/landscape/dressing.ts, src/scene/landscape/kelpbed.ts +49 |
 | `Size` | interface | — |
-| `smoothstep` | function | src/scene/mist.ts, src/scene/daylight.ts, src/scene/camera-controls.ts +50 |
+| `smoothstep` | function | src/scene/mist.ts, src/scene/daylight.ts, src/scene/camera-controls.ts +51 |
 | `StateAccess` | interface | src/scene/config-access.ts |
 | `StateValue` | type | src/scene/config-access.ts |
 | `Store` | interface | src/scene/create-isometric-scape.ts, src/context-recovery.ts |
@@ -120,7 +120,7 @@ problem, it was that nothing here said what was already available.
 
 ## `threejs-scene/modules/post`
 
-5 of 26 used.
+4 of 26 used.
 
 | symbol | kind | used by |
 | --- | --- | --- |
@@ -128,7 +128,7 @@ problem, it was that nothing here said what was already available.
 | `ComposerHandle` | interface | — |
 | `ComposerOptions` | interface | — |
 | `createBlockDisplacementPass` | function | — |
-| `createCinematicLUT` | function | src/scene/lut.ts |
+| `createCinematicLUT` | function | — |
 | `createComposer` | function | — |
 | `createFilmGrainPass` | function | — |
 | `createGodRaysPass` | function | src/scene/post.ts |
@@ -153,7 +153,7 @@ problem, it was that nothing here said what was already available.
 
 ## `threejs-scene/modules/post/webgl`
 
-4 of 64 used.
+3 of 64 used.
 
 | symbol | kind | used by |
 | --- | --- | --- |
@@ -168,7 +168,7 @@ problem, it was that nothing here said what was already available.
 | `ChromaticAberrationOptions` | interface | — |
 | `createAfterimage` | function | — |
 | `createAnamorphic` | function | src/scene/post.ts |
-| `createAo` | function | src/scene/post.ts |
+| `createAo` | function | — |
 | `createBloom` | function | — |
 | `createBurnInPass` | function | — |
 | `createChromaticAberration` | function | — |
@@ -224,7 +224,7 @@ problem, it was that nothing here said what was already available.
 
 ## `threejs-scene/modules/assets`
 
-34 of 219 used.
+35 of 219 used.
 
 | symbol | kind | used by |
 | --- | --- | --- |
@@ -289,8 +289,8 @@ problem, it was that nothing here said what was already available.
 | `createPropRegistry` | function | — |
 | `createPropTool` | function | — |
 | `CreatePropToolOptions` | interface | — |
-| `createRockGeometry` | function | src/scene/props/howe.ts, src/scene/props/shieling.ts, src/scene/props/watermill.ts +7 |
-| `createSeamlessNoiseTexture` | function | src/scene/textures/catalogue.ts, src/scene/textures/normals.test.ts |
+| `createRockGeometry` | function | src/scene/props/howe.ts, src/scene/props/shieling.ts, src/scene/props/watermill.ts +8 |
+| `createSeamlessNoiseTexture` | function | src/scene/landscape/water-slick.test.ts, src/scene/textures/catalogue.ts, src/scene/textures/normals.test.ts |
 | `createStandardMaterial` | function | — |
 | `createSurfaceRibbon` | function | src/scene/landscape/cart-ruts.ts, src/scene/landscape/terrain.ts, src/scene/landscape/rigs.ts |
 | `createTexturePreset` | function | — |
@@ -364,9 +364,9 @@ problem, it was that nothing here said what was already available.
 | `ParamSpec` | type | — |
 | `ParamSpecMap` | type | — |
 | `ParamValue` | type | — |
-| `part` | function | src/scene/props/shore.ts, src/scene/props/howe.ts, src/scene/props/shieling.ts +35 |
+| `part` | function | src/scene/props/shore.ts, src/scene/props/howe.ts, src/scene/props/shieling.ts +34 |
 | `PART_DEFAULTS` | const | — |
-| `PartOptions` | interface | — |
+| `PartOptions` | interface | src/scene/props/stone.ts |
 | `PartSpec` | interface | — |
 | `PathTubeOptions` | interface | — |
 | `Placement` | interface | — |

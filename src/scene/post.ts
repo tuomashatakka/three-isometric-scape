@@ -12,7 +12,6 @@ import { createFocalPass, depthDefocus } from './focal.ts'
 import type { FocalPass } from './focal.ts'
 import { apertureReach, createLensPass } from './lens.ts'
 import type { LensPass } from './lens.ts'
-import { createGradeLUTs } from './lut.ts'
 import type { AtmosphereQuality } from './quality.ts'
 
 
@@ -107,8 +106,6 @@ export function createAtmospherePost ({
   sunPosition,
   water,
 }: PostOptions): ScapeModule {
-  const luts = createGradeLUTs()
-
   let composer: EffectComposer | null = null
   let focal: FocalPass | null         = null
   let bloom: UnrealBloomPass | null   = null
@@ -327,7 +324,6 @@ export function createAtmospherePost ({
       contact:    LENS_CONTACT * Math.min(1, look.lens),
       halation:   quality.lensTaps > 0 ? LENS_HALATION * Math.min(1, look.lens) : 0,
       grain:      quality.grain ? LENS_GRAIN * Math.min(1, look.lens) : 0,
-      lut:        luts.get(look.grade),
       intensity:  look.intensity,
     })
 
@@ -381,7 +377,6 @@ export function createAtmospherePost ({
       lens = createLensPass({
         taps:    quality.lensTaps,
         grain:   quality.grain,
-        lut:     luts.get(config().look.grade),
         defocus: focal?.map ?? null,
       })
       lens.size(ctx.width, ctx.height)
@@ -453,7 +448,6 @@ export function createAtmospherePost ({
       for (const pass of extras)
         pass.dispose?.()
       inner.dispose?.()
-      luts.dispose()
 
       extras       = []
       lens         = null

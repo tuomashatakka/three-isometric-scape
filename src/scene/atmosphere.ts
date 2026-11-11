@@ -13,11 +13,13 @@ import type {
   Object3D,
   OrthographicCamera,
   Scene,
+  WebGLRenderer,
 } from 'three'
 import { defineModule } from 'threejs-scene'
 import type { SceneContext } from 'threejs-scene'
 import { standardLighting } from 'threejs-scene/modules/lighting'
 import { hazeRange, installAerialPerspective } from './aerial.ts'
+import { installDirectFilm, packExposure } from './film.ts'
 import { landmassTerrain } from './config.ts'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import { createDaylight } from './daylight.ts'
@@ -51,6 +53,12 @@ export interface AtmosphereOptions {
    * this; without one, every frame draws its own map and every frame needs a fit.
    */
   shadowDue?(): boolean
+
+  /**
+   * No post chain on this build: the film develops inside the materials
+   * (`film.ts`), and the exposure uniform carries the grade's strength too.
+   */
+  directFilm?: boolean
 }
 
 
@@ -222,6 +230,7 @@ export function createAtmosphereLayer ({
   config,
   quality,
   shadowDue = () => true,
+  directFilm = false,
 }: AtmosphereOptions): Atmosphere {
   // Read once, for the things built once: the lights' colours, the fog's, and
   // the bounce anchor. Nothing on the overlay writes a palette entry, and a
@@ -231,6 +240,15 @@ export function createAtmosphereLayer ({
   installAerialPerspective(authored.atmosphere.hazeHeight)
 
   const daylight = createDaylight(config)
+
+  // The iris's own value: on the direct path the uniform is not the exposure
+  // alone, so the adaptation reads this and never the renderer.
+  let exposure = 1
+
+  function expose (renderer: WebGLRenderer, next: number): void {
+    exposure                     = next
+    renderer.toneMappingExposure = directFilm ? packExposure(next, config().look.intensity) : next
+  }
 
   // `sky` is the live state object, and `direction` is its vector — both are
   // mutated in place by `sample`, never reassigned, so everything downstream can
@@ -448,7 +466,8 @@ export function createAtmosphereLayer ({
 
       reframe(0, 0)
       lastClock = config().daylight.time
-      ctx.renderer.toneMappingExposure = targetExposure(sky.day, sky.moon)
+      installDirectFilm(ctx.renderer, directFilm)
+      expose(ctx.renderer, targetExposure(sky.day, sky.moon))
     },
 
     update (_state, frame, ctx) {
@@ -459,9 +478,9 @@ export function createAtmosphereLayer ({
       const clock = config().daylight.time
       const cut   = Math.abs(clock - lastClock) > 0.02 && Math.abs(clock - lastClock) < 0.98
       lastClock   = clock
-      ctx.renderer.toneMappingExposure = cut
+      expose(ctx.renderer, cut
         ? targetExposure(sky.day, sky.moon)
-        : adaptExposure(ctx.renderer.toneMappingExposure, targetExposure(sky.day, sky.moon), frame.delta)
+        : adaptExposure(exposure, targetExposure(sky.day, sky.moon), frame.delta))
     },
 
     dispose () {

@@ -89,8 +89,6 @@ import type { SeaConfig } from './config-sea.ts'
 import type { QualityEffects } from './quality.ts'
 
 
-export type GradeName = 'natural' | 'cinematic' | 'warm' | 'cool' | 'noir' | 'dream' | 'nordic'
-
 /**
  * A satellite islet, in fractions of the terrain half-extent.
  *
@@ -1097,7 +1095,12 @@ export interface ScapeConfig extends CarterConfig, CreelConfig, CroppingConfig, 
   }
 
   look: {
-    grade:     GradeName
+
+    /**
+     * How much of the film's grade the frame gets (`film.ts`): contrast, the
+     * shoulder, the stock and the split tone, in the lens where the tier has a
+     * post chain and inside the materials where it does not. 0 is the raw render.
+     */
     intensity: number
 
     /**
@@ -1571,7 +1574,6 @@ export const SCAPE_CONFIG = {
     moonStrength: 0.16,
   },
   look: {
-    grade:     'nordic',
     intensity: 0.78,
     glare:     1,
     lens:      1,

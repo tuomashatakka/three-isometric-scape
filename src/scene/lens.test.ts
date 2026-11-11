@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { CONTRAST_REACH, gradeContrast, HALATION_TAPS, HALATION_THRESHOLD, halationSource, vogelDisc } from './lens.ts'
+import { HALATION_TAPS, HALATION_THRESHOLD, halationSource, vogelDisc } from './lens.ts'
 
 
 describe('the lens defocus disc', () => {
@@ -21,15 +21,6 @@ describe('the lens defocus disc', () => {
     const disc  = vogelDisc(24)
     const inner = disc.filter(([ x, y ]) => Math.hypot(x, y) < Math.SQRT1_2).length
     expect(inner).toBe(12)
-  })
-})
-
-describe('gradeContrast', () => {
-  test('is 1 with no grade and grows to the reach, clamped', () => {
-    expect(gradeContrast(0)).toBe(1)
-    expect(gradeContrast(1)).toBeCloseTo(1 + CONTRAST_REACH)
-    expect(gradeContrast(5)).toBeCloseTo(1 + CONTRAST_REACH)
-    expect(gradeContrast(-1)).toBe(1)
   })
 })
 

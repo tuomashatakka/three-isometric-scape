@@ -2,6 +2,16 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the film, on every tier — and the stock is one stock
+
+the phone tier has no post chain, so the frames most people see went out ungraded. the grade was a 33³ lookup in the lens pass; [`film.ts`](src/scene/film.ts) is the same grade as one closed-form function — contrast about mid-grey, the shoulder, the stock, the split tone — and it runs in the lens where a chain exists and inside every material's tone-mapping stage (three's `CustomToneMapping`, then the same ACES curve) where it does not. `look.intensity` stays live on the phone: the strength rides in the exposure uniform.
+
+- **the stock develops in display space.** its s-curve used to turn about half of *linear* white, crushing every shade under 6% to one blue-black. on the square root of the colour, mid-grey stays put and the shade keeps its detail — on every tier.
+- **one knob and a module fewer:** `look.grade` and its seven recipes, `lut.ts`, the cube texture and its cpu bake are deleted. `look.intensity` is the *film grade* row.
+- **cost:** no draws, triangles, targets or programs. mobile census matches main: near 87 / 0.90M, default 139 / 0.95M, 30 programs. desktop near 222 / 4.82M, 63 programs; the lens trades a 3d fetch for alu, and a 144 kB texture is not uploaded.
+- **moved:** every frame on every tier. mobile near: blacks lifted (5th percentile luma 15 → 21), shade cooler, median unchanged. desktop near: median luma 74 → 86. `film.test.ts` pins that the direct path and the lens run the same function, and that the exposure survives the packing.
+- **not on the phone yet:** vignette, grain, halation — anything that needs the fragment's place in the frame or a neighbour.
+
 ## a hundred winters on every stone, and twelve knobs fewer
 
 close frames showed boulders as smooth grey blobs and slate as new: nothing looked like it had been out in the weather. [`props/weathering.ts`](src/scene/props/weathering.ts) puts moss on every top and every face turned from the sun, and a lichen crust on whatever the moss leaves. the crust is pale grey-green inland and *xanthoria* orange in the splash zone. it is in the shared ground material on both tap paths, so every stone, cairn, wall, slate roof and outcrop on every island weathers at once, the phone included. it keys on the albedo (near-neutral mid-greys), so paint, plants, sand, straw and snow are untouched, and it rides on `terrain.detailGrain`, adding no knob.

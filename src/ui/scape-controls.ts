@@ -1,4 +1,3 @@
-import type { GradeName } from '../scene/config.ts'
 import type { AtmosphereQuality } from '../scene/quality.ts'
 
 
@@ -96,10 +95,6 @@ export interface ControlSection {
   persist?: boolean
 }
 
-const GRADES: readonly GradeName[] = [
-  'nordic', 'natural', 'cinematic', 'warm', 'cool', 'noir', 'dream',
-]
-
 /**
  * What the device is allowed to build.
  *
@@ -162,8 +157,7 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       title:    'optics',
       open:     true,
       controls: [
-        { kind: 'select', path: 'look.grade', label: 'colour grade', options: GRADES },
-        range('look.intensity', 'grade strength', 0, 1, 0.01),
+        range('look.intensity', 'film grade', 0, 1, 0.01),
         toggled('glare', range('look.glare', 'bloom, streak and shafts', 0, 3, 0.01, quality.bloom), 1),
         toggled('lens', range('look.lens', 'defocus, fringe, halation, grain', 0, 2, 0.01), 1),
         toggled('occlusion', range('look.ao', 'shade where things meet', 0, 2, 0.01), 1),

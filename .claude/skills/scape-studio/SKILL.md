@@ -102,7 +102,9 @@ suspect. Hidden meshes come back on the next look.
   (a pose that names a tier, like the `wheel` set, moves it too). `status` says
   which one it is on.
 - **The default tier is mobile**: no post chain (no lens, bloom, grain), the
-  one-tap ground path, no shadows. A change to `post.ts`, `lens.ts`, ground
+  one-tap ground path, no shadows. The *grade* is there all the same —
+  `film.ts` runs it inside every material's tone mapping, so `look.intensity`
+  moves a mobile look (`--set look.intensity=0` is the raw render). A change to `post.ts`, `lens.ts`, ground
   detail or shadows is invisible there — look with `--tier desktop`, or with
   `--set runtime.effects=all --rebuild` to put it on the mobile build.
 - **Captures are named by pose and overwrite.** `--poses tour` before and after a

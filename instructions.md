@@ -25,7 +25,7 @@ the world already has more sites than most frames show — six islands, a hundre
 - **atmosphere** — aerial perspective with distance, haze that is denser low, fog that lies in the valleys, rain that darkens and streaks
 - **scale and detail** — what close zoom shows (richer geometry, texture detail), what wide zoom shows (silhouettes, coastline, the sea), and an lod that makes the first cost nothing at the second
 - **cost** — fewer draws, fewer triangles, cheaper passes, a faster first load (`scape:bench`); every tier, mobile first
-- **the optical pipeline** — the post chain is a camera, not a stack of filters: one pass per physical stage (scene light, then the glass and the film in [`lens.ts`](src/scene/lens.ts)), merged rather than appended. a new screen-space effect folds into an existing pass when it reads the same pixels
+- **the optical pipeline** — the post chain is a camera, not a stack of filters: one pass per physical stage (scene light, then the glass in [`lens.ts`](src/scene/lens.ts) and the film in [`film.ts`](src/scene/film.ts)), merged rather than appended. a new screen-space effect folds into an existing pass when it reads the same pixels. anything that is a function of one pixel alone (a curve, a tint, a toe) belongs in `film.ts`, where it reaches the phone too: the film runs inside every material's tone mapping on a tier with no chain
 - **the shared kit over the single prop** — a look that belongs to a *kind* of thing (every stone, every board, every roof) lands once, in the helper every prop of that kind is built through (`stonePart`, `soften`, the two scape materials), so one change reaches every island. a term keyed on what the albedo already is (`heathFragment` on greens, `weatheringFragment` on neutral greys) reaches every prop of a kind with no per-prop flag and no new program
 - **fewer, broader knobs** — one parameter per physical decision (`look.lens` is defocus, fringe, vignette, halation and grain at once). a run that adds a knob should look for two it can merge or retire; the panel only shrinks
 
@@ -33,7 +33,8 @@ a new prop or site is still allowed, when it is the cheapest way to make a frame
 
 **the open rendering backlog** — whole-frame candidates, roughly by what they would buy. strike one through when a run lands it:
 
-- the phone has no post chain at all (`quality.post` false on mobile): a one-pass, no-depth grade and vignette that survives the context-loss budget would change every frame most people see
+- ~~the phone has no post chain at all: a grade that survives the context-loss budget~~ — landed as `film.ts`, in the materials' tone mapping. still open on the phone: the **vignette** (needs the fragment's place in the frame — a varying off the aerial vertex chunk, or the drawing-buffer size) and **contact shade** with no depth pass
+- the phone's light is thinner than the desktop's (no environment map, no shadow map): the same pose is darker and flatter before the film ever sees it. a baked sky-light term or a cheaper key shadow would close the gap the grade cannot
 - terrain normals from the height field at close zoom, so slopes stop shading as broad facets
 - height fog that lies in the valleys and thins up the slopes, on every tier, not only the haar sheets
 - stone geometry: boulders and cairn blocks read as smooth blobs in silhouette; a shared displaced-stone builder in the kit, not per prop
@@ -70,7 +71,7 @@ then read, and only these: [`src/scene/config.ts`](src/scene/config.ts) (the tun
 
 **one rendering theme per run, plus one refactor or cost cut that leaves the code smaller, the chain shorter, the panel smaller or the load faster** — the theme with a headline someone could picture or measure: "terrain normals from the height field", "contact shadows under every prop", "aerial perspective that blues the far islands", "half the draw calls at the default zoom". not a sweep of unrelated tweaks.
 
-pick by looking: what in the `near` and `default` frames reads as least real, or what in the census costs most for least. do not repeat a theme `brief` lists.
+pick by looking: what in the `near` and `default` frames reads as least real, or what in the census costs most for least. do not repeat a theme `brief` lists. prefer the change that moves **every frame on every tier** — a shader chunk every program includes (`aerial.ts`, `film.ts`), a term in the two shared materials, a kit helper — over one that moves one site.
 
 **then announce it, before building.** print the run's title and plan in exactly this shape:
 
