@@ -19,7 +19,13 @@ export interface AtmosphereQuality {
   shadowMapSize: number
   bloom:         boolean
   grain:         boolean
-  mistLayers:    number
+
+  /**
+   * The upright mist slices and sea-smoke sheets, as half this each (and the
+   * cloud deck's floor). The ground mist itself is not a layer any more: it is
+   * the fog term in the aerial chunk, free on every tier — see `aerial.ts`.
+   */
+  mistLayers: number
 
   /**
    * Level sheets in the night fog bank. 0 is a coast whose low ground never

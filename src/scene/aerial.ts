@@ -19,8 +19,9 @@ import { ShaderChunk } from 'three'
  * blue-grey, the feet of the far range dissolve while its summits stand out of
  * the haze.
  *
- * The uniforms are three's, re-read: `fogNear` is the clear radius around the
- * focus and `fogFar` the extinction length, both in world metres. Nothing in
+ * The uniforms are three's, re-read: `fogFar` is the extinction length in world
+ * metres, and `fogNear` is the ground fog's amount (see {@link groundFog}) — the
+ * clear radius around the focus is a constant, compiled in. Nothing in
  * here is frame-sized — a mountain a kilometre away is a kilometre away at
  * every zoom — so a close frame carries no haze and the archipelago frame
  * carries a lot of it, which is what distance does.
@@ -31,7 +32,7 @@ export const AERIAL_SKEW = 0.5
 
 export interface HazeRange {
 
-  /** Metres of clear air around the focus. */
+  /** Metres of clear air around the focus. Compiled into the chunk; not the `fogNear` uniform. */
   near: number
 
   /** Metres of air that take away 63% of what is behind them, at sea level. */
@@ -58,6 +59,83 @@ export const AIR_SPECTRUM = [ 0.85, 1, 1.4 ] as const
 const CLEAR_EXTINCTION = 1800
 const THICK_EXTINCTION = 240
 const CLEAR_RADIUS     = 30
+
+/**
+ * The fog on the low ground — the second thing the fog chunk paints.
+ *
+ * Ground mist was a stack of world-sized transparent sheets: every one a
+ * full-frame blend on every tier, cut by a baked mask, and flat — a sheet has no
+ * idea a roof stands above it. It is a function of the fragment now. Radiation
+ * fog is cold air that has run downhill and stopped, so its density is a profile
+ * in height above the waterline: nothing on the water itself (the sea is warmer
+ * than the night air, which is why the bank stops at the shore), thickest a
+ * metre up the strand, and thinning by e every {@link GROUND_FOG_HEIGHT} metres
+ * above that. A house stands with its sill in it and its ridge out; a slope
+ * climbs out of it; a summit never knew it was there.
+ *
+ * It lies in banks rather than as one veil — {@link groundFogBank}, a field in
+ * world metres evaluated per vertex — and it is grey: droplets scatter every
+ * wavelength alike, so it does not go through {@link AIR_SPECTRUM}.
+ *
+ * The amount arrives in `fogNear`. The clear radius that uniform used to carry
+ * never moved, so it is compiled in and the uniform is free: every fogged
+ * program in the scape already has it, which is how a term reaches every
+ * material on every tier without one `onBeforeCompile`.
+ */
+export const GROUND_FOG_HEIGHT = 2.6
+
+/** Metres above the waterline over which the fog builds from nothing. */
+export const GROUND_FOG_FOOT = 0.45
+
+/** Optical depth of the thickest bank at `atmosphere.mistAmount` one. */
+export const GROUND_FOG_DEPTH = 3
+
+/** How far toward white the fog stands from the horizon's colour, at a bright sky. */
+const GROUND_FOG_WHITEN = 0.3
+
+/** The bank field's two wavelengths, as radians a metre: banks, and the wisps in them. */
+const BANK_WAVES = [ 0.043, 0.029, 0.151, 0.117 ] as const
+
+/**
+ * How much of the fog stands over a point of the map, 0..1 — the vertex
+ * shader's field. Two warped sines: banks a hundred and fifty metres across
+ * with forty-metre wisps in them. No texture, no uniform, no clock.
+ */
+export function groundFogBank (x: number, z: number): number {
+  const [ a, b, c, d ] = BANK_WAVES
+  const broad          = Math.sin(x * a + 1.7 * Math.sin(z * b)) + Math.sin(z * a + 1.3 * Math.sin(x * b))
+  const fine           = Math.sin(x * c + z * d) * Math.sin(z * c - x * d)
+  const field          = 0.5 + 0.22 * broad + 0.16 * fine
+  const t              = Math.min(1, Math.max(0, (field - 0.18) / 0.64))
+
+  return 0.12 + 0.88 * t * t * (3 - 2 * t)
+}
+
+/** The fog's density profile over height above the waterline, 0..~0.7. */
+export function groundFogProfile (above: number): number {
+  const h = Math.max(0, above)
+
+  return (1 - Math.exp(-h / GROUND_FOG_FOOT)) * Math.exp(-h / GROUND_FOG_HEIGHT)
+}
+
+/** How much of what is behind it the ground fog takes, 0..1. `amount` is the `fogNear` uniform. */
+export function groundFog (above: number, amount: number, bank = 1): number {
+  return 1 - Math.exp(-amount * bank * groundFogProfile(above))
+}
+
+/** How much thicker the fog lies with the sun down than at noon: it is the night's cold air, and the day burns it off. */
+export const GROUND_FOG_NIGHT = 0.8
+
+/**
+ * The `fogNear` uniform for a mist density: the optical depth of the thickest
+ * bank. `day` is the daylight's own 0..1, so the same `atmosphere.mistAmount`
+ * is a dawn with the strand gone and a noon with a trace in the hollows.
+ */
+export function groundFogAmount (mist: number, breath = 1, day = 1): number {
+  const night = 1 - Math.min(1, Math.max(0, day))
+
+  return Math.max(0, mist * breath) * GROUND_FOG_DEPTH * (1 + GROUND_FOG_NIGHT * night)
+}
 
 /** The fog uniforms for a density, with the breath applied and clamped. */
 export function hazeRange (density: number, breath = 1, maxDensity = 0.94): HazeRange {
@@ -97,9 +175,11 @@ export function aerialHazeRgb (
 
 const AIR_SPECTRUM_GLSL = `vec3( ${AIR_SPECTRUM.map(k => k.toFixed(3)).join(', ')} )`
 
+const glsl = (value: number): string => value.toFixed(4)
+
 const PARS_VERTEX = /* glsl */`
 #ifdef USE_FOG
-  varying vec3 vAerial;
+  varying vec4 vAerial;
 #endif
 `
 
@@ -116,7 +196,10 @@ const VERTEX = /* glsl */`
     vec2 aerialFocus   = cameraPosition.xz + aerialForward.xz * aerialReach;
     vec2 aerialAhead   = normalize( aerialForward.xz + vec2( 1e-6, 0.0 ) );
     vec2 aerialOffset  = aerialWorld.xz - aerialFocus;
-    vAerial = vec3( length( aerialOffset ), dot( aerialOffset, aerialAhead ), aerialWorld.y );
+    vec2 bankBroad     = aerialWorld.xz * ${glsl(BANK_WAVES[0])} + vec2( 1.7, 1.3 ) * sin( aerialWorld.zx * ${glsl(BANK_WAVES[1])} );
+    vec2 bankFine      = vec2( dot( aerialWorld.xz, vec2( ${glsl(BANK_WAVES[2])}, ${glsl(BANK_WAVES[3])} ) ), dot( aerialWorld.xz, vec2( ${glsl(-BANK_WAVES[3])}, ${glsl(BANK_WAVES[2])} ) ) );
+    float bankField    = 0.5 + 0.22 * ( sin( bankBroad.x ) + sin( bankBroad.y ) ) + 0.16 * sin( bankFine.x ) * sin( bankFine.y );
+    vAerial = vec4( length( aerialOffset ), dot( aerialOffset, aerialAhead ), aerialWorld.y, 0.12 + 0.88 * smoothstep( 0.18, 0.82, bankField ) );
   }
 #endif
 `
@@ -124,7 +207,7 @@ const VERTEX = /* glsl */`
 const PARS_FRAGMENT = /* glsl */`
 #ifdef USE_FOG
   uniform vec3 fogColor;
-  varying vec3 vAerial;
+  varying vec4 vAerial;
   #ifdef FOG_EXP2
     uniform float fogDensity;
   #else
@@ -134,13 +217,21 @@ const PARS_FRAGMENT = /* glsl */`
 #endif
 `
 
-const FRAGMENT = (hazeHeight: number) => /* glsl */`
+// The ground fog first, because it is at the surface and the air is between it
+// and the eye: the haze of distance then takes the fog bank with the hill.
+const FRAGMENT = (hazeHeight: number, waterLevel: number) => /* glsl */`
 #ifdef USE_FOG
   #ifdef FOG_EXP2
     float aerialTau = fogDensity * fogDensity * vAerial.x * vAerial.x;
   #else
-    float aerialPath = max( 0.0, vAerial.x + ${AERIAL_SKEW.toFixed(3)} * vAerial.y - fogNear );
+    float aerialPath = max( 0.0, vAerial.x + ${AERIAL_SKEW.toFixed(3)} * vAerial.y - ${glsl(CLEAR_RADIUS)} );
     float aerialTau  = aerialPath / fogFar * exp( - max( vAerial.z, 0.0 ) / ${hazeHeight.toFixed(3)} );
+    if ( fogNear > 0.0 ) {
+      float fogAbove = max( vAerial.z - ${glsl(waterLevel)}, 0.0 );
+      float fogTau   = fogNear * vAerial.w * ( 1.0 - exp( - fogAbove / ${glsl(GROUND_FOG_FOOT)} ) ) * exp( - fogAbove / ${glsl(GROUND_FOG_HEIGHT)} );
+      vec3 fogBank   = mix( fogColor, vec3( 1.0 ), ${glsl(GROUND_FOG_WHITEN)} * dot( fogColor, vec3( 0.2126, 0.7152, 0.0722 ) ) );
+      gl_FragColor.rgb = mix( gl_FragColor.rgb, fogBank, 1.0 - exp( - fogTau ) );
+    }
   #endif
   gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, 1.0 - exp( - aerialTau * ${AIR_SPECTRUM_GLSL} ) );
 #endif
@@ -151,9 +242,9 @@ const FRAGMENT = (hazeHeight: number) => /* glsl */`
  * must run before the first program compiles, and every scape on the page shares
  * one haze height (the last one installed).
  */
-export function installAerialPerspective (hazeHeight: number): void {
+export function installAerialPerspective (hazeHeight: number, waterLevel = 0): void {
   ShaderChunk.fog_pars_vertex   = PARS_VERTEX
   ShaderChunk.fog_vertex        = VERTEX
   ShaderChunk.fog_pars_fragment = PARS_FRAGMENT
-  ShaderChunk.fog_fragment      = FRAGMENT(Math.max(1, hazeHeight))
+  ShaderChunk.fog_fragment      = FRAGMENT(Math.max(1, hazeHeight), waterLevel)
 }

@@ -96,7 +96,6 @@ interface MistSheet {
 
 const TEXTURE_SIZE = 128
 const DRIFT_SPEED  = 1.6
-const LAYER_ALPHA  = 0.34
 
 /** Radians between one sheet's heading and the next. See {@link MistOptions.wind}. */
 const SHEET_SPREAD = 0.11
@@ -154,14 +153,13 @@ export function mistSliceReach (index: number, count: number, viewSize: number):
  * only partial now — so resolving it inside the loop would rebuild the same
  * five numbers a quarter of a million times and allocate an object for each.
  */
-function islandExtents (config: ScapeConfig): { x: number, z: number, size: number, landRadius: number }[] {
+function islandExtents (config: ScapeConfig): { x: number, z: number, landRadius: number }[] {
   return config.archipelago.landmasses.map(landmass => {
     const island = landmassTerrain(config, landmass)
 
     return {
       x:          landmass.origin[0],
       z:          landmass.origin[1],
-      size:       island.size,
       landRadius: island.size * 0.5 * island.islandOuter,
     }
   })
@@ -169,10 +167,6 @@ function islandExtents (config: ScapeConfig): { x: number, z: number, size: numb
 
 /** Texels across the island mask. 512 over the sheet is about thirteen metres a texel. */
 const MASK_SIZE = 512
-
-/** Radial fade band, as fractions of the terrain extent. */
-const REACH_IN  = 0.16
-const REACH_OUT = 0.44
 
 /** Per-sheet opacity of the sea smoke, before the year scales it. */
 const SMOKE_ALPHA = 0.42
@@ -199,34 +193,27 @@ const SMOKE_OUT = 2
 const SMOKE_EDGE_IN  = 0.68
 const SMOKE_EDGE_OUT = 0.96
 
-/** Which of the mask's channels a family is cut by: red, green, or neither (the upright slices). */
-type MaskChannel = 'land' | 'smoke' | 'none'
-
-const MASK_CHANNELS: Record<MaskChannel, Vector3> = {
-  land:  new Vector3(1, 0, 0),
-  smoke: new Vector3(0, 1, 0),
-  none:  new Vector3(0, 0, 1),
-}
+/** Whether a family is cut by the offshore mask (the sea smoke) or by nothing (the upright slices). */
+type MaskChannel = 'smoke' | 'none'
 
 const WHITE    = new Color('#ffffff')
 const viewAxis = new Vector3()
 
 /**
- * Where the mist and the sea smoke stand, as one world-space mask.
+ * Where the sea smoke stands, as a world-space mask.
  *
- * The sheets are pinned to the world and wide enough to lie over every pixel
- * of open water in the frame, so both families are cut by a mask baked here:
- * **red** is the ground mist, dense on the islands and gone by the time the eye
- * is out at sea; **green** is the sea smoke, which starts at the coastline,
- * builds offshore and gives out before the sheet's own straight edge.
+ * The smoke's sheets are pinned to the world and wide enough to lie over every
+ * pixel of open water in the frame, so they are cut by a mask baked here: it
+ * starts at the coastline, builds offshore and gives out before the sheet's own
+ * straight edge. (The ground mist had the other channel of this, dense on the
+ * islands — it is a term in the aerial chunk now and needs no mask: see
+ * `groundFog` in `aerial.ts`.)
  *
  * A texture rather than vertex colours, and that was a performance finding: a
  * vertex mask needed the sheet subdivided every twenty metres, which on a
  * six-kilometre quad is 224k triangles a sheet for a gradient. The texture is
  * read in world metres off the weather bank's varying, so each sheet is two
- * triangles — and the mask can no longer disagree with the sheet's rotation,
- * which the vertex version did: it read the plane's `y` as world `z`, so every
- * island's mist stood over its mirror image across the equator of the map.
+ * triangles.
  */
 export function bakeMistMask (data: Uint8Array, size: number, config: ScapeConfig): void {
   const islands = islandExtents(config)
@@ -236,22 +223,15 @@ export function bakeMistMask (data: Uint8Array, size: number, config: ScapeConfi
     for (let column = 0; column < MASK_SIZE; column += 1) {
       const x = ((column + 0.5) / MASK_SIZE - 0.5) * size
       const z = ((row + 0.5) / MASK_SIZE - 0.5) * size
-      let land   = 0,
-        offshore = 1
+      let offshore = 1
 
-      for (const island of islands) {
-        const distance = hypot(x - island.x, z - island.z)
-
-        land     = Math.max(land, 1 - smoothstep(island.size * REACH_IN, island.size * REACH_OUT, distance))
-        offshore = Math.min(offshore, smoothstep(island.landRadius * SMOKE_IN, island.landRadius * SMOKE_OUT, distance))
-      }
+      for (const island of islands)
+        offshore = Math.min(offshore, smoothstep(island.landRadius * SMOKE_IN, island.landRadius * SMOKE_OUT, hypot(x - island.x, z - island.z)))
 
       const offset = (row * MASK_SIZE + column) * 4
       const edge   = 1 - smoothstep(half * SMOKE_EDGE_IN, half * SMOKE_EDGE_OUT, hypot(x, z))
 
-      data[offset]     = Math.round(land * 255)
-      data[offset + 1] = Math.round(offshore * edge * 255)
-      data[offset + 2] = 0
+      data.fill(Math.round(offshore * edge * 255), offset, offset + 3)
       data[offset + 3] = 255
     }
 }
@@ -400,9 +380,9 @@ export function createMistLayer ({
     // share, and it costs a varying — see `weather-bank.ts`.
     material.onBeforeCompile = (program: WebGLProgramParametersWithUniforms) => {
       Object.assign(program.uniforms, bankUniforms, {
-        uMistMask:        { value: mask },
-        uMistMaskScale:   { value: 1 / sheetSize },
-        uMistMaskChannel: { value: MASK_CHANNELS[channel] },
+        uMistMask:      { value: mask },
+        uMistMaskScale: { value: 1 / sheetSize },
+        uMistMasked:    { value: channel === 'smoke' ? 1 : 0 },
       })
 
       program.vertexShader = program.vertexShader
@@ -413,11 +393,11 @@ export function createMistLayer ({
         .replace('#include <common>', `#include <common>\n${WEATHER_BANK_PARS_FRAGMENT}`)
         .replace('#include <map_fragment>', `${WEATHER_BANK_MAP_FRAGMENT}
   vec4 mistMask = texture2D(uMistMask, vWeatherGround * uMistMaskScale + 0.5);
-  diffuseColor.a *= dot(mistMask.rg, uMistMaskChannel.xy) + uMistMaskChannel.z;`)
+  diffuseColor.a *= mix(1.0, mistMask.g, uMistMasked);`)
         .replace('#include <common>', `#include <common>
 uniform sampler2D uMistMask;
 uniform float uMistMaskScale;
-uniform vec3 uMistMaskChannel;`)
+uniform float uMistMasked;`)
     }
 
     return material
@@ -461,24 +441,6 @@ uniform vec3 uMistMaskChannel;`)
     map.offset.set(sheet.phaseX, sheet.phaseY)
   }
 
-  const sheets = Array.from({ length: count }, (_unused, index): MistSheet => {
-    const weight   = (1 - index / (count + 1)) * LAYER_ALPHA
-    const material = mistMaterial(tile(index, 1), amount * weight, `mist-${index + 1}`, mistColor, 'land')
-
-    // Pinned to the world, not to the camera. A sheet that chases the focus
-    // point drags its whole cloud pattern across the ground as you pan, which
-    // reads as the *island* moving — the one thing ground mist must never do.
-    const mesh         = new Mesh(geometry, material)
-    mesh.name          = `mist-${index + 1}`
-    mesh.rotation.x    = -Math.PI / 2
-    mesh.position.y    = waterLine + 1.45 + index * 1.15
-    mesh.renderOrder   = LAYER.mist + index
-    mesh.frustumCulled = false
-    mesh.visible       = visible
-
-    return { mesh, ...drift(index, weight, mistColor) }
-  })
-
   const slices = Array.from({ length: sliceCount }, (_unused, index): MistSheet => {
     const weight   = (1 - index / (sliceCount + 1)) * SLICE_ALPHA
     const material = mistMaterial(tile(index, 0.5), amount * weight, `mist-slice-${index + 1}`, mistColor, 'none')
@@ -487,11 +449,11 @@ uniform vec3 uMistMaskChannel;`)
     mesh.name           = `mist-slice-${index + 1}`
     mesh.rotation.order = 'YXZ'
     mesh.position.y     = waterLine + MIST_HEIGHT * 0.5 - 0.6
-    mesh.renderOrder    = LAYER.mist + count + index
+    mesh.renderOrder    = LAYER.mist + index
     mesh.frustumCulled  = false
     mesh.visible        = visible
 
-    return { mesh, ...drift(index + count, weight, mistColor) }
+    return { mesh, ...drift(index, weight, mistColor) }
   })
 
   /**
@@ -524,11 +486,10 @@ uniform vec3 uMistMaskChannel;`)
     // nothing to draw, and the sheet is the width of the map.
     mesh.visible = false
 
-    return { mesh, ...drift(index + count + sliceCount, weight, smokeColor) }
+    return { mesh, ...drift(index + sliceCount, weight, smokeColor) }
   })
 
-  const drifting = [ ...sheets, ...slices ]
-  const all      = [ ...drifting, ...smoke ]
+  const all = [ ...slices, ...smoke ]
 
   return defineModule<ScapeConfig>({
     name: 'ground-mist',
@@ -557,7 +518,7 @@ uniform vec3 uMistMaskChannel;`)
       mistColor.copy(daylight.horizon).lerp(WHITE, 0.32)
       smokeColor.copy(daylight.horizon).lerp(WHITE, 0.62)
 
-      for (const sheet of drifting)
+      for (const sheet of slices)
         advance(sheet, density)
 
       // The year, not the weather. Sea smoke is off for all but a fortnight of

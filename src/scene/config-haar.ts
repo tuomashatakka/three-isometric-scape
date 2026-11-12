@@ -85,18 +85,6 @@ export interface HaarConfig {
     depth: number
 
     /**
-     * How hard the wind pushes the bank along, dimensionless.
-     *
-     * The same response `atmosphere.mistDrag` is, and deliberately its own
-     * number rather than a share of it: a bank in a calm still creeps, where the
-     * haze above it is being carried, and the two have never moved together on
-     * any coast. 0 pins the field to the world and is what a capture of a
-     * *shape* wants; nothing in `STILL` touches it, because the travel it
-     * multiplies is the wind's own and the wind is already stopped there.
-     */
-    drag: number
-
-    /**
      * The wind strength that clears the bank entirely.
      *
      * Dimensionless, in `wind.strength`'s own units, and it is measured against
@@ -172,11 +160,6 @@ export const SCAPE_HAAR: HaarConfig = {
     // calm night is about six tenths of cover where the fog is solid and a
     // quarter where a lane runs through it.
     strength: 0.85,
-
-    // Slower than the haze above it. A bank sits in the air it cooled in; what
-    // moves it is the weak drainage wind that made it rather than the gradient
-    // wind overhead, and `atmosphere.mistDrag` is at 0.6 for the latter.
-    drag: 0.4,
 
     // Clear of the authored 0.9 and clear of the 1.2 it gusts to, with enough
     // room left that the front is visible in the bank rather than sweeping it

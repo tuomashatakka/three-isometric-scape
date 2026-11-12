@@ -371,7 +371,7 @@ export function createHaarLayer ({
         const step = (wind.travel - sheet.travelled) *
           DRIFT_SPEED *
           sheet.speed *
-          haar.drag /
+          config().atmosphere.mistDrag /
           sheetSize *
           map.repeat.x
 
