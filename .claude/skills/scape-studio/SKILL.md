@@ -30,6 +30,7 @@ under `src/` reloads by itself.
 ```sh
 bun run studio shot --poses tour                       # default near far noon night winter
 bun run studio shot --poses near,noon                  # comma list: names out of the tour
+bun run studio shot --poses fog                        # the ground fog: dawn, noon, and mist off, at a zoom that resolves a strand
 bun run studio shot --poses chapel                     # any named set in scripts/scape-poses*.ts (an unknown name shoots the default pose)
 bun run studio shot --zoom 12 --time 0.5 --set camera.focusX=-12 --set camera.focusZ=11 --name yard
 bun run studio shot --rot 135 --season 0.95 --name winter-lee      # yaw, and the year 0..1
@@ -70,7 +71,8 @@ on a mesh. It runs in the same queue as looks, against the state the last look l
 
 `probe` the point (names, nearest first), then `--hide` the suspects one shot at a
 time — far cheaper than reasoning from pixels. When the culprit is a *shader term*
-rather than a mesh, zero its knob instead (`--set atmosphere.cloudShadow=0`,
+rather than a mesh, zero its knob instead (`--set atmosphere.mistAmount=0` for the
+ground fog — it is in every material, there is no mesh to hide; `--set atmosphere.cloudShadow=0`,
 `terrain.detailGrain=0`, `look.ao=0`, `look.lens=0`): one shot per
 suspect. Hidden meshes come back on the next look.
 

@@ -363,10 +363,7 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           'the night bank',
           range('haar.strength', 'thickness', 0, 1, 0.01, quality.haarSheets > 0),
           0.85,
-          [
-            range('haar.top', 'top (m)', 0, 12, 0.1),
-            range('haar.drag', 'drift', 0, 1.5, 0.01),
-          ],
+          [ range('haar.top', 'top (m)', 0, 12, 0.1) ],
         ),
 
         // Under the two fogs because it is the third thing hung in the same air,

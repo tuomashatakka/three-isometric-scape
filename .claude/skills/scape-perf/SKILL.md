@@ -87,8 +87,11 @@ exact — the procedure is in `scape-verify`.
 - **shader tap counts** — `detailTaps` (1 = the lite ground path on
   minimal/mobile, 6 = normal map + relief + macro octave), `reliefSteps`,
   `lensTaps`: fill-rate levers, each compiled per tier.
-- **world-sized sheets** (mist, haar, clouds) — a gradient across a world-sized
-  quad belongs in a texture read in world metres (see `mist.ts`'s mask), never
+- **world-sized sheets** (mist slices, sea smoke, haar, clouds) — each is a
+  full-frame blend. If the thing is a function of where the fragment is, it is a
+  term in the aerial chunk instead (`groundFog` in `aerial.ts` replaced the flat
+  mist sheets: no draw, no overdraw, every tier). Otherwise a gradient across a
+  world-sized quad belongs in a texture read in world metres (see `mist.ts`'s mask), never
   in vertex colours on a subdivided plane.
 - **CPU build** — `surveyArchipelago` is memoized on config content. Hot loops
   use `hypot`/`hypot3` from `src/scene/hypot.ts`, never `Math.hypot`.

@@ -452,6 +452,16 @@ export const TOURS: Record<string, Pose[]> = {
   })),
 
   /**
+   * The fog on the low ground (`groundFog`, `aerial.ts`): the home island at a
+   * zoom that resolves a strand, at dawn, at noon, and with the mist off.
+   */
+  fog: [
+    { name: 'fog-dawn', zoom: 60, time: 0.22, set: [ 'weather.time=0' ]},
+    { name: 'fog-noon', zoom: 60, time: 0.5, set: [ 'weather.time=0' ]},
+    { name: 'fog-off', zoom: 60, time: 0.22, set: [ 'weather.time=0', 'atmosphere.mistAmount=0' ]},
+  ],
+
+  /**
    * The shoreline, from the water's side.
    *
    * Added for the same reason `beacon` was. Every pose in `tour` is aimed at the

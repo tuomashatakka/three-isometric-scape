@@ -2,6 +2,16 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the fog on the low ground — and the mist sheets are gone
+
+ground mist was a stack of world-sized transparent sheets: flat, masked, and a full-frame blend each. it is `groundFog` in the aerial chunk now ([`aerial.ts`](src/scene/aerial.ts)): a density profile in height above the waterline (nothing on the sea, thickest a metre up the strand, gone by the ridge), lying in world-space banks, grey, painted before the haze of distance. sills, trunks and the strand stand in it; roofs, crowns and the lighthouse stand out of it.
+
+- **every tier, no new uniform.** the amount rides in three's `fogNear`, which only carried a constant; the bank field is per vertex. the fragment pays two `exp` behind a uniform branch.
+- **the day burns it off.** `atmosphere.mistAmount` is 1.8× with the sun down (`GROUND_FOG_NIGHT`) and breathes on `fogBreath`.
+- **deleted:** the flat `mist-N` sheets and their mask channel; `haar.drag` (the night bank drifts on `atmosphere.mistDrag`). one panel row fewer.
+- **cost:** mobile two draws fewer in every tour pose — default 139 → 137, near 87 → 85, night 146 → 144, winter 145 → 143; triangles and the 30 programs unchanged, two textures fewer. desktop near 222 → 218 draws, 4.82M triangles unchanged. one full-frame blend fewer on mobile, four on desktop, six on ultra.
+- **moved:** low ground at mid and near zoom, most at dawn and night (`--zoom 60 --time 0.22`). the two tour extremes barely move: the near pose's yard stands above the fog and the default frame is too wide to resolve a strand. `aerial.test.ts` pins that nothing lies on the water, that a ridge stands out of the fog its sill is in, and that the chunk reads the amount from `fogNear`.
+
 ## the film, on every tier — and the stock is one stock
 
 the phone tier has no post chain, so the frames most people see went out ungraded. the grade was a 33³ lookup in the lens pass; [`film.ts`](src/scene/film.ts) is the same grade as one closed-form function — contrast about mid-grey, the shoulder, the stock, the split tone — and it runs in the lens where a chain exists and inside every material's tone-mapping stage (three's `CustomToneMapping`, then the same ACES curve) where it does not. `look.intensity` stays live on the phone: the strength rides in the exposure uniform.

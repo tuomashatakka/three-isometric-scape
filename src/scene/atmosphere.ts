@@ -18,7 +18,7 @@ import type {
 import { defineModule } from 'threejs-scene'
 import type { SceneContext } from 'threejs-scene'
 import { standardLighting } from 'threejs-scene/modules/lighting'
-import { hazeRange, installAerialPerspective } from './aerial.ts'
+import { groundFogAmount, hazeRange, installAerialPerspective } from './aerial.ts'
 import { installDirectFilm, packExposure } from './film.ts'
 import { landmassTerrain } from './config.ts'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
@@ -237,7 +237,7 @@ export function createAtmosphereLayer ({
   // light's colour is set at construction — the per-frame reads below all go
   // back to the store instead.
   const authored = config()
-  installAerialPerspective(authored.atmosphere.hazeHeight)
+  installAerialPerspective(authored.atmosphere.hazeHeight, authored.terrain.waterLevel)
 
   const daylight = createDaylight(config)
 
@@ -407,7 +407,9 @@ export function createAtmosphereLayer ({
     ) * config().atmosphere.fogBreath
     const range = hazeRange(config().atmosphere.fogDensity, breath, MAX_FOG)
 
-    fog.near = range.near
+    // `near` is not a distance here: the aerial chunk reads it as the ground
+    // fog's optical depth, and the clear radius is compiled in.
+    fog.near = groundFogAmount(config().atmosphere.mistAmount, breath, sky.day)
     fog.far  = range.far
     scatter()
 

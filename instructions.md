@@ -26,6 +26,7 @@ the world already has more sites than most frames show — six islands, a hundre
 - **scale and detail** — what close zoom shows (richer geometry, texture detail), what wide zoom shows (silhouettes, coastline, the sea), and an lod that makes the first cost nothing at the second
 - **cost** — fewer draws, fewer triangles, cheaper passes, a faster first load (`scape:bench`); every tier, mobile first
 - **the optical pipeline** — the post chain is a camera, not a stack of filters: one pass per physical stage (scene light, then the glass in [`lens.ts`](src/scene/lens.ts) and the film in [`film.ts`](src/scene/film.ts)), merged rather than appended. a new screen-space effect folds into an existing pass when it reads the same pixels. anything that is a function of one pixel alone (a curve, a tint, a toe) belongs in `film.ts`, where it reaches the phone too: the film runs inside every material's tone mapping on a tier with no chain
+- **the free channels first** — every fogged program already includes the aerial chunk and already carries three's fog uniforms, and tone mapping already runs in every material. a term that rides one of those (`groundFog` on `fogNear`, the film on the exposure) reaches every material on every tier with no new program, no `onBeforeCompile` and no draw. look there before adding a mesh or a pass
 - **the shared kit over the single prop** — a look that belongs to a *kind* of thing (every stone, every board, every roof) lands once, in the helper every prop of that kind is built through (`stonePart`, `soften`, the two scape materials), so one change reaches every island. a term keyed on what the albedo already is (`heathFragment` on greens, `weatheringFragment` on neutral greys) reaches every prop of a kind with no per-prop flag and no new program
 - **fewer, broader knobs** — one parameter per physical decision (`look.lens` is defocus, fringe, vignette, halation and grain at once). a run that adds a knob should look for two it can merge or retire; the panel only shrinks
 
@@ -36,7 +37,9 @@ a new prop or site is still allowed, when it is the cheapest way to make a frame
 - ~~the phone has no post chain at all: a grade that survives the context-loss budget~~ — landed as `film.ts`, in the materials' tone mapping. still open on the phone: the **vignette** (needs the fragment's place in the frame — a varying off the aerial vertex chunk, or the drawing-buffer size) and **contact shade** with no depth pass
 - the phone's light is thinner than the desktop's (no environment map, no shadow map): the same pose is darker and flatter before the film ever sees it. a baked sky-light term or a cheaper key shadow would close the gap the grade cannot
 - terrain normals from the height field at close zoom, so slopes stop shading as broad facets
-- height fog that lies in the valleys and thins up the slopes, on every tier, not only the haar sheets
+- ~~height fog that lies in the valleys and thins up the slopes, on every tier~~ — landed as `groundFog` in the aerial chunk (`aerial.ts`), driven by `atmosphere.mistAmount` through the spare `fogNear` uniform; the flat mist sheets are gone. still open: the banks are pinned to the world (the chunk has no clock — a drift needs a second free uniform), and the profile is height above the *waterline*, so a hollow high on a fell holds no fog
+- the remaining world-sized transparent sheets (the upright mist slices, the sea smoke, the haar, the cloud deck) are each a full-frame blend: fold what is a function of the fragment's place into the aerial chunk the way the ground mist went, and delete the sheet
+- sky light that knows the terrain: the hemisphere term is one colour everywhere, so a gully is as bright as a summit before the contact shade. an openness term from the height field, in the shared ground material
 - stone geometry: boulders and cairn blocks read as smooth blobs in silhouette; a shared displaced-stone builder in the kit, not per prop
 - timber end grain and board seams on the upright path (the bark map is one stretched field)
 - per-instance colour and scale variation on every scattered family, read from the instance matrix rather than authored per prop
@@ -178,5 +181,6 @@ the prompt stays a pointer to this file, so changing how the runs behave is a re
 - a realism claim without a before/after look
 - new geometry that is neither merged nor instanced, or a world-sized subdivided sheet
 - an effect that only exists on the ultra tier because nobody sized it for mobile
+- a world-sized transparent sheet for something that is a function of where the fragment is
 - reading six screenshots where one census line would have answered the question
 - a merged branch with red checks

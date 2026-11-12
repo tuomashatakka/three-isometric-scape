@@ -294,7 +294,7 @@ src/
     ├── windows.ts                  lamplight in the farmstead windows, and the household that lights it
     ├── shore-lights.ts             the far coast's lit windows, as one camera-facing points draw
     ├── film.ts                     the grade as one function: in the lens with a chain, in the materials' tone mapping without
-    ├── mist.ts                     ground-mist sheets, and the sea smoke off the coast
+    ├── mist.ts                     the upright mist slices, and the sea smoke off the coast (the ground mist is `groundFog` in aerial.ts)
     ├── haar.ts                     the night fog bank: level sheets, and the four gates that make one
     ├── shafts.ts                   the daylight in the gaps of that deck: one stack, one draw, one cloud map
     ├── noise.ts                    deterministic height sampler
@@ -698,6 +698,17 @@ the mobile frame had no shadows at all. phones skip the shadow map — the hidde
 **one knob for occlusion.** `look.ao` was the strength of the ultra-only gtao. it is now the strength of the sky map on every tier, and 0 turns off both the shade and the march's shadow. it is in the optics panel as *occlusion*. `terrain.detailScale` and `terrain.detailMacro` are constants (`DETAIL_TILE`, `DETAIL_MACRO` in `props/material.ts`): neither was ever a decision about the place. the panel loses two soil sliders and gains one.
 
 **cost.** no draws, no triangles, the same 30 programs. the bake runs once, in the task after the first dressed frame. on this container it takes 0.34 s on mobile; desktop measured 1.0 s before the box blur was rewritten to walk rows, which cut the blur from 353 to 135 ms at 1536². the texture is an rgba8 upload of 9.4 mb on mobile and 16.8 mb on desktop. ultra runs one full-resolution pass fewer.
+
+## the fog on the low ground
+
+ground mist was a stack of world-sized transparent sheets a metre apart: one full-frame blend each on every tier, cut by a baked mask, and flat — a sheet does not know a roof stands above it, so it veiled the ridge as much as the sill. it is a function of the fragment now, in the fog chunk every fogged program already includes ([`aerial.ts`](src/scene/aerial.ts), `groundFog`).
+
+- **a profile in height above the waterline.** radiation fog is the night's cold air, run downhill and stopped. nothing lies on the water (the sea is warmer than the air, which is why a bank stops at the shore), it is thickest a metre up the strand (`GROUND_FOG_FOOT`), and it thins by e every `GROUND_FOG_HEIGHT` (2.6 m). a house stands with its sill in it and its ridge out, a spruce with its crown clear, and the lighthouse out of all of it.
+- **banks, not a veil.** `groundFogBank` is two warped sines in world metres — banks about 150 m across with 40 m wisps in them — evaluated per vertex, so the fragment pays two `exp` and nothing else. no texture, no mask, no clock: the banks are pinned to the world.
+- **grey, and lit by the sky.** droplets scatter every wavelength alike, so the fog does not go through `AIR_SPECTRUM`; it is the horizon's colour pushed toward white by how bright that colour is, so it does not glow at night. it is painted before the haze of distance, because the air is between it and the eye.
+- **the day burns it off.** the amount is `atmosphere.mistAmount` times `1 + GROUND_FOG_NIGHT × (1 − day)`: the same knob is a dawn with the strand gone and a noon with a trace in the hollows. it breathes on `atmosphere.fogBreath` with the haze.
+- **no new uniform.** the amount rides in three's `fogNear`. the clear radius that uniform carried never moved, so it is compiled into the chunk, and the uniform every fogged program already has is free. that is how one term reaches the terrain, every prop, every instanced tree and the water on every tier without one `onBeforeCompile`.
+- **what went.** the flat `mist-N` sheets, their red mask channel, and `haar.drag` (the night bank drifts on `atmosphere.mistDrag` now: one substance, one drift). `quality.mistLayers` counts only the upright slices and the sea smoke.
 
 ## a quilt on the heath
 
@@ -3680,7 +3691,7 @@ four of them, all in the capture harness rather than in the scene, and every one
 the census the studio added (`bun run studio census`) showed where a mobile frame went: **3.2 million triangles at the default whole-archipelago frame**, nearly all of it things too small to see or too far to be in frame. every scattered family was one `InstancedMesh` over the whole world with culling off, so four thousand grass tufts a fifth of a pixel tall were drawn at the default zoom, and the whole world's grass was drawn when the camera stood in one yard. and the two mist sheets were 224k triangles each — a six-kilometre quad subdivided every twenty metres to carry a radial fade in its vertex colours.
 
 - **[`scatter-lod.ts`](src/scene/landscape/scatter-lod.ts)** decides per frame, from the orthographic camera. a family whose median instance projects under `lod.pixels` is not drawn. each family is also cut at build into `lod.tile`-metre tiles with real bounding spheres; inside `lod.wide` metres of view the tiles are drawn and the renderer culls them, and past it the one world-wide mesh is, so the draw count does not multiply exactly when everything is in frame anyway.
-- **the mist mask is a texture.** one 512² bake in world metres (red the ground mist, green the sea smoke), read off the weather bank's varying, so every sheet is two triangles. the vertex version had also read the plane's local `y` as world `z` — every island's mist stood over its mirror image.
+- **the mist mask is a texture.** one 512² bake in world metres (the sea smoke's offshore band; the ground mist's half of it went when the mist became a term in the aerial chunk), read off the weather bank's varying, so every sheet is two triangles. the vertex version had also read the plane's local `y` as world `z` — every island's mist stood over its mirror image.
 - **smooth shading.** the ground and foliage materials dropped `flatShading`: the terrain already had computed vertex normals, and the facets were the single most diorama-like thing in a close frame. rocks and buildings keep hard edges because their own geometry has them.
 
 the result, mobile tier: default frame **3.20M → 0.95M triangles, 167 → 142 draws**; `near` **3.15M → 0.89M, 67 → 84 draws** (more draws, since the tiles in frame replace one world-wide mesh each, for a third of the triangles).
