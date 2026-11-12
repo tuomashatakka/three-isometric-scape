@@ -15,6 +15,8 @@ pure typescript, so ascii and numbers come before pictures.
 | `threejs-scene-api.md` · `node_modules/threejs-scene/llms.txt` | does the runtime already do this · its exact signature | one read | agents.md, `threejs-scene-api.md` |
 | `bun run api:digest --check` | is the digest stale against the installed runtime | ~1 s | agents.md |
 | `bun run scape:map [--stats\|--json] [--window x,z,size] [--layers …] [--seed n] [--set a.b=1]` | did the composition survive; where is a site; structure before/after every change | seconds, no browser | agents.md, `scape:map` |
+| `.claude/hooks/session-start.sh` (automatic in a cloud session) | the run card: every command, the brief, asset counts, branch — already in context at session start | ~5 s | agents.md, the session-start hook |
+| `bun run assets [filter] [--props --kit --textures --json]` | what exists to reuse: every prop (group, triangles, metres, file), kit helper and texture | ~1 s | `scape-assets` |
 | `bun run prop:map <name> [--view front,right] [--audit] [--all --cols 48] [--list]` · `prop:watch` | what one prop's mesh looks like; which palette entry is where | ~40 ms | agents.md, `prop:map` |
 | `bun run prop:audit` | floating / buried / heavy props (in the gate) | <1 s, advisory | `scape-verify` |
 | `bun run dev` → `/props.html[?prop=name&seed=n]` | a person looking at the roster or one prop in four views | one gpu context, :4174 | agents.md, `/props.html` |

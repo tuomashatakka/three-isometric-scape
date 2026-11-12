@@ -16,7 +16,8 @@ the tool reference for anything working on this repository without a pair of eye
 | what colour is where on a prop | `bun run prop:map <name> --audit` | ~40 ms, no browser |
 | is any prop floating, buried or heavy | `bun run prop:audit` | ~0.4 s, no browser |
 | did a build-time change move the world | `bun run scape:bench` on both sides | seconds, no browser |
-| what does the roster look like | `/props.html` (dev server) | one gpu context |
+| what assets exist, what they cost, where they live | `bun run assets [filter]` (skill: `scape-assets`) | ~1 s, no gpu |
+| what does the roster look like | `/props.html` (dev server; linked from the main page's card) | one gpu context |
 | how does one prop measure up | `/props.html?prop=<name>` | one gpu context |
 | what does it look like, live | `bun run studio shot …` (skill: `scape-studio`) | ~60 s once, then ~5–15 s a look |
 | where do the triangles and draws go | `bun run studio census` (skill: `scape-perf`) | seconds, once the studio is up |
@@ -27,6 +28,10 @@ the tool reference for anything working on this repository without a pair of eye
 costs are on a four-core cloud container. every script takes `--key value` and `--key=value` alike, and `--set` repeats ([`scripts/args.ts`](scripts/args.ts)).
 
 ---
+
+## the session-start hook — before anything
+
+[`.claude/hooks/session-start.sh`](.claude/hooks/session-start.sh), registered in `.claude/settings.json`, runs when a cloud session starts (it exits at once anywhere else). it runs `bun install --frozen-lockfile` only when `package.json`, `bun.lock` or the hook itself changed (hash in `node_modules/.session-start.sha256`), then prints the **run card**: the command cheat sheet, `brief` without its readme index, the asset counts and the branch. about five seconds when nothing needs installing. it is synchronous, so the card is in context before the first message. keep the card's command list in step with `package.json`.
 
 ## `bun run setup` — before the brief
 

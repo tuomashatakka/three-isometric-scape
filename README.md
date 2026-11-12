@@ -55,6 +55,10 @@ the stats block is the part that earns its keep. a beck that failed to trace, an
 
 the audit has to match in **linear** colour. three bakes the colour attribute out of srgb and that conversion is a power curve rather than a scale, so a swatch compared in srgb does not point the same way as its own facets: matched wrong, the rust chimney lands in the falu bucket and hides the very fault the tool exists to find. hues separate cleanly; the greys (granite, shingle, iron, trim) are near-collinear and trade places, so read those as one family.
 
+### the asset catalog
+
+`bun run assets [filter]` prints the whole inventory as text, in about a second and without a gpu: every prop in `PROPS` with its group (placed by hand, scattered, unplaced), triangle count, size in metres and the file that builds it; every shared kit helper a prop is built through, with `file:line`; and every texture in `TEXTURES`. `--props`, `--kit`, `--textures` narrow it and `--json` hands it to a script. it is the first thing to run before writing a prop or a helper, because the helper usually exists. the page below is the same catalog with pixels; the main page's title card links to it ("asset catalog →") and it links back.
+
 ### the prop viewer
 
 `/props.html` is the same question with a gpu behind it, in two modes decided by the query string.
@@ -467,6 +471,7 @@ scripts/
 ├── brief.ts                        where a run starts: inventory, themes, prs, survey
 ├── gate.ts                         the light gate (changed tests, two processes at most) and --full
 ├── api-digest.ts                   what the runtime exports, and what we use of it
+├── assets.ts                       the asset catalog as text: props, kit helpers, textures
 ├── prop-map.ts                     one prop as ascii, from six angles
 ├── prop-audit.ts                   the runtime's reviewProp over the whole roster, advisory
 ├── scape-map.ts                    the whole composition as ascii, surveyed

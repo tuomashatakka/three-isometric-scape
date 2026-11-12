@@ -8,6 +8,7 @@ written to be read cold. a run starts with no memory of the previous one. everyt
 - **`.claude/skills/scape-studio`** — how to *look*: a warm browser, seconds per picture
 - **`.claude/skills/scape-perf`** — how to *measure*: the triangle and draw census, and the levers that exist
 - **`.claude/skills/scape-verify`** — how to *check*: the light gate and the full one
+- **`.claude/skills/scape-assets`** — what already *exists*: `bun run assets` prints every prop, shared kit helper and texture with its cost and file; `/props.html` is the same catalog with pixels
 - **`.claude/skills/scape-tools`** — which instrument: every dev tool, what it costs, and where its detail lives
 - **[`agents.md`](agents.md)** — every script and flag, the module surface, the traps
 - **[`README.md`](README.md)** — why the scene is the way it is
@@ -48,6 +49,10 @@ what a run may **not** do is ship something that does not pass the gate, adds co
 
 ---
 
+## 0. the run card
+
+a cloud session starts with [`.claude/hooks/session-start.sh`](.claude/hooks/session-start.sh) already run (registered in `.claude/settings.json`): dependencies installed, and a *run card* printed into the session — every command a run needs, the brief (inventory, recent themes, survey), the asset counts and the branch. read it before anything else; when a tool is added or renamed, the card is edited in the same commit.
+
 ## 1. sync
 
 ```sh
@@ -63,6 +68,7 @@ if a previous run's pull request is still open, finish *that* first — drive it
 ```sh
 bun run studio serve                         # in the background; wait for "studio ready"
 bun run brief                                # ~2 s: inventory, recent themes, open prs, map stats
+bun run assets --kit                         # ~1 s: the shared helpers a change to a *kind* of prop belongs in
 bun run studio shot --poses tour --census    # the before picture, and where the triangles go
 ```
 
