@@ -29,6 +29,10 @@ costs are on a four-core cloud container. every script takes `--key value` and `
 
 ---
 
+## the session-start hook — before anything
+
+[`.claude/hooks/session-start.sh`](.claude/hooks/session-start.sh), registered in `.claude/settings.json`, runs when a cloud session starts (it exits at once anywhere else). it runs `bun install --frozen-lockfile` only when `package.json`, `bun.lock` or the hook itself changed (hash in `node_modules/.session-start.sha256`), then prints the **run card**: the command cheat sheet, `brief` without its readme index, the asset counts and the branch. about five seconds when nothing needs installing. it is synchronous, so the card is in context before the first message. keep the card's command list in step with `package.json`.
+
 ## `bun run setup` — before the brief
 
 ```sh

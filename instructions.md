@@ -49,6 +49,10 @@ what a run may **not** do is ship something that does not pass the gate, adds co
 
 ---
 
+## 0. the run card
+
+a cloud session starts with [`.claude/hooks/session-start.sh`](.claude/hooks/session-start.sh) already run (registered in `.claude/settings.json`): dependencies installed, and a *run card* printed into the session — every command a run needs, the brief (inventory, recent themes, survey), the asset counts and the branch. read it before anything else; when a tool is added or renamed, the card is edited in the same commit.
+
 ## 1. sync
 
 ```sh
