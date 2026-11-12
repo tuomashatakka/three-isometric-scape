@@ -16,7 +16,8 @@ the tool reference for anything working on this repository without a pair of eye
 | what colour is where on a prop | `bun run prop:map <name> --audit` | ~40 ms, no browser |
 | is any prop floating, buried or heavy | `bun run prop:audit` | ~0.4 s, no browser |
 | did a build-time change move the world | `bun run scape:bench` on both sides | seconds, no browser |
-| what does the roster look like | `/props.html` (dev server) | one gpu context |
+| what assets exist, what they cost, where they live | `bun run assets [filter]` (skill: `scape-assets`) | ~1 s, no gpu |
+| what does the roster look like | `/props.html` (dev server; linked from the main page's card) | one gpu context |
 | how does one prop measure up | `/props.html?prop=<name>` | one gpu context |
 | what does it look like, live | `bun run studio shot …` (skill: `scape-studio`) | ~60 s once, then ~5–15 s a look |
 | where do the triangles and draws go | `bun run studio census` (skill: `scape-perf`) | seconds, once the studio is up |

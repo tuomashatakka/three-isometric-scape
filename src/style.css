@@ -198,6 +198,23 @@ canvas:focus-visible {
   color: var(--ui-accent);
 }
 
+/* The way out to the asset catalog (`/props.html`): the roster of props the
+   scape is built from. A link in the card's own grammar, not a button. */
+.scape-link {
+  display: inline-block;
+  margin-top: 0.75rem;
+  color: var(--ui-dim);
+  font-size: 0.75rem;
+  text-decoration: none;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.scape-link:hover,
+.scape-link:focus-visible {
+  color: var(--ui-accent);
+  border-bottom-color: var(--ui-accent);
+}
+
 h1 {
   margin: 0 0 0.75rem;
   color: var(--ui-text);

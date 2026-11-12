@@ -2,6 +2,10 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the asset catalog, one command and one link away
+
+tooling, not a frame. `bun run assets [filter]` prints every prop (group, triangles, metres, file), every shared kit helper (`file:line`) and every texture in one table each, in about a second with no gpu; `--json` for scripts. a new `scape-assets` skill tells a run where the three lists live and how to look at, add or change an asset. the main page's title card links to `/props.html` ("asset catalog →"), which is titled *asset catalog* and links back. no scene code changed.
+
 ## the fog on the low ground — and the mist sheets are gone
 
 ground mist was a stack of world-sized transparent sheets: flat, masked, and a full-frame blend each. it is `groundFog` in the aerial chunk now ([`aerial.ts`](src/scene/aerial.ts)): a density profile in height above the waterline (nothing on the sea, thickest a metre up the strand, gone by the ridge), lying in world-space banks, grey, painted before the haze of distance. sills, trunks and the strand stand in it; roofs, crowns and the lighthouse stand out of it.
