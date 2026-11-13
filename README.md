@@ -414,6 +414,7 @@ src/
     │   ├── dressing-enclosures.ts  the pasture wall, the churchyard wall, the plot fences, the head dyke
     │   ├── dressing-harbour.ts     the waterfront: boathouse, net rack, the pots ashore, the trestle, the fish trap
     │   ├── dressing.ts             placement, hero merge, instanced scatter
+    │   ├── instance-tone.ts        no two of a kind the same colour: the scatter's warm/cool lean, keyed on the family's chroma
     │   ├── scatter-lod.ts          the scatter, hidden under a pixel and tiled for culling close in
     │   └── index.ts                the scene module, and what raycasts
     ├── textures/
@@ -426,6 +427,7 @@ src/
         ├── material.ts             shared materials, cloud shadow, wind, ground relief, wetness, snow, aspect
         ├── puddle.ts               the sky in wet ground, and the standing water in its hollows
         ├── weathering.ts           moss on the tops, lichen on the faces: every grey stone, slate and old board
+        ├── transmission.ts         light through the crown: the far side of every tree, lit through its foliage
         ├── ploppable.ts            2d placement with a ground-following foundation
         ├── fence.ts / wall.ts      continuous ground-following runs
         ├── lamp.ts                 the pane in the reveal and the haze in front of it
@@ -525,7 +527,7 @@ every prop is a pure geometry factory — `(rng, palette) => BufferGeometry` —
 that shape is what keeps the budget honest — detail costs vertices, not draw calls:
 
 - **hero props** are placed by hand at layout anchors and merged into a *single* geometry, so the whole steading plus all its fencing is one draw
-- **scattered props** are stamped through `scatterInstances`, one `InstancedMesh` each, with a near-white per-instance tint that varies the shade of a prop without repainting it
+- **scattered props** are stamped through `scatterInstances`, one `InstancedMesh` each, with a per-instance tint that varies the shade and — on a family with colour of its own — leans it warm or cool ([`instance-tone.ts`](src/scene/landscape/instance-tone.ts): a hash of where the instance stands, scaled by the family's mean chroma, so a spruce stand runs yellow-green to blue-green and a boulder stays grey) of a prop without repainting it
 
 [`fence.ts`](src/scene/props/fence.ts) and [`wall.ts`](src/scene/props/wall.ts) are the deliberate exceptions to the factory shape. `buildFenceRun` takes a polyline and sets each post at its own ground height, then spans the rails post to post so they pick up the slope on their own — a fence built from rigid identical segments either floats over dips or, tilted per segment, zig-zags where neighbours disagree, and real fences do neither. `buildStoneWallRun` follows the same line and puts three courses of granite per station on it, stations set *closer together than a stone is long* so the courses overlap: a wall is only ever a pile that happens to be long, and gaps are what separate one from a row of rocks.
 
@@ -745,6 +747,8 @@ the lookup was only ever a closed-form function baked into a cube. [`film.ts`](s
 **cost.** mobile census unchanged — near 87 / 0.90M, default 139 / 0.95M, 30 programs — plus about forty scalar operations per fragment. desktop near 222 / 4.82M, 63 programs; the lens loses a 3d fetch and the app a 144 kB texture and its bake. what the direct path cannot do is anything that reads a neighbour: defocus, halation, micro-contrast and the vignette stay the lens's.
 
 ## the shoulder of the film
+
+a screen makes a colour vivid by adding light; film makes it by laying down dye, and more dye is less light. `dyeDensity` takes up to 24% of a fully saturated colour's light (`DYE_DENSITY`) and none of a grey's, ahead of the shoulder, on every tier — a moss green rather than a neon one.
 
 a sensor clips each channel on its own, so a lit gable goes to a flat saturated block. film's dyes saturate together, so a highlight runs off toward white. the film's grade (`film.ts`) takes up to `SHOULDER_PULL` of a fragment's chroma between luminance 0.7 and 1.8 (`FILM_SHOULDER`), scaled by the grade's strength. it adds no fetch, and nothing under paper white moves.
 

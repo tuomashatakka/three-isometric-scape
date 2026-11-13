@@ -16,10 +16,15 @@ export const NORDIC_PALETTE = {
   birchScar:   '#3a3630',
   bark:        '#4d4038',
   barkDark:    '#3a3129',
-  spruce:      '#26402c',
-  spruceDeep:  '#1b2f22',
-  spruceLight: '#33512f',
-  pine:        '#38512f',
+
+  // The conifers were authored at about 2% reflectance — darker than wet peat —
+  // and so rendered as black cut-outs under any light. A needle reflects 5–8%
+  // in the green; these are that, and the depth between the crowns is the
+  // shading's to make (sky occlusion, the unlit far side), not the albedo's.
+  spruce:      '#35573a',
+  spruceDeep:  '#27432e',
+  spruceLight: '#456b3c',
+  pine:        '#4a6a3b',
 
   /** Juniper needle — the cool, dusty blue-green that sets it apart from the spruce. */
   juniper: '#4a5f52',

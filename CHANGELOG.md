@@ -2,6 +2,17 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## no two spruces the same green — and dye density in the film
+
+every scattered family was one geometry in one colour at several brightnesses: a stand of spruce read as a rubber stamp. the scatter's per-instance tint now *leans* as well as shades ([`landscape/instance-tone.ts`](src/scene/landscape/instance-tone.ts)): warm or cool by a hash of where the instance stands, scaled by the family's own mean chroma, so a stand runs yellow-green to blue-green, heather is never one purple, and a grey boulder — which would stop weathering if it went amber — stays grey. the film gains **dye density** ([`film.ts`](src/scene/film.ts)): a saturated colour gives up to 24% of its light, a grey none, so greens print deep rather than neon, on the phone's tone-mapping path and in the lens alike.
+
+- **the placement stream is untouched.** the lean is a hash of position, not an rng draw; `scape:map --stats` matches main.
+- **twelve rows and three sections fewer in the panel:** the kelp, the wash and the creels sections are gone, with `hearth.speed/drag/winter` and `carter.day/lean`. they are physics, not looks; the config leaves stay for `--set` and the url.
+- **cost:** no draws, triangles, programs, attributes or textures — the tint rides the instance colour the stamp already wrote. mobile census matches main: default 137 / 0.95M, near 85 / 0.90M, night 144, winter 143, 30 programs. the film pays about six more scalar operations a fragment.
+- **the conifers have an albedo.** spruce and pine were authored at about 2% reflectance — darker than wet peat — and the film's toe printed them as black cut-outs, which hid any colour an instance was given. they are 5–8% now ([`props/palette.ts`](src/scene/props/palette.ts)).
+- **light through the crown.** the shared foliage material adds the key light again on faces turned from it, through the albedo and a warm filter, at 0.6 of the lit side ([`props/transmission.ts`](src/scene/props/transmission.ts)): one dot product in a program every tier already links.
+- **moved:** close, snow-free, lit frames — a summer stand at zoom 60 goes from silhouettes to green crowns of differing hue. the tour barely moves, and this is the honest size of the change there: against main at a 4% per-pixel tolerance, near 2.69% of the frame (47.8% in its busiest block), far 0.05%, default, noon, night and winter under 0.01% — the opening frames are sleet over snow at a width where a tree is a few pixels. `instance-tone.test.ts`, `transmission.test.ts` and `film.test.ts` pin the lean's reach, that grey families take none, that a lit face gains nothing, and the density on both film paths.
+
 ## the asset catalog, one command and one link away
 
 tooling, not a frame. `bun run assets [filter]` prints every prop (group, triangles, metres, file), every shared kit helper (`file:line`) and every texture in one table each, in about a second with no gpu; `--json` for scripts. a new `scape-assets` skill tells a run where the three lists live and how to look at, add or change an asset. the main page's title card links to `/props.html` ("asset catalog →"), which is titled *asset catalog* and links back. no scene code changed.

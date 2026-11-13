@@ -1,7 +1,6 @@
 import { Group, Mesh } from 'three'
 import type { BufferGeometry, Camera, InstancedMesh } from 'three'
 import { createSeededRng } from 'threejs-scene'
-import type { SeededRng } from 'threejs-scene'
 
 import { createClaimIndex } from './claims.ts'
 import { latticeSurvey } from './lattice.ts'
@@ -36,6 +35,7 @@ import type { Plot, Vec2 } from './layout.ts'
 import { createSkerrySampler, createTreadSampler } from './samplers.ts'
 import { raiseWashLine } from './wash.ts'
 import { createScatterLod } from './scatter-lod.ts'
+import { familyChroma, instanceTone } from './instance-tone.ts'
 import type { ScatterLodConfig } from './scatter-lod.ts'
 import { hypot } from '../hypot.ts'
 
@@ -157,17 +157,10 @@ const SWARD_DROWNED = 0.25
 const DRESSING_LATTICE = 0.75
 
 
-/**
- * A near-white tint. `scatterInstances` multiplies it into the baked vertex
- * colours, so staying close to white varies the shade of a prop rather than
- * repainting it.
- */
-function shade (rng: SeededRng, low: number, high: number): string {
-  const value   = Math.round(rng.range(low, high) * 255)
-  const clamped = Math.min(255, Math.max(0, value)).toString(16)
-    .padStart(2, '0')
-  return `#${clamped}${clamped}${clamped}`
-}
+type Placed = NonNullable<ReturnType<Parameters<typeof scatterInstances>[0]['place']>>
+
+/** A placement before its colour: `shade` is the instance's grey, about 1. */
+type Shaded = Omit<Placed, 'tint' | 'at'> & { at: [number, number, number], shade: number }
 
 /**
  * Everything that stands on the ground.
@@ -1050,15 +1043,28 @@ export function createDressing (
   function stamp (
     name:  PropName,
     count: number,
-    place: Parameters<typeof scatterInstances>[0]['place'],
+    place: () => Shaded | null,
     foliage = false,
   ): InstancedMesh {
     const geometry = buildProp(name, rng.fork(`scatter-${name}`), palette)
+    const chroma   = familyChroma(geometry)
     const { mesh } = scatterInstances({
       geometry,
       material: foliage ? materials.foliage : materials.ground,
       count,
-      place,
+
+      // The grey shade is the rule's own roll; the lean is where the instance
+      // stands, scaled by how coloured the family is. See `instance-tone.ts`.
+      place: () => {
+        const spot = place()
+
+        if (!spot)
+          return null
+
+        const { shade, ...placed } = spot
+
+        return { ...placed, tint: instanceTone(shade, placed.at[0], placed.at[2], chroma) }
+      },
     })
 
     mesh.name          = name
@@ -1118,7 +1124,7 @@ export function createDressing (
         rotate: standing(spot.x, spot.z, yaw, tilt),
         scale:  rng.range(minScale, maxScale) *
           (sampling.scaleBy ? sampling.scaleBy(spot.x, spot.z) : 1),
-        tint: shade(rng, 0.86, 1.1),
+        shade: rng.range(0.86, 1.1),
       }
     }, isFoliage(name)))
   }
@@ -1161,7 +1167,7 @@ export function createDressing (
           at:     [ x, fixedY || surfaceAt(x, z) - 0.02, z ],
           rotate: standing(x, z, yaw, fixedY ? 0 : tilt),
           scale:  rng.range(minScale, maxScale),
-          tint:   shade(rng, 0.84, 1.12),
+          shade:  rng.range(0.84, 1.12),
         }
       }
       return null

@@ -622,68 +622,16 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
     },
     {
       group: 'ground & water',
-      title: 'the kelp',
-
-      // Filed under the water because that is what it grows in. The split is the
-      // seals' split again: how many plants a coast carries is the tier's — see
-      // `quality.kelpCount` — and which water carries any is the survey's, so
-      // what is left here is the swell that works the canopy. `kelp.sill`,
-      // `reach`, `over`, `spacing`, `patch`, `bare` and `clear` are deliberately
-      // absent: between them they decide where every plant is and how long it
-      // grew, which takes a rebuild to see.
-      //
-      // Nothing here for the *lean*, which is the thing a reader actually
-      // watches. It is not a knob at all — it is `acos(depth / length)` against
-      // the tide, so the hour slider is its control, and a second number that
-      // could tilt the bed independently would be a canopy floating off the sea.
-      controls: [
-        range('kelp.surge', 'swell lean (rad)', 0, 0.6, 0.01, quality.kelpCount > 0),
-        range('kelp.sway', 'surges a minute', 0, 20, 0.5, quality.kelpCount > 0),
-      ],
-    },
-    {
-      group: 'ground & water',
-      title: 'the wash',
-
-      // The two numbers the wind works the cloth with. `wash.length`, `height`
-      // and `fill` decide what is strung and pegged, which takes a rebuild.
-      controls: [
-        range('wash.billow', 'blow-out (rad)', 0, 1.4, 0.01, quality.washCloths > 0),
-        range('wash.flutter', 'flaps a second', 0, 4, 0.05, quality.washCloths > 0),
-      ],
-    },
-    {
-      group: 'ground & water',
-      title: 'the creels',
-
-      // Filed under the water for the kelp's reason, and split the same way:
-      // how many strings a harbour works is the tier's — see
-      // `quality.creelStrings` — and which water carries any is the survey's,
-      // so what is left here is the weather working the marks. `creel.sill`,
-      // `deep`, `spacing`, `pots`, `range` and `clear` are deliberately absent:
-      // between them they decide where every pot was shot, which takes a
-      // rebuild to see.
-      //
-      // Nothing here for how high a float *rides*, which is the thing a reader
-      // actually watches over a tide. It is not a knob at all — it is the sea's
-      // own level against the seabed the survey left, so the hour slider is its
-      // control, and a second number that could lift a mark off the water would
-      // be the one bug this system can have.
-      controls: [
-        range('creel.heel', 'lie at full wind (rad)', 0, 1.2, 0.02, quality.creelStrings > 0),
-        range('creel.lift', 'swell lift (m)', 0, 0.4, 0.01, quality.creelStrings > 0),
-        range('creel.bob', 'bobs a minute', 0, 30, 0.5, quality.creelStrings > 0),
-      ],
-    },
-    {
-      group: 'ground & water',
       title: 'hearth smoke',
 
       // Filed with the ground because that is where the fires are, the way the
       // gulls are filed with the water they wheel over. How *many* puffs a plume
       // is drawn from is the tier's — see `quality.hearthPuffs` — and where the
       // stacks stand is the survey's, so what is left here is how hard they are
-      // burning and what the wind does about it.
+      // burning and how high the smoke stands. The climb, the wind's drag and
+      // the winter banking are physics (`hearth.speed`, `drag`, `winter`):
+      // config leaves, not rows — as are the kelp's surge, the wash's flap and
+      // the creels' bob, whose sections are gone.
       controls: [
         toggled(
           'chimneys',
@@ -691,9 +639,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           0.52,
           [
             range('hearth.rise', 'rise (m)', 2, 30, 0.5),
-            range('hearth.speed', 'climb (m/s)', 0, 6, 0.05),
-            range('hearth.drag', 'lean into the wind', 0, 1, 0.01),
-            range('hearth.winter', 'banked in winter', 0, 2, 0.01),
           ],
         ),
 
@@ -721,8 +666,9 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       // Beside the lamplight, because it is the same household at the other end
       // of the same day. How many islands have traffic is the tier's — see
       // `quality.carterRounds` — and where the roads are is the layout's, so
-      // what is left here is how far a cart gets and how long it is let out
-      // for. Both are read per frame; neither needs a rebuild to be seen.
+      // what is left here is how far a cart gets. The length of its working day
+      // and how it sits on a slope are the place's (`carter.day`, `carter.lean`):
+      // config leaves, reachable by `--set` and the url, not rows.
       //
       // There is no knob for *when* it sets off, deliberately. That is the
       // sun's: the window is the lit part of the day, centred on the transit,
@@ -733,10 +679,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           'carts',
           range('carter.reach', 'a day’s haul (m)', 0, 600, 5, quality.carterRounds > 0),
           240,
-          [
-            range('carter.day', 'longest working day', 0, 0.94, 0.01),
-            range('carter.lean', 'sits on the slope', 0, 1, 0.01),
-          ],
         ),
       ],
     },
