@@ -242,6 +242,7 @@ const WIND_VERTEX = /* glsl */`
  */
 const DETAIL_PARS_FRAGMENT = /* glsl */`
   uniform sampler2D uDetailMap;
+  uniform sampler2D uGroundNormalMap;
   uniform sampler2D uBarkMap;
   const float scapeDetailScale = ${(1 / DETAIL_TILE).toFixed(6)};
   uniform float uDetailStrength;
@@ -250,17 +251,11 @@ ${FRAME_GLSL}
 `
 
 /**
- * What only the six-tap path reads, declared only where it is read.
- *
- * A sampler that is declared and never sampled still occupies a binding in some
- * drivers' accounting, and the tier that would pay for it is the one with the
- * least to spend — the phone path samples neither of these and used to declare
- * both. Keeping the declarations with the fetches also makes the claim testable:
- * `material.test.ts` asserts the lite program contains no mention of the normal
- * map at all, which is a fact about the shader rather than a promise about it.
+ * What only the six-tap path reads, declared only where it is read: a sampler
+ * that is declared and never sampled still occupies a binding in some drivers'
+ * accounting, and the tier that would pay for it has the least to spend.
  */
 const DETAIL_FULL_PARS_FRAGMENT = /* glsl */`
-  uniform sampler2D uGroundNormalMap;
   uniform sampler2D uWearMap;
   const float scapeDetailMacro = ${DETAIL_MACRO.toFixed(2)};
 `
@@ -479,11 +474,36 @@ const GRAIN_FRAGMENT = /* glsl */`
 `
 
 /**
- * The same grain, for a gpu that cannot afford to look for it three times.
+ * The soil's one read, on every tier: the grit's tangent in `xy` and the
+ * grain it is the gradient of in `a` (`textures/normals.ts`). The albedo
+ * mottle and the relief that lights it come out of the same texel, so they
+ * cannot disagree — and the phone, which has one fetch to spend on the soil,
+ * gets lit grit out of it rather than flat coloured paper.
+ */
+const SOIL_FRAGMENT = /* glsl */`
+  vec4 scapeSoil = texture2D(uGroundNormalMap, scapeUv);
+  float grain    = scapeSoil.a;
+`
+
+/**
+ * The grit turns the normal. The projection is planar and world-space, so the
+ * tangent frame is world x and world z with the surface's own up between
+ * them: the map's x and y land straight in the ground plane and nothing has to
+ * be built. Arithmetic on a texel already fetched — no branch, no second read.
+ */
+const SOIL_NORMAL_FRAGMENT = /* glsl */`
+  vec3 scapeBump = vec3(scapeSoil.x * 2.0 - 1.0, 0.0, scapeSoil.y * 2.0 - 1.0) * ${GROUND_NORMAL_GAIN.toFixed(2)};
+
+  normal = normalize(normal + mat3(viewMatrix) * scapeBump * scapeAmt * scapeGrainKeep);
+`
+
+/**
+ * The same soil, for a gpu that cannot afford to look for it three times.
  *
- * One dependent texture read instead of three. It keeps the albedo mottle and
- * the roughness break-up, which are what stop the ground reading as coloured
- * paper, and gives up the macro octave and the normal map with it.
+ * One dependent read on the ground itself: the soil texel, grain and tangent
+ * together. It gives up the macro octave, the puddles' hollows and the
+ * parallax march — not the relief, which used to go with them and left the
+ * phone's ground a smooth sheet under any light.
  *
  * This is a steady-frame quality budget, not the context-loss fix. The connected
  * Pixel 10 a/b test traced that failure to the separate shadow-map depth pass.
@@ -493,10 +513,12 @@ const DETAIL_FRAGMENT_LITE = /* glsl */`
   #include <normal_fragment_begin>
   float scapeFlat = smoothstep(0.3, 0.9, vScapeFace.x);
   float scapeAmt  = uDetailStrength * scapeFlat;
+  vec2 scapeUv    = vScapeGround * scapeDetailScale;
 ${REPEATS_FRAGMENT}
-  float grain     = texture2D(uDetailMap, vScapeGround * scapeDetailScale).r;
+${SOIL_FRAGMENT}
 ${GRAIN_FRAGMENT}
 ${heathFragment('uDetailMap')}
+${SOIL_NORMAL_FRAGMENT}
 ${propGrainFragment(false)}
 ${weatheringFragment('uDetailMap')}
 `
@@ -516,7 +538,7 @@ ${steps > 0 ? `  if (scapeAmt * scapeGrainKeep > 0.001) {${reliefFragment(steps)
   // landed exactly where the grit was already darkest and the two reinforced
   // into a lumpy weave rather than reading as two different histories.
   vec2 wearUv = scapeUv * ${WEAR_TILE.toFixed(2)};
-  float grain = texture2D(uDetailMap, scapeUv).r;
+${SOIL_FRAGMENT}
 ${GRAIN_FRAGMENT}
 
   // A uniform branch — the keep is the same for every fragment of the frame —
@@ -533,25 +555,10 @@ ${PUDDLE_HOLLOW}
   }
 ${heathFragment('uWearMap')}
 
-  // One fetch, where there used to be four differenced by hand. The map's own
-  // tangent is the grain's gradient resolved at full texel resolution and with
-  // the sign a height field actually has — see textures/normals.ts for what was
-  // wrong with the difference it replaces.
-  //
-  // The projection is planar and world-space, so the tangent frame is simply
-  // world x and world z with the surface's own up between them: the map's x and
-  // y land straight in the ground plane and nothing has to be built.
-  //
   // The macro octave keeps its albedo and its roughness and deliberately loses
   // its normal. A metre-wide patch of wear is damp ground, not raised ground —
-  // there is nothing there to catch the light on, and two more fetches to prove
-  // it was two fetches spent agreeing with a flat surface.
-  if (scapeGrainKeep > 0.0) {
-    vec2 scapeTangent = texture2D(uGroundNormalMap, scapeUv).xy * 2.0 - 1.0;
-    vec3 scapeBump    = vec3(scapeTangent.x, 0.0, scapeTangent.y) * ${GROUND_NORMAL_GAIN.toFixed(2)};
-
-    normal = normalize(normal + mat3(viewMatrix) * scapeBump * scapeAmt * scapeGrainKeep);
-  }
+  // there is nothing there to catch the light on.
+${SOIL_NORMAL_FRAGMENT}
 ${propGrainFragment(true)}
 ${weatheringFragment('uDetailMap')}
 `
@@ -765,11 +772,8 @@ export function createScapeMaterials (
   const detailMap = textures.get('ground.grain')
   const wearMap   = textures.get('ground.wear')
 
-  // Only where something samples it. The lite path has one fetch to spend and
-  // spends it on albedo, so a tier that will never read this must not pay to
-  // bake and upload a 512² map — the grain stands in as a bound sampler the
-  // program does not reach.
-  const normalMap = detailTaps >= 6 ? textures.get('ground.normal') : detailMap
+  // Every tier: the soil's grain and its relief are one texel of this map.
+  const normalMap = textures.get('ground.normal')
   const barkMap   = textures.get('prop.bark')
 
   // The compass, and the one uniform the vertex stage reads. Shared rather than

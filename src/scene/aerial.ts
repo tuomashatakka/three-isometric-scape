@@ -1,4 +1,5 @@
 import { ShaderChunk } from 'three'
+import { FRAME_VARYING } from './film.ts'
 
 
 /**
@@ -180,6 +181,7 @@ const glsl = (value: number): string => value.toFixed(4)
 const PARS_VERTEX = /* glsl */`
 #ifdef USE_FOG
   varying vec4 vAerial;
+  varying vec3 ${FRAME_VARYING};
 #endif
 `
 
@@ -199,6 +201,7 @@ const VERTEX = /* glsl */`
     vec2 bankBroad     = aerialWorld.xz * ${glsl(BANK_WAVES[0])} + vec2( 1.7, 1.3 ) * sin( aerialWorld.zx * ${glsl(BANK_WAVES[1])} );
     vec2 bankFine      = vec2( dot( aerialWorld.xz, vec2( ${glsl(BANK_WAVES[2])}, ${glsl(BANK_WAVES[3])} ) ), dot( aerialWorld.xz, vec2( ${glsl(-BANK_WAVES[3])}, ${glsl(BANK_WAVES[2])} ) ) );
     float bankField    = 0.5 + 0.22 * ( sin( bankBroad.x ) + sin( bankBroad.y ) ) + 0.16 * sin( bankFine.x ) * sin( bankFine.y );
+    ${FRAME_VARYING} = gl_Position.xyw;
     vAerial = vec4( length( aerialOffset ), dot( aerialOffset, aerialAhead ), aerialWorld.y, 0.12 + 0.88 * smoothstep( 0.18, 0.82, bankField ) );
   }
 #endif

@@ -5,6 +5,8 @@ import {
   CONTRAST_REACH,
   DYE_DENSITY,
   EXPOSURE_SPAN,
+  FRAME_VARYING,
+  LENS_VIGNETTE,
   FILM_GLSL,
   FILM_SHOULDER,
   LIGHT_TINT,
@@ -22,7 +24,9 @@ import {
   splitTone,
   stock,
   unpackExposure,
+  vignette,
 } from './film.ts'
+import { installAerialPerspective } from './aerial.ts'
 import { createLensPass } from './lens.ts'
 
 
@@ -135,13 +139,35 @@ describe('the grade as a whole', () => {
 })
 
 describe('the film on a tier with no post chain', () => {
-  it('carries exposure and strength through one uniform', () => {
+  it('carries exposure, grade and lens through one uniform', () => {
     for (const exposure of [ 0.4, 0.98, 1.6 ])
-      for (const strength of [ 0, 0.37, 0.78, 1 ]) {
-        const back = unpackExposure(packExposure(exposure, strength))
-        expect(back.exposure).toBeCloseTo(exposure, 5)
-        expect(back.strength).toBeCloseTo(strength, 2)
-      }
+      for (const strength of [ 0, 0.37, 0.78, 1 ])
+        for (const lens of [ 0, 0.35, 1 ]) {
+          // As the gpu holds it: a 32-bit float.
+          const back = unpackExposure(Math.fround(packExposure(exposure, strength, lens)))
+          expect(back.exposure).toBeCloseTo(exposure, 2)
+          expect(back.strength).toBeCloseTo(strength, 2)
+          expect(back.lens).toBeCloseTo(lens, 5)
+        }
+
+    expect(packExposure(EXPOSURE_SPAN, 1, 1)).toBeLessThan(2 ** 14)
+  })
+
+  it('gives the frame a place on the direct path: a vignette off the aerial varying, and grain off the pixel grid', () => {
+    installDirectFilm({ toneMapping: NoToneMapping } as unknown as WebGLRenderer, true)
+    installAerialPerspective(60)
+
+    const chunk = ShaderChunk.tonemapping_pars_fragment
+    expect(chunk).toContain(`varying vec3 ${FRAME_VARYING}`)
+    expect(chunk).toContain('gl_FragCoord')
+    expect(ShaderChunk.fog_pars_vertex).toContain(`varying vec3 ${FRAME_VARYING}`)
+    expect(ShaderChunk.fog_vertex).toContain(`${FRAME_VARYING} = gl_Position.xyw`)
+
+    // The centre keeps all its light; a corner of a square frame gives up about a fifth at full lens.
+    expect(vignette(0, LENS_VIGNETTE)).toBe(1)
+    expect(vignette(0.5, LENS_VIGNETTE)).toBeGreaterThan(0.75)
+    expect(vignette(0.5, LENS_VIGNETTE)).toBeLessThan(0.9)
+    expect(vignette(0.5, 0)).toBe(1)
   })
 
   it('keeps an out-of-range exposure from bleeding into the strength', () => {

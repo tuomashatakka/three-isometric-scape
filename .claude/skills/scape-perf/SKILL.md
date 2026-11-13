@@ -85,7 +85,7 @@ exact — the procedure is in `scape-verify`.
   `quality.test.ts` pins the ladder (each step down no dearer) and the floors —
   extend it with the new field.
 - **shader tap counts** — `detailTaps` (1 = the lite ground path on
-  minimal/mobile, 6 = normal map + relief + macro octave), `reliefSteps`,
+  minimal/mobile: one soil read for grain + relief normal; 6 = that + relief march + macro octave + puddles), `reliefSteps`,
   `lensTaps`: fill-rate levers, each compiled per tier.
 - **world-sized sheets** (mist slices, sea smoke, haar, clouds) — each is a
   full-frame blend. If the thing is a function of where the fragment is, it is a

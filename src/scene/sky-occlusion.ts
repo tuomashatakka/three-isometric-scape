@@ -15,8 +15,8 @@ import type { BufferGeometry, IUniform, InstancedMesh, Material, Mesh, Object3D 
  * the dressing is placed, every solid is rasterised from above into a grid of
  * *top* heights (the highest surface over each texel) beside a grid of *ground*
  * heights (the terrain alone). How much of the sky a point sees is then a
- * question about its neighbourhood: at each of three reaches, how far the
- * average top height round it stands above it. Three box blurs answer that for
+ * question about its neighbourhood: at each of five reaches, how far the
+ * average top height round it stands above it. Five box blurs answer that for
  * every texel at once, whatever the reach — no rays, no per-texel loops over
  * neighbours.
  *
@@ -67,17 +67,32 @@ export interface SkyGrid {
 }
 
 /**
- * The three reaches, metres, and what each may take away.
+ * The five reaches, metres, and what each may take away.
  *
  * The first is contact — a stone's own skirt, the dark line at a wall foot. The
  * second is a building's or a stand's shade on the yard beside it. The third is
- * the terrain's own: a gully, the foot of a crag. A point is fully occluded at a
- * reach when the average top round it stands `SLOPE` × the reach above it.
+ * the foot of a crag. The last two are the *terrain's* own sky: a gully between
+ * two knolls, a corrie under a fell, the floor of a fjord — ground that is open
+ * straight up and still sees half the sky it would on a summit, because the
+ * land stands round it. Without them a hollow was lit exactly as brightly as
+ * the ridge above it and the islands shaded as one flat sheet under overcast.
+ *
+ * A point is fully occluded at a reach when the average top round it stands
+ * `SLOPE` × the reach above it. The wide reaches cost a box blur each at the
+ * bake and nothing in any frame: the read is the fetch it always was.
  */
-export const SKY_REACHES = [ 1.2, 3.5, 9 ] as const
-export const SKY_WEIGHTS = [ 0.42, 0.38, 0.32 ] as const
+export const SKY_REACHES = [ 1.2, 3.5, 9, 26, 70 ] as const
+export const SKY_WEIGHTS = [ 0.42, 0.38, 0.32, 0.45, 0.4 ] as const
 
-const SLOPE = 0.7
+/** The first reach that is the terrain's: from here on the average is of the ground, not of what stands on it. */
+export const TERRAIN_REACH = 3
+
+/**
+ * The slope that closes a reach. The terrain's reaches close on a gentler one:
+ * a wall that fills the sky stands a metre over a metre, a glen side that does
+ * stands three over twenty-six.
+ */
+export const SKY_SLOPES = [ 0.7, 0.7, 0.7, 0.12, 0.07 ] as const
 
 /** What the rasteriser should treat as solid: the scape's own two materials, and nothing see-through. */
 export type SolidTest = (material: Material) => boolean
@@ -362,9 +377,11 @@ export function bakeSky (grid: SkyGrid, ground: Float32Array, top: Float32Array)
   for (const [ step, reach ] of SKY_REACHES.entries()) {
     const span   = Math.max(1, Math.round(reach / texel))
     const weight = SKY_WEIGHTS[step]
-    const full   = 1 / (span * texel * SLOPE)
+    const full   = 1 / (span * texel * SKY_SLOPES[step])
 
-    boxMean(top, grid.size, span, scratch, mean)
+    // The terrain's reaches ask about the land alone: a lone byre does not
+    // close the sky over a field seventy metres off.
+    boxMean(step < TERRAIN_REACH ? top : ground, grid.size, span, scratch, mean)
 
     for (let cell = 0; cell < cells; cell += 1) {
       const low  = (mean[cell] - ground[cell]) * full

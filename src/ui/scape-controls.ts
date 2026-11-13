@@ -524,44 +524,17 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
     },
     {
       group: 'ground & water',
-      title: 'the gulls',
+      title: 'wildlife',
 
       // Filed under the water because that is what they are over, the way the
-      // coastal light is. How *many* there are is the tier's — see
-      // `quality.birdCount` — and where they hang is the survey's, so what is
-      // left here is how much of the colony is up and what it is doing. The
-      // colony spread is deliberately absent: it decides where the rings were
-      // fitted, which takes a rebuild to see.
+      // coastal light is. How *many* there are is the tier's (`quality.birdCount`,
+      // `quality.sealCount`) and where they hang or haul out is the survey's, so
+      // what is left is one row a colony: how much of it is up, or out. How fast
+      // the gulls wheel and how the sea takes a seal back are physics
+      // (`birds.speed`, `haulout.emerge`): config leaves, not rows.
       controls: [
-        toggled(
-          'gulls',
-          range('birds.flight', 'aloft', 0, 1, 0.01, quality.birdCount > 0),
-          0.85,
-          [
-            range('birds.speed', 'wheeling', 0, 1.5, 0.01),
-          ],
-        ),
-      ],
-    },
-    {
-      group: 'ground & water',
-      title: 'the seals',
-
-      // Filed under the water for the reason the gulls are, and the same split
-      // applies: how many animals a rock carries is the tier's — see
-      // `quality.sealCount` — and which rocks carry any is the survey's, so what
-      // is left here is how much of the colony is out and how the sea takes it
-      // back. `haulout.sill`, `reach` and `stone` are deliberately absent: they
-      // decide which rocks were chosen, which takes a rebuild to see.
-      controls: [
-        toggled(
-          'seals',
-          range('haulout.ashore', 'hauled out', 0, 1, 0.01, quality.sealCount > 0),
-          0.78,
-          [
-            range('haulout.emerge', 'slips off within (m)', 0, 0.6, 0.01),
-          ],
-        ),
+        toggled('gulls', range('birds.flight', 'aloft', 0, 1, 0.01, quality.birdCount > 0), 0.85),
+        toggled('seals', range('haulout.ashore', 'hauled out', 0, 1, 0.01, quality.sealCount > 0), 0.78),
       ],
     },
     {
@@ -571,8 +544,8 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       // Filed under the water for the reason the seals are, and the split is
       // theirs: how many plates the world carries is the tier's — see
       // `quality.floeCount` — and which water carries any is the survey's, so
-      // what is left here is how much of the pack is in and how hard it is
-      // working. `pack.spacing`, `sheet`, `draught`, `plate`, `ragged`, `rise`
+      // what is left here is how much of the pack is in. How hard it works on
+      // the wind is physics (`pack.working`), a config leaf. `pack.spacing`, `sheet`, `draught`, `plate`, `ragged`, `rise`
       // and `fairway` are deliberately absent: between them they decide where
       // every plate is and how big, which takes a rebuild to see.
       //
@@ -581,12 +554,7 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       // goes where the thing it changes lives, and nothing in here moves the
       // freeze.
       controls: [
-        toggled(
-          'floes',
-          range('pack.cover', 'plates standing', 0, 1, 0.01, quality.floeCount > 0),
-          1,
-          [ range('pack.working', 'working on the wind (m)', 0, 3, 0.05) ],
-        ),
+        toggled('floes', range('pack.cover', 'plates standing', 0, 1, 0.01, quality.floeCount > 0), 1),
       ],
     },
     {
@@ -599,23 +567,18 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       // gradient. A reader who turns the swell up and wonders why the beach
       // changed is looking in the right place.
       //
-      // Every knob here is read per frame and every one of them is in, which is
-      // the whole section — there is nothing build-time in a band that is
-      // arithmetic on a fragment. `swash.steep` is the Iribarren ceiling and is
-      // in with the rest because it is the one number that decides whether a
-      // cliff gets a splash zone or a tide mark, and that is a thing worth being
-      // able to see move.
+      // Three rows, each a look: how far the sea runs up, how dark it leaves
+      // the shore, how much lace is at its edge. The Iribarren ceiling, how
+      // long the sand stays damp and what the lee keeps are the beach's physics
+      // (`swash.steep`, `soak`, `lee`): config leaves for `--set` and the url.
       controls: [
         toggled(
           'the wash',
           range('swash.reach', 'run-up (Hunt)', 0, 2, 0.01),
           1,
           [
-            range('swash.steep', 'surging at (Iribarren)', 0, 6, 0.05),
             range('swash.wet', 'darkens the shore', 0, 1, 0.01),
-            range('swash.soak', 'stays damp', 0, 1, 0.01),
             range('swash.foam', 'lace at the edge', 0, 1, 0.01),
-            range('swash.lee', 'what the lee keeps', 0, 1, 0.01),
           ],
         ),
       ],
@@ -643,20 +606,10 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         ),
 
         // The kiln's own lane, and its own toggle, because it is not a chimney:
-        // turning the house fires out leaves the burn standing and turning the
-        // burn out leaves the house fires alight. The three that are here are
-        // the three this section reads per frame — where the kiln *stands* is
-        // the survey's, and those knobs stay out for the reason the smokehouse's
-        // do.
-        toggled(
-          'the lime burn',
-          range('kiln.draw', 'draw', 0, 3, 0.05, quality.hearthPuffs > 0),
-          1.8,
-          [
-            range('kiln.burn', 'weeks of the year', 0, 1, 0.01),
-            range('kiln.peak', 'when it is fired', 0, 1, 0.01),
-          ],
-        ),
+        // turning the house fires out leaves the burn standing. Which weeks of
+        // the year it is fired is the calendar's (`kiln.burn`, `kiln.peak`):
+        // config leaves, not rows.
+        toggled('the lime burn', range('kiln.draw', 'draw', 0, 3, 0.05, quality.hearthPuffs > 0), 1.8),
       ],
     },
     {
