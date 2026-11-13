@@ -687,6 +687,8 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `ploppable.ts` | 2d placement with a ground-following foundation |
 | `material.ts` | the two shared materials, cloud shadow, wind, soil grain, wetness, snow |
 | `weathering.ts` | moss and lichen on every neutral-grey albedo (stone, slate, old wood), both tap paths; `weatherable` is its cpu twin |
+| `landscape/instance-tone.ts` | the scatter's per-instance tint: grey shade × a warm/cool lean hashed from position, scaled by `familyChroma` — every stamped family, no rng draw, no program |
+| `transmission.ts` | light through the crown: the key light again on foliage faces turned from it (`TRANSMIT_FRAGMENT` replaces `lights_fragment_end` in the foliage program only) |
 
 **the roof-plane rule**: a gabled roof is a *plane*, and every other part of the building either lands on it or stays under it. `roofUnderside(roof, across)` is that plane and it is exported so a building asks rather than re-derives. two descriptions of one plane is one description too many — that is exactly the bug that put dark red blocks across every roof in the scape.
 

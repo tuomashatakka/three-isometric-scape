@@ -1,3 +1,4 @@
+import { TRANSMIT_FRAGMENT } from './transmission.ts'
 import { Color, Vector2 } from 'three'
 import type { IUniform, MeshStandardMaterial, WebGLProgramParametersWithUniforms } from 'three'
 import { kitMaterial, markShared } from 'threejs-scene/modules/assets'
@@ -952,8 +953,12 @@ export function createScapeMaterials (
           ].join('\n'))
           .replace('#include <project_vertex>', CLOUD_WORLD_VERTEX + (up ? UP_WORLD_VERTEX : ''))
 
-        if (extra.wind)
-          program.vertexShader = program.vertexShader.replace('#include <begin_vertex>', WIND_VERTEX)
+        // Foliage is the material with the wind in it: it sways, and its far
+        // side is lit through the crown (`transmission.ts`).
+        if (extra.wind) {
+          program.vertexShader   = program.vertexShader.replace('#include <begin_vertex>', WIND_VERTEX)
+          program.fragmentShader = program.fragmentShader.replace('#include <lights_fragment_end>', TRANSMIT_FRAGMENT)
+        }
 
         program.fragmentShader = program.fragmentShader
           .replace('#include <common>', [

@@ -3,6 +3,7 @@ import { ACESFilmicToneMapping, CustomToneMapping, NoToneMapping, ShaderChunk } 
 import type { WebGLRenderer } from 'three'
 import {
   CONTRAST_REACH,
+  DYE_DENSITY,
   EXPOSURE_SPAN,
   FILM_GLSL,
   FILM_SHOULDER,
@@ -12,6 +13,7 @@ import {
   SHOULDER_PULL,
   STOCK,
   STOCK_GAIN,
+  dyeDensity,
   film,
   gradeContrast,
   installDirectFilm,
@@ -62,6 +64,28 @@ describe('the film shoulder', () => {
     }
     expect(last).toBeCloseTo(SHOULDER_PULL, 6)
     expect(last).toBeLessThan(1)
+  })
+})
+
+describe('the dye density', () => {
+  it('leaves a grey and a zero grade alone', () => {
+    expect(dyeDensity(0, 1)).toBe(1)
+    expect(dyeDensity(1, 0)).toBe(1)
+  })
+
+  it('prints a saturated colour darker than a pale one of the same luminance', () => {
+    const luminance = (c: readonly number[]): number => c[0] * 0.2126 + c[1] * 0.7152 + c[2] * 0.0722
+    const pale      = [ 0.2, 0.22, 0.2 ] as const
+    const scale     = luminance(pale) / luminance([ 0.05, 0.3, 0.02 ])
+    const moss      = [ 0.05 * scale, 0.3 * scale, 0.02 * scale ] as const
+
+    expect(luminance(moss)).toBeCloseTo(luminance(pale), 6)
+    expect(luminance(film(moss, 1))).toBeLessThan(luminance(film(pale, 1)) * 0.92)
+  })
+
+  it('never takes more than its density, and the shader carries the same number', () => {
+    expect(dyeDensity(4, 4)).toBeCloseTo(1 - DYE_DENSITY, 9)
+    expect(FILM_GLSL).toContain(`1.0 - ${DYE_DENSITY.toFixed(2)} * clamp((peak`)
   })
 })
 

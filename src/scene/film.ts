@@ -60,6 +60,17 @@ export const MID_GREY = 0.18
 export const FILM_SATURATION = 1.06
 
 /**
+ * Dye density: how much of its light a fully saturated colour gives up.
+ *
+ * A screen makes a colour vivid by *adding* light to one channel, so a
+ * saturated meadow glows like a sign. Film makes it by subtracting the other
+ * two with dye, and more dye is less light: the deeper the colour, the darker
+ * it prints. It is what separates a moss green from a neon one. A grey has no
+ * dye to lay down and is untouched, so the exposure and the white balance hold.
+ */
+export const DYE_DENSITY = 0.24
+
+/**
  * The stock: a cool, slightly lifted nordic negative. `contrast` turns about
  * half of display white, `split` leans the shade teal and the light amber,
  * `tint` at `amount` is the cast and `lift` the floor of the blacks.
@@ -105,6 +116,11 @@ export function splitTone (lightness: number, channel: 0 | 1 | 2, strength: numb
   return 1 + strength * SPLIT_REACH * (shade * (SHADE_TINT[channel] - 1) + light * (LIGHT_TINT[channel] - 1))
 }
 
+/** The gain on a colour whose chroma is `saturation` 0..1 (max − min over max), at grade strength `intensity`. */
+export function dyeDensity (saturation: number, intensity: number): number {
+  return 1 - DYE_DENSITY * clamp01(saturation) * clamp01(intensity)
+}
+
 /** The contrast the grade applies at `strength` 0..1 — the flat grey wash gains its depth here. */
 export function gradeContrast (strength: number): number {
   return 1 + CONTRAST_REACH * clamp01(strength)
@@ -134,8 +150,11 @@ export function film (colour: Rgb, strength: number): Rgb {
   const pivoted  = each(colour, value => Math.max(0, (value - MID_GREY) * contrast + MID_GREY))
   const grey     = luma(pivoted)
   const vivid    = each(pivoted, value => Math.max(0, grey + (value - grey) * FILM_SATURATION))
-  const bright   = luma(vivid)
-  const rolled   = each(vivid, value => value + (bright - value) * shoulder(bright, strength))
+  const peak     = Math.max(vivid[0], vivid[1], vivid[2])
+  const density  = dyeDensity((peak - Math.min(vivid[0], vivid[1], vivid[2])) / Math.max(peak, 1e-4), strength)
+  const dense    = each(vivid, value => value * density)
+  const bright   = luma(dense)
+  const rolled   = each(dense, value => value + (bright - value) * shoulder(bright, strength))
   const dyed     = stock(rolled)
   const printed  = each(rolled, (value, channel) => value + (dyed[channel] - value) * strength)
   const lit      = luma(printed)
@@ -154,6 +173,9 @@ export const FILM_GLSL = /* glsl */ `
     col = max((col - ${MID_GREY.toFixed(2)}) * (1.0 + ${CONTRAST_REACH.toFixed(2)} * clamp(strength, 0.0, 1.0)) + ${MID_GREY.toFixed(2)}, 0.0);
     col = max(mix(vec3(dot(col, W)), col, ${FILM_SATURATION.toFixed(2)}), 0.0);
 
+    // Dye density: the more saturated the colour, the less light it lets through.
+    float peak = max(col.r, max(col.g, col.b));
+    col *= 1.0 - ${DYE_DENSITY.toFixed(2)} * clamp((peak - min(col.r, min(col.g, col.b))) / max(peak, 1e-4), 0.0, 1.0) * clamp(strength, 0.0, 1.0);
     // The shoulder: a highlight past paper white runs off toward white.
     float bright = dot(col, W);
     col = mix(col, vec3(bright), smoothstep(${FILM_SHOULDER[0].toFixed(2)}, ${FILM_SHOULDER[1].toFixed(2)}, bright) * ${SHOULDER_PULL.toFixed(2)} * strength);
@@ -241,6 +263,6 @@ export function installDirectFilm (renderer: WebGLRenderer, direct: boolean): vo
   renderer.toneMapping = direct && directFilmInstalled() ? CustomToneMapping : ACESFilmicToneMapping
 }
 
-// perf: ~40 scalar operations per fragment in programs the tier already
+// perf: ~46 scalar operations per fragment in programs the tier already
 // links; no target, no pass, no texture. The chain's lens loses a 3d fetch
 // and the app a 144 kB cube and its cpu bake.
