@@ -79,20 +79,24 @@ describe('what the ground material actually compiles', () => {
   })
 
   /**
-   * The trap this file was written for.
-   *
-   * `scape:shot` and `scape:diff` default to `--tier mobile`, and mobile spends
-   * one tap. Neither the normal map nor the march exists in that program — so a
-   * change to either photographs as *exactly* 0.00% on every pose at the default
-   * tier, which is the gate working and looks precisely like the effect not
-   * existing. Stated here as a fact about the shader rather than left to be
-   * rediscovered from an identical png.
+   * The phone spends one read on the soil and gets both halves of it: the
+   * grain in the map's alpha, the relief in its xy. The march and the macro
+   * octave stay the full path's — so a change to *those* still photographs as
+   * exactly 0.00% at the default tier, which is the gate working.
    */
-  test('the one-tap path has neither, whatever the relief count says', () => {
+  test('the one-tap path lights the grit from its one soil read, and never marches', () => {
     const { fragment } = compiled(1, 12)
+    const soilReads    = fragment.split('texture2D(uGroundNormalMap').length - 1
 
-    expect(fragment).not.toContain('uGroundNormalMap')
+    expect(soilReads).toBe(1)
+    expect(fragment).toContain('scapeBump')
+    expect(fragment).not.toContain('texture2D(uDetailMap, scapeUv)')
     expect(fragment).not.toContain('scapeStep')
+    expect(fragment).not.toContain('uWearMap')
+  })
+
+  test('no tier reads the grain twice: the full path takes it from the soil texel too', () => {
+    expect(compiled(6, 0).fragment).not.toContain('texture2D(uDetailMap, scapeUv)')
   })
 
   test('the step count is in the cache key, because an unrolled loop is not in the shader three sees', () => {

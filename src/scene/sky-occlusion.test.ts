@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { BoxGeometry, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry } from 'three'
-import { SKY_REACHES, bakeSky, boxMean, collectSolids, createSkyOcclusion, rasterise, settle, skyGrid } from './sky-occlusion.ts'
+import { SKY_REACHES, SKY_SLOPES, SKY_WEIGHTS, bakeSky, boxMean, collectSolids, createSkyOcclusion, rasterise, settle, skyGrid } from './sky-occlusion.ts'
 
 
 const grid = skyGrid(64, 64)
@@ -69,6 +69,34 @@ describe('sky occlusion', () => {
     expect(into.top[texel(42, 42)]).toBeGreaterThan(1.5)
   })
 
+  test('a valley floor sees less sky than a plain, a ridge loses none, and nothing near is involved', () => {
+    // 512 m of ground at 2 m a texel: a 60 m wide glen, 14 m deep, between two
+    // broad ridges — nothing within the three near reaches stands over its floor.
+    const wide   = skyGrid(512, 256)
+    const height = (column: number): number => {
+      const across = Math.abs(column * 2 - 256)
+
+      return 14 * Math.min(1, Math.max(0, (across - 12) / 30))
+    }
+    const glen     = Float32Array.from({ length: wide.size * wide.size }, (_, cell) => height(cell % wide.size))
+    const row      = 128 * wide.size
+    const { data } = bakeSky(wide, glen, glen.slice())
+
+    const floor = data[(row + 128) * 4]
+    const ridge = data[(row + 10) * 4]
+
+    expect(ridge).toBe(255)
+    expect(floor).toBeLessThan(215)
+    expect(floor).toBeGreaterThan(90)
+
+    // Flat ground is open at every reach, however wide.
+    const plain = new Float32Array(wide.size * wide.size)
+
+    expect(bakeSky(wide, plain, plain.slice()).data[(row + 128) * 4]).toBe(255)
+    expect(SKY_WEIGHTS.length).toBe(SKY_REACHES.length)
+    expect(SKY_SLOPES.length).toBe(SKY_REACHES.length)
+  })
+
   test('the bake is a pure function of the heights', () => {
     const one = yard()
     const two = yard()
@@ -90,7 +118,7 @@ describe('sky occlusion', () => {
         expected += source[row * size + column]
 
     expect(out[8 * size + 8]).toBeCloseTo(expected / 25, 5)
-    expect(SKY_REACHES.length).toBe(3)
+    expect(SKY_REACHES.length).toBe(5)
   })
 
   test('a scattered family is rasterised once, however many tiles share it, and glass is not solid', () => {

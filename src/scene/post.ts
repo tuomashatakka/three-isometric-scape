@@ -10,6 +10,7 @@ import { createAnamorphic, createSsr, createTraa } from 'threejs-scene/modules/p
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import { createFocalPass, depthDefocus } from './focal.ts'
 import type { FocalPass } from './focal.ts'
+import { LENS_GRAIN, LENS_VIGNETTE } from './film.ts'
 import { apertureReach, createLensPass } from './lens.ts'
 import type { LensPass } from './lens.ts'
 import type { AtmosphereQuality } from './quality.ts'
@@ -40,11 +41,9 @@ export interface PostOptions {
  * photograph of a place shows. The vignette is the old default amount.
  */
 const LENS_BLUR       = 5
-const LENS_VIGNETTE   = 0.34
 const LENS_ABERRATION = 3.5
 const LENS_SHARPEN    = 0.4
 const LENS_CONTACT    = 0.55
-const LENS_GRAIN      = 0.0144
 const LENS_HALATION   = 0.35
 
 /**

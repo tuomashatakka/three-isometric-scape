@@ -22,8 +22,10 @@ import type { WebGLRenderer } from 'three'
  *   rides in programs the tier links anyway.
  *
  * Both run in linear hdr ahead of the same tone curve, so a phone and a desktop
- * develop the same stock. What the direct path cannot do is anything that
- * reads a neighbour — defocus, halation, micro-contrast stay the lens's.
+ * develop the same stock — and the same vignette and grain, which need only a
+ * pixel's place in the frame ({@link FRAME_VARYING}). What the direct path
+ * cannot do is anything that reads a neighbour — defocus, halation and
+ * micro-contrast stay the lens's.
  *
  * There is one stock, {@link STOCK}: the camera is already white-balanced to
  * the light, and a selector of seven looks was seven ways to undo that.
@@ -203,43 +205,96 @@ export const FILM_GLSL = /* glsl */ `
 `
 
 /**
+ * What the glass does to one pixel, at `look.lens` 1: the cos⁴ falloff toward
+ * the corners and the grain of the stock. They are functions of where a pixel
+ * is in the frame and of nothing beside it, so they are the film's — the lens
+ * pass (`post.ts`) and the direct path below read the same two numbers.
+ */
+export const LENS_VIGNETTE = 0.34
+export const LENS_GRAIN    = 0.0144
+
+/** How much of its light a pixel keeps at `reach` (squared distance from the centre, frame half-width 0.5) under a vignette of `amount`. */
+export function vignette (reach: number, amount: number): number {
+  const slant = 1 / (1 + reach * 1.4)
+
+  return 1 + (slant * slant - 1) * amount
+}
+
+/**
  * The direct path's one channel into every program: three hands a bare
  * renderer's materials exactly one global uniform at the tone-mapping stage,
- * `toneMappingExposure`, so the grade's strength rides in it. The exposure
- * keeps the low part (it is always under {@link EXPOSURE_SPAN}) and the
- * strength the multiples of it, in {@link STRENGTH_STEPS} steps — finer than
- * the panel's slider moves.
+ * `toneMappingExposure`, so the film's two strengths ride in it. The exposure
+ * keeps the low part (it is always under {@link EXPOSURE_SPAN}), the grade the
+ * multiples of it in {@link STRENGTH_STEPS} steps, and the lens the multiples
+ * of *that* in {@link LENS_STEPS}. The largest value is under 2¹⁴, which
+ * leaves a 32-bit float a thousandth of a stop for the exposure.
  */
 export const EXPOSURE_SPAN  = 4
 export const STRENGTH_STEPS = 100
+export const LENS_STEPS     = 20
+
+const GRADE_LEVELS = STRENGTH_STEPS + 1
 
 export interface FilmExposure {
   exposure: number
   strength: number
+  lens:     number
 }
 
-/** Exposure and grade strength (0..1) in the one float the direct film reads. */
-export function packExposure (exposure: number, strength: number): number {
+/** Exposure, grade strength (0..1) and lens (0..1) in the one float the direct film reads. */
+export function packExposure (exposure: number, strength: number, lens = 0): number {
   const level = Math.round(clamp01(strength) * STRENGTH_STEPS)
-  return level * EXPOSURE_SPAN + Math.min(EXPOSURE_SPAN - 1e-3, Math.max(0, exposure))
+  const glass = Math.round(clamp01(lens) * LENS_STEPS)
+
+  return (glass * GRADE_LEVELS + level) * EXPOSURE_SPAN + Math.min(EXPOSURE_SPAN - 1e-3, Math.max(0, exposure))
 }
 
 /** The inverse of {@link packExposure} — what the shader does with the uniform. */
 export function unpackExposure (packed: number): FilmExposure {
-  const level = Math.floor(packed / EXPOSURE_SPAN)
-  return { exposure: packed - level * EXPOSURE_SPAN, strength: level / STRENGTH_STEPS }
+  const steps = Math.floor(packed / EXPOSURE_SPAN)
+  const glass = Math.floor(steps / GRADE_LEVELS)
+
+  return {
+    exposure: packed - steps * EXPOSURE_SPAN,
+    strength: (steps - glass * GRADE_LEVELS) / STRENGTH_STEPS,
+    lens:     glass / LENS_STEPS,
+  }
 }
 
 const IDENTITY_TONE_MAPPING = 'vec3 CustomToneMapping( vec3 color ) { return color; }'
 
+/** The varying the aerial vertex chunk writes for the direct film: clip x, y and w. */
+export const FRAME_VARYING = 'vScapeClip'
+
 // ACES multiplies by the uniform itself, so the colour is pre-scaled by the
 // share of the uniform that is exposure and the curve sees the true exposure.
+//
+// The frame: every fogged program's vertex stage hands down its clip position
+// (`aerial.ts`), so the fragment knows where in the picture it is with no
+// uniform — and the picture's aspect falls out of the same varying's screen
+// derivatives. A program with no fog (the sky) has no place and no vignette.
+// The grain is pinned to the pixel grid: this stage has no clock.
 const DIRECT_TONE_MAPPING = /* glsl */ `
   ${FILM_GLSL}
+  #ifdef USE_FOG
+    varying vec3 ${FRAME_VARYING};
+  #endif
   vec3 CustomToneMapping( vec3 color ) {
-    float level    = floor( toneMappingExposure / ${EXPOSURE_SPAN.toFixed(1)} );
-    float exposure = toneMappingExposure - level * ${EXPOSURE_SPAN.toFixed(1)};
-    color = scapeFilm( color, level / ${STRENGTH_STEPS.toFixed(1)} );
+    float steps    = floor( toneMappingExposure / ${EXPOSURE_SPAN.toFixed(1)} );
+    float glass    = floor( steps / ${GRADE_LEVELS.toFixed(1)} );
+    float exposure = toneMappingExposure - steps * ${EXPOSURE_SPAN.toFixed(1)};
+    float lens     = glass / ${LENS_STEPS.toFixed(1)};
+    #ifdef USE_FOG
+      vec2 place  = ${FRAME_VARYING}.xy / ${FRAME_VARYING}.z;
+      vec2 pixel  = abs( vec2( dFdx( place.x ), dFdy( place.y ) ) ) + 1e-7;
+      vec2 centre = place * 0.5 * pixel.yx / max( pixel.x, pixel.y );
+      float slant = 1.0 / ( 1.0 + dot( centre, centre ) * 1.4 );
+      color *= mix( 1.0, slant * slant, ${LENS_VIGNETTE.toFixed(2)} * lens );
+    #endif
+    color = scapeFilm( color, ( steps - glass * ${GRADE_LEVELS.toFixed(1)} ) / ${STRENGTH_STEPS.toFixed(1)} );
+    float tone = clamp( dot( color, vec3( 0.2126, 0.7152, 0.0722 ) ), 0.0, 1.0 );
+    float seed = fract( sin( dot( gl_FragCoord.xy, vec2( 127.1, 311.7 ) ) ) * 43758.5453 );
+    color = max( color + ( seed - 0.5 ) * ${LENS_GRAIN.toFixed(4)} * lens * ( 0.35 + 2.6 * tone * ( 1.0 - tone ) ), 0.0 );
     return ACESFilmicToneMapping( color * ( exposure / max( toneMappingExposure, 1e-4 ) ) );
   }
 `
@@ -263,6 +318,7 @@ export function installDirectFilm (renderer: WebGLRenderer, direct: boolean): vo
   renderer.toneMapping = direct && directFilmInstalled() ? CustomToneMapping : ACESFilmicToneMapping
 }
 
-// perf: ~46 scalar operations per fragment in programs the tier already
-// links; no target, no pass, no texture. The chain's lens loses a 3d fetch
+// perf: ~70 scalar operations per fragment in programs the tier already
+// links (the grade ~46, the vignette and the grain the rest); no target, no
+// pass, no texture, one vec3 varying. The chain's lens loses a 3d fetch
 // and the app a 144 kB cube and its cpu bake.

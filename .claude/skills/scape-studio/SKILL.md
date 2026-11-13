@@ -80,7 +80,7 @@ suspect. Hidden meshes come back on the next look.
 
 - **The studio opens on the mobile tier.** The ground draws through the one-tap
   path there (`quality.detailTaps` 1), so a shader change made only on the
-  six-tap path (wear map, normal map, relief, puddles) is invisible in a
+  six-tap path (wear map, relief march, puddles) is invisible in a
   default look. If a shot does not move after a ground-shader edit, shoot again
   with `--tier desktop` before you decide the edit did nothing.
 
@@ -90,8 +90,9 @@ suspect. Hidden meshes come back on the next look.
   reload can land mid-rebuild (the far default pose, horizontal tearing) — when
   the picture is not the pose asked for, shoot it again.
 - **The page opens on `mobile`, which compiles the one-tap ground program.**
-  The normal map, the relief march and the puddles do not exist there, so a
-  change to any of them is invisible until `--tier desktop`.
+  The wear octave, the relief march and the puddles do not exist there, so a
+  change to any of them is invisible until `--tier desktop`. The soil's grain
+  and relief normal *are* there (one read of `ground.normal`).
 - **Wet ground is `rain × wet × (1 − sleet)` of the front.** `--set weather.rain=0`
   dries the ground too, and the opening config's sleet keeps the yard dry; look
   at wetness with `--season 0.55 --set weather.time=0.3`.
@@ -103,10 +104,12 @@ suspect. Hidden meshes come back on the next look.
 - **`--tier` is sticky**: the page stays at that tier until another `--tier`
   (a pose that names a tier, like the `wheel` set, moves it too). `status` says
   which one it is on.
-- **The default tier is mobile**: no post chain (no lens, bloom, grain), the
-  one-tap ground path, no shadows. The *grade* is there all the same —
-  `film.ts` runs it inside every material's tone mapping, so `look.intensity`
-  moves a mobile look (`--set look.intensity=0` is the raw render). A change to `post.ts`, `lens.ts`, ground
+- **The default tier is mobile**: no post chain (no defocus, bloom, halation), the
+  one-tap ground path, no shadows. The *film* is there all the same —
+  `film.ts` runs the grade, the vignette and the grain inside every material's
+  tone mapping, so `look.intensity` and `look.lens` move a mobile look
+  (`--set look.intensity=0 --set look.lens=0` is the raw render; set `look.lens=0`
+  when comparing two frames, or the grain and falloff are in the diff). A change to `post.ts`, `lens.ts`, ground
   detail or shadows is invisible there — look with `--tier desktop`, or with
   `--set runtime.effects=all --rebuild` to put it on the mobile build.
 - **Captures are named by pose and overwrite.** `--poses tour` before and after a

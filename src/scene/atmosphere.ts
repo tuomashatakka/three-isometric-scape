@@ -247,7 +247,7 @@ export function createAtmosphereLayer ({
 
   function expose (renderer: WebGLRenderer, next: number): void {
     exposure                     = next
-    renderer.toneMappingExposure = directFilm ? packExposure(next, config().look.intensity) : next
+    renderer.toneMappingExposure = directFilm ? packExposure(next, config().look.intensity, config().look.lens) : next
   }
 
   // `sky` is the live state object, and `direction` is its vector — both are

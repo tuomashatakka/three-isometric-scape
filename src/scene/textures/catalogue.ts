@@ -69,7 +69,7 @@ export const TEXTURES: readonly TextureEntry[] = [
   {
     id:        'ground.grain',
     origin:    'catalogue',
-    purpose:   'fine soil grit — the albedo mottle and the roughness break-up, and the field `ground.normal` is the gradient of',
+    purpose:   'the grit field — read wide for the heath quilt, the weathering and the upright grain, and the field `ground.normal` is the gradient of',
     size:      512,
     module:    'textures/catalogue.ts',
     consumers: [ 'uDetailMap' ],
@@ -77,7 +77,7 @@ export const TEXTURES: readonly TextureEntry[] = [
   {
     id:        'ground.normal',
     origin:    'catalogue',
-    purpose:   'the grit\u2019s tangent normal and its height, baked off the grain rather than differenced six ways per fragment',
+    purpose:   'the soil\u2019s one read on every tier: the grit\u2019s tangent normal in xy and the grain itself in alpha',
     size:      512,
     module:    'textures/catalogue.ts',
     consumers: [ 'uGroundNormalMap' ],
