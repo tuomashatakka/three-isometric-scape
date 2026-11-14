@@ -297,6 +297,7 @@ src/
     ├── hearth.ts                   the smoke over the farmsteads, and the year that banks it
     ├── windows.ts                  lamplight in the farmstead windows, and the household that lights it
     ├── shore-lights.ts             the far coast's lit windows, as one camera-facing points draw
+    ├── sky-light.ts                the sky as a light: a horizon band and an aspect in the hemisphere term every program evaluates
     ├── film.ts                     the grade as one function: in the lens with a chain, in the materials' tone mapping without
     ├── mist.ts                     the upright mist slices, and the sea smoke off the coast (the ground mist is `groundFog` in aerial.ts)
     ├── haar.ts                     the night fog bank: level sheets, and the four gates that make one
@@ -663,6 +664,13 @@ from a kilometre up the eye cannot resolve a wave. what it resolves on a sea is 
 **one knob fewer.** `water.roughness` is gone; how rough the sea is belongs to the wind, and where to its bearing and the coast.
 
 **cost.** no draws, triangles, programs or textures; census identical on every pose. per water fragment: one fetch on mobile, two on desktop, and at frames past 1360 m the ripple's one (mobile) or three (desktop) fetches are skipped.
+
+## the sky over every shadow
+
+the sky was two colours. three's hemisphere light mixes a ground colour and a sky colour by how far a normal tips toward the zenith, so every wall got the same half-and-half grey whichever way it faced, and on the phone — which has no room environment to add to it — a shaded wall printed near black. the chapel's white boards were a silhouette on the phone and white on the desktop.
+
+- **the sky light** ([`sky-light.ts`](src/scene/sky-light.ts)) replaces three's `getHemisphereLightIrradiance` in `lights_pars_begin`, once, at the atmosphere's build — every lit program on every tier, no uniform, no program, no draw. two terms, both functions of the normal: an upright face trades `HORIZON_BAND` (0.42) of its share of the dark ground for the horizon's ring at the sky's own luminance and half its chroma (`skyShare`), so walls, flanks and trunks open up while roofs and fields do not move; and under a sun, an upright face turned toward the key light gains up to `ASPECT_GAIN` of its sky light leaning to the key's hue, one turned away loses as much leaning to the sky's blue — weighted by the key's share of the light, so a full overcast is one colour all round.
+- **the phone's fill is measured, not guessed.** with no image-based fill the hemisphere was scaled by 1.28. the phone's `near` frame reaches the desktop's mean luminance at about three times the authored sky; `SKY_FILL` (2.6) in [`atmosphere.ts`](src/scene/atmosphere.ts) with the horizon band carries it.
 
 ## the camera, balanced to the light
 
@@ -3753,6 +3761,8 @@ a drawer on the right edge exposes the scene's optics, the three clocks, the air
 **one design system, in tokens.** every overlay surface — the card, the drawer, the vitals — is drawn from the `--ui-*` custom properties on `:root` in [`style.css`](src/style.css): dark-first neutrals (`#121212` → `#2a2a2a`), one accent (the scape's lime), and status colours. the grammar is three things: tracked uppercase micro-labels, mono readouts with tabular numerals, and glass panels on a hairline border. the drawer is docked flush to the right edge at full height, and on a phone it becomes a bottom sheet. sliders are a 3 px track filled to the value (`--fill`, written by `graphics-panel.ts`), and an effect's switch is a pill drawn over a native checkbox, so the keyboard and the semantics stay native. a new surface takes the tokens; it never carries its own hex.
 
 **its furniture is markup, not script.** the `<aside>`, the header, the collapse handle, the form and the footer ship in [`index.html`](index.html); [`graphics-panel.ts`](src/ui/graphics-panel.ts) fills the form and wires the two buttons. that is what lets the drawer survive the canvas being replaced under it after a context loss — and after the effects switch rebuilds the scape — and it gives the panel a shape before its module has parsed. only the controls are built at runtime, because only those depend on which tier resolved.
+
+**a row is a look, not a physics constant.** the panel was twenty sections and a hundred and six rows; it is eleven and sixty-three. every effect is one strength row (a lamp's flicker depth, the haar's top, the tide's lag, the caustics' cell size, the beacon's turn rate are the place's physics and live on as config leaves for `--set` and the url), the three clocks share one section, and the swash, the floes, the hearth, the cart, the lamps and the gulls file under *the sea*, *season* and *life on the coast*.
 
 **sections are `<details>`, and their animation is five css declarations.** ten flat legends in a nineteen-rem drawer is a list rather than an interface: finding the snow line meant reading every legend on the way past it. runs of sections now share a heading — *look*, *time*, *air*, *ground & water*, *camera*, *device* — and each one collapses on its own underneath it, remembering by name whether the reader left it open. a `<details>` already collapses, takes the keyboard and announces its state; `interpolate-size: allow-keywords` plus a `block-size` transition on `::details-content` is the whole animation, and both degrade to an instant open on a browser without them. there is no javascript in the collapse at all.
 

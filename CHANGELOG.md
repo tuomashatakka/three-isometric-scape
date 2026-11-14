@@ -2,6 +2,17 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## a sky over every shadow — walls that see the horizon, a phone fill that was measured, and forty-three panel rows fewer
+
+the loudest tell on the tier most people see was the shade: three's hemisphere light gives every upright face the same half-and-half of sky and ground, and on the phone (no room environment) the chapel's white boards printed as a black silhouette. the sky is a light now ([`sky-light.ts`](src/scene/sky-light.ts)), replacing `getHemisphereLightIrradiance` in `lights_pars_begin` once, for every lit program on every tier.
+
+- **the horizon band:** an upright face trades `HORIZON_BAND` (0.42) of its view of the dark ground for the sky's bright ring, at the sky's luminance and half its chroma. roofs and fields do not move.
+- **the aspect:** under a sun, a face turned to the key light gains up to `ASPECT_GAIN` (0.34) of its sky light, leaning to the key's hue; one turned away loses as much, leaning blue. weighted by the key's share of the light, so a full overcast is one colour all round.
+- **the phone's fill, measured:** `AMBIENT_TAKEOVER` 1.28 (a guess) is `SKY_FILL` 2.6, set where the phone's `near` frame meets the desktop's mean luminance. mobile `near` mean 78 → 87 of 255, pixels under 25/255 7.3% → 5.4%; the sky term alone moves 5.9% of that frame by +8 levels (the walls). default 102 → 106, far 96 → 100, noon 98 → 103, winter 82 → 87, night unchanged.
+- **the panel: 20 sections and 106 rows → 11 and 63.** every effect is one strength row; the three clocks share a section; the floes, the wash, the hearth, the cart, the lamps, the gulls and the seals file under *season*, *the sea* and *life on the coast*. retired as rows (config leaves still, for `--set` and the url): azimuth, night lift, snow line/aspect/wind, ice reach/break-up, rainbow's outer bow, halo's dogs and pillar, strike rate, cloud drift/ceiling/banking, the moon disc, mist drift, haar top, sea fire, swell rate, caustic reach/cell, beck riffle, the fall's white water and spray, tarn frost, tide lag, boat speed, swash wet/foam, chimney rise, five lamp-household knobs, shore-light size, beacon turn and glow, three carried-lamp knobs, mill sails, wind speed.
+- **cost:** none. mobile census matches main in every tour pose (default 137 / 1.01M, near 85 / 0.93M, far 113 / 1.44M, night 144, winter 143, 30 programs); desktop near 104 draws / 2.55M, 62 programs. ~30 scalar operations a fragment in a function every lit program already calls.
+- **tests:** `sky-light.test.ts` states that the chunk is replaced once and only that function, that the key light is read only behind `NUM_DIR_LIGHTS`, that roofs and floors keep three's weights, and that the band is monotone from floor to roof.
+
 ## the shutter makes the mark — rain, sleet and hail in metres; every stone cut along its joints
 
 the loudest tell in the `near` frame was the hail: a centimetre of ice drawn as a six-pixel opaque white disc, because every falling mark was a share of the frame. the marks are in metres now — a body and the streak a sixtieth of a second smears it into — in one glsl chunk both falls include (`FALL_MARK_GLSL` in [`fall-column.ts`](src/scene/fall-column.ts)), so the yard frame shows thin slanted streaks of rain and brighter ones of hail, the way a photograph does.
