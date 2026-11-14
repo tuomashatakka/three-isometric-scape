@@ -20,6 +20,7 @@ import type { SceneContext } from 'threejs-scene'
 import { standardLighting } from 'threejs-scene/modules/lighting'
 import { groundFogAmount, hazeRange, installAerialPerspective } from './aerial.ts'
 import { installDirectFilm, packExposure } from './film.ts'
+import { installSkyLight } from './sky-light.ts'
 import { landmassTerrain } from './config.ts'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import { createDaylight } from './daylight.ts'
@@ -73,14 +74,17 @@ const MAX_FOG      = 0.94
 const SKY_STEPS    = 64
 
 /**
- * What the hemisphere is scaled by when there is no image-based fill.
+ * What the sky light is scaled by when there is no image-based fill.
  *
  * The cheap tiers drop the PMREM room environment, and it is the only other
- * ambient term in the rig — leave the hemisphere where it was and the shadow
- * side of every surface crushes. This hands the environment's share back to the
- * light that is still there, so the tier costs detail rather than exposure.
+ * ambient term in the rig. It was 1.28, a guess, and the phone's `near` frame
+ * printed every shaded wall near black: the chapel's white boards were a
+ * silhouette on the phone and white on the desktop. Measured, not guessed — the
+ * phone's `near` frame reaches the desktop's mean luminance (93 of 255) at
+ * about three times the authored sky, and the horizon band in `sky-light.ts`
+ * carries part of that, so the tier costs detail rather than exposure.
  */
-const AMBIENT_TAKEOVER = 1.28
+const SKY_FILL = 2.6
 
 /** Canopy clearance over the terrain's own relief, in metres. */
 const CANOPY = 7
@@ -238,6 +242,7 @@ export function createAtmosphereLayer ({
   // back to the store instead.
   const authored = config()
   installAerialPerspective(authored.atmosphere.hazeHeight, authored.terrain.waterLevel)
+  installSkyLight()
 
   const daylight = createDaylight(config)
 
@@ -263,7 +268,7 @@ export function createAtmosphereLayer ({
       landmass => landmassTerrain(authored, landmass).height,
     ),
   ) + CANOPY
-  const hemiGain    = quality.environment ? 1 : AMBIENT_TAKEOVER
+  const hemiGain    = quality.environment ? 1 : SKY_FILL
 
   const lighting = standardLighting<ScapeConfig>({
     env: quality.environment ? { intensity: sky.environment } : false,

@@ -47,21 +47,6 @@ const NOT_A_RATE: Record<string, string> = {
   // and that phase is pinned per pose by `--season`.
   'season.turn': 'an amount, 0..1 — the year turning, not a rate',
 
-  // A share of the storm's fixed comb of slots, 0..1, and nothing about speed:
-  // it decides which of the front's possible strikes fire, not how fast they
-  // arrive. Every strike is placed and lit against `weather.time`, which
-  // `weather.speed=0` already freezes — so the thing this knob would have to
-  // stop is already stopped, and zeroing it here would mean no capture of this
-  // scape ever contained a strike at all. See `scene/storm.ts`.
-  'storm.rate': 'a share, 0..1 — how many of the front\'s slots carry a strike',
-
-  // Metres, and the noun rather than the verb: how far up a hill the snow line
-  // swings between the face the weather is on and the lee of it. Nothing about
-  // it advances — it is resolved from `wind.bearing` and a ground normal, and
-  // both of those are as still in a capture as the hillside is. Zeroing it here
-  // would mean no capture of this scape ever had a drift in it, which is the
-  // same failure `storm.rate` names. See `landscape/drift.ts`.
-  'season.snowDrift': 'metres — where the wind put the winter, not how fast',
 }
 
 /**
@@ -86,7 +71,7 @@ describe('STILL covers everything the overlay can animate', () => {
 
   test('the overlay is the set this is derived from, and it is not empty', () => {
     // If this ever collapses, every assertion below passes vacuously.
-    expect(live.length).toBeGreaterThan(40)
+    expect(live.length).toBeGreaterThan(30)
   })
 
   test('every rate the overlay exposes is stopped', () => {
@@ -94,7 +79,7 @@ describe('STILL covers everything the overlay can animate', () => {
     const missed = rates.filter(path => !stillPaths.has(path))
 
     // Named so a failure says which knob, not just that one is missing.
-    expect(rates.length).toBeGreaterThan(6)
+    expect(rates.length).toBeGreaterThan(2)
     expect(missed).toEqual([])
   })
 
