@@ -682,6 +682,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `vegetation.ts` | spruce, pine, birch, grass, reeds, crops — and all four runtime vertex deformers: `applyTaper`/`applyBend`/`applyTwist` on a blade, `displaceByNoise` on every canopy |
 | `stone.ts` | erratics, field stones, cobbles, cairns; `stonePart`, the one way any prop makes a stone |
 | `soften.ts` | smoothing groups over a `part()` soup: worn stones shade round, joints past the crease keep their edge |
+| `chisel.ts` | joint planes and inward pitting on every rock `stonePart` takes; subdivides only stones ≥ 1 m (cost) |
 | `objects.ts` | hollow clinker rowboat, bales, firewood, barrel, mailbox, driftwood |
 | `fence.ts` / `wall.ts` | ground-following runs — take a polyline, not an rng |
 | `ploppable.ts` | 2d placement with a ground-following foundation |

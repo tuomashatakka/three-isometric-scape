@@ -3,6 +3,7 @@ import type { SeededRng } from 'threejs-scene'
 import type { PartOptions } from 'threejs-scene/modules/assets'
 import { createRockGeometry, hedron, mergeParts, part } from 'threejs-scene/modules/assets'
 import type { NordicPalette } from './palette.ts'
+import { chisel } from './chisel.ts'
 import { soften } from './soften.ts'
 
 
@@ -19,15 +20,15 @@ export const STONE_CREASE = 50 * Math.PI / 180
 const TALUS_CREASE = 24 * Math.PI / 180
 
 /**
- * A worn stone: a rock, placed and coloured by `part()`, then shaded round by
- * `soften`. The one way a stone gets into the scape, so a dyke course, a
+ * A worn stone: a rock, cut along its joints and pitted by `chisel`, placed
+ * and coloured by `part()`, then shaded round by `soften`. The one way a stone gets into the scape, so a dyke course, a
  * cairn and an erratic weather alike. It takes the rock already built, so the
  * rock draws from the rng before its placement does, exactly as
  * `stonePart(createRockGeometry(…), …)` did, and every placement after it is
  * unchanged.
  */
 export function stonePart (rock: BufferGeometry, place: PartOptions, crease = STONE_CREASE): BufferGeometry {
-  return soften(part(rock, place), crease)
+  return soften(part(chisel(rock, crease >= STONE_CREASE), place), crease)
 }
 
 
