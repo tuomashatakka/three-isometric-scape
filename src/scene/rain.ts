@@ -1,13 +1,16 @@
 import { Color, DoubleSide, Mesh, ShaderMaterial, Vector2, Vector3 } from 'three'
+import type { WebGLRenderer } from 'three'
 import type { OrthographicCamera } from 'three'
 import { defineModule } from 'threejs-scene'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import {
-  FALL_PLACE_GLSL,
+  FALL_MARK_GLSL,
+  FLAKE_MARK,
+  RAIN_MARK,
   fallColumnBase,
   fallGeometry,
   fallWrap,
-  screenSize,
+  markPixel,
   sizeFallColumn,
 } from './fall-column.ts'
 import type { AtmosphereQuality } from './quality.ts'
@@ -40,48 +43,25 @@ export interface RainOptions {
   wind: WindState
 }
 
-/**
- * Streak half-length and half-width, as **shares of the frame's height**.
- *
- * Read `screenSize` in `fall-column.ts` before touching either: this is the
- * pair that was inverted, and the form it is written in now is the whole of the
- * fix. `0.008` is eight thousandths of the frame however tall the canvas is —
- * about sixteen pixels of streak on a 1080-line viewport and eight on the
- * harness's 500 — at a ten-metre frame and at a fourteen-hundred-metre one
- * alike, which is what the module always claimed and never did.
- *
- * The ratio between them moved with the fix and had to. At the old numbers a
- * streak was sixteen times its own width, which is a fine proportion for the
- * sixty-pixel rods the close poses were drawing and a sub-pixel hairline at any
- * width a correct streak has. At four-to-one and a girth of 0.0018 the fall
- * measures **0.298 %** of the default frame against its own `--skip rain`
- * control, where the first correct length at the old ratio measured 0.137 %
- * and the shipped code measured 0.000 %.
- */
-const STREAK = 0.008
-const GIRTH  = 0.0018
-
-/** What a flake keeps of a drop's length and of its speed. */
-const FLAKE_LENGTH = 0.16
-const FLAKE_SPEED  = 0.17
-
 /** How far the wind pushes the fall sideways, in metres per metre fallen. */
 const SLANT = 0.42
 
-/** Opacity of one drop at the height of a squall. */
-const DROP_ALPHA = 0.5
+/** What a flake keeps of a drop's speed. */
+const FLAKE_SPEED = 0.17
+
+/** Opacity of one drop at the height of a squall, before its cover. */
+const DROP_ALPHA = 0.55
+
+/** How much brighter a flake is than a drop: it scatters, a drop mostly lets light through. */
+const FLAKE_ALPHA = 1.6
 
 const RAIN_VERTEX = /* glsl */`
-  ${FALL_PLACE_GLSL}
-
-  uniform vec2 uStreak;
-  varying vec2 vShape;
+  ${FALL_MARK_GLSL}
 
   void main () {
     vec4 view = modelViewMatrix * vec4(fallPlace(), 1.0);
 
-    view.xy    += fallBasis() * (position.xy * uStreak);
-    vShape      = position.xy;
+    view.xy    += fallMark();
     gl_Position = projectionMatrix * view;
   }
 `
@@ -89,16 +69,21 @@ const RAIN_VERTEX = /* glsl */`
 const RAIN_FRAGMENT = /* glsl */`
   uniform vec3 uColor;
   uniform float uOpacity;
+  uniform float uSleet;
   varying vec2 vShape;
+  varying float vCover;
+  varying float vBlur;
 
   void main () {
-    // Soft on all four sides, and brighter at the leading end — a falling drop
-    // is a smear of one bright head, not an evenly lit rod.
+    // A drop is a smear with one bright head; a flake is a soft round body.
+    // Both soften to a disc of confusion as they pass the glass.
     float across = 1.0 - vShape.x * vShape.x;
     float along  = 1.0 - vShape.y * vShape.y;
-    float head   = mix(0.55, 1.0, vShape.y * 0.5 + 0.5);
+    float head   = mix(mix(0.55, 1.0, vShape.y * 0.5 + 0.5), 1.0, uSleet);
+    float round  = clamp(1.0 - dot(vShape, vShape), 0.0, 1.0);
+    float body   = mix(across * along * head, round * round, max(uSleet, vBlur));
 
-    gl_FragColor = vec4(uColor, uOpacity * across * along * head);
+    gl_FragColor = vec4(uColor, uOpacity * vCover * body);
 
     if (gl_FragColor.a < 0.004)
       discard;
@@ -122,9 +107,10 @@ const RAIN_FRAGMENT = /* glsl */`
  * dense enough to see without covering the map in geometry nobody is looking at.
  *
  * What falls is the year's business, not this module's. `weather.sleet` is the
- * share of the fall the season has frozen, and it shortens the streak, slows it,
- * and takes it from a pale blue-grey toward the same white the ground is going —
- * three uniform writes, no branch, and one program for both halves of the year.
+ * share of the fall the season has frozen, and it takes the mark from a drop's
+ * thin streak to a flake's soft round body (`RAIN_MARK` to `FLAKE_MARK`, in
+ * metres — see `fallMark`), slows it, brightens it, and takes it toward the
+ * same white the ground is going: uniform writes, no branch, one program.
  * What falls *beside* it is the front's business and not the year's: hail is a
  * second layer rather than a third setting here, because a stone is not a drop
  * at a different temperature. See `hail.ts`.
@@ -158,7 +144,8 @@ export function createRainLayer ({
     uniforms:        {
       uBox:     { value: new Vector3(1, 1, 1) },
       uFallen:  { value: 0 },
-      uStreak:  { value: new Vector2(1, 1) },
+      uMark:    { value: new Vector3(RAIN_MARK.girth, RAIN_MARK.streak, 0.02) },
+      uSleet:   { value: 0 },
       uSlant:   { value: new Vector2() },
       uColor:   { value: new Color() },
       uOpacity: { value: 0 },
@@ -174,10 +161,19 @@ export function createRainLayer ({
   // cull against describes a box the drops are never actually in.
   mesh.frustumCulled = false
 
-  const box    = material.uniforms.uBox.value as Vector3
-  const streak = material.uniforms.uStreak.value as Vector2
-  const slant  = material.uniforms.uSlant.value as Vector2
-  const tone   = material.uniforms.uColor.value as Color
+  const mark   = material.uniforms.uMark.value as Vector3
+
+  // Metres per pixel, read where the buffer's height is known: the pixel
+  // floor is the only screen-sized number left in the mark.
+  const buffer = new Vector2()
+
+  mesh.onBeforeRender = (renderer: WebGLRenderer) => {
+    mark.z = markPixel(camera, renderer.getDrawingBufferSize(buffer).y)
+  }
+
+  const box   = material.uniforms.uBox.value as Vector3
+  const slant = material.uniforms.uSlant.value as Vector2
+  const tone  = material.uniforms.uColor.value as Color
 
   // Metres fallen, not seconds elapsed. Keeping the integral rather than the
   // clock is what lets `weather.fall` be turned down to zero and back up without
@@ -198,7 +194,7 @@ export function createRainLayer ({
       const viewSize = camera.userData.viewSize as number ?? config().camera.viewSize
       const seen     = falling * fallMarks(viewSize, config().camera)
 
-      material.uniforms.uOpacity.value = seen * DROP_ALPHA
+      material.uniforms.uOpacity.value = seen * DROP_ALPHA * (1 + (FLAKE_ALPHA - 1) * weather.sleet)
       mesh.visible                     = seen > 0.004
 
       if (!mesh.visible)
@@ -207,13 +203,10 @@ export function createRainLayer ({
       const focus = camera.userData.target as readonly [number, number, number] | undefined
       const rise  = sizeFallColumn(viewSize, box)
 
-      // Constant in screen terms: both are shares of the frame's height, so a
-      // streak that reads as sixteen pixels at a ten-metre view reads as
-      // sixteen pixels at a fourteen-hundred-metre one.
-      streak.set(
-        screenSize(GIRTH, viewSize),
-        screenSize(STREAK, viewSize) * (1 - (1 - FLAKE_LENGTH) * sleet),
-      )
+      // The body and its smear, in metres, from a drop's to a flake's.
+      mark.x                         = RAIN_MARK.girth + (FLAKE_MARK.girth - RAIN_MARK.girth) * sleet
+      mark.y                         = RAIN_MARK.streak + (FLAKE_MARK.streak - RAIN_MARK.streak) * sleet
+      material.uniforms.uSleet.value = sleet
 
       // The wind the grass already leans on, taken from the one place that
       // knows which way it is blowing. The gust is in `strength`, so a squall

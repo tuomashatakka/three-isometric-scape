@@ -1,13 +1,15 @@
 import { Color, DoubleSide, Mesh, ShaderMaterial, Vector2, Vector3 } from 'three'
+import type { WebGLRenderer } from 'three'
 import type { OrthographicCamera } from 'three'
 import { defineModule } from 'threejs-scene'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import {
-  FALL_PLACE_GLSL,
+  FALL_MARK_GLSL,
+  STONE_MARK,
   fallColumnBase,
   fallGeometry,
   fallWrap,
-  screenSize,
+  markPixel,
   sizeFallColumn,
 } from './fall-column.ts'
 import type { AtmosphereQuality } from './quality.ts'
@@ -34,35 +36,6 @@ export interface HailOptions {
   /** The scape's one wind: the cell's track, and the little lean a stone has. */
   wind: WindState
 }
-
-/**
- * Stone radius and how far the fall smears it, as a share of the frame's
- * height.
- *
- * Screen-sized for `screenSize`'s reason, and larger than the rain's girth on
- * purpose: a drop is a smear of a thing too small and too fast to see and a
- * stone is a thing you can see, so the one mark in the fall that is meant to
- * read as an *object* is the one that gets three pixels rather than one.
- *
- * It is still a share of the frame rather than a size in metres, and that is
- * the honest compromise rather than an oversight. Real hail is fifteen
- * millimetres across; at the 1 400 m frame five of the tour's six poses are
- * taken at, fifteen millimetres is a ten-thousandth of a pixel. The scape draws
- * the *shower*, which is a thing you can see from the next island, and the
- * stones are its grain.
- */
-const STONE   = 0.0055
-const STRETCH = 1.8
-
-/**
- * How much bigger the largest stone in the fall is than the smallest.
- *
- * Hail is graded — a shower drops a range of sizes at once, and a column of
- * identical dots reads as a texture rather than as weather. The grade is
- * hashed out of the cell the buffer already carries rather than taking a fifth
- * attribute, which keeps `fallGeometry` the one buffer builder both falls use.
- */
-const GRADE = 0.76
 
 /**
  * What a stone keeps of the wind's push, against a drop's.
@@ -124,12 +97,10 @@ export const SWEEP = 1.5
 const EDGE = 0.34
 
 const HAIL_VERTEX = /* glsl */`
-  ${FALL_PLACE_GLSL}
+  ${FALL_MARK_GLSL}
 
-  uniform vec2 uStone;
   uniform vec2 uCell;
   uniform vec2 uBand;
-  varying vec2 vShape;
   varying float vCell;
 
   void main () {
@@ -141,15 +112,9 @@ const HAIL_VERTEX = /* glsl */`
     // panning across its edge shows the edge rather than carrying it along.
     vCell = 1.0 - smoothstep(uBand.x, uBand.y, distance(world.xz, uCell));
 
-    // Graded out of the cell the buffer already carries. Two multiplies rather
-    // than a fifth attribute and a second upload.
-    float grade = ${(1 - GRADE * 0.5).toFixed(3)} + ${GRADE.toFixed(3)} *
-      fract(aCell.x * 37.0 + aCell.z * 61.0);
-
     vec4 view = modelViewMatrix * vec4(local, 1.0);
 
-    view.xy    += fallBasis() * (position.xy * uStone * grade);
-    vShape      = position.xy;
+    view.xy    += fallMark();
     gl_Position = projectionMatrix * view;
   }
 `
@@ -159,19 +124,21 @@ const HAIL_FRAGMENT = /* glsl */`
   uniform vec3 uGloss;
   uniform float uOpacity;
   varying vec2 vShape;
+  varying float vCover;
+  varying float vBlur;
   varying float vCell;
 
   void main () {
-    // Round rather than a streak, and that is the whole difference between the
-    // two marks in the fall. A drop is a smear with a bright head; a stone is a
-    // body with a lit side, so the falloff is radial and the highlight sits
-    // where the quad's leading edge is.
-    float core  = clamp(1.0 - dot(vShape, vShape), 0.0, 1.0);
-    float gloss = pow(core, 5.0) * (0.45 + 0.55 * (vShape.y * 0.5 + 0.5));
+    // A stone is a bright streak with a lit head: the shutter smears it along
+    // the fall, and its glint rides the leading end. Out of focus it is a disc.
+    float across = 1.0 - vShape.x * vShape.x;
+    float along  = 1.0 - vShape.y * vShape.y;
+    float core   = mix(across * along, clamp(1.0 - dot(vShape, vShape), 0.0, 1.0), vBlur);
+    float gloss  = pow(core, 3.0) * (0.35 + 0.65 * (vShape.y * 0.5 + 0.5)) * (1.0 - vBlur);
 
     gl_FragColor = vec4(
       mix(uColor, uGloss, gloss),
-      uOpacity * vCell * smoothstep(0.0, 0.45, core)
+      uOpacity * vCover * vCell * smoothstep(0.0, 0.45, core)
     );
 
     if (gl_FragColor.a < 0.004)
@@ -275,7 +242,7 @@ export function createHailLayer ({
     uniforms:        {
       uBox:     { value: new Vector3(1, 1, 1) },
       uFallen:  { value: 0 },
-      uStone:   { value: new Vector2(1, 1) },
+      uMark:    { value: new Vector3(STONE_MARK.girth, STONE_MARK.streak, 0.02) },
       uSlant:   { value: new Vector2() },
       uCell:    { value: new Vector2() },
       uBand:    { value: new Vector2(1, 2) },
@@ -292,7 +259,14 @@ export function createHailLayer ({
   mesh.frustumCulled = false
 
   const box   = material.uniforms.uBox.value as Vector3
-  const stone = material.uniforms.uStone.value as Vector2
+  const mark  = material.uniforms.uMark.value as Vector3
+  const pixel = new Vector2()
+
+  // Metres per pixel, where the buffer's height is known. See `rain.ts`.
+  mesh.onBeforeRender = (renderer: WebGLRenderer) => {
+    mark.z = markPixel(camera, renderer.getDrawingBufferSize(pixel).y)
+  }
+
   const slant = material.uniforms.uSlant.value as Vector2
   const cell  = material.uniforms.uCell.value as Vector2
   const band  = material.uniforms.uBand.value as Vector2
@@ -341,8 +315,6 @@ export function createHailLayer ({
 
       const rise  = sizeFallColumn(viewSize, box, hailColumnSpan(viewSize, radius))
       const slack = hailColumnSlack(viewSize, radius)
-
-      stone.set(screenSize(STONE, viewSize), screenSize(STONE, viewSize) * STRETCH)
 
       // A quarter of the lean the rain takes from the same gust. See SLANT.
       slant.set(wind.dirX * wind.strength * SLANT, wind.dirZ * wind.strength * SLANT)

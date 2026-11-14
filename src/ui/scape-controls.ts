@@ -223,7 +223,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           'rain',
           range('weather.rain', 'how hard it falls', 0, 1, 0.01, quality.rainDrops > 0),
           0.9,
-          [ range('weather.fall', 'fall speed', 0, 40, 0.5) ],
         ),
         // Beside the rain rather than inside it, because it is a second fall
         // rather than a setting on the first — and the scrubber three rows up
@@ -233,7 +232,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           'hail',
           range('weather.hail', 'how hard it comes down', 0, 1, 0.01, quality.hailStones > 0),
           0.75,
-          [ range('weather.hailCell', 'cell width, share of the world', 0.04, 0.6, 0.01) ],
         ),
 
         // Under the weather rather than under the ground, because it is the rain
@@ -313,7 +311,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           [
             range('atmosphere.cloudHeight', 'ceiling', 10, 90, 1),
             range('atmosphere.cloudShadow', 'shadow', 0, 1, 0.01),
-            range('atmosphere.cloudScale', 'shadow size', 20, 260, 1),
             range('atmosphere.weatherBank', 'banking', 0, 1, 0.01),
           ],
         ),
@@ -325,10 +322,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           'aurora',
           range('atmosphere.aurora', 'brightness', 0, 1.5, 0.01, quality.auroraLayers > 0),
           0.85,
-          [
-            range('atmosphere.auroraHeight', 'ceiling', 20, 70, 1),
-            range('atmosphere.auroraSpeed', 'drift', 0, 2, 0.01),
-          ],
         ),
         // Beside the aurora, because it is the same deck and the same one gate:
         // how much sky the sun has left. There is no height and no drift under
@@ -394,40 +387,23 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           3.2,
           [ range('water.phosphor', 'sea fire', 0, 1, 0.01) ],
         ),
-        // The shape of the sea. Which way it runs is the wind's and lives under
-        // the weather; what is here is how big, how fast, how sorted, and how
-        // hard a bank stands it up.
+        // The shape of the sea: how big and how fast. Its wavelength, its shoaling
+        // and what a lee keeps of it are physics, and live on as config leaves.
         toggled(
           'swell',
           range('water.waveHeight', 'height (m)', 0, 0.4, 0.005),
           0.075,
-          [
-            range('water.waveSpeed', 'rate', 0, 2, 0.01),
-            range('water.swellLength', 'wavelength (m)', 12, 220, 1),
-            range('water.swellShoal', 'stands on a bank', 0, 1, 0.01),
-
-            // What the lee keeps of it. The *map* behind this — how far upwind
-            // land counts, for the wind sea and for the swell — is baked at
-            // build and stays out of the panel for the reason the roost's gates
-            // do: a reach that needs a reload to be seen is not a slider. This
-            // is the share the sea is allowed to answer it with, read per
-            // frame, and pulling it to 1 is the archipelago this scape had,
-            // where a harbour raised the same swell as the open sound.
-            range('water.swellLee', 'lee keeps', 0, 1, 0.01),
-          ],
+          [ range('water.waveSpeed', 'rate', 0, 2, 0.01) ],
         ),
         range('water.rippleStrength', 'ripple', 0, 0.6, 0.01),
 
-        // Which way it breaks is the wind's, and lives under the weather. What
-        // is here is how hard, how far out, and how much the lee is spared.
+        // Which way it breaks is the wind's; how far out and how much the lee
+        // is spared are the shelf's (`water.surfDepth`, `surfExposure`), leaves
+        // for `--set` and the url. The panel keeps the one look: how hard.
         toggled(
           'surf',
           range('water.surf', 'break', 0, 1.5, 0.01),
           0.85,
-          [
-            range('water.surfDepth', 'shelf depth (m)', 0, 4, 0.05),
-            range('water.surfExposure', 'weather side', 0, 1, 0.01),
-          ],
         ),
 
         // The other half of the same sentence, and it is deliberately its own
@@ -440,10 +416,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           'whitecaps',
           range('water.whitecap', 'coverage', 0, 1, 0.01),
           0.34,
-          [
-            range('water.whitecapOnset', 'onset (wind)', 0, 3, 0.01),
-            range('water.whitecapLee', 'lee spared', 0, 1, 0.01),
-          ],
         ),
         // The third white on this sea, and the only one with no wind in it.
         // When it runs is the tide's — the stream is the water level's own
@@ -456,7 +428,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           'roost',
           range('roost.strength', 'broken water', 0, 1, 0.01),
           0.72,
-          [ range('roost.chop', 'chop', 0, 1, 0.01) ],
         ),
 
         // How much of it is up on any given hour is the sun's, the same way the

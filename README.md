@@ -286,8 +286,8 @@ src/
     ├── weather.ts                  clock three: the front, what falls, how long it stays wet
     ├── wind.ts                     clock four: one bearing, one gust, one travel every scroll shares
     ├── tide.ts                     the moon from underneath: how far the sea is off its mean this hour, and how hard it is running
-    ├── fall-column.ts              the column both falls share: the box, the buffer, the wrap, the screen scale
-    ├── rain.ts                     the fall, as one screen-sized column of streaks
+    ├── fall-column.ts              the column both falls share: the box, the buffer, the wrap, the metre-sized mark
+    ├── rain.ts                     the fall, drops to flakes by the season, marks in metres
     ├── hail.ts                     the stones, in one world-sized cell on the squall's leading flank
     ├── squall.ts                   the shower out on the water, one lead ahead of the front
     ├── storm.ts                    the lightning in that same front, out on the far islands
@@ -457,6 +457,7 @@ src/
         ├── objects.ts              rowboat, bales, firewood, peat rick, barrel, mailbox, driftwood
         ├── stone.ts                erratics, field stones, cobbles, cairns; stonePart, the one way a stone is made
         ├── soften.ts               smoothing groups: worn stones shade round, joints keep their edge
+        ├── chisel.ts               joint planes and pitted relief on every stone, before part()
         ├── littoral.ts             bladderwrack and rock lichen — the tidal band
         ├── kelp.ts                 the oarweed plant — one metre of stipe and crown, scaled to its water
         ├── creel.ts                the pot marker — the float, the staff, the flag — and the stack ashore
@@ -872,9 +873,11 @@ every stone in the scape was a deformed icosahedron with one normal and one colo
 
 **[`props/soften.ts`](src/scene/props/soften.ts) shades the edges round without adding a triangle.** at every point it splits the corners into smoothing groups. two faces share a group when a chain of faces links them with every step turning by less than a crease. each group gets one area-weighted normal *and* one averaged facet colour, so the light rolls over the stone and its colour grades across it rather than jumping from facet to facet. a crease line through a point splits it in two, so a real joint keeps its edge. `STONE_CREASE` is 50°, just above the 42° a regular icosahedron turns at each edge. the talus block alone uses 24°, because it split off a face last winter and has not been rolled since.
 
-**`stonePart(rock, place)` in [`props/stone.ts`](src/scene/props/stone.ts) is the one way a stone gets into the scape.** it is `soften(part(rock, place))`, and it takes the rock already built on purpose. the first version took the rock's *options* and built it inside, which drew the placement's rng before the rock's and moved every cobble in the archipelago. the census caught it (a cobble family that should have been size-culled at the `far` pose was drawn), and `soften.test.ts` now pins the rng order.
+**`stonePart(rock, place)` in [`props/stone.ts`](src/scene/props/stone.ts) is the one way a stone gets into the scape.** it is `soften(part(chisel(rock), place))`, and it takes the rock already built on purpose. the first version took the rock's *options* and built it inside, which drew the placement's rng before the rock's and moved every cobble in the archipelago. the census caught it (a cobble family that should have been size-culled at the `far` pose was drawn), and `soften.test.ts` now pins the rng order.
 
 **and the upright grain got relief.** the bark grain that tints every wall and stone face is broad and stretched, too smooth to light. so the six-tap path reads the soil's normal map once more on upright faces, along the face and four times coarser than the soil (`PIT_TILE`), and lays its tangent on the face's own horizontal and vertical. that gives a board's figure and the pitting on a granite face. it is let go with the soil grain (`scapeGrainKeep`), so the archipelago frame neither fetches it nor shimmers with it. the phone path keeps its single fetch and gets the round stones without the pitting.
+
+**and the stones were cut along their joints.** softened, a deformed icosahedron is a smooth blob: every boulder read as a pebble scaled up. [`props/chisel.ts`](src/scene/props/chisel.ts) runs on every rock before `part()`. two **joint planes** per stone — a hashed bearing, one leaning on a side and one shearing a top corner, at 58–80% of the radius — flatten what lies beyond them into faces that meet the body past `STONE_CREASE`, so `soften` keeps them as edges. stones of a metre or more (`CHISEL_SUBDIVIDE`: the erratics) are subdivided once and **pitted**: two octaves of value noise cut *inward* along the radius, never out, so no stone grows past the hull its prop placed (the sea arch's clear opening is the test that caught the first, outward version). a fresh talus block (`worn` false) keeps its facets and gets only the joints. keyed on position alone — no rng is drawn, so nothing in the archipelago moves; corners shared by two triangles agree to the bit, so the shell stays watertight. cost: the erratic goes 140 → 380 triangles, +33k across its 136 instances on every tier; field stones (461 instances) are under the threshold, because subdividing them tripled the phone's triangle count.
 
 **one knob fewer.** `terrain.propGrain` (0.82) is gone: `terrain.detailGrain` drives both halves at the ratio they were authored at (`PROP_GRAIN_GAIN`, 2.4). nobody wanted grit on the ground without grain on the walls standing in it. the panel's *soil grain & relief* and *timber & stone grain* become *surface grain & relief*.
 
@@ -2599,10 +2602,23 @@ the fix is a *share of the frame's height* rather than a length in metres, becau
 all three of the readme's scale classes meet in that one module, which is why they are named in it:
 
 - **frame-sized** — the box. `FALL_SPAN` views across, `FALL_RISE` views high. never the world.
-- **screen-sized** — the mark. a streak's length and girth, a stone's radius.
+- **metre-sized** — the mark. a body's girth and the streak one exposure smears it into (`RAIN_MARK`, `FLAKE_MARK`, `STONE_MARK`), floored under a pixel. see *the shutter makes the mark* below.
 - **world-sized** — where the fall *is*. only the hail has one, and it is `weather.hailCell` against `archipelago.worldSize`.
 
 the ratio between the streak's length and its girth had to move with the fix and that is not a free tuning choice: sixteen-to-one is a fine proportion for a sixty-pixel rod and a sub-pixel hairline at any width a *correct* streak has.
+
+### the shutter makes the mark
+
+the share-of-the-frame fix kept the fall visible by drawing it as something it is not. at the farmyard frame (`near`, ten metres over five hundred lines, two centimetres a pixel) a hailstone a centimetre across was a six-pixel **opaque white disc** in front of everything — the loudest tell in the frame most people see. a photograph of that yard resolves a hailstone as a thin bright streak and a raindrop as a fainter one, because both are narrower than a pixel and longer than one: the shutter, not the body, makes the mark.
+
+so the mark is in metres now, in one glsl chunk both falls include (`FALL_MARK_GLSL` in [`fall-column.ts`](src/scene/fall-column.ts), with its cpu twin `fallMark` for the tests):
+
+- **what falls** is a `FallKind` — half its girth and half the streak a sixtieth of a second smears it into: a drop is 1 mm by 7 cm, a wet flake 6 mm by 1.2 cm, a stone 5 mm by 9 cm. `weather.sleet` slides the rain from the drop to the flake, and the fragment from a bright-headed smear to a soft round body.
+- **the pixel floor.** a mark is never drawn under `MARK_FLOOR` (0.75) of a pixel across or along, or it falls between samples and flickers. metres per pixel is read in the mesh's `onBeforeRender`, where the drawing buffer's height is known — the only screen-sized number left.
+- **energy, not area.** whatever widens a mark past its body spreads the same light over more of the frame, so the mark keeps `sqrt(body area / drawn area)` of its opacity — the root, not the ratio, because a sub-pixel streak reads by contrast and the eye and the film's shoulder are nearer the root of the energy. a shower stays readable in the yard and faint, not gone, at a hundred metres; past the squall handover (`fallMarks`) the marks give way to the sheet as before.
+- **a few marks pass the glass.** one in eight (`MARK_NEAR`) is drawn as if close to the lens — up to four times wider (`MARK_BLUR`), round, and as much fainter as it is wider. hashed out of the cell the buffer already carries: no attribute, no draw.
+
+`fall-column.test.ts` states the claims as facts: nothing is drawn under the floor, a resolved mark keeps all its light, a farther view keeps less, the yard's hailstone is a streak at least four times longer than wide and narrower than a pixel, and a blurred mark is wider and fainter. the hail's own `STONE`/`STRETCH`/`GRADE` constants and the rain's `STREAK`/`GIRTH`/`FLAKE_LENGTH` are gone, with `screenSize`.
 
 ## the stones ahead of the rain
 

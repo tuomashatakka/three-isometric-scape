@@ -8,37 +8,73 @@ import {
   fallGeometry,
   fallTilt,
   fallWrap,
-  screenSize,
+  FLAKE_MARK,
+  MARK_BLUR,
+  MARK_FLOOR,
+  RAIN_MARK,
+  STONE_MARK,
+  fallMark,
+  markPixel,
   sizeFallColumn,
 } from './fall-column.ts'
 
 
-/** Pixels a view-space offset lands from where it started, on an ortho frustum. */
-function pixels (offset: number, viewSize: number, height: number): number {
-  return offset * height / viewSize
-}
+describe('fallMark', () => {
+  const kinds = [ RAIN_MARK, FLAKE_MARK, STONE_MARK ]
 
-describe('screenSize', () => {
-  test('is the same number of pixels at every zoom, which is the claim', () => {
-    const share  = 0.008
-    const height = 1_080
-    const wide   = pixels(screenSize(share, 1_400), 1_400, height)
+  test('is never drawn under the pixel floor, so nothing falls between samples', () => {
+    for (const kind of kinds)
+      for (const pixel of [ 0.001, 0.02, 0.24, 0.76 ]) {
+        const mark = fallMark(kind, pixel)
 
-    for (const viewSize of [ 8, 10, 48, 260, 520, 1_400, 1_600 ])
-      expect(pixels(screenSize(share, viewSize), viewSize, height)).toBeCloseTo(wide, 9)
-
-    // And the share is the share: eight thousandths of a 1080-line frame.
-    expect(wide).toBeCloseTo(share * height, 9)
+        expect(mark.width).toBeGreaterThanOrEqual(pixel * MARK_FLOOR - 1e-12)
+        expect(mark.length).toBeGreaterThanOrEqual(pixel * MARK_FLOOR - 1e-12)
+      }
   })
 
-  test('grows with the view rather than against it', () => {
-    // The whole of the bug this module was cut to state. The old form divided,
-    // which made a mark go as the inverse square of the zoom on screen.
-    expect(screenSize(0.008, 1_400)).toBeGreaterThan(screenSize(0.008, 260))
+  test('a mark the frame resolves, in focus, is its body and keeps all its light', () => {
+    const mark = fallMark(STONE_MARK, 1e-5)
+
+    expect(mark.width).toBeCloseTo(STONE_MARK.girth, 9)
+    expect(mark.length).toBeCloseTo(STONE_MARK.streak, 9)
+    expect(mark.cover).toBe(1)
   })
 
-  test('never goes negative on a view that has', () => {
-    expect(screenSize(0.008, -5)).toBe(0)
+  test('the farther the view, the less light a sub-pixel mark keeps', () => {
+    for (const kind of kinds) {
+      const yard = fallMark(kind, 0.02).cover
+      const bay  = fallMark(kind, 0.24).cover
+
+      expect(bay).toBeLessThan(yard)
+      expect(bay).toBeGreaterThan(0)
+    }
+  })
+
+  test('at the farmyard frame a hailstone is a streak, not a disc', () => {
+    // The `near` pose: ten metres over five hundred lines. The old stone was
+    // a share of the frame and drew as a six-pixel opaque disc.
+    const pixel = markPixel({ top: 5, bottom: -5, zoom: 1 }, 500)
+    const mark  = fallMark(STONE_MARK, pixel)
+
+    expect(pixel).toBeCloseTo(0.02, 9)
+    expect(mark.length / mark.width).toBeGreaterThan(4)
+    expect(mark.width / pixel).toBeLessThan(1)
+    expect(mark.cover).toBeLessThan(0.75)
+  })
+
+  test('a mark near the glass spreads the same light wider, and so is fainter', () => {
+    const focused = fallMark(FLAKE_MARK, 0.005)
+    const blurred = fallMark(FLAKE_MARK, 0.005, 1, MARK_BLUR)
+
+    expect(blurred.width).toBeGreaterThan(focused.width)
+    expect(blurred.cover).toBeLessThan(focused.cover)
+  })
+
+  test('a drop is longer than it is wide, and a flake rounder than a drop', () => {
+    const drop  = fallMark(RAIN_MARK, 1e-5)
+    const flake = fallMark(FLAKE_MARK, 1e-5)
+
+    expect(drop.length / drop.width).toBeGreaterThan(flake.length / flake.width)
   })
 })
 

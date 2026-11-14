@@ -18,7 +18,7 @@ bun run assets --json             # the same rows, for a script
 | section | source of truth | a row is |
 | --- | --- | --- |
 | **props** | `PROPS` in `src/scene/props/index.ts` | name · `hero` / `scatter` / `unplaced` · triangles · metres · the file that builds it |
-| **kit** | exported non-`build*` functions in `src/scene/props/*.ts` | helper · `file:line` — what a prop is built *through* (`stonePart`, `soften`, the timber and wall helpers, the two shared materials in `material.ts`) |
+| **kit** | exported non-`build*` functions in `src/scene/props/*.ts` | helper · `file:line` — what a prop is built *through* (`stonePart`, `chisel`, `soften`, the timber and wall helpers, the two shared materials in `material.ts`) |
 | **textures** | `TEXTURES` in `src/scene/textures/catalogue.ts` | id · built here or baked from the survey · size · owning module · purpose |
 
 `hero` props are placed by hand and merged into one draw; `scatter` props are one
