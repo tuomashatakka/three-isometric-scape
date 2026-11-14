@@ -2,6 +2,17 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the shutter makes the mark — rain, sleet and hail in metres; every stone cut along its joints
+
+the loudest tell in the `near` frame was the hail: a centimetre of ice drawn as a six-pixel opaque white disc, because every falling mark was a share of the frame. the marks are in metres now — a body and the streak a sixtieth of a second smears it into — in one glsl chunk both falls include (`FALL_MARK_GLSL` in [`fall-column.ts`](src/scene/fall-column.ts)), so the yard frame shows thin slanted streaks of rain and brighter ones of hail, the way a photograph does.
+
+- **the mark:** `RAIN_MARK` 1 mm × 7 cm, `FLAKE_MARK` 6 mm × 1.2 cm (the season slides the rain to it), `STONE_MARK` 5 mm × 9 cm. floored at 0.75 px so nothing falls between samples, and keeping `sqrt(body / drawn)` of its opacity, so a widened mark spends the same light. one in eight is defocused at the glass — round, up to four times wider, as much fainter. metres-per-pixel is read in `onBeforeRender`; no attribute, no draw. `screenSize` and six per-layer constants (`STREAK`, `GIRTH`, `FLAKE_LENGTH`, `STONE`, `STRETCH`, `GRADE`) are gone.
+- **the stones:** [`props/chisel.ts`](src/scene/props/chisel.ts) runs inside `stonePart`, so every stone in every prop gets it — two joint planes that leave flat faces with hard edges, and on stones of a metre or more (the erratics) one subdivision and inward pitting. it uses position only and draws nothing from the rng, so nothing moves; it only cuts inward, so no stone grows past the space its prop gave it.
+- **thirteen rows fewer in the panel:** `weather.fall`, `weather.hailCell`, `atmosphere.cloudScale`, `auroraHeight`, `auroraSpeed`, `water.swellLength/swellShoal/swellLee`, `surfDepth/surfExposure`, `whitecapOnset/whitecapLee`, `roost.chop` are physics, and live on as config leaves for `--set` and the url.
+- **cost (mobile, tour):** draws unchanged (default 137, near 85, far 113, night 144, winter 143), 30 programs. triangles +0.05M a pose (default 1.01M, near 0.93M, far 1.44M): the erratic's 140 → 380 across 136 instances. a first version also subdivided field stones and took the phone to 1.32M; they keep their count and get the joints only.
+- **moved** (`scape:diff` against main): near 1.10% (14.6% in its busiest block) — the streaks and the jointed erratic; every other pose ≤ 0.03%. `scape:map --stats` and the structural line match main.
+- **tests:** `fall-column.test.ts` states that no mark is drawn under the floor, a resolved mark keeps all its light, a farther view keeps less, the yard's hailstone is a streak over four times longer than wide and narrower than a pixel, and a defocused mark is wider and fainter. `chisel.test.ts` states that only big worn stones are subdivided, that no stone grows past its hull, that the joints leave facets sharing one plane, and that the cut is deterministic and watertight.
+
 ## the sky knows the terrain — glens that hold shade, lit grit and a vignette on the phone
 
 three whole-frame changes in the shared ground material, the sky bake and the film, each on every tier, none costing a draw.
