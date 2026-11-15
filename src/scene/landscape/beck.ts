@@ -1,4 +1,5 @@
 import { Color, Mesh, MeshStandardMaterial, BufferGeometry, Float32BufferAttribute } from 'three'
+import { skyGloss } from '../sky-light.ts'
 import type { IUniform, WebGLProgramParametersWithUniforms } from 'three'
 import { smoothstep } from 'threejs-scene'
 import { mergeGeometryList, ribbonIndices, traceSections } from 'threejs-scene/modules/assets'
@@ -399,13 +400,13 @@ export function createBeck (
   // nothing a depth tint cannot draw, and it would put a fourth overlapping
   // surface into a stack whose ordering this scape has already been bitten by
   // twice — see `scene/layers.ts`.
-  const material = new MeshStandardMaterial({
-    name:            'beck-water',
-    vertexColors:    true,
-    roughness:       0.2,
-    metalness:       0.04,
-    envMapIntensity: 0.55,
-  })
+  // Its share of the sky mirror (`sky-light.ts`): it carries its own.
+  const material = skyGloss(new MeshStandardMaterial({
+    name:         'beck-water',
+    vertexColors: true,
+    roughness:    0.2,
+    metalness:    0.04,
+  }), 0.55)
 
   material.onBeforeCompile = (program: WebGLProgramParametersWithUniforms) => {
     Object.assign(program.uniforms, uniforms)

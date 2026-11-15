@@ -1,4 +1,5 @@
 import { ShaderChunk } from 'three'
+import type { Material } from 'three'
 
 /**
  * The sky as a light, in every lit program.
@@ -68,18 +69,72 @@ const SKY_LIGHT = `vec3 getHemisphereLightIrradiance( const in HemisphereLight h
 
   }`
 
-/** Whether three's light chunk carries the sky light yet. */
+/**
+ * The sky as a mirror, in every standard program.
+ *
+ * With no environment map three's indirect specular is black: a wet slate, the
+ * chapel's paint and a polished boulder reflect nothing, and at a grazing angle
+ * every surface goes as dull as felt. The sky it should reflect is the same
+ * hemisphere the diffuse term already reads, so the radiance along the
+ * reflected ray is that function's irradiance over pi (a uniform sky's
+ * irradiance is pi times its radiance) — horizon band, aspect and all. The ray
+ * leans to the normal with roughness the way three's own IBL lookup does, so a
+ * rough field takes the sky over its normal and a smooth stone takes the sky
+ * behind the viewer; three's `EnvironmentBRDF` then weighs it by fresnel and
+ * roughness. A material scales its share with a `SKY_GLOSS` define (water,
+ * which carries its own mirror, takes a fraction).
+ *
+ * This replaced the PMREM room environment the desktop tiers baked: a studio
+ * interior, which every surface on a coast was mirroring.
+ */
+export const SKY_MIRROR = /* glsl */ `
+#if defined( RE_IndirectSpecular ) && !defined( USE_ENVMAP ) && NUM_HEMI_LIGHTS > 0
+  {
+    #ifndef SKY_GLOSS
+      #define SKY_GLOSS 1.0
+    #endif
+    vec3 skyRay  = reflect( - geometryViewDir, geometryNormal );
+    float rough4 = pow4( material.roughness );
+    skyRay       = normalize( mix( skyRay, geometryNormal, rough4 ) );
+    radiance    += float( SKY_GLOSS ) * RECIPROCAL_PI * getHemisphereLightIrradiance( hemisphereLights[ 0 ], skyRay );
+  }
+#endif
+`
+
+/** Give a standard material `share` of the sky mirror; returns it. */
+export function skyGloss<M extends Material> (material: M, share: number): M {
+  material.defines = { ...material.defines, SKY_GLOSS: share.toFixed(2) }
+  return material
+}
+
+/** Whether three's light chunks carry the sky light and mirror yet. */
 export function skyLightInstalled (): boolean {
-  return ShaderChunk.lights_pars_begin.includes('skyShare')
+  return ShaderChunk.lights_pars_begin.includes('skyShare') && ShaderChunk.lights_fragment_maps.includes('skyRay')
 }
 
 /**
- * Put the sky light into three's light chunk. Global, because the chunk is, and
- * idempotent; it must run before the first program compiles.
+ * Put the sky light into three's light chunk and the sky mirror after its
+ * environment lookup. Global, because the chunks are, and idempotent; it must
+ * run before the first program compiles.
  */
 export function installSkyLight (): void {
-  if (!skyLightInstalled())
+  if (!ShaderChunk.lights_pars_begin.includes('skyShare'))
     ShaderChunk.lights_pars_begin = ShaderChunk.lights_pars_begin.replace(STOCK, SKY_LIGHT)
+  if (!ShaderChunk.lights_fragment_maps.includes('skyRay'))
+    ShaderChunk.lights_fragment_maps += SKY_MIRROR
+}
+
+/**
+ * Where the mirror looks: the reflected ray leaned to the normal by roughness
+ * to the fourth, as three's IBL does — the same arithmetic as the glsl.
+ */
+export function skyRay (view: readonly [number, number, number], normal: readonly [number, number, number], roughness: number): [number, number, number] {
+  const d = view[0] * normal[0] + view[1] * normal[1] + view[2] * normal[2]
+  const r = [ 2 * d * normal[0] - view[0], 2 * d * normal[1] - view[1], 2 * d * normal[2] - view[2] ]
+  const t = roughness ** 4
+  const m = r.map((c, i) => c + (normal[i] - c) * t)
+  const l = Math.sqrt(m[0] * m[0] + m[1] * m[1] + m[2] * m[2]) || 1
+  return [ m[0] / l, m[1] / l, m[2] / l ]
 }
 
 /**
@@ -92,4 +147,5 @@ export function skyShare (up: number): number {
 }
 
 // perf: ~30 scalar operations per fragment in the hemisphere term every lit
-// program already evaluates; no uniform, no varying, no texture, no program.
+// program already evaluates, and the same again for the mirror in standard
+// programs; no uniform, no varying, no texture, no program.

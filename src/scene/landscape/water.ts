@@ -11,6 +11,7 @@ import {
 import type { IUniform, Texture, WebGLProgramParametersWithUniforms } from 'three'
 import { CLOUD_SHADOW_GLSL } from '../cloud-shadow.ts'
 import { WEATHER_BANK_GLSL } from '../weather-bank.ts'
+import { skyGloss } from '../sky-light.ts'
 import type { CloudShadow } from '../cloud-shadow.ts'
 import type { LiveConfig, ScapeConfig } from '../config.ts'
 import { createDaylight, keyShare, sunHeight } from '../daylight.ts'
@@ -839,19 +840,19 @@ export function createWater (
   // lobe out until no angle can concentrate it.
   //
   // Rough dielectrics then pick up the whole sky instead, which is overcast and
-  // pale, and the depth tint drowns under it. Cutting `envMapIntensity` is what
+  // pale, and the depth tint drowns under it. Cutting its share of the sky mirror (`SKY_GLOSS`) is what
   // gives the water back its own colour; the glitter above supplies the sharp
   // highlights the roughness gave away.
-  const material = new MeshStandardMaterial({
-    name:            'water-surface',
-    color:           0xffffff,
-    transparent:     true,
-    opacity:         1,
-    roughness:       SLICK_GLASS,
-    metalness:       0.02,
-    envMapIntensity: 0.3,
-    depthWrite:      false,
-  })
+  // Its share of the sky mirror (`sky-light.ts`): it carries its own.
+  const material = skyGloss(new MeshStandardMaterial({
+    name:        'water-surface',
+    color:       0xffffff,
+    transparent: true,
+    opacity:     1,
+    roughness:   SLICK_GLASS,
+    metalness:   0.02,
+    depthWrite:  false,
+  }), 0.3)
 
   material.onBeforeCompile = (program: WebGLProgramParametersWithUniforms) => {
     Object.assign(program.uniforms, uniforms)

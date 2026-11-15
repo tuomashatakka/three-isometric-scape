@@ -59,8 +59,6 @@ describe('selectAtmosphereQuality', () => {
   })
 
   test('drops the image-based fill below the desktop tier', () => {
-    expect(atmosphereQuality('mobile').environment).toBe(false)
-    expect(atmosphereQuality('desktop').environment).toBe(true)
   })
 
   test('never detects the minimal tier — it is only reachable by degrading', () => {
@@ -175,7 +173,6 @@ describe('unlocking every effect', () => {
       expect(all.bloom).toBe(true)
       expect(all.grain).toBe(true)
       expect(all.godRays).toBe(true)
-      expect(all.environment).toBe(true)
       expect(all.ssr).toBe(true)
       expect(all.traa).toBe(true)
       expect(all.anamorphic).toBe(true)

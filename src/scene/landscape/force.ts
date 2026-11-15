@@ -1,4 +1,5 @@
 import { BufferGeometry, Color, Float32BufferAttribute, DoubleSide, Mesh, MeshStandardMaterial } from 'three'
+import { skyGloss } from '../sky-light.ts'
 import type { IUniform, WebGLProgramParametersWithUniforms } from 'three'
 import { smoothstep } from 'threejs-scene'
 import { mergeGeometryList, ribbonIndices, traceSections } from 'threejs-scene/modules/assets'
@@ -507,14 +508,14 @@ export function createForce (
   // surfaces, see `scene/layers.ts`. Double-sided because the camera goes all
   // the way round: a sheet a metre from the hillside behind it is seen from
   // upstream at half the headings the scape can be turned to.
-  const material = new MeshStandardMaterial({
-    name:            'force-water',
-    vertexColors:    true,
-    side:            DoubleSide,
-    roughness:       0.16,
-    metalness:       0.03,
-    envMapIntensity: 0.6,
-  })
+  // Its share of the sky mirror (`sky-light.ts`): it carries its own.
+  const material = skyGloss(new MeshStandardMaterial({
+    name:         'force-water',
+    vertexColors: true,
+    side:         DoubleSide,
+    roughness:    0.16,
+    metalness:    0.03,
+  }), 0.6)
 
   material.onBeforeCompile = (program: WebGLProgramParametersWithUniforms) => {
     Object.assign(program.uniforms, uniforms)
