@@ -103,7 +103,7 @@ export function setCaps (
   water:    ScapeConfig['water'],
   strength: number,
 ): void {
-  uniforms.uCaps.value    = capsAmount(water.whitecap, water.whitecapOnset, strength)
+  uniforms.uCaps.value    = capsAmount(water.whitecap * water.state, water.whitecapOnset, strength)
   uniforms.uCapsLee.value = water.whitecapLee
 }
 

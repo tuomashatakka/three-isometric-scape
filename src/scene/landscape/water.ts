@@ -628,8 +628,9 @@ function setRoost (
   uniforms: Record<string, IUniform>,
   tide:     TideState,
   roost:    ScapeConfig['roost'],
+  state:    number,
 ): void {
-  uniforms.uRoost.value     = roostAmount(tide.stream, roost.strength)
+  uniforms.uRoost.value     = roostAmount(tide.stream, roost.strength * state)
   uniforms.uRoostSet.value  = Math.max(-1, Math.min(1, tide.stream))
   uniforms.uRoostChop.value = roost.chop
 }
@@ -753,7 +754,7 @@ export function createWater (
     uIceBreak:         { value: config().water.iceBreak },
     uFloeScale:        { value: config().terrain.size / config().archipelago.worldSize },
     uRippleScale:      { value: 1 / 34 },
-    uRippleStrength:   { value: config().water.rippleStrength },
+    uRippleStrength:   { value: config().water.rippleStrength * config().water.state },
     uBoatWakeStrength: { value: config().water.wakeStrength },
     uTrailPos0:        { value: trailPos[0] },
     uTrailPos1:        { value: trailPos[1] },
@@ -779,13 +780,13 @@ export function createWater (
     uSparkleScale:     { value: 1 / 14 },
     uSparkle:          { value: config().water.sparkle },
     uWaveTime:         waveTime,
-    uWaveHeight:       { value: config().water.waveHeight },
+    uWaveHeight:       { value: config().water.waveHeight * config().water.state },
     uSwell:            swell,
     uSwellRun:         swellRun,
     uSwellK:           { value: swellWavenumber(config().water.swellLength) },
     uSwellRate:        { value: swellRate(config().water.swellLength) },
     uSwellShoal:       { value: config().water.swellShoal },
-    uSurf:             { value: config().water.surf },
+    uSurf:             { value: config().water.surf * config().water.state },
 
     // Metres in, fractions of `MAX_DEPTH` out — the mask's depth channel is a
     // fraction of that, so this is where the one conversion happens rather than
@@ -943,7 +944,7 @@ export function createWater (
 
       uniforms.uTide.value = tide.level / MAX_DEPTH
 
-      setRoost(uniforms, tide, config().roost)
+      setRoost(uniforms, tide, config().roost, config().water.state)
 
       syncBoatWakes(wakes)
 
@@ -960,8 +961,8 @@ export function createWater (
       waveTime.value                   = phase
       uniforms.uBoatWakeStrength.value = config().water.wakeStrength
       uniforms.uSparkle.value          = config().water.sparkle * (1 - 0.85 * fall)
-      uniforms.uWaveHeight.value       = config().water.waveHeight
-      uniforms.uRippleStrength.value   = config().water.rippleStrength * (1 + 0.7 * fall)
+      uniforms.uWaveHeight.value       = config().water.waveHeight * config().water.state
+      uniforms.uRippleStrength.value   = config().water.rippleStrength * config().water.state * (1 + 0.7 * fall)
       uniforms.uFreeze.value           = season.freeze
       uniforms.uIceReach.value         = config().water.iceReach
       uniforms.uIceBreak.value         = config().water.iceBreak
@@ -975,7 +976,7 @@ export function createWater (
       swell.value.set(wind.dirX, wind.dirZ)
       setSwell(uniforms, swellRun.value, config().water, wind)
       uniforms.uSurgePhase.value   = wind.travel * SURGE_RATE
-      uniforms.uSurf.value         = config().water.surf * (0.75 + 0.25 * Math.min(1.6, wind.strength))
+      uniforms.uSurf.value         = config().water.surf * config().water.state * (0.75 + 0.25 * Math.min(1.6, wind.strength))
       uniforms.uSurfDepth.value    = config().water.surfDepth / MAX_DEPTH
       uniforms.uSurfExposure.value = config().water.surfExposure
 

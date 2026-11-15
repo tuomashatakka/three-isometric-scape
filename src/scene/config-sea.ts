@@ -50,6 +50,19 @@ export interface SeaConfig {
      */
     phosphor: number
 
+    /**
+     * The sea state: one knob for how rough the water is.
+     *
+     * A Beaufort number moves five things at once — the swell's height, the
+     * ripple on it, the surf on the shore, the whitecaps out in the sound and
+     * the broken water in a tide race — and nobody turning a panel means one
+     * of them without the others. So the panel has one row, and this is a gain
+     * on all five as the scene reads them: 1 is the sea as tuned, 0 a glass
+     * calm, 2 a gale's. The five leaves stay, for `--set` and the url, as the
+     * sea's own proportions.
+     */
+    state: number
+
     /** Swell amplitude in metres. */
     waveHeight: number
 
@@ -368,6 +381,7 @@ export const SCAPE_SEA: SeaConfig = {
     // same sea with the term switched off.
     moonTrack:      10,
     phosphor:       0.5,
+    state:          1,
     waveHeight:     0.55,
     waveSpeed:      1,
     swellLength:    70,

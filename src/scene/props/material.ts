@@ -20,6 +20,7 @@ import type { SeasonState } from '../season.ts'
 import { createTextureCatalogue } from '../textures/catalogue.ts'
 import type { TextureCatalogue } from '../textures/catalogue.ts'
 import { GROUND_NORMAL_GAIN } from '../textures/normals.ts'
+import { HUMMOCK_FRAGMENT, HUMMOCK_PARS_FRAGMENT, HUMMOCK_SNOW } from './hummock.ts'
 import { PUDDLE_DECLARE, PUDDLE_FRAGMENT, PUDDLE_HOLLOW, PUDDLE_PARS_FRAGMENT, SHEEN_FRAGMENT } from './puddle.ts'
 import type { WeatherState } from '../weather.ts'
 import { weatheringFragment } from './weathering.ts'
@@ -519,6 +520,7 @@ ${SOIL_FRAGMENT}
 ${GRAIN_FRAGMENT}
 ${heathFragment('uDetailMap')}
 ${SOIL_NORMAL_FRAGMENT}
+${HUMMOCK_FRAGMENT}
 ${propGrainFragment(false)}
 ${weatheringFragment('uDetailMap')}
 `
@@ -559,6 +561,7 @@ ${heathFragment('uWearMap')}
   // its normal. A metre-wide patch of wear is damp ground, not raised ground —
   // there is nothing there to catch the light on.
 ${SOIL_NORMAL_FRAGMENT}
+${HUMMOCK_FRAGMENT}
 ${propGrainFragment(true)}
 ${weatheringFragment('uDetailMap')}
 `
@@ -647,7 +650,7 @@ function seasonFragment (lie: string, aspect: string, drift: string): string {
     scapeAltitude + scapeWander * ${wander}
   );
   float scapeSnow = uSeasonSnowAmount * scapeLies * (${lie});
-
+${HUMMOCK_SNOW}
   diffuseColor.rgb = mix(diffuseColor.rgb, uSeasonSnow, scapeSnow);
 
   // A drift is packed by the wind that built it and a scoured face keeps only
@@ -923,7 +926,7 @@ export function createScapeMaterials (
     // decision taken per compile is a branch in a function three already
     // considers long enough.
     const detailPars = extra.detail
-      ? DETAIL_PARS_FRAGMENT + (detailTaps >= 6 ? DETAIL_FULL_PARS_FRAGMENT : '')
+      ? DETAIL_PARS_FRAGMENT + HUMMOCK_PARS_FRAGMENT + (detailTaps >= 6 ? DETAIL_FULL_PARS_FRAGMENT : '')
       : ''
 
     // `?skip=inject` leaves the mesh, the geometry and the vertex colours exactly

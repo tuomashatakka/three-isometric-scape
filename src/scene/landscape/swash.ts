@@ -182,7 +182,7 @@ export function swashState (
 
   return {
     level:      config.terrain.waterLevel + tide.level,
-    height:     waveHeight * swashLift(wind.strength),
+    height:     waveHeight * config.water.state * swashLift(wind.strength),
     steepness:  swashSteepness(waveHeight, swellLength),
     phase:      phase * swellRate(swellLength),
     wavenumber: swellWavenumber(swellLength),
