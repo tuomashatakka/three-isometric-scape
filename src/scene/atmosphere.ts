@@ -74,10 +74,9 @@ const MAX_FOG      = 0.94
 const SKY_STEPS    = 64
 
 /**
- * What the sky light is scaled by when there is no image-based fill.
- *
- * The cheap tiers drop the PMREM room environment, and it is the only other
- * ambient term in the rig. It was 1.28, a guess, and the phone's `near` frame
+ * What the sky light is scaled by: the one ambient term in the rig, on every
+ * tier (the desktop's PMREM room environment is gone — the sky mirror in
+ * `sky-light.ts` reflects the sky instead of a studio interior). It was 1.28, a guess, and the phone's `near` frame
  * printed every shaded wall near black: the chapel's white boards were a
  * silhouette on the phone and white on the desktop. Measured, not guessed — the
  * phone's `near` frame reaches the desktop's mean luminance (93 of 255) at
@@ -268,10 +267,9 @@ export function createAtmosphereLayer ({
       landmass => landmassTerrain(authored, landmass).height,
     ),
   ) + CANOPY
-  const hemiGain    = quality.environment ? 1 : SKY_FILL
 
   const lighting = standardLighting<ScapeConfig>({
-    env: quality.environment ? { intensity: sky.environment } : false,
+    env: false,
     sun: {
       color:         sky.sun.getHex(),
       intensity:     authored.atmosphere.sunStrength,
@@ -425,8 +423,7 @@ export function createAtmosphereLayer ({
     rig.sun.intensity = sky.sunStrength
     rig.hemi.color.copy(sky.hemiSky)
     rig.hemi.groundColor.copy(sky.hemiGround)
-    rig.hemi.intensity             = sky.hemiStrength * hemiGain
-    rig.scene.environmentIntensity = sky.environment
+    rig.hemi.intensity = sky.hemiStrength * SKY_FILL
 
     rig.sun.position.copy(target).addScaledVector(direction, SUN_DISTANCE)
     sunPosition.copy(rig.sun.position)

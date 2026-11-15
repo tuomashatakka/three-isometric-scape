@@ -428,14 +428,6 @@ export interface AtmosphereQuality {
    */
   post: boolean
 
-  /**
-   * Image-based fill, baked from a room environment.
-   *
-   * A PMREM cubemap is twelve megabytes of RGBA16F and a generator pass at
-   * startup, which is a lot of a phone's budget for an ambient term the
-   * hemisphere light is already approximating.
-   */
-  environment: boolean
 
   /**
    * Frames drawn per second. 0 draws on every animation frame the display
@@ -756,7 +748,6 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     traa:            false,
     anamorphic:      false,
     post:            false,
-    environment:     false,
     frameRate:       20,
     detailTaps:      1,
     reliefSteps:     0,
@@ -826,7 +817,6 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     // them, and a device that cannot hold the tier is not a device that
     // should try to.
     post:          false,
-    environment:   false,
     frameRate:     30,
     detailTaps:    1,
     reliefSteps:   0,
@@ -894,7 +884,6 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     traa:            false,
     anamorphic:      false,
     post:            true,
-    environment:     true,
     frameRate:       0,
     detailTaps:      6,
     reliefSteps:     6,
@@ -955,7 +944,6 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     traa:            true,
     anamorphic:      true,
     post:            true,
-    environment:     true,
     frameRate:       0,
     detailTaps:      6,
     reliefSteps:     12,
@@ -1056,7 +1044,6 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
     traa:         true,
     anamorphic:   true,
     post:         true,
-    environment:  true,
     mistLayers:   Math.max(quality.mistLayers, UNLOCKED_FLOOR.mistLayers),
     haarSheets:   Math.max(quality.haarSheets, UNLOCKED_FLOOR.haarSheets),
     shaftSheets:  Math.max(quality.shaftSheets, UNLOCKED_FLOOR.shaftSheets),

@@ -2,6 +2,16 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## a sky in every surface — one sky on every tier, the room environment retired
+
+the desktop tiers baked a pmrem *room* environment — a studio interior — and every wet stone, slate roof and painted board on the coast was reflecting it; the phone had no environment at all, so its indirect specular was black and every surface at a grazing angle was as dull as felt. both are the sky now: `SKY_MIRROR` in [`sky-light.ts`](src/scene/sky-light.ts) appends to three's `lights_fragment_maps`, behind `!defined( USE_ENVMAP )`, and adds the sky light's radiance along the reflected ray (the hemisphere irradiance over pi, horizon band and aspect included) to every standard program's indirect specular, the ray leaning to the normal by roughness⁴ as three's ibl does. three's `EnvironmentBRDF` weighs it by fresnel and roughness.
+
+- **one lighting path:** `quality.environment`, the pmrem bake, `daylight.environment` and the per-tier fill fork (`hemiGain`) are gone. `SKY_FILL` is the fill on every tier.
+- **water keeps its own mirror:** the sea, the beck and the fall take a share through a `SKY_GLOSS` define (`skyGloss(material, share)`: 0.3, 0.55, 0.6 — their old `envMapIntensity`).
+- **moved:** the mirror lands where the shared materials' wet term (`uWetAmount` → roughness 0.12) already makes a surface smooth. in an autumn shower (`--poses near --set season.time=0.75`, mobile) mean luminance 62.3 → 66.4 of 255, 61% of pixels by more than 3 levels: the wet yard, the stones and the chapel's roof take the overcast. noon in the same season moves 2%. the tour (`scape:diff` against main) is 0.00% on every pose: its default phase is sleet over snow, where nothing is wet and snow is rough — the mirror is physically weak on dry moss (roughness 0.96), as it should be. at 20× the yard turns to glass, which is how the chunk was proven to reach the frame.
+- **cost:** no draw, triangle, texture or uniform; ~30 scalar operations a standard fragment. desktop first load drops the pmrem generator pass and its rgba16f cube. mobile census unchanged (default 137, near 85, far 113, night 144, winter 143; 30 programs; shader errors 0).
+- **tests:** `sky-light.test.ts` states that the mirror is appended once, after the ibl lookup, only where no env map exists, and that the ray mirrors the sky behind the viewer on a smooth face and leans monotonically to the normal with roughness.
+
 ## a sky over every shadow — walls that see the horizon, a phone fill that was measured, and forty-three panel rows fewer
 
 the loudest tell on the tier most people see was the shade: three's hemisphere light gives every upright face the same half-and-half of sky and ground, and on the phone (no room environment) the chapel's white boards printed as a black silhouette. the sky is a light now ([`sky-light.ts`](src/scene/sky-light.ts)), replacing `getHemisphereLightIrradiance` in `lights_pars_begin` once, for every lit program on every tier.

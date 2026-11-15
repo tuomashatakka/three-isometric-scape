@@ -27,9 +27,6 @@ export interface DaylightState {
   sunStrength:  number
   hemiStrength: number
 
-  /** Scene environment intensity — the image-based fill. */
-  environment: number
-
   /** 1 in full daylight, 0 in full night. Drives everything else here. */
   day: number
 
@@ -463,7 +460,6 @@ export function createDaylight (config: LiveConfig): Daylight {
     balance:      new Color(1, 1, 1),
     sunStrength:  authored.atmosphere.sunStrength,
     hemiStrength: authored.atmosphere.hemiStrength,
-    environment:  0.34,
     day:          1,
     moon:         0,
     dark:         0,
@@ -537,7 +533,6 @@ export function createDaylight (config: LiveConfig): Daylight {
       state.sunStrength = atmosphere.sunStrength *
         (day + lunar + STARLIGHT * astro) + lift * 0.4
       state.hemiStrength = atmosphere.hemiStrength * (0.3 + 0.7 * day) + lift
-      state.environment  = 0.34 * (0.18 + 0.82 * day) + lift * 0.25
       state.day          = day
       state.moon         = lunar
       state.dark         = astro

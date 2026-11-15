@@ -226,7 +226,7 @@ describe('createDaylight', () => {
     expect(midnight.day).toBe(0)
     expect(noon.day).toBe(1)
     expect(midnight.sunStrength).toBeLessThan(noon.sunStrength * 0.3)
-    expect(midnight.environment).toBeLessThan(noon.environment)
+    expect(midnight.hemiStrength).toBeLessThan(noon.hemiStrength)
   })
 
   test('leaves the midsummer night no darkness, and the midwinter day no sun', () => {
