@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { SCAPE_CONFIG } from '../config.ts'
-import { WATER_CAPS_GLSL, capsAmount } from './water-caps.ts'
+import { WATER_CAPS_GLSL, capsAmount, setCaps } from './water-caps.ts'
 
 
 const { whitecap, whitecapOnset, whitecapLee } = SCAPE_CONFIG.water
@@ -121,5 +121,22 @@ describe('the chunk', () => {
     // Never raw elapsed seconds: a cap field on `uWaveTime` cannot be stopped,
     // so it would be somewhere else in every frame of a capture.
     expect(WATER_CAPS_GLSL).not.toContain('uWaveTime')
+  })
+})
+
+describe('the sea state', () => {
+  const caps = (state: number): number => {
+    const uniforms = { uCaps: { value: 0 }, uCapsLee: { value: 0 }}
+    setCaps(uniforms, { ...SCAPE_CONFIG.water, state }, GUSTING)
+    return uniforms.uCaps.value
+  }
+
+  test('a glass calm has no whitecaps however hard it blows', () => {
+    expect(caps(0)).toBe(0)
+  })
+
+  test('the tuned sea is state 1, and a rougher one breaks more', () => {
+    expect(caps(1)).toBe(capsAmount(whitecap, whitecapOnset, GUSTING))
+    expect(caps(2)).toBeGreaterThan(caps(1))
   })
 })

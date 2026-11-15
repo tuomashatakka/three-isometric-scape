@@ -611,8 +611,33 @@ export function patchSegments (
   return Math.max(24, Math.round(baseSegments * patchSize / worldSize * detail))
 }
 
+/**
+ * Give the terrain's vertex colour an alpha: its rough-ground share.
+ *
+ * A four-component colour is a program parameter in three (`USE_COLOR_ALPHA`),
+ * so the terrain compiles its own variant of the shared ground program — one
+ * program, no draw — and only that variant evaluates the hummocks
+ * (`props/hummock.ts`). The props drawn with the same material keep three
+ * components and never see them. The material is opaque, so the alpha reaches
+ * no blend.
+ */
+export function markRoughGround (geometry: BufferGeometry, share = 1): BufferGeometry {
+  const rgb  = geometry.getAttribute('color')
+  const rgba = new Float32Array(rgb.count * 4)
+
+  for (let index = 0; index < rgb.count; index += 1) {
+    rgba[index * 4]     = rgb.getX(index)
+    rgba[index * 4 + 1] = rgb.getY(index)
+    rgba[index * 4 + 2] = rgb.getZ(index)
+    rgba[index * 4 + 3] = share
+  }
+
+  geometry.setAttribute('color', new BufferAttribute(rgba, 4))
+  return geometry
+}
+
 function terrainMesh (geometry: BufferGeometry, material: Material): Mesh {
-  const terrain         = new Mesh(geometry, material)
+  const terrain         = new Mesh(markRoughGround(geometry), material)
   terrain.name          = 'terrain'
   terrain.receiveShadow = true
   terrain.castShadow    = true

@@ -243,11 +243,7 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       controls: [
         toggled('sun glitter', range('water.sparkle', 'strength', 0, 1.5, 0.01), 0.5),
         toggled('the night sea', range('water.moonTrack', 'moon track', 0, 8, 0.05), 3.2),
-        toggled('swell', range('water.waveHeight', 'height (m)', 0, 0.4, 0.005), 0.075),
-        range('water.rippleStrength', 'ripple', 0, 0.6, 0.01),
-        toggled('surf', range('water.surf', 'break', 0, 1.5, 0.01), 0.85),
-        toggled('whitecaps', range('water.whitecap', 'coverage', 0, 1, 0.01), 0.34),
-        toggled('roost', range('roost.strength', 'broken water', 0, 1, 0.01), 0.72),
+        range('water.state', 'sea state · swell, surf, caps', 0, 2, 0.01),
         toggled('the wash', range('swash.reach', 'run-up (Hunt)', 0, 2, 0.01), 1),
         toggled('caustics', range('water.caustics', 'strength', 0, 1.5, 0.01), 1),
         toggled('the tide', range('tide.range', 'spring range (m)', 0, 1.6, 0.01), 0.8),
