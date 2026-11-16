@@ -64,13 +64,11 @@ export const LAYER = {
    * Over the water they stand at the edge of, and under everything else in the
    * frame, because everything else in the frame is nearer the eye: the far
    * shore is the most distant thing the scape draws that is not sky, and the
-   * sea smoke, the mist, the fog banks and the fall are all between the reader
+   * mist, the fog banks and the fall are all between the reader
    * and it. Above the halo and the bow, which are hung out past it along the
    * solar and antisolar bearings. See `shore-lights.ts`.
    */
   shoreLights: 8,
-
-  seaSmoke: 10,
 
   /**
    * Lamplight in the farmstead windows.

@@ -2,8 +2,9 @@ import { describe, expect, test } from 'bun:test'
 import { ShaderChunk } from 'three'
 import {
   AIR_SPECTRUM, GROUND_FOG_HEIGHT, aerialHaze, aerialHazeRgb, groundFog, groundFogAmount, groundFogBank, groundFogProfile, hazeRange,
-  installAerialPerspective,
+  SEA_SMOKE_PER_MIST, installAerialPerspective, packFogFar, seaSmoke, seaSmokeShare, unpackFogFar,
 } from './aerial.ts'
+import { seaSmokeAmount } from './season.ts'
 
 
 describe('aerial perspective', () => {
@@ -104,5 +105,38 @@ describe('ground fog', () => {
     expect(ShaderChunk.fog_fragment).not.toContain('- fogNear')
     expect(ShaderChunk.fog_vertex).toContain('vAerial = vec4(')
     Object.assign(ShaderChunk, before)
+  })
+})
+
+
+describe('sea smoke', () => {
+  test('the extinction length and the smoke share one uniform and both come back out', () => {
+    for (const far of [ 240, 777.4, 1800 ])
+      for (const smoke of [ 0, 0.31, 0.9 ]) {
+        const back = unpackFogFar(packFogFar(far, smoke))
+
+        expect(back.far).toBe(Math.round(far))
+        expect(back.smoke).toBeCloseTo(smoke, 4)
+      }
+  })
+
+  test('lies on the water and is gone two metres up, where the ground fog is the reverse', () => {
+    expect(seaSmoke(0, 1)).toBeGreaterThan(0.75)
+    expect(seaSmoke(2.5, 1)).toBeLessThan(0.25)
+    expect(groundFog(0, 1)).toBe(0)
+  })
+
+  test('is one knob with the mist: none at midsummer, none with the mist off, the old strength at the authored mist', () => {
+    expect(seaSmokeShare(seaSmokeAmount(0.5), 0.34)).toBe(0)
+    expect(seaSmokeShare(seaSmokeAmount(0.87), 0)).toBe(0)
+    expect(0.34 * SEA_SMOKE_PER_MIST).toBeCloseTo(0.9, 2)
+    expect(seaSmokeShare(seaSmokeAmount(0.87), 0.34)).toBeGreaterThan(0.5)
+  })
+
+  test('the fog chunk reads the smoke out of the fraction and the length out of the floor', () => {
+    installAerialPerspective(80)
+
+    expect(ShaderChunk.fog_fragment).toContain('floor( fogFar )')
+    expect(ShaderChunk.fog_fragment).toContain('smokeAmount')
   })
 })

@@ -9,9 +9,9 @@ import { SKY_OCCLUSION_FRAGMENT, createSkyOcclusion } from '../sky-occlusion.ts'
 import type { SkyOcclusion } from '../sky-occlusion.ts'
 import type { CloudShadow } from '../cloud-shadow.ts'
 import type { LiveConfig } from '../config.ts'
-import { EYE_GLSL, FRAME_GLSL, repeatKeepGlsl } from '../frame.ts'
-import { createDaylight } from '../daylight.ts'
+import { FRAME_GLSL, repeatKeepGlsl } from '../frame.ts'
 import { shadeDirection } from '../landscape/aspect.ts'
+import { WET_PARS_FRAGMENT, wetFragment } from './runoff.ts'
 import { SNOW_BAND, SNOW_WANDER, WANDER_ACROSS, WANDER_ALONG, driftDirection } from '../landscape/drift.ts'
 import { SWASH_FRAGMENT, SWASH_PARS_FRAGMENT, setSwash } from '../landscape/swash.ts'
 import type { SwashState } from '../landscape/swash.ts'
@@ -21,18 +21,10 @@ import { createTextureCatalogue } from '../textures/catalogue.ts'
 import type { TextureCatalogue } from '../textures/catalogue.ts'
 import { GROUND_NORMAL_GAIN } from '../textures/normals.ts'
 import { HUMMOCK_FRAGMENT, HUMMOCK_PARS_FRAGMENT, HUMMOCK_SNOW } from './hummock.ts'
-import { PUDDLE_DECLARE, PUDDLE_FRAGMENT, PUDDLE_HOLLOW, PUDDLE_PARS_FRAGMENT, SHEEN_FRAGMENT } from './puddle.ts'
+import { PUDDLE_DECLARE, PUDDLE_FRAGMENT, PUDDLE_HOLLOW } from './puddle.ts'
 import type { WeatherState } from '../weather.ts'
 import { weatheringFragment } from './weathering.ts'
 import type { WindState } from '../wind.ts'
-
-/** The sky-in-wet-ground chunks one program takes. */
-interface SheenInjection {
-  pars:     string
-  puddle:   string
-  sheen:    string
-  uniforms: Record<string, IUniform> | null
-}
 
 /** The two materials every solid thing in the scape draws with. */
 export interface ScapeMaterials {
@@ -684,34 +676,7 @@ const ALTITUDE_FRAGMENT = /* glsl */`
   float scapeAltitude = cameraPosition.y - dot(vViewPosition, viewMatrix[1].xyz);
 `
 
-const WET_PARS_FRAGMENT = /* glsl */`
-  uniform float uWetAmount;
-`
-
-/**
- * Rain, after it has landed.
- *
- * Two things happen to a surface that has been rained on and they pull in
- * opposite directions: the albedo goes *down*, because a water film traps light
- * that dry grains would have scattered back out, and the specular goes *up*,
- * because that same film is smoother than anything under it. Doing only the
- * first gives a scape somebody turned the lights down on; doing only the second
- * gives a scape made of plastic. Together they are the whole read, and they cost
- * two arithmetic operations on values the fragment is already holding.
- *
- * Weighted by the same `lie` the snow uses, and for the same reason — rain
- * lands on what faces the sky. It is applied before the snow rather than after,
- * so a week that is doing both ends up with white over wet rather than wet over
- * white, which is the order the world does them in.
- */
-function wetFragment (lie: string): string {
-  return /* glsl */`
-  float scapeWet = uWetAmount * (${lie});
-
-  diffuseColor.rgb *= 1.0 - 0.48 * scapeWet;
-  roughnessFactor   = mix(roughnessFactor, 0.12, scapeWet);
-`
-}
+// The rain's film — on the ground and down the walls — is `runoff.ts`.
 
 /** Lying snow settles on what faces the sky, and slides off what does not. */
 const GROUND_LIE = 'smoothstep(0.22, 0.72, vScapeFace.x)'
@@ -832,15 +797,6 @@ export function createScapeMaterials (
   // the grass and the ground it stands in cannot be in two different showers.
   const weather: Record<string, IUniform> = { uWetAmount: { value: 0 }}
 
-  // The sky the wet ground mirrors: the one the sea mirrors, sampled from the
-  // same daylight rather than handed across, so a material with no lake (the
-  // prop viewer, the tests) still has a sky. See `puddle.ts`.
-  const daylight                        = createDaylight(config)
-  const sheen: Record<string, IUniform> = {
-    uSkyHorizon: { value: new Color() },
-    uSkyTop:     { value: new Color() },
-  }
-
   // The shore. Only the ground reads it — the band is a gradient and a shelter
   // taken off the face varying, and foliage emits none — so unlike the year and
   // the shower there is no second program to keep in step. The foam colour is
@@ -866,21 +822,12 @@ export function createScapeMaterials (
   }
 
   /**
-   * What the sky in wet ground adds to a program. Only the ground carries the
-   * face varying the sheen and the puddles are weighted by, and only its full
-   * program reads the wear map the hollows are; every other ground program is
-   * the same ground, dry of puddles. See `puddle.ts`.
+   * Only the ground carries the face varying the puddles are weighted by, and
+   * only its full program reads the wear map the hollows are; every other
+   * ground program is the same ground, dry of puddles. See `puddle.ts`.
    */
-  function sheenFor (up: boolean, full: boolean): SheenInjection {
-    if (!up)
-      return { pars: '', puddle: '', sheen: '#include <opaque_fragment>', uniforms: null }
-
-    return {
-      pars:     PUDDLE_PARS_FRAGMENT + FRAME_GLSL + EYE_GLSL,
-      puddle:   full ? PUDDLE_FRAGMENT : 'float scapePuddle = 0.0;',
-      sheen:    SHEEN_FRAGMENT,
-      uniforms: sheen,
-    }
+  function puddleFor (up: boolean, extra: Injection): string {
+    return up && extra.detail && detailTaps >= 6 ? PUDDLE_FRAGMENT : ''
   }
 
   interface Injection {
@@ -900,15 +847,15 @@ export function createScapeMaterials (
     // Tied to the varying rather than chosen alongside it: the aspect lives in
     // `vScapeFace.y`, so a material that does not emit the varying cannot read
     // one, and there is no third state where the two disagree.
-    const wet            = sheenFor(up, Boolean(extra.detail) && detailTaps >= 6)
+    const puddle         = puddleFor(up, extra)
     const aspect         = up ? GROUND_ASPECT : FOLIAGE_ASPECT
     const drift          = up ? GROUND_DRIFT : FOLIAGE_ASPECT
     const normalFragment = [
       extra.detail ? injected : '#include <normal_fragment_begin>',
       extra.lie ? ALTITUDE_FRAGMENT : '',
-      extra.lie ? wetFragment(extra.lie) : '',
+      extra.lie ? wetFragment(extra.lie, up) : '',
 
-      wet.puddle,
+      puddle,
 
       // Between the shower and the year, and in that order for the reason the
       // shower is before the snow: a coast does all three in a week, and what
@@ -944,7 +891,6 @@ export function createScapeMaterials (
           extra.lie ? season : null,
           extra.lie ? weather : null,
           up ? swash : null,
-          wet.uniforms,
         )
 
         // The normal varying rides with the ground pass rather than with the
@@ -975,7 +921,6 @@ export function createScapeMaterials (
             up ? UP_PARS_FRAGMENT : '',
             detailPars,
             extra.lie ? WET_PARS_FRAGMENT : '',
-            wet.pars,
             up ? SWASH_PARS_FRAGMENT : '',
             extra.lie ? SEASON_PARS_FRAGMENT : '',
           ].join('\n'))
@@ -985,8 +930,6 @@ export function createScapeMaterials (
         if (extra.detail || extra.lie)
           program.fragmentShader = program.fragmentShader
             .replace('#include <normal_fragment_begin>', normalFragment)
-
-        program.fragmentShader = program.fragmentShader.replace('#include <opaque_fragment>', wet.sheen)
       }
     // The taps belong in the key: two materials that differ only by an injected
     // shader are identical as far as three's own cache is concerned, and it
@@ -1040,10 +983,6 @@ export function createScapeMaterials (
       season.uSeasonAspect.value     = config().season.snowSwing
       season.uSeasonDrift.value      = config().season.snowDrift
       weather.uWetAmount.value       = sky.wet
-
-      const light = daylight.sample(config().daylight.time, config().season.time);
-      (sheen.uSkyHorizon.value as Color).copy(light.horizon);
-      (sheen.uSkyTop.value as Color).copy(light.skyTop)
 
       // The shore, off the one sea. The run bearing and the phase are the
       // dominant swell train's own, handed over rather than re-derived, so the

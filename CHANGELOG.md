@@ -2,6 +2,18 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## rain that darkens the land — walls that take the weather, one mirror in the puddles, and the sea smoke folded into the air
+
+in a full shower the whole island turned silver-white from the default zoom, and against the light it read as an island under snow. two things stacked: every field was smoothed to a 0.12 film, and the puddles added a private sky sheen at 8× the fresnel on top of the sky mirror every program already has (`SKY_MIRROR`). meanwhile every wall, post and gable stood bone dry beside the soaked yard.
+
+- **[`props/runoff.ts`](src/scene/props/runoff.ts)** is the wet film, moved out of `material.ts` into the kit. it reaches terrain and every prop. upright faces take the rain (`wallWet`): fully on the face turned into the wind, 0.35 in the lee, laid in runs 0.22 m apart along the face's own horizontal, each with its own drip line and wetter toward its foot. it needs no texture, uniform or varying.
+- **leaves bead, bare things film:** green surfaces darken and stay matt (`WET_LEAF_ROUGHNESS` 0.8). soil, sand, stone, timber and slate take a 0.28 film. the terrain reads its plant share from its rough-ground alpha; props read it from albedo greenness (`leafShare`).
+- **one mirror:** the puddle sheen (`SKY_SHEEN`, `SHEEN_FRAGMENT`, two uniforms, and a daylight sample per frame in the materials) is deleted. puddles mirror the sky through `SKY_MIRROR` like everything else.
+- **sea smoke is a fog term:** the two world-sized smoke sheets and their 512² offshore mask (baked over every island at load) are gone. `seaSmoke` in [`aerial.ts`](src/scene/aerial.ts) is the reverse of the ground fog: densest on the water, e-folding over 1.1 m, in the same banks. its amount rides the fraction of `fogFar` (`packFogFar`), so it reaches every fogged program on every tier.
+- **the panel: one row fewer.** `season.seaSmoke` is retired. the steam is `atmosphere.mistAmount × SEA_SMOKE_PER_MIST`, so one knob, `ground mist & sea smoke`, controls the fog on the ground and the year decides whether it lies on land or water. `LAYER.seaSmoke` and `SeasonState.smoke` are gone.
+- **cost:** cheaper. on mobile, programs went 31 → 30 and textures 17 → 16; draws are unchanged or one fewer (default 137 / 1.01M, near 85 / 0.93M, far 113 / 1.44M, night 143, winter 143); shader errors 0. desktop: near 218 / 4.91M, default 238 / 4.52M, errors 0. about twenty scalar operations per ground fragment for the runs.
+- **tests:** `runoff.test.ts` checks that level ground takes no wall wetness, that the weather face is more than twice as wet as the lee, that runs streak the face, and that grass counts as a plant while slate and sand don't. `aerial.test.ts` checks that `fogFar` round-trips both numbers, that smoke lies on the water and is gone 2.5 m up, and that the smoke is zero at midsummer and with the mist off.
+
 ## the ground takes a shape: hummocks in every field, and one sea-state knob for five
 
 the `near` frame's fields were a smooth sheet: the grit was centimetres, the mesh tens of metres, and there was nothing between. [`props/hummock.ts`](src/scene/props/hummock.ts) adds the metre scale to every terrain fragment on every tier: tussocks and frost hummocks, from two octaves of value noise with analytic derivatives in world metres. the height and the slope come from the same four hashes, so light and shade cannot disagree.

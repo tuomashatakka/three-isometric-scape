@@ -21,9 +21,9 @@ export interface AtmosphereQuality {
   grain:         boolean
 
   /**
-   * The upright mist slices and sea-smoke sheets, as half this each (and the
-   * cloud deck's floor). The ground mist itself is not a layer any more: it is
-   * the fog term in the aerial chunk, free on every tier — see `aerial.ts`.
+   * The upright mist slices, as half this (and the cloud deck's floor). The
+   * ground mist and the sea smoke are not layers any more: they are fog terms
+   * in the aerial chunk, free on every tier — see `aerial.ts`.
    */
   mistLayers: number
 

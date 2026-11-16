@@ -22,7 +22,6 @@ import { createHaarLayer } from './haar.ts'
 import { createShaftsLayer } from './shafts.ts'
 import { createMistLayer } from './mist.ts'
 import { createNightSky } from './nightsky.ts'
-import type { SeasonState } from './season.ts'
 import type { WeatherState } from './weather.ts'
 import { createAtmospherePost } from './post.ts'
 import type { AtmosphereQuality } from './quality.ts'
@@ -234,7 +233,6 @@ interface SkyOptions {
   quality:  AtmosphereQuality
   skip:     ScapeSkips
   daylight: DaylightState
-  season:   SeasonState
 
   /**
    * The scape's maps. Only the cloud deck reads them up here, and only for the
@@ -259,7 +257,7 @@ interface SkyOptions {
  * Five sheets that differ only in what they carry: the landscape and the
  * atmosphere are both mounted ahead of them, so the hour and the week each one
  * reads have already been resolved for this frame by the time it asks. The
- * mist takes both clocks; the cloud deck and the aurora take the day, because
+ * mist takes the day; the cloud deck and the aurora take the day, because
  * the arc it is on already knows what week of the year it is; the night sky
  * takes the two phases themselves rather than what the rig derived from them,
  * since the hour *is* the star wheel's angle and the week is what the month is
@@ -267,10 +265,10 @@ interface SkyOptions {
  * cheapest device gets a plain sky rather than a poor one.
  */
 function hangSkies (
-  { camera, config, quality, skip, daylight, season, textures, weather, wind }: SkyOptions,
+  { camera, config, quality, skip, daylight, textures, weather, wind }: SkyOptions,
 ): ScapeModule[] {
   return [
-    unless(skip, 'mist', () => createMistLayer({ camera, config, quality, daylight, season, textures, wind })),
+    unless(skip, 'mist', () => createMistLayer({ camera, config, quality, daylight, textures, wind })),
     unless(skip, 'haar', () => createHaarLayer({ config, quality, daylight, weather, wind })),
     unless(skip, 'clouds', () => createCloudLayer({ camera, config, quality, daylight, textures, wind })),
     unless(skip, 'aurora', () => createAuroraLayer({ camera, config, quality, daylight })),
@@ -482,7 +480,6 @@ export function createIsometricScape (
     quality,
     skip,
     daylight: atmosphere.daylight,
-    season:   landscape.season,
     textures: landscape.textures,
     weather:  landscape.weather,
     wind:     wind.state,

@@ -32,8 +32,6 @@ export interface SeasonState {
   freeze:   number
   iceColor: Color
 
-  /** Sea smoke — how hard the open water is steaming into colder air, 0..1. */
-  smoke: number
 }
 
 export interface Season {
@@ -111,7 +109,8 @@ export function freezeAmount (phase: number): number {
 }
 
 /**
- * Sea smoke at a phase of the year, 0..1, before the coast's own strength.
+ * Sea smoke at a phase of the year, 0..1, before the mist's own strength
+ * (`seaSmokeShare` in `aerial.ts`).
  *
  * Not a curve of its own — it is the *gap* between the two winters the scape
  * already has. Steam fog needs water warmer than the air standing on it, and
@@ -179,7 +178,6 @@ export function createSeason (config: LiveConfig): Season {
     snowLine:   terrain.waterLevel + season.snowLine,
     freeze:     0,
     iceColor:   new Color(palette.ice),
-    smoke:      0,
   }
 
   return {
@@ -206,7 +204,6 @@ export function createSeason (config: LiveConfig): Season {
       state.snow       = snowAmount(wrapped) * season.snow
       state.snowLine   = terrain.waterLevel + season.snowLine
       state.freeze     = freezeAmount(wrapped) * season.ice
-      state.smoke      = seaSmokeAmount(wrapped) * season.seaSmoke
 
       state.tint.copy(sere).lerp(autumn, turn)
       state.snowColor.set(palette.snow)

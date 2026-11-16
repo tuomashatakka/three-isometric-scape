@@ -18,7 +18,8 @@ import type {
 import { defineModule } from 'threejs-scene'
 import type { SceneContext } from 'threejs-scene'
 import { standardLighting } from 'threejs-scene/modules/lighting'
-import { groundFogAmount, hazeRange, installAerialPerspective } from './aerial.ts'
+import { groundFogAmount, hazeRange, installAerialPerspective, packFogFar, seaSmokeShare } from './aerial.ts'
+import { seaSmokeAmount } from './season.ts'
 import { installDirectFilm, packExposure } from './film.ts'
 import { installSkyLight } from './sky-light.ts'
 import { landmassTerrain } from './config.ts'
@@ -413,7 +414,10 @@ export function createAtmosphereLayer ({
     // `near` is not a distance here: the aerial chunk reads it as the ground
     // fog's optical depth, and the clear radius is compiled in.
     fog.near = groundFogAmount(config().atmosphere.mistAmount, breath, sky.day)
-    fog.far  = range.far
+    // The sea smoke rides the extinction length's fraction: the same fog on
+    // the ground as the mist, decided by the year — the water steams in the
+    // weeks it is open under a winter sky. See `seaSmoke` in `aerial.ts`.
+    fog.far  = packFogFar(range.far, seaSmokeShare(seaSmokeAmount(config().season.time), config().atmosphere.mistAmount))
     scatter()
 
     if (!rig)

@@ -20,8 +20,9 @@ import { FRAME_VARYING } from './film.ts'
  * blue-grey, the feet of the far range dissolve while its summits stand out of
  * the haze.
  *
- * The uniforms are three's, re-read: `fogFar` is the extinction length in world
- * metres, and `fogNear` is the ground fog's amount (see {@link groundFog}) — the
+ * The uniforms are three's, re-read: `fogFar` is the extinction length in whole
+ * world metres with the sea smoke in its fraction (see {@link packFogFar}), and
+ * `fogNear` is the ground fog's amount (see {@link groundFog}) — the
  * clear radius around the focus is a constant, compiled in. Nothing in
  * here is frame-sized — a mountain a kilometre away is a kilometre away at
  * every zoom — so a close frame carries no haze and the archipelago frame
@@ -138,6 +139,64 @@ export function groundFogAmount (mist: number, breath = 1, day = 1): number {
   return Math.max(0, mist * breath) * GROUND_FOG_DEPTH * (1 + GROUND_FOG_NIGHT * night)
 }
 
+/**
+ * Sea smoke — the fog chunk's third term, and the reverse of the ground fog.
+ *
+ * In the weeks the sea is still open under a winter sky the water is warmer
+ * than the air, and it steams: a layer a metre or two deep lying *on* the
+ * water, densest at the surface, where the ground fog has nothing at all. It
+ * was a stack of world-sized transparent sheets cut by a baked offshore mask;
+ * it is a profile in height above the waterline now, in every fogged program,
+ * with the same banks the ground fog lies in. Whiter than the mist, because it
+ * is water that has just condensed out of the air standing on it.
+ */
+export const SEA_SMOKE_HEIGHT = 1.1
+
+/** Optical depth of the steam on the water at full smoke. */
+export const SEA_SMOKE_DEPTH = 1.7
+
+/** How far toward white the steam stands from the fog's colour, under a bright sky (it is unlit, so a dark one keeps it dark). */
+const SEA_SMOKE_WHITEN = 0.62
+
+/**
+ * The steam per unit of `atmosphere.mistAmount`: one knob for the fog on the
+ * ground, whichever surface it is lying on. The authored mist (0.34) steams at
+ * the 0.9 the retired `season.seaSmoke` knob held.
+ */
+export const SEA_SMOKE_PER_MIST = 2.65
+
+/** The sea smoke amount for a week's open water (`seaSmokeAmount`) and a mist density, 0..1. */
+export function seaSmokeShare (week: number, mist: number): number {
+  return Math.max(0, week) * Math.min(1, Math.max(0, mist) * SEA_SMOKE_PER_MIST)
+}
+
+/** How much of what is behind it the sea smoke takes, 0..1. `smoke` is the unpacked amount. */
+export function seaSmoke (above: number, smoke: number, bank = 1): number {
+  return 1 - Math.exp(-smoke * SEA_SMOKE_DEPTH * bank * Math.exp(-Math.max(0, above) / SEA_SMOKE_HEIGHT))
+}
+
+/**
+ * `fogFar` carries the extinction length in whole metres and the sea smoke in
+ * its fraction: the uniform is the only free channel every fogged program has
+ * left, and a metre of extinction length is far below anything the eye reads.
+ */
+export function packFogFar (far: number, smoke: number): number {
+  return Math.round(far) + Math.min(0.99, Math.max(0, smoke))
+}
+
+/** The two numbers `fogFar` carries. */
+export interface FogFar {
+  far:   number
+  smoke: number
+}
+
+/** The inverse of {@link packFogFar} — what the fragment does with the uniform. */
+export function unpackFogFar (packed: number): FogFar {
+  const far = Math.floor(packed)
+
+  return { far, smoke: packed - far }
+}
+
 /** The fog uniforms for a density, with the breath applied and clamped. */
 export function hazeRange (density: number, breath = 1, maxDensity = 0.94): HazeRange {
   const amount = Math.min(maxDensity, Math.max(0, density * breath))
@@ -228,12 +287,20 @@ const FRAGMENT = (hazeHeight: number, waterLevel: number) => /* glsl */`
     float aerialTau = fogDensity * fogDensity * vAerial.x * vAerial.x;
   #else
     float aerialPath = max( 0.0, vAerial.x + ${AERIAL_SKEW.toFixed(3)} * vAerial.y - ${glsl(CLEAR_RADIUS)} );
-    float aerialTau  = aerialPath / fogFar * exp( - max( vAerial.z, 0.0 ) / ${hazeHeight.toFixed(3)} );
+    float aerialFar  = floor( fogFar );
+    float aerialTau  = aerialPath / aerialFar * exp( - max( vAerial.z, 0.0 ) / ${hazeHeight.toFixed(3)} );
+    float fogAbove   = max( vAerial.z - ${glsl(waterLevel)}, 0.0 );
+    float fogLuma    = dot( fogColor, vec3( 0.2126, 0.7152, 0.0722 ) );
     if ( fogNear > 0.0 ) {
-      float fogAbove = max( vAerial.z - ${glsl(waterLevel)}, 0.0 );
       float fogTau   = fogNear * vAerial.w * ( 1.0 - exp( - fogAbove / ${glsl(GROUND_FOG_FOOT)} ) ) * exp( - fogAbove / ${glsl(GROUND_FOG_HEIGHT)} );
-      vec3 fogBank   = mix( fogColor, vec3( 1.0 ), ${glsl(GROUND_FOG_WHITEN)} * dot( fogColor, vec3( 0.2126, 0.7152, 0.0722 ) ) );
+      vec3 fogBank   = mix( fogColor, vec3( 1.0 ), ${glsl(GROUND_FOG_WHITEN)} * fogLuma );
       gl_FragColor.rgb = mix( gl_FragColor.rgb, fogBank, 1.0 - exp( - fogTau ) );
+    }
+    float smokeAmount = fogFar - aerialFar;
+    if ( smokeAmount > 0.004 ) {
+      float smokeTau = smokeAmount * ${glsl(SEA_SMOKE_DEPTH)} * vAerial.w * exp( - fogAbove / ${glsl(SEA_SMOKE_HEIGHT)} );
+      vec3 smokeTone = mix( fogColor, vec3( 1.0 ), ${glsl(SEA_SMOKE_WHITEN)} * min( 1.0, 2.0 * fogLuma ) );
+      gl_FragColor.rgb = mix( gl_FragColor.rgb, smokeTone, 1.0 - exp( - smokeTau ) );
     }
   #endif
   gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, 1.0 - exp( - aerialTau * ${AIR_SPECTRUM_GLSL} ) );
