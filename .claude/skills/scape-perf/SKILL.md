@@ -1,6 +1,6 @@
 ---
 name: scape-perf
-description: Measure and cut the three-iso scape's rendering and first-load cost — draws, triangles, programs per tier with the studio's census, fill-rate passes like the one-pass lens (`lensTaps`), CPU build time with `scape:bench` and bun's cpu profiler — and the levers that exist (scatter LOD, tier counts, mist masks, survey memo). Use when a change adds geometry, a pass or build work, when asked to make rendering or loading faster, or before claiming a change is cheap.
+description: Measure and cut the three-iso scape's rendering and first-load cost — draws, triangles, programs per tier with the studio's census, fill-rate passes like the one-pass lens (`lensTaps`), CPU build time with `scape:bench` and bun's cpu profiler — and the levers that exist (scatter LOD, tier counts, fog terms in the aerial chunk, survey memo). Use when a change adds geometry, a pass or build work, when asked to make rendering or loading faster, or before claiming a change is cheap.
 ---
 
 # rendering cost
@@ -87,11 +87,11 @@ exact — the procedure is in `scape-verify`.
 - **shader tap counts** — `detailTaps` (1 = the lite ground path on
   minimal/mobile: one soil read for grain + relief normal; 6 = that + relief march + macro octave + puddles), `reliefSteps`,
   `lensTaps`: fill-rate levers, each compiled per tier.
-- **world-sized sheets** (mist slices, sea smoke, haar, clouds) — each is a
+- **world-sized sheets** (mist slices, haar, clouds) — each is a
   full-frame blend. If the thing is a function of where the fragment is, it is a
-  term in the aerial chunk instead (`groundFog` in `aerial.ts` replaced the flat
-  mist sheets: no draw, no overdraw, every tier). Otherwise a gradient across a
-  world-sized quad belongs in a texture read in world metres (see `mist.ts`'s mask), never
+  term in the aerial chunk instead (`groundFog` and `seaSmoke` in `aerial.ts`
+  replaced the flat mist and sea-smoke sheets: no draw, no overdraw, every tier). Otherwise a gradient across a
+  world-sized quad belongs in a texture read in world metres (as the weather bank is), never
   in vertex colours on a subdivided plane.
 - **CPU build** — `surveyArchipelago` is memoized on config content. Hot loops
   use `hypot`/`hypot3` from `src/scene/hypot.ts`, never `Math.hypot`.

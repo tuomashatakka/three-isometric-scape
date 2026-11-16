@@ -134,7 +134,6 @@ describe('createSeason', () => {
     expect(summer.tintAmount).toBe(0)
     expect(summer.snow).toBe(0)
     expect(summer.freeze).toBe(0)
-    expect(summer.smoke).toBe(0)
   })
 
   test('withers and whitens midwinter', () => {
@@ -151,24 +150,13 @@ describe('createSeason', () => {
     expect(mild.sample(0.06).freeze).toBe(0)
   })
 
-  test('scales the sea smoke by how hard the coast is configured to steam', () => {
-    const still = createSeason(() => ({ ...SCAPE_CONFIG, season: { ...SCAPE_CONFIG.season, seaSmoke: 0 }}))
-
-    expect(season.sample(0.87).smoke).toBeGreaterThan(0)
-    expect(still.sample(0.87).smoke).toBe(0)
-  })
-
   test('steams before it shuts, on the same instant of the year', () => {
-    // The whole of the effect in two readings: the weeks the smoke has are the
-    // weeks the freeze has not started, and both come off the one sample. Read
-    // out rather than held — `sample` is allocation-free, so the state it hands
-    // back is the same object every time.
-    const early                       = season.sample(0.87)
-    const [ earlySmoke, earlyFreeze ] = [ early.smoke, early.freeze ]
-    const deep                        = season.sample(0)
+    // The weeks the smoke has are the weeks the freeze has not started.
+    const early = season.sample(0.87).freeze
+    const deep  = season.sample(0).freeze
 
-    expect(earlySmoke).toBeGreaterThan(deep.smoke)
-    expect(earlyFreeze).toBeLessThan(deep.freeze)
+    expect(seaSmokeAmount(0.87)).toBeGreaterThan(seaSmokeAmount(0))
+    expect(early).toBeLessThan(deep)
   })
 
   test('leans the tint toward gold only in the turn', () => {

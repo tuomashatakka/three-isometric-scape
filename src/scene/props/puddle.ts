@@ -1,22 +1,21 @@
 /**
- * Rain that has stopped moving: the sky in wet ground, and the puddles in it.
+ * Rain that has stopped moving: the puddles in wet ground.
  *
- * Wet ground used to be two arithmetic operations — darker albedo, smoother
- * film (`wetFragment` in `material.ts`) — and a smooth film with nothing to
- * reflect is only a darker ground. The scape has no environment map and does
- * not need one: the sea already mirrors the sky the atmosphere is drawing as two
- * colours a frame (`water-gleam.ts`), and a wet yard under the same overcast is
- * mirroring the same two colours. So every wet surface takes a Fresnel share of
- * that sky, and where the ground is level and low the film becomes standing
- * water — mirror-flat, dark-bedded, and the brightest thing on a rained-on
- * yard.
+ * The wet film is `runoff.ts`; where the ground is level and low the film
+ * becomes standing water — mirror-flat and dark-bedded. What it mirrors is the
+ * sky every standard program already reflects (`SKY_MIRROR` in
+ * `sky-light.ts`), at the Fresnel the eye's angle gives it. This module used to
+ * add a sky sheen of its own at eight times that Fresnel, written before the
+ * programs had a sky to reflect; on top of the mirror it doubled the sky, and a
+ * rained-on island read from the default zoom as an island under snow. Wet
+ * ground from a mast is *darker* than dry, with the sky in it as a glint.
  *
  * The hollows are the wear map's (`ground.wear`), read as a height: the broad
  * damp patches the soil already carries, plus one more read of the same map at
  * puddle scale ({@link PUDDLE_TILE}) — the one fetch this costs, and only on the
  * full ground program — with the fine grain ragging the shoreline so a puddle
  * is not the outline of a noise octave. The lite program
- * reads no wear map, so a phone gets the sheen and no puddles: a graceful
+ * reads no wear map, so a phone gets the film and no puddles: a graceful
  * absence, not a different look.
  *
  * Pure strings and one pure function, so the threshold the shader uses and the
@@ -58,17 +57,6 @@ export const PUDDLE_LEVEL: readonly [number, number] = [ 0.85, 0.95 ]
 export const PUDDLE_BED: readonly [number, number] = [ 0.18, 0.4 ]
 
 /**
- * How bright the sky in a film of water is against the sky itself.
- *
- * Above the Fresnel figure on purpose, for the reason `KEY_GLITTER` is above
- * one on the sea: a real puddle from standing height is at a grazing angle and
- * nearly a mirror, and the eye the scape stands at (`EYE_GLSL`) is higher than
- * a person. At 0.02 the reflection is physically right for that eye and reads
- * as nothing; this is what a photograph from a mast keeps of it.
- */
-export const SKY_SHEEN = 8.0
-
-/**
  * The water line in the wear map's units for a wetness, 0..1.
  *
  * A hollow deeper than this holds water. Above the deepest hollow at `wet` 0,
@@ -77,11 +65,6 @@ export const SKY_SHEEN = 8.0
 export function puddleLevel (wet: number): number {
   return PUDDLE_DRY - PUDDLE_FILL * Math.min(1, Math.max(0, wet))
 }
-
-export const PUDDLE_PARS_FRAGMENT = /* glsl */`
-  uniform vec3 uSkyHorizon;
-  uniform vec3 uSkyTop;
-`
 
 /**
  * Where water stands, declared before the detail reads the wear map so the
@@ -126,27 +109,4 @@ export const PUDDLE_FRAGMENT = /* glsl */`
   diffuseColor.rgb *= 1.0 - 0.7 * scapePuddle;
   roughnessFactor   = mix(roughnessFactor, 0.03, scapePuddle);
   normal            = normalize(mix(normal, normalize(mat3(viewMatrix) * vec3(0.0, 1.0, 0.0)), scapePuddle));
-`
-
-/**
- * The sky in it, added to the light leaving the surface.
- *
- * Not folded into the albedo: a reflection is light arriving at the eye, and in
- * `diffuseColor` it would be shaded by the sun a second time. The wet film
- * mirrors a little and blurred (its share is the film's, scaled by how smooth
- * it got); a puddle mirrors all the Fresnel term gives it. The sky is the one
- * the sea mirrors, so a puddle and the sound beside it cannot disagree about
- * the weather; the cloud overhead shades it the way it shades the sea.
- */
-export const SHEEN_FRAGMENT = /* glsl */`
-  {
-    vec3 scapeView   = scapeEye();
-    float scapeFace  = clamp(dot(normalize(normal), scapeView), 0.0, 1.0);
-    float scapeFres  = 0.02 + 0.98 * pow(1.0 - scapeFace, 5.0);
-    float scapeShine = (scapeWet * 0.08 + scapePuddle) * (1.0 - scapeSnow);
-    vec3 scapeSky    = mix(uSkyHorizon, uSkyTop, scapeFace) * scapeCloudShade(vScapeGround);
-
-    outgoingLight += scapeSky * scapeFres * scapeShine * ${SKY_SHEEN.toFixed(2)};
-  }
-  #include <opaque_fragment>
 `

@@ -7,7 +7,7 @@
  *
  * It is the scape's third fog and the first one with a *ceiling* on it.
  * `atmosphere.mistAmount` is haze you are standing in, thickest over the island
- * and gone by the time the eye is out at sea; `season.seaSmoke` is water
+ * and gone by the time the eye is out at sea; the sea smoke (`seaSmoke` in `aerial.ts`) is water
  * steaming into colder air, and stands over open water and nowhere else. This
  * is neither. A radiation fog is air that has been cooled from below until it
  * gave its water up, and air cooled from below pools: it fills the sound and

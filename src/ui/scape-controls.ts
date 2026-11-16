@@ -196,8 +196,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         range('season.turn', 'leaf turn', 0, 1, 0.01),
         toggled('sea ice', range('season.ice', 'freeze', 0, 1, 0.01), 0.9),
         toggled('floes', range('pack.cover', 'plates standing', 0, 1, 0.01, quality.floeCount > 0), 1),
-        // The gap between the land's winter and the sea's, so it files here.
-        toggled('sea smoke', range('season.seaSmoke', 'steam', 0, 1, 0.01), 0.9),
       ],
     },
     {
@@ -228,7 +226,9 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
           0.62,
           [ range('atmosphere.cloudShadow', 'shadow', 0, 1, 0.01) ],
         ),
-        toggled('ground mist', range('atmosphere.mistAmount', 'density', 0, 1, 0.01), 0.34),
+        // One fog on the ground, whichever surface it lies on: the mist over the
+        // land, and the steam off the open water in the weeks of the year it has.
+        toggled('ground mist & sea smoke', range('atmosphere.mistAmount', 'density', 0, 1, 0.01), 0.34),
         toggled('the night bank', range('haar.strength', 'thickness', 0, 1, 0.01, quality.haarSheets > 0), 0.85),
         toggled('light through the deck', range('shafts.strength', 'brightness', 0, 0.6, 0.005, quality.shaftSheets > 0), 0.22),
         toggled('aurora', range('atmosphere.aurora', 'brightness', 0, 1.5, 0.01, quality.auroraLayers > 0), 0.85),

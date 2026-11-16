@@ -1,6 +1,5 @@
 import {
   BufferAttribute,
-  ClampToEdgeWrapping,
   Color,
   Mesh,
   MeshBasicMaterial,
@@ -24,16 +23,13 @@ import {
   weatherBankDrift,
   weatherBankTile,
 } from './weather-bank.ts'
-import { landmassTerrain } from './config.ts'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import type { DaylightState } from './daylight.ts'
 import { sampleHeight } from './noise.ts'
 import type { AtmosphereQuality } from './quality.ts'
 import type { TextureCatalogue } from './textures/catalogue.ts'
 import type { WindState } from './wind.ts'
-import type { SeasonState } from './season.ts'
 import { LAYER } from './layers.ts'
-import { hypot } from './hypot.ts'
 
 
 export interface MistOptions {
@@ -43,12 +39,6 @@ export interface MistOptions {
 
   /** Live sky state — mist is the fog colour, and the fog colour has a clock now. */
   daylight: DaylightState
-
-  /**
-   * Live year state. The sea smoke is a fortnight of the winter and nothing
-   * else, so this is the only thing that decides whether it exists at all.
-   */
-  season: SeasonState
 
   /**
    * The scape's one wind.
@@ -90,7 +80,7 @@ interface MistSheet {
   /** This layer's share of the authored density. */
   weight: number
 
-  /** The live colour this family follows — the fog's, or the smoke's colder one. */
+  /** The live colour the sheet follows. */
   color: Color
 }
 
@@ -146,95 +136,8 @@ export function mistSliceReach (index: number, count: number, viewSize: number):
   return (index - (count - 1) / 2) * mistSliceSpacing(viewSize)
 }
 
-/**
- * Every island's extent, resolved once.
- *
- * Both masks are per-vertex loops over every landmass, and a spec's terrain is
- * only partial now — so resolving it inside the loop would rebuild the same
- * five numbers a quarter of a million times and allocate an object for each.
- */
-function islandExtents (config: ScapeConfig): { x: number, z: number, landRadius: number }[] {
-  return config.archipelago.landmasses.map(landmass => {
-    const island = landmassTerrain(config, landmass)
-
-    return {
-      x:          landmass.origin[0],
-      z:          landmass.origin[1],
-      landRadius: island.size * 0.5 * island.islandOuter,
-    }
-  })
-}
-
-/** Texels across the island mask. 512 over the sheet is about thirteen metres a texel. */
-const MASK_SIZE = 512
-
-/** Per-sheet opacity of the sea smoke, before the year scales it. */
-const SMOKE_ALPHA = 0.42
-
-/** How far off the water the lowest smoke sheet lies, in metres. */
-const SMOKE_RISE = 0.5
-
-/** Metres between the smoke sheets. A steam fog is shallow; this is why. */
-const SMOKE_STEP = 0.9
-
-/**
- * Where the smoke begins and where it reaches full strength, as multiples of
- * the island's own radius. It starts at the coastline by construction.
- */
-const SMOKE_IN  = 1
-const SMOKE_OUT = 2
-
-/**
- * Where the smoke gives out again, as fractions of the sheet's half-width.
- *
- * Both are inside 1, so the field is gone before the quad's own straight edge
- * is — a transparent sheet with a rim on it reads as a sheet.
- */
-const SMOKE_EDGE_IN  = 0.68
-const SMOKE_EDGE_OUT = 0.96
-
-/** Whether a family is cut by the offshore mask (the sea smoke) or by nothing (the upright slices). */
-type MaskChannel = 'smoke' | 'none'
-
 const WHITE    = new Color('#ffffff')
 const viewAxis = new Vector3()
-
-/**
- * Where the sea smoke stands, as a world-space mask.
- *
- * The smoke's sheets are pinned to the world and wide enough to lie over every
- * pixel of open water in the frame, so they are cut by a mask baked here: it
- * starts at the coastline, builds offshore and gives out before the sheet's own
- * straight edge. (The ground mist had the other channel of this, dense on the
- * islands — it is a term in the aerial chunk now and needs no mask: see
- * `groundFog` in `aerial.ts`.)
- *
- * A texture rather than vertex colours, and that was a performance finding: a
- * vertex mask needed the sheet subdivided every twenty metres, which on a
- * six-kilometre quad is 224k triangles a sheet for a gradient. The texture is
- * read in world metres off the weather bank's varying, so each sheet is two
- * triangles.
- */
-export function bakeMistMask (data: Uint8Array, size: number, config: ScapeConfig): void {
-  const islands = islandExtents(config)
-  const half    = size * 0.5
-
-  for (let row = 0; row < MASK_SIZE; row += 1)
-    for (let column = 0; column < MASK_SIZE; column += 1) {
-      const x = ((column + 0.5) / MASK_SIZE - 0.5) * size
-      const z = ((row + 0.5) / MASK_SIZE - 0.5) * size
-      let offshore = 1
-
-      for (const island of islands)
-        offshore = Math.min(offshore, smoothstep(island.landRadius * SMOKE_IN, island.landRadius * SMOKE_OUT, hypot(x - island.x, z - island.z)))
-
-      const offset = (row * MASK_SIZE + column) * 4
-      const edge   = 1 - smoothstep(half * SMOKE_EDGE_IN, half * SMOKE_EDGE_OUT, hypot(x, z))
-
-      data.fill(Math.round(offshore * edge * 255), offset, offset + 3)
-      data[offset + 3] = 255
-    }
-}
 
 /**
  * An upright slice of the same field.
@@ -293,33 +196,23 @@ export function createMistLayer ({
   config,
   quality,
   daylight,
-  season,
   textures,
   wind,
 }: MistOptions): ScapeModule {
   const count      = Math.max(1, quality.mistLayers)
   const sliceCount = Math.max(1, Math.round(count / 2))
-  const smokeCount = Math.max(1, Math.round(count / 2))
   const sheetSize  = mistSheetSize(config().archipelago.worldSize)
   const waterLine  = config().terrain.waterLevel
   const amount     = config().atmosphere.mistAmount
-  const geometry   = new PlaneGeometry(sheetSize, sheetSize)
   const upright    = sliceGeometry(sheetSize, MIST_HEIGHT)
   const texture    = bakeAlphaField(TEXTURE_SIZE, f => bakeMist(f, config().seed ^ 0x53a9))
-  const mask       = bakeAlphaField(MASK_SIZE, field => bakeMistMask(field, sheetSize, config()), { wrap: ClampToEdgeWrapping })
 
   const mistColor = new Color(config().palette.fog).lerp(WHITE, 0.32)
 
-  // Whiter than the mist, and not as a matter of taste: sea smoke is water that
-  // has just condensed out of the air standing on it, where ground mist is haze
-  // the sky is lighting through. The one is nearly opaque white in the small and
-  // the other never is.
-  const smokeColor = new Color(config().palette.fog).lerp(WHITE, 0.62)
   const visible    = amount > 0.01
 
-  // The weather every sheet in here is in, at a tile wider than the world. One
-  // set of uniform objects across the sheets, the slices and the sea smoke,
-  // because they are one bank of fog rather than three — and the same field, at
+  // The weather every slice is in, at a tile wider than the world — the same
+  // set of uniform objects across the slices, and the same field, at
   // the same scale, that the cloud deck and the ground shadow read.
   const bankOffset: IUniform<Vector2>          = { value: new Vector2() }
   const bankScale: IUniform<number>            = { value: 1 / weatherBankTile(config().archipelago.worldSize) }
@@ -361,14 +254,14 @@ export function createMistLayer ({
   // `name` is carried purely so a failed program link can be attributed: three
   // prints `Material Name:` and nothing else when a driver declines to link and
   // declines to say why, and an unnamed material makes that line useless.
-  function mistMaterial (map: Texture, opacity: number, name: string, color: Color, channel: MaskChannel): MeshBasicMaterial {
+  function mistMaterial (map: Texture, opacity: number, name: string, color: Color): MeshBasicMaterial {
     const material = new MeshBasicMaterial({
       name,
       map,
       color,
       transparent:  true,
       depthWrite:   false,
-      vertexColors: channel === 'none',
+      vertexColors: true,
       opacity,
       fog:          true,
     })
@@ -379,11 +272,7 @@ export function createMistLayer ({
     // and none of them the ground's. The model matrix is the one frame they all
     // share, and it costs a varying — see `weather-bank.ts`.
     material.onBeforeCompile = (program: WebGLProgramParametersWithUniforms) => {
-      Object.assign(program.uniforms, bankUniforms, {
-        uMistMask:      { value: mask },
-        uMistMaskScale: { value: 1 / sheetSize },
-        uMistMasked:    { value: channel === 'smoke' ? 1 : 0 },
-      })
+      Object.assign(program.uniforms, bankUniforms)
 
       program.vertexShader = program.vertexShader
         .replace('#include <common>', `#include <common>\n${WEATHER_BANK_PARS_VERTEX}`)
@@ -391,13 +280,7 @@ export function createMistLayer ({
 
       program.fragmentShader = program.fragmentShader
         .replace('#include <common>', `#include <common>\n${WEATHER_BANK_PARS_FRAGMENT}`)
-        .replace('#include <map_fragment>', `${WEATHER_BANK_MAP_FRAGMENT}
-  vec4 mistMask = texture2D(uMistMask, vWeatherGround * uMistMaskScale + 0.5);
-  diffuseColor.a *= mix(1.0, mistMask.g, uMistMasked);`)
-        .replace('#include <common>', `#include <common>
-uniform sampler2D uMistMask;
-uniform float uMistMaskScale;
-uniform float uMistMasked;`)
+        .replace('#include <map_fragment>', WEATHER_BANK_MAP_FRAGMENT)
     }
 
     return material
@@ -406,9 +289,7 @@ uniform float uMistMasked;`)
   /**
    * One layer's per-frame work: colour, opacity, presence and wind travel.
    *
-   * `amount` is the family's live strength — the authored mist density for the
-   * sheets and the slices, the year's own smoke for the offshore ones — and it
-   * is what decides whether the layer is drawn at all. A layer at zero is made
+   * `amount` is the live mist density, and it is what decides whether the layer is drawn at all. A layer at zero is made
    * invisible rather than transparent, because a fullscreen transparent quad
    * that contributes nothing still costs every pixel it covers.
    */
@@ -443,7 +324,7 @@ uniform float uMistMasked;`)
 
   const slices = Array.from({ length: sliceCount }, (_unused, index): MistSheet => {
     const weight   = (1 - index / (sliceCount + 1)) * SLICE_ALPHA
-    const material = mistMaterial(tile(index, 0.5), amount * weight, `mist-slice-${index + 1}`, mistColor, 'none')
+    const material = mistMaterial(tile(index, 0.5), amount * weight, `mist-slice-${index + 1}`, mistColor)
 
     const mesh          = new Mesh(upright, material)
     mesh.name           = `mist-slice-${index + 1}`
@@ -456,46 +337,11 @@ uniform float uMistMasked;`)
     return { mesh, ...drift(index, weight, mistColor) }
   })
 
-  /**
-   * The steam off the open water, in the weeks the sea has not shut yet.
-   *
-   * Deliberately flat and deliberately low, and with no upright slices in the
-   * family. Sea smoke really is a shallow layer — a metre or two, against the
-   * nine-metre column the ground mist stands in — so the thinning that argued
-   * the slices into existence is not a failure here but the shape of the thing:
-   * seen from the near zoom, across the water rather than down onto it, two
-   * sheets a metre apart present as a bank lying along the coastline, which is
-   * exactly what steam fog looks like from the shore.
-   */
-  const smoke = Array.from({ length: smokeCount }, (_unused, index): MistSheet => {
-    const weight   = (1 - index / (smokeCount + 1)) * SMOKE_ALPHA
-    const material = mistMaterial(tile(index, 0.62), 0, `sea-smoke-${index + 1}`, smokeColor, 'smoke')
-
-    const mesh      = new Mesh(geometry, material)
-    mesh.name       = `sea-smoke-${index + 1}`
-    mesh.rotation.x = -Math.PI / 2
-    mesh.position.y = waterLine + SMOKE_RISE + index * SMOKE_STEP
-
-    // Under the mist, so the sheets the island is standing in are composited
-    // over the steam beyond it rather than under. This was at `index`, which
-    // put the first sheet at 0 — tied with the water it is steaming off.
-    mesh.renderOrder   = LAYER.seaSmoke + index
-    mesh.frustumCulled = false
-
-    // Off until the year says otherwise — at the authored midsummer there is
-    // nothing to draw, and the sheet is the width of the map.
-    mesh.visible = false
-
-    return { mesh, ...drift(index + sliceCount, weight, smokeColor) }
-  })
-
-  const all = [ ...slices, ...smoke ]
-
   return defineModule<ScapeConfig>({
     name: 'ground-mist',
 
     build (ctx) {
-      for (const sheet of all)
+      for (const sheet of slices)
         ctx.scene.add(sheet.mesh)
     },
 
@@ -516,17 +362,9 @@ uniform float uMistMasked;`)
       // the horizon straight from the clock and it stays the same substance as
       // the fog at every hour instead of glowing white through the night.
       mistColor.copy(daylight.horizon).lerp(WHITE, 0.32)
-      smokeColor.copy(daylight.horizon).lerp(WHITE, 0.62)
 
       for (const sheet of slices)
         advance(sheet, density)
-
-      // The year, not the weather. Sea smoke is off for all but a fortnight of
-      // it, and the read is the same live field the ground and the lake take
-      // their winter from — sampled once upstream, so the coast cannot be
-      // steaming on a week the bays beside it are already shut on.
-      for (const sheet of smoke)
-        advance(sheet, season.smoke)
 
       // The upright slices face the camera and spread along its view axis, so
       // the stack always has depth to look through whatever the elevation.
@@ -567,23 +405,19 @@ uniform float uMistMasked;`)
     },
 
     dispose () {
-      for (const sheet of all) {
+      for (const sheet of slices) {
         const material = sheet.mesh.material as MeshBasicMaterial
         sheet.mesh.removeFromParent()
         material.map?.dispose()
         material.dispose()
       }
-      geometry.dispose()
       upright.dispose()
       texture.dispose()
-      mask.dispose()
     },
   })
 }
 
-// perf: a handful of transparent draws, a third of them upright. The shared
-// 128² alpha field is baked once and opacity is authored at build, so the only
-// per-frame work is scrolling texture offsets and yawing the slices. The sea
-// smoke adds no program — same material shape as the mist, so three's cache
-// hands it the one already linked — and no draw at all outside its fortnight,
-// because a layer at zero strength is made invisible rather than transparent.
+// perf: one to three upright transparent draws. The shared 128² alpha field is
+// baked once, so the only per-frame work is scrolling texture offsets and
+// yawing the slices. The sea smoke these sheets used to share a family with is
+// a term in the aerial chunk now (`seaSmoke` in `aerial.ts`): no draw, no mask.

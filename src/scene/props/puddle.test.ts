@@ -96,24 +96,23 @@ describe('what the ground program is given', () => {
     ground.onBeforeCompile?.(program as unknown as WebGLProgramParametersWithUniforms, undefined as never)
     materials.dispose()
 
-    expect(program.uniforms).toHaveProperty('uSkyHorizon')
     return program.fragmentShader
   }
 
-  test('the full program fills its hollows and mirrors the sky in them', () => {
+  test('the full program fills its hollows, and leaves the sky to the one mirror', () => {
     const full = fragment(6)
 
     expect(full).toContain('scapePool')
     expect(full).toContain('scapeOnBed')
-    expect(full).toContain('uSkyHorizon')
+    expect(full).not.toContain('uSkyHorizon')
     expect(full.indexOf('scapePuddle')).toBeLessThan(full.indexOf('#include <opaque_fragment>'))
   })
 
-  test('the one-tap program keeps the sheen and stands no water', () => {
+  test('the one-tap program keeps the film and stands no water', () => {
     const lite = fragment(1)
 
     expect(lite).not.toContain('scapePool')
-    expect(lite).toContain('float scapePuddle = 0.0;')
-    expect(lite).toContain('uSkyHorizon')
+    expect(lite).not.toContain('scapePuddle')
+    expect(lite).toContain('scapeWet')
   })
 })

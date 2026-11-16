@@ -6,7 +6,6 @@ import { LADDER, atmosphereQuality, unlockEffects } from './quality.ts'
 /** The order the stack has to be painted in, cheapest reading upward. */
 const ORDER = [
   'water',
-  'seaSmoke',
   'beacon',
   'haar',
   'mist',
@@ -78,9 +77,7 @@ describe('the transparent layer ladder', () => {
     const mist = widest(quality => quality.mistLayers)
 
     expect(LAYER.mist + mist * 2).toBeLessThan(LAYER.rain)
-    expect(LAYER.seaSmoke + mist).toBeLessThan(LAYER.mist)
     expect(LAYER.haar + widest(quality => quality.haarSheets)).toBeLessThan(LAYER.mist)
-    expect(LAYER.seaSmoke + mist).toBeLessThan(LAYER.haar)
     expect(LAYER.clouds + 8).toBeLessThan(LAYER.aurora)
     expect(LAYER.aurora + widest(quality => quality.auroraLayers)).toBeLessThan(LAYER.stars)
   })
