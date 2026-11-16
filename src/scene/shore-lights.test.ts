@@ -24,7 +24,7 @@ describe('how hard the far coast burns', () => {
     // disagreed about when dusk was would be the more obvious of the two bugs,
     // so the ratio between them is `glow` against `glow` at every hour of the
     // evening and nothing else.
-    const ratio = SCAPE_CONFIG.shoreLights.glow / SCAPE_CONFIG.windows.glow
+    const ratio = SCAPE_CONFIG.shoreLights.glow
 
     for (const day of [ 0, 0.1, 0.35, 0.6, 0.9 ])
       expect(shoreLightLevel(SCAPE_CONFIG, day, EVENING))

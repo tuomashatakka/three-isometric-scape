@@ -62,6 +62,9 @@ export interface ShoreLightsConfig {
      * farmstead's own lamps use — see `shoreLightLevel` in `scene/shore-lights.ts`.
      * Two coasts in one frame that disagreed about when dusk was would be the
      * more obvious bug of the two.
+     *
+     * A share of `windows.glow`, not an amount of its own: the overlay's one
+     * lamps row turns the near coast and the far one up together.
      */
     glow: number
 
@@ -162,7 +165,7 @@ export const SCAPE_SHORE_LIGHTS: ShoreLightsConfig = {
   // rather than a village on the mountain, and `size` 6 px is what the first
   // capture asked for — see the knob.
   shoreLights: {
-    glow:    1,
+    glow:    1.05,
     size:    6,
     count:   14,
     spread:  12,

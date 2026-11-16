@@ -111,12 +111,13 @@ const FRAGMENT = /* glsl */`
  *
  * `1 - day` squared, which is the curve the lighthouse and the farmstead's
  * windows both come up on, times how awake the households are. The only thing
- * of its own is `shoreLights.glow`.
+ * of its own is `shoreLights.glow`, and that is a share of the farmstead's
+ * `windows.glow`: one lamps row in the overlay turns both coasts up together.
  */
 export function shoreLightLevel (config: ScapeConfig, day: number, time: number): number {
   const dusk = Math.min(1, Math.max(0, 1 - day))
 
-  return Math.max(0, config.shoreLights.glow) * dusk * dusk * householdWake(config, time)
+  return Math.max(0, config.shoreLights.glow * config.windows.glow) * dusk * dusk * householdWake(config, time)
 }
 
 export interface ShoreLightOptions {

@@ -287,6 +287,14 @@ const PEAK_STEPS = 720
  * the `scape:map` line and the capture harness's `halo` poses are aimed at the
  * same instant.
  */
+/**
+ * The ring's strength: its own share of the bow's, so the overlay's one row
+ * for the arcs a shower stands in the sky turns both.
+ */
+export function haloStrength (config: Pick<ScapeConfig, 'halo' | 'rainbow'>): number {
+  return Math.max(0, config.halo.strength * config.rainbow.strength)
+}
+
 export function haloPeak (lead: number): number {
   let best  = 0
   let found = 0
@@ -588,7 +596,7 @@ export function createHalo ({
         rain,
         weather.sleet,
         place.height,
-        haloConfig.strength,
+        haloStrength(config()),
         haloConfig.lead,
       ) * bowReveal(span, config().camera)
 

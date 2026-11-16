@@ -428,6 +428,7 @@ src/
         ├── material.ts             shared materials, cloud shadow, wind, ground relief, wetness, snow, aspect
         ├── puddle.ts               the sky in wet ground, and the standing water in its hollows
         ├── weathering.ts           moss on the tops, lichen on the faces: every grey stone, slate and old board
+        ├── boards.ts               every painted wall built of boards: battens on falu red, laps on limewash
         ├── transmission.ts         light through the crown: the far side of every tree, lit through its foliage
         ├── ploppable.ts            2d placement with a ground-following foundation
         ├── fence.ts / wall.ts      continuous ground-following runs
@@ -739,6 +740,17 @@ grey stone and silvered timber in a coastal photograph are never the colour they
 - **keyed on the albedo, not on a prop flag.** `weatherable` takes near-neutral mid-greys only. chroma is measured on the square root of the linear albedo, so the band reads like the palette. paint, plants, sand, straw, soil, whitewash and snow keep their colour. `weathering.test.ts` pins this against the palette: granite, slate, dead wood and driftwood weather, falu red, trim white, grass, sand, hay and soil do not.
 - **one fetch, one field.** the grain map is read along the face (the upright grain's skewed projection, so nothing smears down a wall) at `LICHEN_TILE`, a 1.5 m repeat. the high half of the field is moss and the low tail is lichen, so they never fight over a texel. past `LICHEN_REPEATS` the rosettes would shimmer, so the mean cover stands in for them.
 - **no knob.** it rides on `terrain.detailGrain`. wet darkens it and snow lies over it, in the order the world does them.
+
+## every wall is built of boards
+
+the barns, sheds, boathouses and the chapel were flat painted cards: one colour per face and the stretched bark field. a timber wall in a photograph is the rhythm of its boards — a dark seam between each pair, one board a shade off the next, the shadow line under every course of weatherboard — and that rhythm is what says *building* rather than *block*. [`props/boards.ts`](src/scene/props/boards.ts) adds it to the shared ground material on both tap paths, after the upright grain and before the lichen.
+
+- **two claddings, chosen by the albedo.** `boardShare` takes upright faces whose albedo is paint (chroma past `PAINT_CHROMA`) or whitewash (light), and not a plant. the dark and saturated ones — falu red, tar, brown timber — stand in board and batten, `BOARD_WIDTH` 0.22 m with rolled edges; the light ones (`LAP_LUMA`) — limewash, trim white — lap in 0.19 m courses, each lip facing down and throwing a line on the course below. birch stems get the lap's dark bands, which is what a birch has. grey stone falls to the weathering term instead, and `boards.test.ts` pins that no palette colour is both.
+- **one run per board.** the board is the rain run's width (`runoff.ts`), so a shower runs down a wall a board at a time.
+- **let go by the pixel, not the frame.** each fragment measures how many boards its pixel spans (`fwidth`) and fades the seams and the relief between `SEAM_FADE` 0.18 and 0.5 boards per pixel; the per-board tone is zero-mean, so a wall too far to resolve a board keeps its colour rather than shimmering.
+- **no texture, uniform or varying.** a hash, a fract and a few smoothsteps on numbers the fragment holds — every tier, the phone included. it rides `terrain.detailGrain`, whose panel row is now *surface detail · grain, boards, lichen*.
+
+**the panel, five rows fewer.** the far shore's lamps are a share of the farmstead's (`shoreLights.glow` 1.05 × `windows.glow`), so *lamps ashore* turns both coasts; the halo is a share of the bow (`haloStrength`, `halo.strength` 0.54 × `rainbow.strength`), so *rainbow & halo* is one row. a kiln's draw, a cart's haul, the windows' occupancy and the carried lamp's reach are the place's physics, and live on as config leaves for `--set` and the url.
 
 ## the film, on every tier
 

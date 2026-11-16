@@ -8,6 +8,7 @@ import {
   haloHorizon,
   haloLight,
   haloPeak,
+  haloStrength,
   haloPlace,
   haloSpan,
   haloVeil,
@@ -241,7 +242,7 @@ describe('when the ring is out', () => {
       SCAPE_CONFIG.weather.rain,
       sleet(year),
       sun(0.5, year),
-      SCAPE_CONFIG.halo.strength,
+      haloStrength(SCAPE_CONFIG),
       LEAD,
     )
 

@@ -19,6 +19,7 @@ import {
   dogLight,
   haloLight,
   haloPeak,
+  haloStrength,
   haloVeil,
   parhelionAngle,
   pillarLight,
@@ -487,7 +488,7 @@ export function haloStats (config: ScapeConfig): WeatherStats['halo'] {
     config.weather.rain,
     sleet,
     sun,
-    config.halo.strength,
+    haloStrength(config),
     config.halo.lead,
   )
 

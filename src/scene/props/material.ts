@@ -1,4 +1,5 @@
 import { TRANSMIT_FRAGMENT } from './transmission.ts'
+import { BOARD_FRAGMENT } from './boards.ts'
 import { Color, Vector2 } from 'three'
 import type { IUniform, MeshStandardMaterial, WebGLProgramParametersWithUniforms } from 'three'
 import { kitMaterial, markShared } from 'threejs-scene/modules/assets'
@@ -514,6 +515,7 @@ ${heathFragment('uDetailMap')}
 ${SOIL_NORMAL_FRAGMENT}
 ${HUMMOCK_FRAGMENT}
 ${propGrainFragment(false)}
+${BOARD_FRAGMENT}
 ${weatheringFragment('uDetailMap')}
 `
 
@@ -555,6 +557,7 @@ ${heathFragment('uWearMap')}
 ${SOIL_NORMAL_FRAGMENT}
 ${HUMMOCK_FRAGMENT}
 ${propGrainFragment(true)}
+${BOARD_FRAGMENT}
 ${weatheringFragment('uDetailMap')}
 `
 }
