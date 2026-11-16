@@ -46,7 +46,9 @@ imports only the roster, so it loads when the scene itself is broken.
   `bun run assets --kit` first; extend the helper every stone / board / roof is
   built through, and every island gets it. A term keyed on the albedo
   (`heathFragment`, `weatheringFragment` in `props/material.ts` and
-  `props/weathering.ts`) reaches every prop with no flag. Per-instance colour
+  `props/weathering.ts`, `BOARD_FRAGMENT` in `props/boards.ts`) reaches every
+  prop with no flag — a painted wall gets its boards from its colour, so a new
+  building needs no cladding geometry. Per-instance colour
   is the same idea on the cpu: `landscape/instance-tone.ts` leans every stamped
   family warm or cool by its own chroma — change a look for *all* scatter there,
   not in one prop's palette.

@@ -2,6 +2,14 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## every wall built of boards — battens on falu red, laps on limewash, and five panel rows fewer
+
+the barns, sheds, boathouses and the chapel were flat painted cards. [`props/boards.ts`](src/scene/props/boards.ts) clads every upright painted face in the shared ground material, on both tap paths, chosen by the albedo with no prop flag: falu red, tar and brown timber stand in 0.22 m board and batten with rolled edges; limewash and trim white lap in 0.19 m courses with a shadow line under every lip. one board a shade off the next (±12%, zero-mean), seams faded by their own screen width so a far wall keeps its colour. the board is the rain run's width, so a shower runs down a wall one board at a time.
+
+- **the panel: five rows fewer.** *lamps ashore* drives the farmstead and the far shore (`shoreLights.glow` is now a 1.05 share of `windows.glow`); *rainbow & halo* drives both arcs (`haloStrength`: `halo.strength` is a 0.54 share of `rainbow.strength`). `kiln.draw`, `carter.reach`, `windows.occupancy` and `cursorLight.distance` are physics and leave the panel as config leaves. the grain row is *surface detail · grain, boards, lichen*.
+- **cost:** no texture, uniform, varying, program or draw; a hash and a few smoothsteps per upright ground fragment, skipped where the albedo is not paint.
+- **tests:** `boards.test.ts` pins that paint, limewash and timber are boards and stone, grass and conifers are not, that no palette colour is both boards and weathered stone, that falu red stands in battens and limewash laps, and that the term binds nothing of its own.
+
 ## rain that darkens the land — walls that take the weather, one mirror in the puddles, and the sea smoke folded into the air
 
 in a full shower the whole island turned silver-white from the default zoom, and against the light it read as an island under snow. two things stacked: every field was smoothed to a 0.12 film, and the puddles added a private sky sheen at 8× the fresnel on top of the sky mirror every program already has (`SKY_MIRROR`). meanwhile every wall, post and gable stood bone dry beside the soaked yard.

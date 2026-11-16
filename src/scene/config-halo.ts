@@ -63,6 +63,9 @@ export interface HaloConfig {
      * all is the year's business — a coast whose fall is all rain has no ice
      * aloft to refract through — and how much of the ring clears the sea is the
      * sun's height. 0 is a coast that never gets one.
+     *
+     * A share of `rainbow.strength`: the overlay's one row for the arcs a
+     * shower stands in the sky turns the bow and the ring together.
      */
     strength: number
 
@@ -118,7 +121,7 @@ export const SCAPE_HALO: HaloConfig = {
     // ever produces, and the first pass at 0.6 came out as a white smear with a
     // hole in the middle of it. What is left reads as a ring on the pictures
     // and still disappears into an overcast, which is what a halo does.
-    strength: 0.46,
+    strength: 0.54,
 
     // Just under a tenth of a cycle, which on the default front speed is the
     // better part of a minute of wall clock ahead of the rain. Long enough that
