@@ -1,327 +1,184 @@
-import {
-  BufferAttribute,
-  Color,
-  DoubleSide,
-  Mesh,
-  MeshBasicMaterial,
-  PlaneGeometry,
-} from 'three'
-import type { IUniform, OrthographicCamera, Texture, WebGLProgramParametersWithUniforms } from 'three'
-import { Vector2 } from 'three'
+import { Color, DoubleSide, Mesh, PlaneGeometry, ShaderMaterial, Vector2 } from 'three'
+import type { IUniform, OrthographicCamera } from 'three'
 import { defineModule, smoothstep } from 'threejs-scene'
-import {
-  WEATHER_BANK_BEGIN_VERTEX,
-  WEATHER_BANK_MAP_FRAGMENT,
-  WEATHER_BANK_PARS_FRAGMENT,
-  WEATHER_BANK_PARS_VERTEX,
-  weatherBankDrift,
-  weatherBankTile,
-} from './weather-bank.ts'
-import { CLOUD_CUT, CLOUD_EDGE } from './cloud-shadow.ts'
-import { bakeAlphaField } from 'threejs-scene/modules/assets'
+import { CLOUD_SHADOW_GLSL } from './cloud-shadow.ts'
+import type { CloudShadow } from './cloud-shadow.ts'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import type { DaylightState } from './daylight.ts'
-import { sampleHeight } from './noise.ts'
-import type { AtmosphereQuality } from './quality.ts'
-import type { TextureCatalogue } from './textures/catalogue.ts'
-import type { WindState } from './wind.ts'
+import { deckReveal, deckViewSize } from './sky-deck.ts'
 import { LAYER } from './layers.ts'
 import { hypot } from './hypot.ts'
 
 
 export interface CloudOptions {
-  camera:  OrthographicCamera
-  config:  LiveConfig
-  quality: AtmosphereQuality
-
-  /**
-   * The scape's maps. The deck bakes its own field but reads the *bank* off
-   * `sky.cloudShadow`, which is the one the ground darkens by — sampling any
-   * other map would give the sky lanes the ground knows nothing about.
-   */
-  textures: TextureCatalogue
+  camera: OrthographicCamera
+  config: LiveConfig
 
   /** Live sky state, so the deck is lit by the same clock as everything else. */
   daylight: DaylightState
 
-  /** The scape's one wind. The deck no longer picks a heading off the seed. */
-  wind: WindState
-}
-
-interface CloudDeck {
-  mesh: Mesh
-
   /**
-   * How far this deck's heading is turned off the wind, in radians.
-   *
-   * Not a heading of its own — a spread. Real cloud at two heights travels on
-   * two slightly different winds, and a stack that scrolls in perfect parallel
-   * reads as one printed sheet however many layers it has; a stack that ignores
-   * the wind entirely reads as four unrelated skies. This is the small angle
-   * between those two mistakes.
+   * The placed cloud field: the map, drift, bank and downsun throw every shadow
+   * on the ground and on the water is read through. The deck draws the same
+   * field at the cloud's own place, so there is one cloud and not two.
    */
-  spread: number
-  speed:  number
-  phaseX: number
-  phaseY: number
-  weight: number
-
-  /** Wind travel this deck has already scrolled to, so a live response cannot jump. */
-  travelled: number
+  shadow: CloudShadow
 }
 
-const TEXTURE_SIZE = 128
-const DRIFT_SPEED  = 2.4
-const DECK_ALPHA   = 0.34
+/** The most of the frame a cloud's core hides, at full cover. Its edge is thinner. */
+export const DECK_ALPHA = 0.5
 
-/** Radians between one deck's heading and the next. See {@link CloudDeck.spread}. */
-const DECK_SPREAD = 0.14
+/** How far toward the sun the deck looks for its own lit rim, in metres. */
+export const RIM_REACH = 26
 
 /**
- * Tile width as a fraction of the widest authored frame.
- *
- * The deck follows the world's extent, but cloud density is a screen-space
- * composition: widening the camera must widen a tile with it or the sky becomes
- * a wallpaper of tiny repeats. 0.809 preserves the 106.8m tile against the 132m
- * maximum view the single-island composition was tuned on.
+ * The tone of a cloud's sunlit side and its lee, as gains on the sky's own
+ * horizon colour: a top in the sun is whiter than the horizon behind it, the
+ * side turned away from it a good deal greyer.
  */
-const TILE_VIEW_FRACTION = 0.809
+export const LIT_GAIN   = 1.12
+export const SHADE_GAIN = 0.62
 
-export function cloudTileSize (maxViewSize: number): number {
-  return maxViewSize * TILE_VIEW_FRACTION
-}
-
-/** Where the field stops being sky and starts being sheet, as fractions of the sheet. */
-const REACH_IN  = 0.2
-const REACH_OUT = 0.47
+/** How far past the world the deck runs, as a multiple of the world's width. */
+const DECK_REACH = 4.4
 
 const WHITE = new Color('#ffffff')
 
-
 /**
- * The alpha field, cut into cloud rather than left as haze.
- *
- * The mist uses this same fBm raised to a power, which keeps a little of it
- * everywhere — right for something you are standing in. A cloud deck read from
- * underneath has to have *gaps*, or it is just a grey filter over the frame, so
- * the field is thresholded instead: below the cut there is no cloud at all, and
- * the sky above the island stays a sky.
- *
- * The cut itself is `cloud-shadow.ts`'s, because the shadow needs the same one
- * and cannot import this file: it is read by `scape:map`, which draws nothing.
- * One number, two bakes — see the changelog's follow-up, which is the third
- * step neither of them has taken.
+ * How much of a cloud the eye sees through, given its cut field (0..1), the
+ * sky's cover and how far back the camera stands: the deck's alpha, the same
+ * arithmetic as the glsl.
  */
-function bakeClouds (data: Uint8Array, seed: number): void {
-  for (let y = 0; y < TEXTURE_SIZE; y += 1)
-    for (let x = 0; x < TEXTURE_SIZE; x += 1) {
-      const sample = sampleHeight(x / TEXTURE_SIZE * 84, y / TEXTURE_SIZE * 84, seed, 1) * 0.5 + 0.5
-      const offset = (y * TEXTURE_SIZE + x) * 4
-
-      data[offset]     = 255
-      data[offset + 1] = 255
-      data[offset + 2] = 255
-      data[offset + 3] = Math.round(smoothstep(CLOUD_CUT, CLOUD_CUT + CLOUD_EDGE, sample) * 255)
-    }
+export function deckAlpha (field: number, cover: number, reveal: number): number {
+  return smoothstep(0.15, 0.9, field) * Math.min(1, cover * 1.2) * reveal * DECK_ALPHA
 }
 
-function deckGeometry (size: number): PlaneGeometry {
-  const geometry = new PlaneGeometry(size, size, 24, 24)
-  const position = geometry.getAttribute('position')
-  const colors   = new Float32Array(position.count * 4)
-
-  for (let index = 0; index < position.count; index += 1) {
-    const radius = hypot(position.getX(index), position.getY(index)) / size
-    const offset = index * 4
-
-    colors[offset]     = 1
-    colors[offset + 1] = 1
-    colors[offset + 2] = 1
-    colors[offset + 3] = 1 - smoothstep(REACH_IN, REACH_OUT, radius)
+const DECK_VERTEX = /* glsl */`
+  varying vec3 vDeckWorld;
+  void main () {
+    vec4 world  = modelMatrix * vec4(position, 1.0);
+    vDeckWorld  = world.xyz;
+    gl_Position = projectionMatrix * viewMatrix * world;
   }
+`
 
-  geometry.setAttribute('color', new BufferAttribute(colors, 4))
-  return geometry
-}
+const DECK_FRAGMENT = /* glsl */`
+${CLOUD_SHADOW_GLSL}
+  uniform vec3 uLit;
+  uniform vec3 uShade;
+  uniform vec2 uSunFlat;
+  uniform float uDeckAlpha;
+  varying vec3 vDeckWorld;
+
+  void main () {
+    // The cloud at its own place: the shadow's lookup is the cloud upsun of the
+    // ground, so the throw is added back to find the cloud over this point.
+    vec2 at    = vDeckWorld.xz + uCloudThrow;
+    float body = scapeCloudField(at);
+    if (body < 0.15) discard;
+
+    // A cloud seen from above is lit on the side the sun is on and grey on the
+    // other: compare the field a little way toward the sun with the field here.
+    // Thinning toward the sun is the lit edge; thickening is the lee of a tower.
+    float toward = scapeCloudField(at + uSunFlat * ${RIM_REACH.toFixed(1)});
+    float lit    = clamp(0.62 + 1.6 * (body - toward), 0.0, 1.0);
+    vec3 colour  = mix(uShade, uLit, lit);
+
+    gl_FragColor = vec4(colour, smoothstep(0.15, 0.9, body) * uDeckAlpha);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+  }
+`
 
 /**
- * The sky.
+ * The deck: the cloud each shadow is cast by, seen from above.
  *
- * Same technique as the ground mist — world-pinned sheets of a baked alpha field
- * scrolling on the wind — moved up above the terrain and fading in as you pull
- * back. That gating is not a performance dodge: an orthographic camera zoomed in
- * sits *below* the deck, so the only thing overhead cloud could do there is
- * cover the frame. Pull out and the camera climbs past it, and the deck becomes
- * what it is meant to be, weather between you and the islands.
+ * It was two or three sheets of a private 128² alpha bake, scrolled on their
+ * own drifts, with nothing to do with the shadow on the ground or the sky in
+ * the sea. From the archipelago frame that was white wisps laid over every
+ * island and the open water, and no cloud stood over its own shadow. Now it is
+ * one sheet reading the shadow's own field (`scapeCloudField`), its downsun
+ * throw undone, so a cloud, the shadow it casts and its image in the sea are
+ * one field in three places. It is lit from the sun's side by one more read of
+ * the field, so a cloud has a bright flank and a grey lee rather than being a
+ * flat white smudge, and it is cut where the field is, so the sky between
+ * clouds is clear.
+ *
+ * It fades in as the camera climbs past it (`deckReveal`), as before: zoomed
+ * in, the camera stands under it and an overhead sheet could only cover the
+ * picture.
  */
-export function createCloudLayer ({
-  camera,
-  config,
-  quality,
-  daylight,
-  textures,
-  wind,
-}: CloudOptions): ScapeModule {
-  const count    = Math.max(2, quality.mistLayers)
-  const deckSize = config().archipelago.worldSize * 4.4
-  const base     = config().terrain.waterLevel + config().atmosphere.cloudHeight
-  const geometry = deckGeometry(deckSize)
+export function createCloudLayer ({ camera, config, daylight, shadow }: CloudOptions): ScapeModule {
+  const size     = config().archipelago.worldSize * DECK_REACH
+  const geometry = new PlaneGeometry(size, size)
   const tint     = new Color()
-  const texture  = bakeAlphaField(TEXTURE_SIZE, f => bakeClouds(f, config().seed ^ 0x2c17))
 
-  // The weather the decks are in. World metres rather than deck uv, and the same
-  // map, scale and offset the ground shadow reads — which is what makes the lane
-  // that opens overhead the lane the ground brightens under. One set of uniform
-  // objects across every deck, because they are one sky.
-  const bankOffset: IUniform<Vector2>          = { value: new Vector2() }
-  const bankScale: IUniform<number>            = { value: 1 / weatherBankTile(config().archipelago.worldSize) }
-  const bank: IUniform<number>                 = { value: 0 }
-  const bankUniforms: Record<string, IUniform> = {
-    uCloudMap:          { value: textures.get('sky.cloudShadow') },
-    uWeatherBankOffset: bankOffset,
-    uWeatherBankScale:  bankScale,
-    uWeatherBank:       bank,
-  }
+  const lit: IUniform<Color>       = { value: new Color() }
+  const shade: IUniform<Color>     = { value: new Color() }
+  const sunFlat: IUniform<Vector2> = { value: new Vector2(1, 0) }
+  const opacity: IUniform<number>  = { value: 0 }
 
-  function tile (index: number): Texture {
-    const map = texture.clone()
-    map.repeat.setScalar(deckSize / cloudTileSize(config().camera.maxViewSize) * (1 + index * 0.29))
-    map.offset.set(index * 0.37, index * 0.19)
-    map.needsUpdate = true
-    return map
-  }
+  const material = new ShaderMaterial({
+    name:           'cloud-deck',
+    vertexShader:   DECK_VERTEX,
+    fragmentShader: DECK_FRAGMENT,
+    uniforms:       { ...shadow.uniforms, uLit: lit, uShade: shade, uSunFlat: sunFlat, uDeckAlpha: opacity },
+    transparent:    true,
+    depthWrite:     false,
+    side:           DoubleSide,
 
-  const decks = Array.from({ length: count }, (_unused, index): CloudDeck => {
-    const weight   = (1 - index / (count + 1)) * DECK_ALPHA
-    const material = new MeshBasicMaterial({
-      name:         `cloud-deck-${index + 1}`,
-      map:          tile(index),
-      transparent:  true,
-      depthWrite:   false,
-      vertexColors: true,
-      side:         DoubleSide,
-      opacity:      0,
-
-      // Unfogged on purpose. Linear fog fades by distance from the camera, and
-      // the deck is the furthest thing in the frame — leave it in and every
-      // cloud dissolves into the fog colour exactly when it comes into view.
-      fog: false,
-    })
-
-    // The bank, taken off the deck's alpha rather than out of its field. There
-    // is no field left up here to bias — `bakeClouds` stores the cut — so a low
-    // bank thins the sheet to nothing and a high one leaves all of it. The
-    // ground reads the same bank at the same scale, so the two agree about where
-    // the sky is open; see `weather-bank.ts`.
-    material.onBeforeCompile = (program: WebGLProgramParametersWithUniforms) => {
-      Object.assign(program.uniforms, bankUniforms)
-
-      program.vertexShader = program.vertexShader
-        .replace('#include <common>', `#include <common>\n${WEATHER_BANK_PARS_VERTEX}`)
-        .replace('#include <begin_vertex>', WEATHER_BANK_BEGIN_VERTEX)
-
-      program.fragmentShader = program.fragmentShader
-        .replace('#include <common>', `#include <common>\n${WEATHER_BANK_PARS_FRAGMENT}`)
-        .replace('#include <map_fragment>', WEATHER_BANK_MAP_FRAGMENT)
-    }
-
-    const mesh         = new Mesh(geometry, material)
-    mesh.name          = `cloud-${index + 1}`
-    mesh.rotation.x    = -Math.PI / 2
-    mesh.position.y    = base + index * 5.5
-    mesh.renderOrder   = LAYER.clouds + index
-    mesh.frustumCulled = false
-    mesh.visible       = false
-
-    return {
-      mesh,
-      spread:    (index - (count - 1) / 2) * DECK_SPREAD,
-      speed:     1 + index * 0.38,
-      phaseX:    0,
-      phaseY:    0,
-      travelled: 0,
-      weight,
-    }
+    // Unfogged on purpose: the deck is the furthest thing in the frame by the
+    // camera's distance, and fog would dissolve every cloud as it came in view.
+    fog: false,
   })
+
+  const mesh         = new Mesh(geometry, material)
+  mesh.name          = 'cloud-deck'
+  mesh.rotation.x    = -Math.PI / 2
+  mesh.position.y    = config().terrain.waterLevel + config().atmosphere.cloudHeight
+  mesh.renderOrder   = LAYER.clouds
+  mesh.frustumCulled = false
+  mesh.visible       = false
 
   return defineModule<ScapeConfig>({
     name: 'sky-clouds',
 
     build (ctx) {
-      for (const deck of decks)
-        ctx.scene.add(deck.mesh)
+      ctx.scene.add(mesh)
     },
 
     update (_state) {
-      const { minViewSize, maxViewSize } = config().camera
-      const viewSize                     = camera.userData.viewSize as number ?? config().camera.viewSize
-      const zoom                         = smoothstep(
-        minViewSize + (maxViewSize - minViewSize) * 0.45,
-        minViewSize + (maxViewSize - minViewSize) * 0.9,
-        viewSize,
-      )
-      const cover    = config().atmosphere.cloudCover * zoom
-      const bankTile = weatherBankTile(config().archipelago.worldSize)
-      const drag     = config().atmosphere.cloudDrag
-      const drifted  = weatherBankDrift(drag, wind.travel, bankTile)
+      const reveal = deckReveal(deckViewSize(camera, config), config().camera)
+      const cover  = config().atmosphere.cloudCover
+      const alpha  = deckAlpha(1, cover, reveal)
 
-      // No throw here, unlike the shadow's: the deck *is* the cloud, and the
-      // downsun offset is what the ground adds to find the bank that is over it.
-      bankOffset.value.set(wind.dirX * drifted, wind.dirZ * drifted)
-      bankScale.value = 1 / bankTile
-      bank.value      = Math.max(0, config().atmosphere.weatherBank)
+      mesh.visible = alpha > 0.01
+      if (!mesh.visible)
+        return
 
-      // Lit by the same sky the fog and the sun are. Cloud is the one surface in
-      // the frame with nothing but ambient on it, so if it does not follow the
-      // clock it stays daylight-white through the night.
+      // Lit by the same sky the fog and the sun are: cloud is the one surface
+      // with nothing on it but the sky, so if it does not follow the clock it
+      // stays daylight-white through the night.
       tint.copy(daylight.horizon).lerp(WHITE, 0.42 * daylight.day + 0.1)
+      lit.value.copy(tint).multiplyScalar(LIT_GAIN)
+      shade.value.copy(tint).multiplyScalar(SHADE_GAIN)
 
-      for (const deck of decks) {
-        const material = deck.mesh.material as MeshBasicMaterial
-        const map      = material.map
+      const flat = hypot(daylight.direction.x, daylight.direction.z)
+      if (flat > 1e-3)
+        sunFlat.value.set(daylight.direction.x / flat, daylight.direction.z / flat)
 
-        material.opacity  = cover * deck.weight
-        material.color.copy(tint)
-        deck.mesh.visible = cover > 0.01
-
-        if (!map || !deck.mesh.visible)
-          continue
-
-        // Differenced against the wind's own travel rather than integrated from
-        // a delta, so moving the response on the overlay changes how far the
-        // deck goes next rather than teleporting it to where it would have been
-        // had the new value always applied.
-        const step = (wind.travel - deck.travelled) *
-          DRIFT_SPEED *
-          deck.speed *
-          config().atmosphere.cloudDrag /
-          deckSize *
-          map.repeat.x
-
-        const heading = wind.bearing + deck.spread
-
-        deck.travelled = wind.travel
-        deck.phaseX   += Math.cos(heading) * step
-        deck.phaseY   += Math.sin(heading) * step
-        map.offset.set(deck.phaseX, deck.phaseY)
-      }
+      opacity.value = alpha
     },
 
     dispose () {
-      for (const deck of decks) {
-        const material = deck.mesh.material as MeshBasicMaterial
-        deck.mesh.removeFromParent()
-        material.map?.dispose()
-        material.dispose()
-      }
+      mesh.removeFromParent()
+      material.dispose()
       geometry.dispose()
-      texture.dispose()
     },
   })
 }
 
-// perf: two or three unlit transparent quads, drawn only while zoomed out, over
-// one shared 128² alpha field, one shared geometry and one borrowed cloud map.
-// Nothing per-frame but texture offsets, an opacity, a colour and the bank's
-// three uniforms; one extra texture fetch per fragment, on quads that are only
-// drawn at all once the camera has climbed past them.
+// perf: one unlit transparent quad, drawn only once the camera has climbed past
+// it, reading the shadow's own map and uniforms (two field reads a fragment,
+// each the shadow's untiled lookup and the bank). No bake, no texture of its
+// own; per frame two colours, a direction and an alpha.

@@ -4,6 +4,7 @@ import { defineModule } from 'threejs-scene'
 import { NOTHING_SKIPPED } from '../audit.ts'
 import type { ScapeSkips } from '../audit.ts'
 import { createCloudShadow } from '../cloud-shadow.ts'
+import type { CloudShadow } from '../cloud-shadow.ts'
 import { createSkyOcclusion, skyGrid } from '../sky-occlusion.ts'
 import type { SkyOcclusion } from '../sky-occlusion.ts'
 import type { LiveConfig, ScapeConfig, ScapeModule } from '../config.ts'
@@ -208,6 +209,9 @@ export interface Landscape {
    * borrowing the object for as long as the scape is up.
    */
   textures: TextureCatalogue
+
+  /** The one cloud field, placed: the deck overhead draws the cloud each shadow is cast by (`clouds.ts`). */
+  shadow: CloudShadow
 }
 
 export function createLandscape (
@@ -783,6 +787,7 @@ export function createLandscape (
     season:    season.state,
     weather:   weather.state,
     textures,
+    shadow,
   }
 }
 

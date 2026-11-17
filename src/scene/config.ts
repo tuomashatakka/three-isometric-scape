@@ -926,11 +926,8 @@ export interface ScapeConfig extends CarterConfig, CreelConfig, CroppingConfig, 
     /**
      * World units per cloud-map tile.
      *
-     * The size of the shadows, not of the deck overhead — the deck sizes its
-     * own tile against the widest authored frame, because cloud density read
-     * from underneath is a screen composition. See `cloudTileSize` in
-     * `clouds.ts`, and the follow-up in the changelog: the two are still two
-     * bakes of two different noises.
+     * The size of every cloud: the shadows, the deck overhead that casts them
+     * (`clouds.ts`) and the clouds the sea mirrors are one field at this scale.
      */
     cloudScale: number
 

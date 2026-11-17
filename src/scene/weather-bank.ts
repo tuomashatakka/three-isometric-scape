@@ -5,8 +5,8 @@
  * ## the finding
  *
  * The scape has two cloud fields and until now both of them were tiles about a
- * hundred metres across. The deck overhead repeats `cloudTileSize(maxViewSize)`
- * — 106.8 m at the authored frame — and the shadow on the ground repeats
+ * hundred metres across: the deck overhead (a private bake, since retired —
+ * the deck now draws the shadow's own field, `clouds.ts`) and the shadow on the ground repeats
  * `atmosphere.cloudScale`, 92 m. Both numbers were chosen when the scape was one
  * island and the widest authored frame was 132 m across, and at that size they
  * are right: a tile a little smaller than the frame is a sky with several clouds

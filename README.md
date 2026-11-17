@@ -228,8 +228,8 @@ src/
     ├── camera-controls.ts          pointer, touch, keyboard, focus, orbit
     ├── camera-follow.ts            riding a moving fleet instance instead of the map
     ├── beacon.ts                   the coastal light: the lamp, and the beams it sweeps
-    ├── clouds.ts                   sky deck, faded in as the view pulls back
-    ├── cloud-shadow.ts             the shadow that deck throws: one cut, one drift, one projection, four programs
+    ├── clouds.ts                   the deck: the shadow's own field drawn at the cloud's place, lit on its sun side
+    ├── cloud-shadow.ts             one cloud field (`scapeCloudField`): the shadow, the deck and the sea's mirror read it
     ├── sky-occlusion.ts            the sky map: every solid rasterised from above once, how much sky each point sees, and the sun's shadow marched across it
     ├── frame.ts                    how many repeats of a world-space tile the frame is wide, and how much of it a reader keeps
     ├── weather-bank.ts             the one world-sized field: what stops every frame-sized tile reading as wallpaper
@@ -399,7 +399,7 @@ src/
     │   ├── swash.ts              the band the sea wets: hunt's run-up on the ground's own gradient, and the survey of it
     │   ├── water-body.ts          the water's own colour: the bed through beer–lambert absorption, against the deep
     │   ├── water-caustics.ts      the sun's net on the bottom of the shallows
-    │   ├── water-gleam.ts         the light that never got in: the sky it mirrors, the moon's track, the fire in torn water
+    │   ├── water-gleam.ts         the light that never got in: the sky along the reflected ray and the clouds it meets, the moon's track, the fire in torn water
     │   ├── water-caps.ts          the white the open sound puts on when it blows, and the lee that is spared it
     │   ├── water-slick.ts         the wind's texture on the sea: rough rows down the wind, glass in the lee
     │   ├── roost.ts               the gates the tide hurries through, found in the bathymetry and packed into it
@@ -750,6 +750,16 @@ the barns, sheds, boathouses and the chapel were flat painted cards: one colour 
 - **one run per board.** the board is the rain run's width (`runoff.ts`), so a shower runs down a wall a board at a time.
 - **let go by the pixel, not the frame.** each fragment measures how many boards its pixel spans (`fwidth`) and fades the seams and the relief between `SEAM_FADE` 0.18 and 0.5 boards per pixel; the per-board tone is zero-mean, so a wall too far to resolve a board keeps its colour rather than shimmering.
 - **no texture, uniform or varying.** a hash, a fract and a few smoothsteps on numbers the fragment holds — every tier, the phone included. it rides `terrain.detailGrain`, whose panel row is now *surface detail · grain, boards, lichen*.
+
+## one cloud, three places: over its shadow, and in the sea
+
+from the archipelago frame the whole picture was grey. the culprit was found by zeroing knobs, not by hiding meshes: two or three cloud sheets of a private 128² alpha bake, scrolled on drifts of their own, laid white wisps over every island and the open water — and no cloud in them stood over its shadow, because the shadow was another bake. under them the sea mirrored a two-colour lerp multiplied by the cloud *shadow* at its own point, so the water reflected the shade lying on it rather than the sky above it.
+
+- **one field.** [`cloud-shadow.ts`](src/scene/cloud-shadow.ts) splits its lookup into `scapeCloudField` (the cut field, where the cloud *is*), `scapeCloudShade` (the shadow) and `scapeCloudCover` (the field at the sky's cover), and publishes the downsun throw as `uCloudThrow`. the shadow at ground `g` is the cloud at `g - throw`, so a reader that wants the cloud over a point adds the throw back.
+- **the deck draws it.** [`clouds.ts`](src/scene/clouds.ts) is one sheet, not two or three, with no bake: a `ShaderMaterial` reading the shadow's own uniforms at the cloud's place. one more read of the field `RIM_REACH` (26 m) toward the sun lights the flank the sun is on (`LIT_GAIN`) and greys the lee (`SHADE_GAIN`); the field's cut is the gap, so the sea shows between clouds. `deckAlpha` caps a core at `DECK_ALPHA` 0.5 of what is behind it.
+- **the sea mirrors the sky along the reflected ray.** [`landscape/water-gleam.ts`](src/scene/landscape/water-gleam.ts) reflects the eye about the normal the swell and the ripple have bent, takes the ray to world space, and reads the dome by how high it climbs and the cloud where it meets a base `MIRROR_DECK` (90 m) up. a degree of ripple tilt drags the image metres along the ray, so a cloud's reflection is broken into the wind's streaks; the reflection lies displaced from the shadow, as a mirror displaces it. the old `skyChop` dome guess is gone; a rough patch still mirrors less (`SKY_CHOP_GAIN_GLSL`) and higher.
+
+**the panel, two rows and a section fewer.** *the sky in the water · sea, glitter, tarns* (`water.mirror`) turns the sea's mirror, the sun's glitter (`sunGlint` = `water.sparkle` × mirror), the moon's track (a share of the glitter) and the tarns' polish (`tarn.mirror` × mirror). *glitter · sun and moon* and *the tarns* are config leaves now; *running water* joined the sea, and *fresh water* is gone.
 
 ## the coast across the water is a mountain range
 

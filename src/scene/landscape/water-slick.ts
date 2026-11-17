@@ -16,7 +16,7 @@
  * - **the roughness** — `SLICK_GLASS` to `SLICK_CHOP`, where `water.roughness`
  *   used to be one number for the whole sea. The mean sits where the knob did
  * - **the mirror** — a rough facet mirrors a part of the sky further from the
- *   horizon, and at a grazing eye reflects less of it (`skyChop` below)
+ *   horizon, and at a grazing eye reflects less of it (`SKY_CHOP_GAIN_GLSL` below)
  * - **the ripple** — a slick has had its capillary waves damped flat, so the
  *   ripple normal is scaled down in it
  *
@@ -107,14 +107,11 @@ export const SLICK_ROUGHNESS_GLSL =
   `mix(${SLICK_GLASS.toFixed(2)}, ${SLICK_CHOP.toFixed(2)}, seaChop)`
 
 /**
- * What a rough facet does to the mirror: it looks further up the dome — so
- * `facing` is pulled toward the zenith — and at a grazing eye it presents
- * steeper faces, so less of what it sees is reflected. Returns
- * `vec2(facing, reflectance gain)`.
+ * What a rough facet does to the mirror's share: at a grazing eye it presents
+ * steeper faces, so less of what it sees is reflected. Where on the dome it
+ * looks is the reflected ray's business now (water-gleam.ts).
  */
-export const SKY_CHOP_GLSL = /* glsl */`
-  vec2 skyChop = vec2(mix(facing, 0.6 + 0.4 * facing, seaChop), mix(1.2, 0.6, seaChop));
-`
+export const SKY_CHOP_GAIN_GLSL = 'mix(1.2, 0.6, seaChop)'
 
 /** The body's gain: a slick reads deep and dark, the chop pale. Mean ~1. */
 export const SLICK_BODY_GLSL = 'mix(0.8, 1.18, seaChop)'

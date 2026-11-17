@@ -127,19 +127,18 @@ describe('the lookup itself', () => {
   })
 
   /**
-   * The deck and the shadow have to agree about which part of the sky is
-   * cloud, and this is the half of that agreement a test can hold: one cut,
-   * read by the bake in `clouds.ts` and by the lookup here. Two bakes still,
-   * which is the follow-up — but not two opinions about where cloud starts.
+   * The deck and the shadow agree about which part of the sky is cloud because
+   * there is one cut and one field: the deck draws \`scapeCloudField\` itself,
+   * which is the follow-up the two bakes left open, closed.
    */
-  test('it cuts at the level the deck overhead is cut at', () => {
+  test('the deck draws the field the shadow is cut from', () => {
     const deck = readFileSync(new URL('clouds.ts', import.meta.url).pathname, 'utf8')
 
-    // Close in, where the spread is nothing.
     expect(CLOUD_SHADOW_GLSL).toContain(`${CLOUD_CUT.toFixed(2)} - spread`)
     expect(CLOUD_SHADOW_GLSL).toContain(`${(CLOUD_CUT + CLOUD_EDGE).toFixed(2)} + spread`)
-    expect(deck).toContain('smoothstep(CLOUD_CUT, CLOUD_CUT + CLOUD_EDGE, sample)')
-    expect(deck).not.toContain('const CUT =')
+    expect(CLOUD_SHADOW_GLSL).toContain('scapeCloudField(ground)')
+    expect(deck).toContain('CLOUD_SHADOW_GLSL')
+    expect(deck).not.toContain('CLOUD_CUT')
   })
 
   /**
@@ -208,6 +207,6 @@ describe('and which lakes take it', () => {
     )
 
     expect(held).toHaveLength(1)
-    expect(gleam).toContain('mix(uSkyHorizon, uSkyTop, skyChop.x) * cloudShade')
+    expect(gleam).toContain('scapeCloudCover(vWaterGround + skyRay.xz')
   })
 })

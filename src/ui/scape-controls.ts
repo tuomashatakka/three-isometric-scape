@@ -238,22 +238,17 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
     },
     {
       group:    'ground & water',
-      title:    'the sea',
+      title:    'water',
       controls: [
-        toggled('glitter · sun and moon', range('water.sparkle', 'strength', 0, 1.5, 0.01), 0.5),
+        // One row for the sky in every water: the sea's mirror and the clouds
+        // in it, the glitter of the sun and the moon, and the tarns' polish.
+        toggled('the sky in the water · sea, glitter, tarns', range('water.mirror', 'mirror', 0, 1.5, 0.01), 1),
         range('water.state', 'sea state · swell, surf, caps', 0, 2, 0.01),
         toggled('the wash', range('swash.reach', 'run-up (Hunt)', 0, 2, 0.01), 1),
         toggled('caustics', range('water.caustics', 'strength', 0, 1.5, 0.01), 1),
         toggled('the tide', range('tide.range', 'spring range (m)', 0, 1.6, 0.01), 0.8),
         toggled('boat wakes', range('water.wakeStrength', 'wake strength', 0, 1.5, 0.01), 0.78),
-      ],
-    },
-    {
-      group:    'ground & water',
-      title:    'fresh water',
-      controls: [
         toggled('running water · beck and fall', range('beck.flow', 'flow (m/s)', 0, 4, 0.05), 1.1),
-        toggled('the tarns', range('tarn.mirror', 'mirror', 0, 1, 0.01), 0.86),
       ],
     },
     {

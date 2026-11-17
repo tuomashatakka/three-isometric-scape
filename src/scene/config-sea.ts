@@ -8,7 +8,15 @@ export interface SeaConfig {
   /** The lake's surface response. Every one of these is live. */
   water: {
 
-    /** Sun-glitter strength, 0 disables the speckle. */
+    /**
+     * How much of the sky the water gives back, 0..1.5: the sea's mirror (the
+     * reflected ray and the clouds it meets, `water-gleam.ts`), the glitter of
+     * the sun and the moon on it, and the tarns' polish, as one row. 0 is water
+     * as matt as paint; 1 is water.
+     */
+    mirror: number
+
+    /** Sun-glitter strength at a full mirror; 0 takes the speckle away. A config leaf: the panel turns it through {@link mirror}. */
     sparkle: number
 
     /**
@@ -33,7 +41,7 @@ export interface SeaConfig {
      *
      * A share of `water.sparkle`: the sun's glitter and the moon's track are one
      * glint off one sea, so the panel's *glitter · sun and moon* row turns both
-     * (`moonGlint`). 20 at the authored 0.5 is the old 10.
+     * (`moonGlint`), and both are a share of `water.mirror`. 20 at the authored 0.5 is the old 10.
      */
     moonTrack: number
 
@@ -376,6 +384,7 @@ export const SCAPE_SEA: SeaConfig = {
   // of this height focuses to — big enough to read as a net at the shallows
   // poses and small enough that one bay carries several dozen of them.
   water: {
+    mirror:         1,
     sparkle:        0.5,
     // 10 against the 0.128 of a noon sun a waning gibbous 35° up actually puts
     // on this coast is 1.28 — half again a full sun's own path, which is what

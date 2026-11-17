@@ -220,10 +220,15 @@ export const CLOUD_SHADOW_GLSL = /* glsl */`
   uniform vec2 uCloudOffset;
   uniform float uCloudScale;
   uniform float uCloudStrength;
+  uniform float uCloudCover;
+  uniform vec2 uCloudThrow;
 ${WEATHER_BANK_GLSL}
 ${UNTILE_GLSL}
 ${FRAME_GLSL}
-  float scapeCloudShade (vec2 ground) {
+  // The cloud standing over \`ground\`, 0..1: the field cut into cloud. Where
+  // the cloud *is* rather than where its shadow lies — the deck draws it at
+  // its own place with \`uCloudThrow\` added back (clouds.ts).
+  float scapeCloudField (vec2 ground) {
     float keep   = ${repeatKeepGlsl('scapeFrameMetres() * uCloudScale', CLOUD_REPEATS)};
     float detail = 0.5;
 
@@ -233,12 +238,22 @@ ${FRAME_GLSL}
 
     float field  = clamp(detail + scapeWeatherBank(ground), 0.0, 1.0);
     float spread = ${CLOUD_SPREAD.toFixed(2)} * (1.0 - keep);
-    float cloud  = smoothstep(
+    return smoothstep(
       ${CLOUD_CUT.toFixed(2)} - spread,
       ${(CLOUD_CUT + CLOUD_EDGE).toFixed(2)} + spread,
       field
     );
-    return mix(1.0, 1.0 - ${TAKEN.toFixed(2)} * cloud, uCloudStrength);
+  }
+
+  float scapeCloudShade (vec2 ground) {
+    return mix(1.0, 1.0 - ${TAKEN.toFixed(2)} * scapeCloudField(ground), uCloudStrength);
+  }
+
+  // How much cloud the eye sees over \`ground\`: the field at the sky's own
+  // cover, whatever the light. The sea's mirror reads it where its reflected
+  // ray meets the deck (water-gleam.ts).
+  float scapeCloudCover (vec2 ground) {
+    return scapeCloudField(ground) * uCloudCover;
   }
 `
 
@@ -260,6 +275,8 @@ export function createCloudShadow (
   const offset: IUniform<Vector2>  = { value: new Vector2() }
   const scale: IUniform<number>    = { value: 1 / Math.max(1, config().atmosphere.cloudScale) }
   const strength: IUniform<number> = { value: 0 }
+  const cover: IUniform<number>    = { value: 0 }
+  const throwBy: IUniform<Vector2> = { value: new Vector2() }
 
   // The weather the cloud is in, at a tile wider than the world. The second read
   // of the same map, and the reason the sky stopped repeating — see
@@ -276,6 +293,8 @@ export function createCloudShadow (
     uCloudOffset:       offset,
     uCloudScale:        scale,
     uCloudStrength:     strength,
+    uCloudCover:        cover,
+    uCloudThrow:        throwBy,
     uWeatherBankOffset: bankOffset,
     uWeatherBankScale:  bankScale,
     uWeatherBank:       bank,
@@ -335,6 +354,9 @@ export function createCloudShadow (
         sky.day,
         sky.moon,
       )
+
+      cover.value = Math.min(1, Math.max(0, atmosphere.cloudCover))
+      throwBy.value.set(throwAt.x, throwAt.z)
 
       state.shade   = strength.value
       state.reach   = hypot(throwAt.x, throwAt.z)
