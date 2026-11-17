@@ -807,7 +807,7 @@ function capsLine (caps: MapStats['caps']): string {
  */
 function haarLine (haar: MapStats['haar']): string {
   return `haar  top ${haar.top}m over mean (${haar.ceiling}m)  band ${haar.depth}m  ` +
-    `sheets ${haar.floor}..${haar.ceiling}m  now ${haar.now}  ` +
+    `fog ${haar.floor}..${haar.ceiling}m  now ${haar.now}  ` +
     `dark night: still ${haar.still} rest ${haar.rest} gust ${haar.gust}  ` +
     `scour ${haar.scour} vs wind ${haar.wind}  ` +
     `drowns ${haar.drowned}% of the home island  ` +

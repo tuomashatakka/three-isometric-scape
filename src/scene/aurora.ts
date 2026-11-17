@@ -184,6 +184,17 @@ function bakeVeil (data: Uint8Array, seed: number, core: Color, crown: Color): v
 }
 
 /**
+ * The night sky's one knob, `atmosphere.starlight`, read as the aurora's
+ * strength: the stars and the veils are the same dark sky, so the panel turns
+ * them up together. Authored starlight (0.85) is an aurora at full strength.
+ */
+export const AURORA_PER_STAR = 1 / 0.85
+
+export function auroraStrength (starlight: number): number {
+  return Math.max(0, starlight) * AURORA_PER_STAR
+}
+
+/**
  * The winter night sky.
  *
  * Built as a deck rather than as a curtain on the horizon, and that is a fact
@@ -288,14 +299,14 @@ export function createAuroraLayer ({
     },
 
     update (_state, frame) {
-      const { aurora, auroraHeight, cloudHeight } = config().atmosphere
-      const zoom                                  = deckReveal(deckViewSize(camera, config), config().camera)
+      const { starlight, auroraHeight, cloudHeight } = config().atmosphere
+      const zoom                                     = deckReveal(deckViewSize(camera, config), config().camera)
 
       // Both clocks and the zoom, in one number. The veils are made invisible
       // rather than transparent below it, because a map-wide additive quad
       // contributing nothing still costs every pixel it covers — and for most of
       // the year, and most of every day, it contributes nothing.
-      const light = auroraBrightness(daylight.dark, aurora) * zoom
+      const light = auroraBrightness(daylight.dark, auroraStrength(starlight)) * zoom
       const base  = config().terrain.waterLevel + Math.max(auroraHeight, cloudHeight + CLEARANCE)
 
       for (const [ index, veil ] of veils.entries()) {

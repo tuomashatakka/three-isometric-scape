@@ -101,7 +101,7 @@ describe('ground fog', () => {
 
     installAerialPerspective(120, -1.25)
     expect(ShaderChunk.fog_fragment).toContain('vAerial.z - -1.2500')
-    expect(ShaderChunk.fog_fragment).toContain('fogNear * vAerial.w')
+    expect(ShaderChunk.fog_fragment).toContain('fogGround * 0.0156 * vAerial.w')
     expect(ShaderChunk.fog_fragment).not.toContain('- fogNear')
     expect(ShaderChunk.fog_vertex).toContain('vAerial = vec4(')
     Object.assign(ShaderChunk, before)

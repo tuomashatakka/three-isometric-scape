@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import { SCAPE_CONFIG } from './config.ts'
 import { dayAmount, sunHeight } from './daylight.ts'
-import { haarAmount, haarSheetHeights, haarSheetSize, haarSheetWeight } from './haar.ts'
-import { LADDER, atmosphereQuality, unlockEffects } from './quality.ts'
+import { ShaderChunk } from 'three'
+import { installAerialPerspective, packFogNear, unpackFogNear } from './aerial.ts'
+import { haarAmount, haarColumn, haarFog } from './haar.ts'
 import { wetAmount } from './weather.ts'
 
 
@@ -135,95 +136,46 @@ describe('haarAmount', () => {
 })
 
 
-/** Every sheet count the ladder can ask for, including the unlocked floor. */
-const COUNTS = [ ...new Set(LADDER.flatMap(tier => {
-  const quality = atmosphereQuality(tier)
+const CEILING = WATER + HAAR.top
 
-  return [ quality.haarSheets, unlockEffects(quality).haarSheets ]
-}).filter(count => count > 0)) ]
+describe('the bank as a fog term', () => {
+  test('stands the whole band over the sea and nothing over the tops', () => {
+    expect(haarColumn(WATER, CEILING, HAAR.depth)).toBeCloseTo(Math.min(HAAR.depth, HAAR.top), 6)
+    expect(haarColumn(CEILING + 0.01, CEILING, HAAR.depth)).toBe(0)
+    expect(haarFog(SCAPE_CONFIG.terrain.waterLevel + 8.6, CEILING, HAAR.depth, 1)).toBe(0)
+  })
 
+  test('thins up every slope rather than cutting it at a line', () => {
+    let last = 1
 
-describe('haarSheetHeights', () => {
-  test('the bank has a top, and it is exactly the one that was authored', () => {
-    for (const count of COUNTS) {
-      const heights = haarSheetHeights(WATER, HAAR.top, HAAR.depth, count)
+    for (let height = WATER; height <= CEILING; height += 0.25) {
+      const fog = haarFog(height, CEILING, HAAR.depth, 0.85)
 
-      expect(heights).toHaveLength(count)
-      expect(Math.max(...heights)).toBeCloseTo(WATER + HAAR.top, 6)
+      expect(fog).toBeLessThanOrEqual(last + 1e-9)
+      last = fog
     }
   })
 
-  test('deals the sheets upward through the band, lowest first', () => {
-    const heights = haarSheetHeights(WATER, HAAR.top, HAAR.depth, 5)
+  test('fills the sound on a dark calm night and leaves lanes in it', () => {
+    const amount = haarAmount(HAAR, NIGHT, 0, WET)
 
-    for (let index = 1; index < heights.length; index += 1)
-      expect(heights[index]).toBeGreaterThan(heights[index - 1])
-
-    expect(Math.min(...heights)).toBeCloseTo(WATER + HAAR.top - HAAR.depth, 6)
+    expect(haarFog(WATER, CEILING, HAAR.depth, amount, 1)).toBeGreaterThan(0.45)
+    expect(haarFog(WATER, CEILING, HAAR.depth, amount, 0)).toBeLessThan(haarFog(WATER, CEILING, HAAR.depth, amount, 1) * 0.6)
   })
 
-  /**
-   * A band set deeper than the water is deep must stack up rather than sink
-   * into the lake's own plane: a sheet lying exactly on the surface fights it
-   * for the same pixels at every zoom, and the camera decides who wins.
-   */
-  test('never puts a sheet in the sea, however deep the band is set', () => {
-    for (const depth of [ 0, 3, 40, 400 ])
-      for (const height of haarSheetHeights(WATER, HAAR.top, depth, 5))
-        expect(height).toBeGreaterThan(WATER)
-  })
+  test('rides the fog chunk every program already has, on every tier', () => {
+    const before = { ...ShaderChunk }
 
-  test('one sheet is the top itself, because the band is measured down from it', () => {
-    expect(haarSheetHeights(WATER, HAAR.top, HAAR.depth, 1)).toEqual([ WATER + HAAR.top ])
-  })
-})
+    installAerialPerspective(60, WATER, { ceiling: CEILING, depth: HAAR.depth })
+    expect(ShaderChunk.fog_fragment).toContain('haarColumn')
+    expect(ShaderChunk.fog_fragment).toContain(CEILING.toFixed(4))
+    Object.assign(ShaderChunk, before)
 
+    for (const [ ground, haar ] of [[ 0, 0 ], [ 1.83, 0.4 ], [ 5.4, 0.85 ]]) {
+      const back = unpackFogNear(packFogNear(ground, haar))
 
-describe('haarSheetWeight', () => {
-  test('is heaviest at the bottom, so the stack has a top rather than a lid', () => {
-    const weights = Array.from({ length: 5 }, (_unused, index) => haarSheetWeight(index, 5))
-
-    for (let index = 1; index < weights.length; index += 1)
-      expect(weights[index]).toBeLessThan(weights[index - 1])
-  })
-
-  test('every share is a usable opacity', () => {
-    for (const count of [ 1, 2, 4, 5, 8 ])
-      for (let index = 0; index < count; index += 1) {
-        const weight = haarSheetWeight(index, count)
-
-        expect(weight).toBeGreaterThan(0)
-        expect(weight).toBeLessThanOrEqual(1)
-      }
-  })
-
-  /**
-   * The claim the tier gate makes: a phone gets the same bank with a harder edge
-   * on it, not a fifth of the fog. Checked on what the stack actually composites
-   * to rather than on the sum, because that is what a reader sees.
-   */
-  test('a thin stack composites to about the same bank as a deep one', () => {
-    const cover = (count: number): number =>
-      1 - Array.from({ length: count }, (_unused, index) => 1 - haarSheetWeight(index, count) * 0.6)
-        .reduce((product, pass) => product * pass, 1)
-
-    const thin = cover(2)
-    const deep = cover(5)
-
-    expect(Math.abs(thin - deep)).toBeLessThan(0.12)
-  })
-})
-
-
-describe('haarSheetSize', () => {
-  test('reaches past the widest frame the camera can open, from any pan', () => {
-    const size = haarSheetSize(SCAPE_CONFIG.archipelago.worldSize)
-
-    expect(size).toBeGreaterThan(SCAPE_CONFIG.camera.maxViewSize * 2)
-    expect(size).toBeGreaterThan(SCAPE_CONFIG.archipelago.worldSize)
-  })
-
-  test('is world-sized: a wider archipelago gets a wider sheet', () => {
-    expect(haarSheetSize(2000)).toBeCloseTo(haarSheetSize(1000) * 2, 6)
+      expect(back.ground).toBeCloseTo(ground, 1)
+      expect(back.haar).toBeCloseTo(haar, 4)
+    }
   })
 })

@@ -19,11 +19,9 @@ import { createHearthSmoke } from './hearth.ts'
 import type { DaylightState } from './daylight.ts'
 import { createLandscape } from './landscape/index.ts'
 import type { Landscape } from './landscape/index.ts'
-import { createHaarLayer } from './haar.ts'
 import { createShaftsLayer } from './shafts.ts'
 import { createMistLayer } from './mist.ts'
 import { createNightSky } from './nightsky.ts'
-import type { WeatherState } from './weather.ts'
 import { createAtmospherePost } from './post.ts'
 import type { AtmosphereQuality } from './quality.ts'
 import type { TextureCatalogue } from './textures/catalogue.ts'
@@ -247,18 +245,12 @@ interface SkyOptions {
 
   /** The one wind. The mist and the deck answer it; the aurora deliberately does not. */
   wind: WindState
-
-  /**
-   * The front. Only the night bank reads it up here, for the water the last
-   * shower left in the ground to condense out of.
-   */
-  weather: WeatherState
 }
 
 /**
  * Everything hung above the water, in the order it is hung.
  *
- * Five sheets that differ only in what they carry: the landscape and the
+ * Four sheets that differ only in what they carry: the landscape and the
  * atmosphere are both mounted ahead of them, so the hour and the week each one
  * reads have already been resolved for this frame by the time it asks. The
  * mist takes the day; the cloud deck and the aurora take the day, because
@@ -269,11 +261,10 @@ interface SkyOptions {
  * cheapest device gets a plain sky rather than a poor one.
  */
 function hangSkies (
-  { camera, config, quality, skip, daylight, textures, shadow, weather, wind }: SkyOptions,
+  { camera, config, quality, skip, daylight, textures, shadow, wind }: SkyOptions,
 ): ScapeModule[] {
   return [
     unless(skip, 'mist', () => createMistLayer({ camera, config, quality, daylight, textures, wind })),
-    unless(skip, 'haar', () => createHaarLayer({ config, quality, daylight, weather, wind })),
     unless(skip, 'clouds', () => createCloudLayer({ camera, config, daylight, shadow })),
     unless(skip, 'aurora', () => createAuroraLayer({ camera, config, quality, daylight })),
     unless(skip, 'nightsky', () => createNightSky({ camera, config, quality, daylight })),
@@ -473,6 +464,8 @@ export function createIsometricScape (
     quality,
     shadowDue:  runtime.shadowDue,
     directFilm: !(quality.post && !skip.has('post')),
+    wind:       wind.state,
+    weather:    landscape.weather,
   })
 
   // The sky map's shadow walks toward whatever the key light is tonight.
@@ -486,7 +479,6 @@ export function createIsometricScape (
     daylight: atmosphere.daylight,
     textures: landscape.textures,
     shadow:   landscape.shadow,
-    weather:  landscape.weather,
     wind:     wind.state,
   })
 

@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test'
-import { auroraBrightness, auroraTileSize } from './aurora.ts'
+import { auroraBrightness, auroraStrength, auroraTileSize } from './aurora.ts'
 import { SCAPE_CONFIG } from './config.ts'
 import { createDaylight, darkAmount, sunHeight } from './daylight.ts'
 
 
-const STRENGTH                = SCAPE_CONFIG.atmosphere.aurora
+const STRENGTH                = auroraStrength(SCAPE_CONFIG.atmosphere.starlight)
 const { latitude, axialTilt } = SCAPE_CONFIG.daylight
 
 /** The sky's darkness at an hour of a week, through the arc the scape's sun is on. */
@@ -73,5 +73,13 @@ describe('auroraBrightness', () => {
     expect(auroraBrightness(sky(0.5, 0), STRENGTH)).toBeLessThan(STRENGTH * 0.2)
     expect(auroraBrightness(sky(0, 0), STRENGTH)).toBeGreaterThan(STRENGTH * 0.9)
     expect(auroraBrightness(sky(0, 0.5), STRENGTH)).toBe(0)
+  })
+})
+
+
+describe('the night sky is one knob', () => {
+  test('the authored starlight is an aurora at full strength, and none with the stars off', () => {
+    expect(auroraStrength(0.85)).toBeCloseTo(1, 6)
+    expect(auroraStrength(0)).toBe(0)
   })
 })

@@ -32,6 +32,7 @@
 
 
 import { SKY_CHOP_GAIN_GLSL } from './water-slick.ts'
+import { MIRROR_CLOUD_BASE, MIRROR_CLOUD_LIT, MIRROR_RISE_FLOOR } from '../cloud-shadow.ts'
 
 /**
  * How much of a noon sun's worth of moonlight washes the fire out of the water.
@@ -196,34 +197,6 @@ export const WATER_PHOSPHOR_FRAGMENT = /* glsl */`
  */
 const KEY_GLITTER = 2.6
 
-/**
- * The cloud base the sea mirrors, in metres over the water.
- *
- * Higher than the shadow's \`atmosphere.cloudHeight\` (34 m, the diorama's
- * deck), because what decides how a reflection reads is how far one ripple's
- * tilt drags it: a degree of tilt moves the image \`2 * deck / rise²\` metres
- * along the ray, about three metres at this height and a 40° camera — the
- * wind's streaks at the ripple's own scale. Much higher and the image is noise;
- * much lower and it is a stamp of the shadow beside it.
- */
-export const MIRROR_DECK = 90
-
-/** The lowest the reflected ray is allowed to climb: a grazing ray hits the deck at the horizon, not at infinity. */
-export const MIRROR_RISE_FLOOR = 0.06
-
-/** A cloud base's brightness against the horizon's, and the share of the key light its flanks catch. */
-export const MIRROR_CLOUD_BASE = 0.92
-export const MIRROR_CLOUD_LIT  = 0.14
-
-/**
- * Where a ray leaving the water at \`rise\` (the sine of its elevation) meets the
- * mirror's deck, as a horizontal distance — the same arithmetic as the glsl.
- */
-export function mirrorReach (rise: number): number {
-  return MIRROR_DECK / Math.max(rise, MIRROR_RISE_FLOOR)
-}
-
-
 export const WATER_REFLECTION_FRAGMENT = /* glsl */`
   {
     // Where the eye is, not only which way it looks — see \`EYE_GLSL\` in
@@ -252,7 +225,7 @@ export const WATER_REFLECTION_FRAGMENT = /* glsl */`
     vec3 skyRay  = (vec4(reflect(-viewDir, normalize(normal)), 0.0) * viewMatrix).xyz;
     float rise   = max(skyRay.y, ${MIRROR_RISE_FLOOR.toFixed(2)});
     vec3 sky     = mix(uSkyHorizon, uSkyTop, pow(min(rise, 1.0), mix(0.75, 0.45, seaChop)));
-    float deck   = scapeCloudCover(vWaterGround + skyRay.xz * (${MIRROR_DECK.toFixed(1)} / rise) + uCloudThrow);
+    float deck   = scapeCloudMirror(vWaterGround, skyRay);
     float bright = dot(uSkyHorizon, vec3(0.2126, 0.7152, 0.0722));
     vec3 base    = vec3(bright) * ${MIRROR_CLOUD_BASE.toFixed(2)} + uSunColor * ${MIRROR_CLOUD_LIT.toFixed(2)} * max(uSunDir.y, 0.0);
     sky          = mix(sky, base, deck) * swellShade;

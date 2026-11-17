@@ -976,14 +976,6 @@ export interface ScapeConfig extends CarterConfig, CreelConfig, CroppingConfig, 
     cloudHeight: number
 
     /**
-     * Auroral brightness, 0 takes the veils off the sky.
-     *
-     * It is also the switch, and the only one — how much of it is on any given
-     * night is the two clocks' business. See `aurora.ts`.
-     */
-    aurora: number
-
-    /**
      * Height of the auroral deck above the waterline, in metres.
      *
      * Held above {@link cloudHeight} by the module whatever it is set to, so the
@@ -1537,7 +1529,6 @@ export const SCAPE_CONFIG = {
     cloudDrag:    0.9,
     cloudCover:   0.5,
     cloudHeight:  34,
-    aurora:       1,
     auroraHeight: 52,
     auroraSpeed:  0.45,
     starlight:    0.85,

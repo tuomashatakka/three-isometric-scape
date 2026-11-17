@@ -2,6 +2,17 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the haar folds into the air — the night bank as a column of fog in every program, the phone gets it, and the stars and the aurora on one row
+
+the night bank was two to five world-sized transparent sheets: a full-frame blend each, a baked field, a render slot, a tier count. a hillside met them as staggered contour lines, and the phone tier had none. a surface seen from above through a level layer of fog is dimmed by the column of fog over it, and that column is a function of the fragment's height alone, so the bank is now that function.
+
+- **the haar is a fog term.** `aerial.ts` evaluates `1 - exp(-amount · HAAR_DENSITY · lane · column)` in every fogged program. `column` is the band (`haar.depth`) under the ceiling (`waterLevel + haar.top`, compiled in), so the sound fills, the strand fades into it smoothly and the tops stand clear. the lanes are the ground fog's bank field. the amount rides `fogNear`'s fraction beside the ground fog's whole part (`packFogNear` / `unpackFogNear`): no new uniform, program or draw. `atmosphere.ts` computes it from the wind and the front it is now handed.
+- **what went.** `createHaarLayer`, the sheet geometry and bake, `haarSheetHeights` / `haarSheetWeight` / `haarSheetSize`, `quality.haarSheets` on every tier, `LAYER.haar`, the `haar.field` texture and the `haar` skip family. `haar.ts` went from 414 to 107 lines.
+- **one deck lookup for mirrors.** `scapeCloudMirror` (in `cloud-shadow.ts`, with `MIRROR_DECK`, `mirrorReach` and the cloud base's tone) is the sea's reflected-ray cloud read, so any surface can share it. wiring it into `SKY_MIRROR` for wet ground was tried and **dropped**: an A/B with the ground forced wet moved zero pixels on phone and desktop (see the backlog in `instructions.md`).
+- **the panel: one row fewer.** *night sky · stars, aurora* is `atmosphere.starlight`. the aurora runs at `auroraStrength(starlight)`, which is 1 at the authored 0.85, and `atmosphere.aurora` is retired.
+- **cost: cheaper.** `--poses haar` on mobile: 171 → 169 draws on the haar frame and 115 → 113 zoomed out, with no transparent full-frame layers left at night. the term is a clamp and an exp a fragment, only while a bank is out.
+- **tests:** `haar.test.ts` pins that the column is the whole band over the sea and nothing over the tops, that the fog thins monotonically up a slope, that the sound fills on a dark calm night with lanes in it, and that the chunk carries the ceiling and `fogNear` round-trips both fogs. `aurora.test.ts` pins the one-knob night sky.
+
 ## one cloud in three places — the deck over its own shadow, the sea mirroring the sky along the reflected ray, and two panel rows fewer
 
 the archipelago frame was a grey blanket. bisecting by knob (not by hiding meshes) found it: two or three cloud sheets of a private 128² bake laid white wisps over every island, none of them over its own shadow, and the sea under them mirrored the cloud *shadow* at each point rather than the sky above it.

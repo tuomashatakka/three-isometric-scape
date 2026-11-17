@@ -75,7 +75,7 @@ rather than a mesh, zero its knob instead (`--set atmosphere.mistAmount=0` for t
 ground fog — it is in every material, there is no mesh to hide; `--set atmosphere.cloudShadow=0`,
 `terrain.detailGrain=0`, `look.ao=0`, `look.lens=0`): one shot per
 suspect. For a wide frame that reads grey, strip the air first —
-`--set atmosphere.fogDensity=0 --hide cloud,haar,squall,mist` — and look at the
+`--set atmosphere.fogDensity=0 --hide cloud,squall,mist` — and look at the
 bare land and sea: what is still wrong then is material, not atmosphere. Hidden meshes come back on the next look.
 
 ## traps
