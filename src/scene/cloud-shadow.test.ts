@@ -207,6 +207,6 @@ describe('and which lakes take it', () => {
     )
 
     expect(held).toHaveLength(1)
-    expect(gleam).toContain('scapeCloudCover(vWaterGround + skyRay.xz')
+    expect(gleam).toContain('scapeCloudMirror(vWaterGround, skyRay)')
   })
 })

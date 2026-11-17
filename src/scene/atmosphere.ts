@@ -18,7 +18,8 @@ import type {
 import { defineModule } from 'threejs-scene'
 import type { SceneContext } from 'threejs-scene'
 import { standardLighting } from 'threejs-scene/modules/lighting'
-import { groundFogAmount, hazeRange, installAerialPerspective, packFogFar, seaSmokeShare } from './aerial.ts'
+import { groundFogAmount, hazeRange, installAerialPerspective, packFogFar, packFogNear, seaSmokeShare } from './aerial.ts'
+import { haarAmount } from './haar.ts'
 import { seaSmokeAmount } from './season.ts'
 import { installDirectFilm, packExposure } from './film.ts'
 import { installSkyLight } from './sky-light.ts'
@@ -28,6 +29,8 @@ import { createDaylight } from './daylight.ts'
 import { adaptExposure, targetExposure } from './exposure.ts'
 import type { DaylightState } from './daylight.ts'
 import type { AtmosphereQuality } from './quality.ts'
+import type { WeatherState } from './weather.ts'
+import type { WindState } from './wind.ts'
 
 
 /** The atmosphere module, plus the sun position the post chain needs for god rays. */
@@ -61,6 +64,10 @@ export interface AtmosphereOptions {
    * (`film.ts`), and the exposure uniform carries the grade's strength too.
    */
   directFilm?: boolean
+
+  /** The wind and the front, for the night bank: a calm after rain is what fills the low ground. Absent, no bank. */
+  wind?:    WindState
+  weather?: WeatherState
 }
 
 
@@ -235,13 +242,18 @@ export function createAtmosphereLayer ({
   quality,
   shadowDue = () => true,
   directFilm = false,
+  wind,
+  weather,
 }: AtmosphereOptions): Atmosphere {
   // Read once, for the things built once: the lights' colours, the fog's, and
   // the bounce anchor. Nothing on the overlay writes a palette entry, and a
   // light's colour is set at construction — the per-frame reads below all go
   // back to the store instead.
   const authored = config()
-  installAerialPerspective(authored.atmosphere.hazeHeight, authored.terrain.waterLevel)
+  installAerialPerspective(authored.atmosphere.hazeHeight, authored.terrain.waterLevel, {
+    ceiling: authored.terrain.waterLevel + authored.haar.top,
+    depth:   authored.haar.depth,
+  })
   installSkyLight()
 
   const daylight = createDaylight(config)
@@ -412,8 +424,11 @@ export function createAtmosphereLayer ({
     const range = hazeRange(config().atmosphere.fogDensity, breath, MAX_FOG)
 
     // `near` is not a distance here: the aerial chunk reads it as the ground
-    // fog's optical depth, and the clear radius is compiled in.
-    fog.near = groundFogAmount(config().atmosphere.mistAmount, breath, sky.day)
+    // fog's optical depth with the night bank in its fraction, and the clear
+    // radius is compiled in. See `haar.ts`.
+    const { atmosphere: air, haar } = config()
+    const bank                      = wind && weather ? haarAmount(haar, sky.day, wind.strength, weather.wet, air.mistAmount) : 0
+    fog.near                        = packFogNear(groundFogAmount(air.mistAmount, breath, sky.day), bank)
     // The sea smoke rides the extinction length's fraction: the same fog on
     // the ground as the mist, decided by the year — the water steams in the
     // weeks it is open under a winter sky. See `seaSmoke` in `aerial.ts`.

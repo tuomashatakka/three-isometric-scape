@@ -1,9 +1,7 @@
 import { describe, expect, test } from 'bun:test'
+import { MIRROR_DECK, MIRROR_RISE_FLOOR, mirrorReach } from '../cloud-shadow.ts'
 import {
-  MIRROR_DECK,
-  MIRROR_RISE_FLOOR,
   WATER_REFLECTION_FRAGMENT,
-  mirrorReach,
   moonGlint,
   phosphorAmount,
   sunGlint,
@@ -111,7 +109,7 @@ describe('the sky in the water', () => {
 
   test('the mirror reads the reflected ray and the cloud it meets, not the cloud\'s shadow', () => {
     expect(WATER_REFLECTION_FRAGMENT).toContain('reflect(-viewDir, normalize(normal))')
-    expect(WATER_REFLECTION_FRAGMENT).toContain('scapeCloudCover(vWaterGround + skyRay.xz')
+    expect(WATER_REFLECTION_FRAGMENT).toContain('scapeCloudMirror(vWaterGround, skyRay)')
     expect(WATER_REFLECTION_FRAGMENT).not.toContain('* cloudShade * swellShade')
   })
 

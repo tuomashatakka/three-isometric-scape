@@ -230,8 +230,7 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         // land, and the steam off the open water in the weeks of the year it has.
         toggled('mist · ground, sea smoke, night bank', range('atmosphere.mistAmount', 'density', 0, 1, 0.01), 0.34),
         toggled('light through the deck', range('shafts.strength', 'brightness', 0, 0.6, 0.005, quality.shaftSheets > 0), 0.22),
-        toggled('aurora', range('atmosphere.aurora', 'brightness', 0, 1.5, 0.01, quality.auroraLayers > 0), 0.85),
-        toggled('night sky', range('atmosphere.starlight', 'starlight', 0, 1.5, 0.01, quality.starCount > 0), 0.85),
+        toggled('night sky · stars, aurora', range('atmosphere.starlight', 'starlight', 0, 1.5, 0.01, quality.starCount > 0 || quality.auroraLayers > 0), 0.85),
         range('wind.strength', 'wind', 0, 3, 0.01),
         range('wind.bearing', 'wind bearing', -180, 180, 1),
       ],

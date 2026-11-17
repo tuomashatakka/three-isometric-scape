@@ -205,6 +205,34 @@ export function shadeAmount (
 }
 
 /**
+ * The cloud base the sea's mirror reads, in metres over the water
+ * (`scapeCloudMirror`, one lookup for any surface that mirrors the deck).
+ *
+ * Higher than the shadow's \`atmosphere.cloudHeight\` (34 m, the diorama's
+ * deck), because what decides how a reflection reads is how far one ripple's
+ * tilt drags it: a degree of tilt moves the image \`2 * deck / rise²\` metres
+ * along the ray, about three metres at this height and a 40° camera — the
+ * wind's streaks at the ripple's own scale. Much higher and the image is noise;
+ * much lower and it is a stamp of the shadow beside it.
+ */
+export const MIRROR_DECK = 90
+
+/** The lowest the reflected ray is allowed to climb: a grazing ray hits the deck at the horizon, not at infinity. */
+export const MIRROR_RISE_FLOOR = 0.06
+
+/** A cloud base's brightness against the horizon's, and the share of the key light its flanks catch. */
+export const MIRROR_CLOUD_BASE = 0.92
+export const MIRROR_CLOUD_LIT  = 0.14
+
+/**
+ * Where a ray leaving a surface at \`rise\` (the sine of its elevation) meets the
+ * mirror's deck, as a horizontal distance — the same arithmetic as the glsl.
+ */
+export function mirrorReach (rise: number): number {
+  return MIRROR_DECK / Math.max(rise, MIRROR_RISE_FLOOR)
+}
+
+/**
  * The lookup, declared once and compiled into four programs.
  *
  * A function rather than a statement because the two callers hold the world
@@ -254,6 +282,14 @@ ${FRAME_GLSL}
   // ray meets the deck (water-gleam.ts).
   float scapeCloudCover (vec2 ground) {
     return scapeCloudField(ground) * uCloudCover;
+  }
+
+  // The cloud a mirror at \`ground\` sees along the world-space ray \`ray\`:
+  // the ray followed up to the deck and the cover read where it arrives, so a
+  // cloud's image lies displaced from its shadow the way a mirror displaces it.
+  float scapeCloudMirror (vec2 ground, vec3 ray) {
+    float rise = max(ray.y, ${MIRROR_RISE_FLOOR.toFixed(2)});
+    return scapeCloudCover(ground + ray.xz * (${MIRROR_DECK.toFixed(1)} / rise) + uCloudThrow);
   }
 `
 

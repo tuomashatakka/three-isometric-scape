@@ -30,7 +30,7 @@ export type TextureId =
   'ground.grain' | 'ground.normal' | 'ground.wear' | 'prop.bark' | 'sky.cloudShadow' |
   'water.ripple' | 'water.wave' | 'water.shoreMask' | 'water.shelterMask' |
   'weather.squall' | 'sky.deck' | 'sky.aurora' | 'sky.gradient' | 'mist.field' |
-  'haar.field' | 'ground.sky'
+  'ground.sky'
 
 /**
  * Where a texture's pixels come from.
@@ -176,14 +176,6 @@ export const TEXTURES: readonly TextureEntry[] = [
     purpose:   'the upright mist slices, modulated by the weather bank',
     size:      256,
     module:    'mist.ts',
-    consumers: [ 'map' ],
-  },
-  {
-    id:        'haar.field',
-    origin:    'baked',
-    purpose:   'the night fog bank, biased solid and torn into lanes',
-    size:      128,
-    module:    'haar.ts',
     consumers: [ 'map' ],
   },
   {

@@ -1,5 +1,6 @@
 import { ShaderChunk } from 'three'
 import { FRAME_VARYING } from './film.ts'
+import { HAAR_DENSITY, HAAR_LANE } from './haar.ts'
 
 
 /**
@@ -22,7 +23,8 @@ import { FRAME_VARYING } from './film.ts'
  *
  * The uniforms are three's, re-read: `fogFar` is the extinction length in whole
  * world metres with the sea smoke in its fraction (see {@link packFogFar}), and
- * `fogNear` is the ground fog's amount (see {@link groundFog}) — the
+ * `fogNear` is the ground fog's amount with the night bank in its fraction
+ * (see {@link packFogNear}) — the
  * clear radius around the focus is a constant, compiled in. Nothing in
  * here is frame-sized — a mountain a kilometre away is a kilometre away at
  * every zoom — so a close frame carries no haze and the archipelago frame
@@ -120,7 +122,7 @@ export function groundFogProfile (above: number): number {
   return (1 - Math.exp(-h / GROUND_FOG_FOOT)) * Math.exp(-h / GROUND_FOG_HEIGHT)
 }
 
-/** How much of what is behind it the ground fog takes, 0..1. `amount` is the `fogNear` uniform. */
+/** How much of what is behind it the ground fog takes, 0..1. `amount` is the ground half of `fogNear` (see `unpackFogNear`). */
 export function groundFog (above: number, amount: number, bank = 1): number {
   return 1 - Math.exp(-amount * bank * groundFogProfile(above))
 }
@@ -195,6 +197,35 @@ export function unpackFogFar (packed: number): FogFar {
   const far = Math.floor(packed)
 
   return { far, smoke: packed - far }
+}
+
+/**
+ * Steps of ground fog optical depth per unit of `fogNear`'s whole part. The
+ * ground fog's amount is quantised to a sixty-fourth, far under what the eye
+ * reads, so the fraction is free for the haar's.
+ */
+export const FOG_NEAR_STEPS = 64
+
+/**
+ * `fogNear` carries the ground fog's optical depth in its whole part and the
+ * night bank (the haar) in its fraction — the way `fogFar` carries the sea
+ * smoke. Two fogs, one uniform every fogged program already has.
+ */
+export function packFogNear (ground: number, haar: number): number {
+  return Math.round(Math.max(0, ground) * FOG_NEAR_STEPS) + Math.min(0.99, Math.max(0, haar))
+}
+
+/** The two numbers `fogNear` carries. */
+export interface FogNear {
+  ground: number
+  haar:   number
+}
+
+/** The inverse of {@link packFogNear}. */
+export function unpackFogNear (packed: number): FogNear {
+  const whole = Math.floor(packed)
+
+  return { ground: whole / FOG_NEAR_STEPS, haar: packed - whole }
 }
 
 /** The fog uniforms for a density, with the breath applied and clamped. */
@@ -281,7 +312,13 @@ const PARS_FRAGMENT = /* glsl */`
 
 // The ground fog first, because it is at the surface and the air is between it
 // and the eye: the haze of distance then takes the fog bank with the hill.
-const FRAGMENT = (hazeHeight: number, waterLevel: number) => /* glsl */`
+/** Where the night bank stands, compiled into the chunk: its ceiling in world metres and the band under it. */
+export interface HaarBand {
+  ceiling: number
+  depth:   number
+}
+
+const FRAGMENT = (hazeHeight: number, waterLevel: number, haar: HaarBand) => /* glsl */`
 #ifdef USE_FOG
   #ifdef FOG_EXP2
     float aerialTau = fogDensity * fogDensity * vAerial.x * vAerial.x;
@@ -291,8 +328,16 @@ const FRAGMENT = (hazeHeight: number, waterLevel: number) => /* glsl */`
     float aerialTau  = aerialPath / aerialFar * exp( - max( vAerial.z, 0.0 ) / ${hazeHeight.toFixed(3)} );
     float fogAbove   = max( vAerial.z - ${glsl(waterLevel)}, 0.0 );
     float fogLuma    = dot( fogColor, vec3( 0.2126, 0.7152, 0.0722 ) );
-    if ( fogNear > 0.0 ) {
-      float fogTau   = fogNear * vAerial.w * ( 1.0 - exp( - fogAbove / ${glsl(GROUND_FOG_FOOT)} ) ) * exp( - fogAbove / ${glsl(GROUND_FOG_HEIGHT)} );
+    float fogGround = floor( fogNear );
+    float haarAmount = fogNear - fogGround;
+    if ( haarAmount > 0.004 ) {
+      float haarColumn = clamp( ${glsl(haar.ceiling)} - vAerial.z, 0.0, ${glsl(Math.max(0, haar.depth))} );
+      float haarTau    = haarAmount * ${glsl(HAAR_DENSITY)} * ( ${glsl(HAAR_LANE)} + ${glsl(1 - HAAR_LANE)} * vAerial.w ) * haarColumn;
+      vec3 haarTone    = mix( fogColor, vec3( 1.0 ), clamp( 0.14 + 0.6 * fogLuma, 0.0, 1.0 ) );
+      gl_FragColor.rgb = mix( gl_FragColor.rgb, haarTone, 1.0 - exp( - haarTau ) );
+    }
+    if ( fogGround > 0.0 ) {
+      float fogTau   = fogGround * ${glsl(1 / FOG_NEAR_STEPS)} * vAerial.w * ( 1.0 - exp( - fogAbove / ${glsl(GROUND_FOG_FOOT)} ) ) * exp( - fogAbove / ${glsl(GROUND_FOG_HEIGHT)} );
       vec3 fogBank   = mix( fogColor, vec3( 1.0 ), ${glsl(GROUND_FOG_WHITEN)} * fogLuma );
       gl_FragColor.rgb = mix( gl_FragColor.rgb, fogBank, 1.0 - exp( - fogTau ) );
     }
@@ -312,9 +357,9 @@ const FRAGMENT = (hazeHeight: number, waterLevel: number) => /* glsl */`
  * must run before the first program compiles, and every scape on the page shares
  * one haze height (the last one installed).
  */
-export function installAerialPerspective (hazeHeight: number, waterLevel = 0): void {
+export function installAerialPerspective (hazeHeight: number, waterLevel = 0, haar: HaarBand = { ceiling: waterLevel, depth: 0 }): void {
   ShaderChunk.fog_pars_vertex   = PARS_VERTEX
   ShaderChunk.fog_vertex        = VERTEX
   ShaderChunk.fog_pars_fragment = PARS_FRAGMENT
-  ShaderChunk.fog_fragment      = FRAGMENT(Math.max(1, hazeHeight), waterLevel)
+  ShaderChunk.fog_fragment      = FRAGMENT(Math.max(1, hazeHeight), waterLevel, haar)
 }

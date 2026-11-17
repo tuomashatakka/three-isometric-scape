@@ -87,10 +87,10 @@ exact — the procedure is in `scape-verify`.
 - **shader tap counts** — `detailTaps` (1 = the lite ground path on
   minimal/mobile: one soil read for grain + relief normal; 6 = that + relief march + macro octave + puddles), `reliefSteps`,
   `lensTaps`: fill-rate levers, each compiled per tier.
-- **world-sized sheets** (mist slices, haar, clouds) — each is a
+- **world-sized sheets** (mist slices, clouds) — each is a
   full-frame blend. If the thing is a function of where the fragment is, it is a
-  term in the aerial chunk instead (`groundFog` and `seaSmoke` in `aerial.ts`
-  replaced the flat mist and sea-smoke sheets: no draw, no overdraw, every tier). Otherwise a gradient across a
+  term in the aerial chunk instead (`groundFog`, `seaSmoke` and the haar's column in `aerial.ts`
+  replaced the flat mist, sea-smoke and night-bank sheets: no draw, no overdraw, every tier). Otherwise a gradient across a
   world-sized quad belongs in a texture read in world metres (as the weather bank is), never
   in vertex colours on a subdivided plane.
 - **CPU build** — `surveyArchipelago` is memoized on config content. Hot loops
