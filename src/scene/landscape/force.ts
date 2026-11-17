@@ -555,10 +555,10 @@ export function createForce (
       // still — but not by a second knob, which would be a second winter to keep
       // in step with the first. What holds a fall open is that it is falling,
       // and that is already what `beckFreeze` is a curve about.
-      const locked = beckFreeze(season.freeze)
-      const force  = config().force
+      const locked          = beckFreeze(season.freeze)
+      const { force, beck } = config()
 
-      travel += delta * force.flow * (1 - locked)
+      travel += delta * beck.flow * force.flow * (1 - locked)
 
       uniforms.uForceTravel.value = travel
       uniforms.uForceWhite.value  = force.white * (1 - locked)

@@ -1,4 +1,5 @@
 import { repeatKeepGlsl } from '../frame.ts'
+import { STRATA_GLSL } from './strata.ts'
 
 /**
  * A hundred northern winters, on everything that stands out in them.
@@ -95,6 +96,7 @@ export function weatheringFragment (map: string): string {
 
     if (stone > 0.002) {
       float alt  = cameraPosition.y - dot(vViewPosition, viewMatrix[1].xyz);
+${STRATA_GLSL}
       float keep = ${repeatKeepGlsl(`scapeRepeats * ${f(LICHEN_TILE)}`, LICHEN_REPEATS)};
       float field = 0.5;
 

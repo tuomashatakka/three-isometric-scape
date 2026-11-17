@@ -62,10 +62,16 @@ import type { FarShore, ShoreSample } from './farshore.ts'
  *
  * Packed toward the toe: the coastline is decided in the first fifth of the
  * face, and a face drawn in four even steps has one chord where the coast is.
+ *
+ * Twenty-seven rings, not fifteen. With four rings inland each one was 150 m
+ * from the next, and every colour and normal on the hinterland was stretched
+ * along the bearing between them: from the archipelago frame the whole coast
+ * read as radial brush strokes. Ten inland rings put them ~60 m apart, under
+ * the massif's finest octave, and the face rings ~19 m apart, under a stratum.
  */
 const VALE   = 1.6
-const FACE   = [ -1, -0.86, -0.72, -0.58, -0.44, -0.3, -0.15, 0, 0.35, 0.85, VALE ]
-const INLAND = 4
+const FACE   = [ -1, -0.92, -0.84, -0.75, -0.66, -0.56, -0.46, -0.35, -0.24, -0.12, 0, 0.18, 0.4, 0.66, 0.95, 1.26, VALE ]
+const INLAND = 10
 const RINGS  = FACE.length + INLAND
 const RIDGE  = FACE.indexOf(0)
 
@@ -91,10 +97,12 @@ const GULLY = 0.55
 
 /**
  * The massif's octaves, in metres. Only broad ones: the sweep is a degree a
- * bearing on mobile — 14 m at the crest — and rings 25 m apart on the face, and
- * a world-space octave finer than about twice that aliases into streaks.
+ * bearing on mobile — 14 m at the crest — and rings ~19 m apart on the face, and
+ * a world-space octave finer than about twice that aliases into streaks; 38 m is
+ * the finest that holds, and it carries a sixth of the relief.
  */
-const MASSIF_SCALES = [ 170, 75 ]
+const MASSIF_SCALES = [ 170, 75, 38 ]
+const MASSIF_WEIGHT = [ 0.55, 0.3, 0.15 ]
 
 /**
  * The drainage: gullies down the face, as ridged noise *along the bearing* —
@@ -144,8 +152,8 @@ function ridged (value: number): number {
  * gully kept straight for a kilometre would be a spoke.
  */
 export function reliefAt (x: number, z: number, bearing: number, seed: number, drain: number): number {
-  const massif = ridged(valueNoise(x / MASSIF_SCALES[0], z / MASSIF_SCALES[0], seed)) * 0.65 +
-    ridged(valueNoise(x / MASSIF_SCALES[1], z / MASSIF_SCALES[1], seed + 7.13)) * 0.35
+  const massif = MASSIF_SCALES.reduce((sum, scale, octave) =>
+    sum + ridged(valueNoise(x / scale, z / scale, seed + octave * 7.13)) * MASSIF_WEIGHT[octave], 0)
   const wander = (valueNoise(x / 130, z / 130, seed - 4.4) - 0.5) * MEANDER * Math.PI * 2 / GULLIES
   const gully  = ridged(ringNoise(bearing + wander, GULLIES, 41.9 + seed * 0.013))
 
@@ -338,8 +346,8 @@ function paintRing (
     const x     = position[at * 3]
     const y     = position[at * 3 + 1]
     const z     = position[at * 3 + 2]
-    const stand = valueNoise(x / 90, z / 90, config.seed + 3.1) * 0.7 +
-      valueNoise(x / 31, z / 31, config.seed + 9.7) * 0.3
+    const stand = valueNoise(x / 90, z / 90, config.seed + 3.1) * 0.6 +
+      valueNoise(x / 31, z / 31, config.seed + 9.7) * 0.4
     const haze   = 0.3 * smoothstep(RIDGE, rings - 1, ring)
 
     groundTone(y - water, (y - water) / rise, 1 - normal[at * 3 + 1], stand, haze, blend)

@@ -688,6 +688,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `ploppable.ts` | 2d placement with a ground-following foundation |
 | `material.ts` | the two shared materials, cloud shadow, wind, soil grain, wetness, snow |
 | `weathering.ts` | moss and lichen on every neutral-grey albedo (stone, slate, old wood), both tap paths; `weatherable` is its cpu twin |
+| `strata.ts` | bedding (8.5 m beds, 0.9 m laminae, lit lips, pixel-faded) on every steep stone face, inside `weatheringFragment`'s stone block; `strataShade` / `parting` are its cpu twins |
 | `boards.ts` | board-and-batten and weatherboard seams, tone and relief on every upright painted / whitewashed face, both tap paths; `boardShare` / `lapShare` are its cpu twins |
 | `landscape/instance-tone.ts` | the scatter's per-instance tint: grey shade × a warm/cool lean hashed from position, scaled by `familyChroma` — every stamped family, no rng draw, no program |
 | `transmission.ts` | light through the crown: the key light again on foliage faces turned from it (`TRANSMIT_FRAGMENT` replaces `lights_fragment_end` in the foliage program only) |

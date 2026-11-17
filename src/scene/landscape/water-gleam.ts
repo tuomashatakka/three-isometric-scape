@@ -51,6 +51,17 @@ import { SKY_CHOP_GLSL } from './water-slick.ts'
 const MOON_QUENCH = 0.09
 
 
+/** The two leaves the glint is read from. */
+interface GlintConfig {
+  moonTrack: number
+  sparkle:   number
+}
+
+/** The moon's share of the glint: a share of the sun's glitter, so one row turns both. */
+export function moonGlint (water: GlintConfig): number {
+  return water.moonTrack * water.sparkle
+}
+
 /**
  * The specular budget the key light has on the water.
  *

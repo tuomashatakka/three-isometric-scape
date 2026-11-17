@@ -132,10 +132,11 @@ export const CLOUD_CUT  = 0.55
 export const CLOUD_EDGE = 0.22
 
 /**
- * The repeat counts the cloud tile is let go between (see `frame.ts`): kept
- * whole to a frame of about 550 m, gone past about 1500 m — the archipelago
- * frame, where fifteen repeats of a 92 m cloud drew brown camouflage over
- * every island and the far shore.
+ * The repeat counts the cloud tile is let go between (see `frame.ts`), kept
+ * whole to six tiles a frame and gone by sixteen. When the tile was 92 m the
+ * archipelago frame held fifteen repeats and this let them go — they drew brown
+ * camouflage over every island. At 210 m (`atmosphere.cloudScale`) that frame
+ * holds under seven, a few real cloud shadows, and keeps them.
  *
  * What stands in for the tile is its *coverage*. The cut is widened by
  * {@link CLOUD_SPREAD} either side, which is roughly what averaging the cut

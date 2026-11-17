@@ -228,8 +228,7 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         ),
         // One fog on the ground, whichever surface it lies on: the mist over the
         // land, and the steam off the open water in the weeks of the year it has.
-        toggled('ground mist & sea smoke', range('atmosphere.mistAmount', 'density', 0, 1, 0.01), 0.34),
-        toggled('the night bank', range('haar.strength', 'thickness', 0, 1, 0.01, quality.haarSheets > 0), 0.85),
+        toggled('mist · ground, sea smoke, night bank', range('atmosphere.mistAmount', 'density', 0, 1, 0.01), 0.34),
         toggled('light through the deck', range('shafts.strength', 'brightness', 0, 0.6, 0.005, quality.shaftSheets > 0), 0.22),
         toggled('aurora', range('atmosphere.aurora', 'brightness', 0, 1.5, 0.01, quality.auroraLayers > 0), 0.85),
         toggled('night sky', range('atmosphere.starlight', 'starlight', 0, 1.5, 0.01, quality.starCount > 0), 0.85),
@@ -241,8 +240,7 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       group:    'ground & water',
       title:    'the sea',
       controls: [
-        toggled('sun glitter', range('water.sparkle', 'strength', 0, 1.5, 0.01), 0.5),
-        toggled('the night sea', range('water.moonTrack', 'moon track', 0, 8, 0.05), 3.2),
+        toggled('glitter · sun and moon', range('water.sparkle', 'strength', 0, 1.5, 0.01), 0.5),
         range('water.state', 'sea state · swell, surf, caps', 0, 2, 0.01),
         toggled('the wash', range('swash.reach', 'run-up (Hunt)', 0, 2, 0.01), 1),
         toggled('caustics', range('water.caustics', 'strength', 0, 1.5, 0.01), 1),
@@ -254,8 +252,7 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       group:    'ground & water',
       title:    'fresh water',
       controls: [
-        toggled('the beck', range('beck.flow', 'flow (m/s)', 0, 4, 0.05), 1.1),
-        toggled('the fall', range('force.flow', 'flow (m/s)', 0, 8, 0.05), 3.2),
+        toggled('running water · beck and fall', range('beck.flow', 'flow (m/s)', 0, 4, 0.05), 1.1),
         toggled('the tarns', range('tarn.mirror', 'mirror', 0, 1, 0.01), 0.86),
       ],
     },

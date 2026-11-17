@@ -2,6 +2,17 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the coast across the water is a mountain range — every steep stone bedded, cloud shadows at the size of clouds, and three panel rows fewer
+
+from the archipelago frame the far coast, a quarter of the picture on both flanks, read as radial brush strokes, and the open sea was spotted like a leopard. the sweep had four rings over 600 m of hinterland, so every colour and normal there was stretched along the bearing between rings 150 m apart, and the cloud shadow tiled at 92 m, sixteen shadows across the frame.
+
+- **a denser far range.** [`landscape/skyline.ts`](src/scene/landscape/skyline.ts) draws 27 rings a bearing, not 15 (ten inland, ~60 m apart; seventeen on the face, ~19 m), and the massif gains a 38 m octave. one draw as before.
+- **every steep stone face is bedded.** [`props/strata.ts`](src/scene/props/strata.ts) sits inside the stone block of `weatheringFragment`, so it reaches the far range, cliffs, stacks, the crag and boulders from the albedo alone. it lays 8.5 m beds that wander ±6 m, with 0.9 m laminae inside them. each parting is dark at the foot, and its lip turns the normal to the sky so the ledges are lit. each scale fades to its mean by pixel width.
+- **cloud shadows at the size of clouds.** `atmosphere.cloudScale` 92 → 210 m, read by the ground, the sea and the shafts alike.
+- **the panel: three rows fewer.** the night bank is a share of the mist (`HAAR_MIST`), so *mist · ground, sea smoke, night bank* is one row. the moon's track is a share of the glitter (`moonGlint`, `water.moonTrack` 10 → 20 as a share of `sparkle` 0.5), so *glitter · sun and moon* is one row. the fall runs at a share of the beck (`force.flow` 2.9 × `beck.flow`), so *running water · beck and fall* is one row, and `STILL` drops its `force.flow` line.
+- **cost:** far shore 10k → 19k triangles on mobile, 40k → 56k on desktop, one draw. mobile tour: default 137 / 1.02M, near 85 / 0.94M, far 113 / 1.45M, night 143, winter 143, 30 programs, shader errors 0. the strata are about twenty scalar operations a steep stone fragment, with no texture, uniform, varying or program.
+- **tests:** `strata.test.ts` checks that the term rides the weathering stone block and binds nothing of its own, that the parting repeats at its spacing, that the wander is bounded, and that the faded mean (a seventh) keeps a far face its tone.
+
 ## every wall built of boards — battens on falu red, laps on limewash, and five panel rows fewer
 
 the barns, sheds, boathouses and the chapel were flat painted cards. [`props/boards.ts`](src/scene/props/boards.ts) clads every upright painted face in the shared ground material, on both tap paths, chosen by the albedo with no prop flag: falu red, tar and brown timber stand in 0.22 m board and batten with rolled edges; limewash and trim white lap in 0.19 m courses with a shadow line under every lip. one board a shade off the next (±12%, zero-mean), seams faded by their own screen width so a far wall keeps its colour. the board is the rain run's width, so a shower runs down a wall one board at a time.

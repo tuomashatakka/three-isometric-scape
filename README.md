@@ -429,6 +429,7 @@ src/
         ├── puddle.ts               the sky in wet ground, and the standing water in its hollows
         ├── weathering.ts           moss on the tops, lichen on the faces: every grey stone, slate and old board
         ├── boards.ts               every painted wall built of boards: battens on falu red, laps on limewash
+        ├── strata.ts               bedding on every steep stone face: beds and laminae, lit lips, the far range to a boulder
         ├── transmission.ts         light through the crown: the far side of every tree, lit through its foliage
         ├── ploppable.ts            2d placement with a ground-following foundation
         ├── fence.ts / wall.ts      continuous ground-following runs
@@ -749,6 +750,16 @@ the barns, sheds, boathouses and the chapel were flat painted cards: one colour 
 - **one run per board.** the board is the rain run's width (`runoff.ts`), so a shower runs down a wall a board at a time.
 - **let go by the pixel, not the frame.** each fragment measures how many boards its pixel spans (`fwidth`) and fades the seams and the relief between `SEAM_FADE` 0.18 and 0.5 boards per pixel; the per-board tone is zero-mean, so a wall too far to resolve a board keeps its colour rather than shimmering.
 - **no texture, uniform or varying.** a hash, a fract and a few smoothsteps on numbers the fragment holds — every tier, the phone included. it rides `terrain.detailGrain`, whose panel row is now *surface detail · grain, boards, lichen*.
+
+## the coast across the water is a mountain range
+
+from the archipelago frame the far coast — a quarter of the picture on both flanks — read as radial brush strokes: the sweep had four rings over the six hundred metres of hinterland, so every colour and normal there was stretched along the bearing between rings 150 m apart, and its rock faces were one flat grey. and over the sea, the cloud shadow tiled at 92 m, so the open water was spotted like a leopard with sixteen shadows across the frame.
+
+- **a denser sweep.** [`landscape/skyline.ts`](src/scene/landscape/skyline.ts) draws 27 rings a bearing, not 15: ten inland (~60 m apart, under the massif's finest octave) and seventeen on the face (~19 m). the massif gains a third, 38 m octave carrying a sixth of the relief — the finest the one-degree mobile sweep holds without streaking. 10k → 19k triangles on the phone, one draw as before.
+- **every steep stone is bedded.** [`props/strata.ts`](src/scene/props/strata.ts) is a fragment term inside the stone block of `weatheringFragment`, so it reaches the far range, the island cliffs, the stacks, the crag and every boulder from the albedo alone. beds every `BED` 8.5 m that wander ±6 m over a couple of hundred metres, laminae every `LAMINA` 0.9 m inside them; each parting dark at the foot and lipped at the top, the lip turning the normal to the sky so the beds are lit rather than drawn. each scale fades to the profile's mean (a seventh) by its own pixel width, so a far face keeps its tone. no texture, uniform, varying or program.
+- **cloud shadows at the size of clouds.** `atmosphere.cloudScale` 92 → 210 m: a few banks across the `default` frame and one shadow edge at `near`, read by the ground, the sea and the light shafts alike.
+
+**the panel, three rows fewer.** the night bank is a share of the mist (`haar.strength` × `mistAmount / HAAR_MIST`), so *mist · ground, sea smoke, night bank* is one row; the moon's track is a share of the sun's glitter (`moonGlint`), so *glitter · sun and moon* is one row; the fall runs at a share of the beck (`force.flow` 2.9 × `beck.flow`), so *running water · beck and fall* is one row.
 
 **the panel, five rows fewer.** the far shore's lamps are a share of the farmstead's (`shoreLights.glow` 1.05 × `windows.glow`), so *lamps ashore* turns both coasts; the halo is a share of the bow (`haloStrength`, `halo.strength` 0.54 × `rainbow.strength`), so *rainbow & halo* is one row. a kiln's draw, a cart's haul, the windows' occupancy and the carried lamp's reach are the place's physics, and live on as config leaves for `--set` and the url.
 

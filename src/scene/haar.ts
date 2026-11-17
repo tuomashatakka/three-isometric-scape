@@ -128,11 +128,22 @@ function clamp01 (value: number): number {
  * Pure, and takes its terms rather than a config, so `scape:map` can print the
  * bank at three winds and two hours without building a scene.
  */
+/**
+ * The mist density the bank's `strength` is a share of.
+ *
+ * One fog knob, not two: the night bank, the ground mist and the sea smoke are
+ * one air giving up its water, so the panel's mist row thickens all three and
+ * `haar.strength` is the bank's share of it — authored at 0.34, so the bank at
+ * the authored mist is the bank this scape always had.
+ */
+export const HAAR_MIST = 0.34
+
 export function haarAmount (
   haar: ScapeConfig['haar'],
   day: number,
   wind: number,
   wet: number,
+  mist = HAAR_MIST,
 ): number {
   const { strength, burn, scour, damp } = haar
 
@@ -146,7 +157,7 @@ export function haarAmount (
 
   const ground = 1 - clamp01(damp) + clamp01(damp) * clamp01(wet)
 
-  return clamp01(strength * night * calm * ground)
+  return clamp01(strength * Math.max(0, mist) / HAAR_MIST * night * calm * ground)
 }
 
 /**
@@ -333,7 +344,7 @@ export function createHaarLayer ({
 
     update () {
       const { haar, terrain } = config()
-      const amount            = haarAmount(haar, daylight.day, wind.strength, weather.wet)
+      const amount            = haarAmount(haar, daylight.day, wind.strength, weather.wet, config().atmosphere.mistAmount)
       const visible           = amount > 0.01
       const heights           = haarSheetHeights(terrain.waterLevel, haar.top, haar.depth, sheets.length)
 

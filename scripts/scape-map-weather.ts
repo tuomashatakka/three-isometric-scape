@@ -29,7 +29,7 @@ import { snowAmount } from '../src/scene/season.ts'
 import { capsAmount } from '../src/scene/landscape/water-caps.ts'
 import { swellStats } from '../src/scene/landscape/swell.ts'
 import type { SwellStats } from '../src/scene/landscape/swell.ts'
-import { phosphorAmount, trackAmount } from '../src/scene/landscape/water-gleam.ts'
+import { moonGlint, phosphorAmount, trackAmount } from '../src/scene/landscape/water-gleam.ts'
 import { haarAmount } from '../src/scene/haar.ts'
 import { TILE_UNITS } from '../src/scene/mist.ts'
 import { shaftAmount, shaftSheetHeights } from '../src/scene/shafts.ts'
@@ -549,7 +549,7 @@ export function moonStats (config: ScapeConfig): WeatherStats['moon'] {
     up:     round(elevation(place.height)),
     lights: round(lights, 3),
     share:  round(keyShare(dayAmount(sun), lunar), 2),
-    track:  round(trackAmount(dayAmount(sun), lunar, config.water.moonTrack), 2),
+    track:  round(trackAmount(dayAmount(sun), lunar, moonGlint(config.water)), 2),
     fire:   round(phosphorAmount(darkAmount(sun), lunar, config.water.phosphor), 2),
   }
 }
@@ -770,7 +770,7 @@ export function haarStats (
   const gust = wind.strength * (1 + wind.gust)
 
   const at = (sun: number, strength: number): number =>
-    haarAmount(haar, dayAmount(sun), strength, wet)
+    haarAmount(haar, dayAmount(sun), strength, wet, config.atmosphere.mistAmount)
 
   const ceiling = terrain.waterLevel + haar.top
   const clear   = landmasses.filter(landmass => landmass.peak.height > ceiling).length

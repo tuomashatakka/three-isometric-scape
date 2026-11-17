@@ -4,7 +4,7 @@ import { SCAPE_CONFIG } from '../config.ts'
 import { UNTILE_GLSL, UNTILE_RATIO, UNTILE_TURN, nearestRepeat, untiledUv } from './untile.ts'
 
 
-/** The 92 m cloud tile and the 34 m ripple tile, in tiles across the world. */
+/** The 210 m cloud tile and the 34 m ripple tile, in tiles across the world. */
 const CLOUD_REACH  = Math.ceil(SCAPE_CONFIG.archipelago.worldSize / SCAPE_CONFIG.atmosphere.cloudScale)
 const RIPPLE_REACH = Math.ceil(SCAPE_CONFIG.archipelago.worldSize / 34)
 
@@ -22,7 +22,7 @@ describe('the untiled read', () => {
   })
 
   test('across the cloud tiles the world holds, it never comes within a sixteenth', () => {
-    expect(CLOUD_REACH).toBeGreaterThanOrEqual(16)
+    expect(CLOUD_REACH).toBeLessThanOrEqual(16)
     expect(nearestRepeat(16)).toBeGreaterThan(1 / 16)
   })
 

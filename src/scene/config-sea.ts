@@ -30,6 +30,10 @@ export interface SeaConfig {
      * an hour, so the eye's half of it is spent here — and the glitter term it
      * scales is worth nineteen levels of 255 at its own ceiling, so a budget
      * held at a full sun's would hold the moon at a sheen. See `trackAmount`.
+     *
+     * A share of `water.sparkle`: the sun's glitter and the moon's track are one
+     * glint off one sea, so the panel's *glitter · sun and moon* row turns both
+     * (`moonGlint`). 20 at the authored 0.5 is the old 10.
      */
     moonTrack: number
 
@@ -379,7 +383,7 @@ export const SCAPE_SEA: SeaConfig = {
     // `track` field of `scape:map --stats`, which is where that figure comes
     // from, and against `nightsea-none` in `--poses nightsea`, which is the
     // same sea with the term switched off.
-    moonTrack:      10,
+    moonTrack:      20,
     phosphor:       0.5,
     state:          1,
     waveHeight:     0.55,

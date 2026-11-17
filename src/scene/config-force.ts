@@ -103,13 +103,12 @@ export interface ForceConfig {
     standoff: number
 
     /**
-     * Metres of fall a fleck of the sheet travels in a second.
+     * How many times faster than the beck above it the sheet goes over the lip.
      *
-     * 0 holds the water where it stands, and it is therefore its own line in
-     * `STILL` — see `scripts/scape-shot.ts`. Its own rate rather than a multiple
-     * of `beck.flow`: a fall is the one place on the course where the water is
-     * not going at the speed of the channel, and the whole difference between a
-     * fall and a reach is that it is going faster.
+     * A share of `beck.flow`, not a rate of its own: the fall is fed by the
+     * channel, and two flow rows on the panel were two answers to how much water
+     * the burn carries. 2.9 is the old 3.2 m/s against the beck's 1.1. The water
+     * is held still by `beck.flow` at 0, which `STILL` already sets.
      */
     flow: number
 
@@ -164,7 +163,7 @@ export const SCAPE_FORCE: ForceConfig = {
     breadth:  1.35,
     reach:    0.55,
     standoff: 0.14,
-    flow:     3.2,
+    flow:     2.9,
     white:    0.85,
     spray:    0.4,
   },
