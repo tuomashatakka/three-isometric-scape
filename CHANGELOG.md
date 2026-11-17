@@ -2,6 +2,17 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## one cloud in three places — the deck over its own shadow, the sea mirroring the sky along the reflected ray, and two panel rows fewer
+
+the archipelago frame was a grey blanket. bisecting by knob (not by hiding meshes) found it: two or three cloud sheets of a private 128² bake laid white wisps over every island, none of them over its own shadow, and the sea under them mirrored the cloud *shadow* at each point rather than the sky above it.
+
+- **one cloud field.** `cloud-shadow.ts` splits its lookup into `scapeCloudField` / `scapeCloudShade` / `scapeCloudCover` and publishes the downsun throw (`uCloudThrow`) and the cover (`uCloudCover`) beside its other uniforms.
+- **the deck draws it.** [`clouds.ts`](src/scene/clouds.ts) is one `ShaderMaterial` sheet reading the shadow's uniforms at the cloud's own place, lit on the sun's side by one more read of the field (`RIM_REACH`, `LIT_GAIN`, `SHADE_GAIN`), clear in the gaps. the bake (`bakeClouds`, `bakeAlphaField`, `cloudTileSize`) and the per-deck drift are gone; the file went 327 → 184 lines.
+- **the sea mirrors the sky.** `water-gleam.ts` reflects the eye about the bent normal, reads the dome by the ray's climb and the cloud where it meets a 90 m base (`MIRROR_DECK`, `mirrorReach`), so cloud reflections are streaked by every ripple and displaced from their shadows. `skyChop`'s facing guess is gone (`SKY_CHOP_GAIN_GLSL` keeps the chop's share).
+- **the panel: two rows and a section fewer.** `water.mirror` is *the sky in the water · sea, glitter, tarns*: the sea's mirror (`uMirror`), the glitter (`sunGlint`), the moon's track, and the tarns' polish. `water.sparkle` and `tarn.mirror` stay as config leaves. *running water* moved into the sea's section; *fresh water* is gone.
+- **cost: cheaper.** mobile tour: default 137 → 134 draws, night and winter 143 → 140, programs 30 → 29, textures 14 → 13, shader errors 0 (near 85, far 113 unchanged). desktop: default 238 → 231, near 218 / 4.94M, errors 0. the deck is two field reads a fragment on one quad, drawn only zoomed out; the mirror adds a field read and a matrix transpose to each water fragment.
+- **tests:** `clouds.test.ts` pins that the deck draws the shadow's field at the cloud's place with no bake, is clear between clouds and gone with no cover or with the camera under it. `water-gleam.test.ts` pins the reflected ray, the cloud read where the ray meets the deck, `mirrorReach` and that one mirror row turns the glitter and the moon track.
+
 ## the coast across the water is a mountain range — every steep stone bedded, cloud shadows at the size of clouds, and three panel rows fewer
 
 from the archipelago frame the far coast, a quarter of the picture on both flanks, read as radial brush strokes, and the open sea was spotted like a leopard. the sweep had four rings over 600 m of hinterland, so every colour and normal there was stretched along the bearing between rings 150 m apart, and the cloud shadow tiled at 92 m, sixteen shadows across the frame.

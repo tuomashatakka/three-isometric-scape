@@ -31,7 +31,7 @@
  */
 
 
-import { SKY_CHOP_GLSL } from './water-slick.ts'
+import { SKY_CHOP_GAIN_GLSL } from './water-slick.ts'
 
 /**
  * How much of a noon sun's worth of moonlight washes the fire out of the water.
@@ -53,13 +53,19 @@ const MOON_QUENCH = 0.09
 
 /** The two leaves the glint is read from. */
 interface GlintConfig {
+  mirror:    number
   moonTrack: number
   sparkle:   number
 }
 
+/** The sun's glitter: its own leaf at a full mirror, so the one mirror row turns it too. */
+export function sunGlint (water: GlintConfig): number {
+  return water.sparkle * water.mirror
+}
+
 /** The moon's share of the glint: a share of the sun's glitter, so one row turns both. */
 export function moonGlint (water: GlintConfig): number {
-  return water.moonTrack * water.sparkle
+  return water.moonTrack * sunGlint(water)
 }
 
 /**
@@ -190,6 +196,33 @@ export const WATER_PHOSPHOR_FRAGMENT = /* glsl */`
  */
 const KEY_GLITTER = 2.6
 
+/**
+ * The cloud base the sea mirrors, in metres over the water.
+ *
+ * Higher than the shadow's \`atmosphere.cloudHeight\` (34 m, the diorama's
+ * deck), because what decides how a reflection reads is how far one ripple's
+ * tilt drags it: a degree of tilt moves the image \`2 * deck / rise²\` metres
+ * along the ray, about three metres at this height and a 40° camera — the
+ * wind's streaks at the ripple's own scale. Much higher and the image is noise;
+ * much lower and it is a stamp of the shadow beside it.
+ */
+export const MIRROR_DECK = 90
+
+/** The lowest the reflected ray is allowed to climb: a grazing ray hits the deck at the horizon, not at infinity. */
+export const MIRROR_RISE_FLOOR = 0.06
+
+/** A cloud base's brightness against the horizon's, and the share of the key light its flanks catch. */
+export const MIRROR_CLOUD_BASE = 0.92
+export const MIRROR_CLOUD_LIT  = 0.14
+
+/**
+ * Where a ray leaving the water at \`rise\` (the sine of its elevation) meets the
+ * mirror's deck, as a horizontal distance — the same arithmetic as the glsl.
+ */
+export function mirrorReach (rise: number): number {
+  return MIRROR_DECK / Math.max(rise, MIRROR_RISE_FLOOR)
+}
+
 
 export const WATER_REFLECTION_FRAGMENT = /* glsl */`
   {
@@ -200,35 +233,33 @@ export const WATER_REFLECTION_FRAGMENT = /* glsl */`
     float facing    = clamp(dot(normalize(normal), viewDir), 0.0, 1.0);
     float fresnel   = 0.02 + 0.98 * pow(1.0 - facing, 5.0);
 
-    // The wind's texture on the surface: a rough patch mirrors a higher, darker
-    // part of the dome and less of it; a slick mirrors the bright horizon. See
-    // water-slick.ts — seaChop is declared in the colour fragment.
-${SKY_CHOP_GLSL}
-    // Toward the horizon at grazing angles and toward the zenith looking down,
-    // which is what the reflected ray would have found anyway. Cheaper than
-    // reflecting the vector and sampling, and at this camera's range of angles
-    // the two are within a shade of each other.
+    // The sky along the reflected ray, not a guess at it. The ray is reflected
+    // about the normal the swell and the ripple have already bent, and taken
+    // back to world space (a direction transforms by the rotation alone, and a
+    // vector on the left of a rotation is its transpose), so how high it climbs
+    // is read off the world's own up: a wave face turned to the eye mirrors the
+    // bright horizon and the face behind it the darker dome above, and the
+    // ranks of the swell read in the mirror as they do on a real sea.
     //
-    // Shaded by the cloud standing over this fragment, and that is the term
-    // that decides whether a cloud shadow on water is visible at all. The
-    // mirror takes over better than four fifths of the lake's colour at these
-    // angles, so a shadow that only multiplies the albedo is arguing with the
-    // one term that is not listening: the first cut moved 74 % of a 520 m
-    // frame by at most ten levels. It is also the physics — the sky a sea
-    // mirrors under a cloud *is* the underside of that cloud. cloudShade is
-    // declared in the colour fragment above, in both programs.
-    // And shaded by the swell's own faces, for exactly the reason the cloud is:
-    // the first cut of the directional swell put its faces into the albedo
-    // alone and moved **half a frame by half a level of 255**, which is the
-    // same arithmetic one paragraph up with a different cause. A face turned up
-    // into the sky mirrors a different part of it from the face behind it, so
-    // the ranks read in the mirror rather than only in the paint.
-    // swellShade is declared in the colour fragment above, in both programs.
-    vec3 sky = mix(uSkyHorizon, uSkyTop, skyChop.x) * cloudShade * swellShade;
+    // Then the deck: the ray is followed up to a cloud base \`MIRROR_DECK\` metres
+    // over the water and the cloud field is read where it arrives — the same
+    // map, drift and bank the shadows are cast from. So the clouds the sea
+    // mirrors are the clouds that are up there, displaced from their own
+    // shadows the way a mirror displaces them, and every ripple tilts the ray
+    // by a few degrees and drags the reflection metres along it: a cloud's
+    // image in the water is broken into the wind's streaks, not stamped on it.
+    // A rough patch mirrors a higher, darker part of the dome (\`seaChop\`).
+    vec3 skyRay  = (vec4(reflect(-viewDir, normalize(normal)), 0.0) * viewMatrix).xyz;
+    float rise   = max(skyRay.y, ${MIRROR_RISE_FLOOR.toFixed(2)});
+    vec3 sky     = mix(uSkyHorizon, uSkyTop, pow(min(rise, 1.0), mix(0.75, 0.45, seaChop)));
+    float deck   = scapeCloudCover(vWaterGround + skyRay.xz * (${MIRROR_DECK.toFixed(1)} / rise) + uCloudThrow);
+    float bright = dot(uSkyHorizon, vec3(0.2126, 0.7152, 0.0722));
+    vec3 base    = vec3(bright) * ${MIRROR_CLOUD_BASE.toFixed(2)} + uSunColor * ${MIRROR_CLOUD_LIT.toFixed(2)} * max(uSunDir.y, 0.0);
+    sky          = mix(sky, base, deck) * swellShade;
 
     // Only over water deep enough to have a surface, and never over ice, which
     // is rough and scatters rather than mirrors.
-    float mirror = fresnel * skyChop.y *
+    float mirror = fresnel * ${SKY_CHOP_GAIN_GLSL} * uMirror *
       smoothstep(0.0, 0.35, waterDepth);
 
     outgoingLight = mix(outgoingLight, sky, clamp(mirror, 0.0, 0.82));

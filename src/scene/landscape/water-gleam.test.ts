@@ -1,5 +1,14 @@
 import { describe, expect, test } from 'bun:test'
-import { phosphorAmount, trackAmount } from './water-gleam.ts'
+import {
+  MIRROR_DECK,
+  MIRROR_RISE_FLOOR,
+  WATER_REFLECTION_FRAGMENT,
+  mirrorReach,
+  moonGlint,
+  phosphorAmount,
+  sunGlint,
+  trackAmount,
+} from './water-gleam.ts'
 
 
 /**
@@ -90,5 +99,27 @@ describe('phosphorAmount', () => {
       lastTrack = track
       lastFire  = fire
     }
+  })
+})
+
+describe('the sky in the water', () => {
+  test('a ray leaving the water steeply meets the deck nearer than a grazing one, and never at infinity', () => {
+    expect(mirrorReach(1)).toBeCloseTo(MIRROR_DECK, 6)
+    expect(mirrorReach(0.3)).toBeGreaterThan(mirrorReach(0.6))
+    expect(mirrorReach(0)).toBeCloseTo(MIRROR_DECK / MIRROR_RISE_FLOOR, 6)
+  })
+
+  test('the mirror reads the reflected ray and the cloud it meets, not the cloud\'s shadow', () => {
+    expect(WATER_REFLECTION_FRAGMENT).toContain('reflect(-viewDir, normalize(normal))')
+    expect(WATER_REFLECTION_FRAGMENT).toContain('scapeCloudCover(vWaterGround + skyRay.xz')
+    expect(WATER_REFLECTION_FRAGMENT).not.toContain('* cloudShade * swellShade')
+  })
+
+  test('one mirror row turns the sun glitter and the moon track with the sky', () => {
+    const water = { mirror: 0.5, moonTrack: 20, sparkle: 0.5 }
+
+    expect(sunGlint(water)).toBeCloseTo(0.25, 6)
+    expect(moonGlint(water)).toBeCloseTo(5, 6)
+    expect(sunGlint({ ...water, mirror: 0 })).toBe(0)
   })
 })

@@ -114,6 +114,13 @@ bare land and sea: what is still wrong then is material, not atmosphere. Hidden 
   when comparing two frames, or the grain and falloff are in the diff). A change to `post.ts`, `lens.ts`, ground
   detail or shadows is invisible there — look with `--tier desktop`, or with
   `--set runtime.effects=all --rebuild` to put it on the mobile build.
+- **`--hide` finds what has a name, and the frame is often painted by what you
+  cannot name.** To find which system paints a frame, zero its strength instead
+  (`--set atmosphere.cloudCover=0`, `--set water.mirror=0`, …) one at a time and
+  compare luminance means; the knob that moves the mean is the one painting it.
+  `studio eval "scape.census(300).map(r => r.name).join(' ')"` lists what is drawn.
+- **`--name` is ignored with `--poses`**; a shot with `--name` and no `--poses`
+  is the default pose under that name.
 - **Captures are named by pose and overwrite.** `--poses tour` before and after a
   change writes the same six files; `cp -r .scape/studio .scape/studio-before`
   first, or give the before look `--name`s.

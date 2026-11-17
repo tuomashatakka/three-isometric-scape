@@ -45,6 +45,7 @@ import {
   WATER_REFLECTION_FRAGMENT,
   phosphorAmount,
   moonGlint,
+  sunGlint,
   trackAmount,
 } from './water-gleam.ts'
 
@@ -339,6 +340,7 @@ ${UNTILE_GLSL}
   // \`uDay\`, which is why the sound stayed black under a moon that was already
   // being aimed at.
   uniform float uTrack;
+  uniform float uMirror;
 
   uniform float uPhosphor;
   uniform vec3 uPhosphorColor;
@@ -779,7 +781,8 @@ export function createWater (
     uSkyTop:           skyTop,
     uSlick:            slick,
     uSparkleScale:     { value: 1 / 14 },
-    uSparkle:          { value: config().water.sparkle },
+    uSparkle:          { value: sunGlint(config().water) },
+    uMirror:           { value: config().water.mirror },
     uWaveTime:         waveTime,
     uWaveHeight:       { value: config().water.waveHeight * config().water.state },
     uSwell:            swell,
@@ -961,7 +964,8 @@ export function createWater (
 
       waveTime.value                   = phase
       uniforms.uBoatWakeStrength.value = config().water.wakeStrength
-      uniforms.uSparkle.value          = config().water.sparkle * (1 - 0.85 * fall)
+      uniforms.uSparkle.value          = sunGlint(config().water) * (1 - 0.85 * fall)
+      uniforms.uMirror.value           = config().water.mirror
       uniforms.uWaveHeight.value       = config().water.waveHeight * config().water.state
       uniforms.uRippleStrength.value   = config().water.rippleStrength * config().water.state * (1 + 0.7 * fall)
       uniforms.uFreeze.value           = season.freeze

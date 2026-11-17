@@ -13,6 +13,7 @@ import { createCameraControls } from './camera-controls.ts'
 import type { CameraOpening } from './camera-controls.ts'
 import type { CameraPath } from './camera-path.ts'
 import { createCloudLayer } from './clouds.ts'
+import type { CloudShadow } from './cloud-shadow.ts'
 import { createCursorLight } from './cursor-light.ts'
 import { createHearthSmoke } from './hearth.ts'
 import type { DaylightState } from './daylight.ts'
@@ -241,6 +242,9 @@ interface SkyOptions {
    */
   textures: TextureCatalogue
 
+  /** The placed cloud field the deck draws. */
+  shadow: CloudShadow
+
   /** The one wind. The mist and the deck answer it; the aurora deliberately does not. */
   wind: WindState
 
@@ -265,12 +269,12 @@ interface SkyOptions {
  * cheapest device gets a plain sky rather than a poor one.
  */
 function hangSkies (
-  { camera, config, quality, skip, daylight, textures, weather, wind }: SkyOptions,
+  { camera, config, quality, skip, daylight, textures, shadow, weather, wind }: SkyOptions,
 ): ScapeModule[] {
   return [
     unless(skip, 'mist', () => createMistLayer({ camera, config, quality, daylight, textures, wind })),
     unless(skip, 'haar', () => createHaarLayer({ config, quality, daylight, weather, wind })),
-    unless(skip, 'clouds', () => createCloudLayer({ camera, config, quality, daylight, textures, wind })),
+    unless(skip, 'clouds', () => createCloudLayer({ camera, config, daylight, shadow })),
     unless(skip, 'aurora', () => createAuroraLayer({ camera, config, quality, daylight })),
     unless(skip, 'nightsky', () => createNightSky({ camera, config, quality, daylight })),
   ].filter((module): module is ScapeModule => module !== null)
@@ -481,6 +485,7 @@ export function createIsometricScape (
     skip,
     daylight: atmosphere.daylight,
     textures: landscape.textures,
+    shadow:   landscape.shadow,
     weather:  landscape.weather,
     wind:     wind.state,
   })

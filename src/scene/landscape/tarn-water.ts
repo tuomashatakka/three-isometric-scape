@@ -284,13 +284,15 @@ diffuseColor.rgb = mix(diffuseColor.rgb, uTarnSnow, uTarnLying);
     update (season) {
       const tarn   = config().tarn
       const locked = tarnFreeze(season.freeze, tarn.frost)
+      const polish = Math.min(1, tarn.mirror * config().water.mirror)
 
       // The mirror is the pool's whole character, and it is a surface property
       // rather than a colour — so it is the roughness that moves, and it moves
-      // the other way from the slider. Ice is not a mirror: what freezes over
+      // the other way from the slider (`water.mirror`, the one row every water's
+      // polish is a share of). Ice is not a mirror: what freezes over
       // goes matte, which is why the lock is in here too.
-      material.roughness = 0.05 + (1 - tarn.mirror) * 0.6 + locked * 0.35
-      material.metalness = 0.05 + tarn.mirror * 0.25 * (1 - locked)
+      material.roughness = 0.05 + (1 - polish) * 0.6 + locked * 0.35
+      material.metalness = 0.05 + polish * 0.25 * (1 - locked)
 
       uniforms.uTarnFreeze.value = locked
       uniforms.uTarnLying.value  = locked * season.snow;
