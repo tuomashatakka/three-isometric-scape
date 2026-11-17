@@ -1526,7 +1526,10 @@ export const SCAPE_CONFIG = {
     hemiSky:      0xc2cfd2,
     hemiStrength: 0.72,
     cloudShadow:  0.84,
-    cloudScale:   92,
+    // A cumulus shadow is hundreds of metres, not a field: at 92 m the archipelago
+    // frame was spotted like a leopard with sixteen shadows across the sea. 210 m
+    // is a few clouds a frame at `default` and one shadow edge at `near`.
+    cloudScale:   210,
 
     // Measured against the cut rather than picked: the cloud field spans about
     // 0.17..0.83 and `CLOUD_CUT` is 0.55, so 0.6 of a full swing carries the

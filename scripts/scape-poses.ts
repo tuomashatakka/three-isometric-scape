@@ -1922,13 +1922,6 @@ export const STILL = [
   // of a tour.
   'beck.flow=0',
 
-  // And the fall's own rate, which nothing above stops: the sheet goes over the
-  // lip faster than the channel above it runs, so it carries a speed of its own
-  // rather than a share of `beck.flow`. A fall left running is a different
-  // pattern of white in every frame of a tour, and it is the one surface in the
-  // scape whose texture crosses its whole extent in under a second.
-  'force.flow=0',
-
   'boats.speed=0',
 
   // The pack working in the leads. Already held by `wind.speed=0` above, because

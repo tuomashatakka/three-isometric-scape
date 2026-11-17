@@ -37,7 +37,7 @@ describe('the tile, against the world it is laid over', () => {
    * whole archipelago, so there is no lattice in it to find at any zoom.
    */
   test('the cloud tile repeats across the world and the bank does not', () => {
-    expect(skyRepeats(worldSize, cloudScale)).toBeGreaterThan(8)
+    expect(skyRepeats(worldSize, cloudScale)).toBeGreaterThan(6)
     expect(skyRepeats(worldSize, weatherBankTile(worldSize))).toBeLessThan(2)
   })
 

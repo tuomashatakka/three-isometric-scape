@@ -44,6 +44,7 @@ import { EYE_GLSL, eyeLights, repeatKeepGlsl } from '../frame.ts'
 import {
   WATER_REFLECTION_FRAGMENT,
   phosphorAmount,
+  moonGlint,
   trackAmount,
 } from './water-gleam.ts'
 
@@ -1040,7 +1041,7 @@ export function createWater (
       // Both halves of the night are solved on this side rather than in the
       // fragment: they are two numbers a whole frame shares, and the shader's
       // early-outs are what keep the cost of either off the hours it has none.
-      gleam.track.value    = trackAmount(now.day, now.moon, config().water.moonTrack)
+      gleam.track.value    = trackAmount(now.day, now.moon, moonGlint(config().water))
       gleam.phosphor.value = phosphorAmount(now.dark, now.moon, config().water.phosphor)
       skyHorizon.value.copy(now.horizon)
       skyTop.value.copy(now.skyTop)

@@ -265,10 +265,16 @@ describe('the grain the frame can resolve', () => {
     expect(repeatKeep(repeats(40) * WEAR_TILE, WEAR_REPEATS)).toBe(1)
   })
 
-  test('the archipelago frame keeps none, so it marches and fetches nothing', () => {
+  test('the archipelago frame keeps no grain, so it marches and fetches nothing', () => {
     expect(repeatKeep(repeats(1400), GRAIN_REPEATS)).toBe(0)
     expect(repeatKeep(repeats(1400) * WEAR_TILE, WEAR_REPEATS)).toBe(0)
-    expect(repeatKeep(1400 / SCAPE_CONFIG.atmosphere.cloudScale, CLOUD_REPEATS)).toBeLessThan(0.05)
+  })
+
+  test('a cloud-sized cloud keeps its shadow at the archipelago frame, and only a few cross it', () => {
+    const across = 1400 / SCAPE_CONFIG.atmosphere.cloudScale
+
+    expect(across).toBeLessThan(CLOUD_REPEATS[0] + 1)
+    expect(repeatKeep(across, CLOUD_REPEATS)).toBeGreaterThan(0.9)
   })
 
   test('a farm-sized frame keeps the cloud shadow whole', () => {
