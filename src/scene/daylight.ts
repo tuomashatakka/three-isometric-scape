@@ -2,6 +2,7 @@ import { Color, Vector3 } from 'three'
 import { smoothstep } from 'threejs-scene'
 import type { LiveConfig } from './config.ts'
 import type { SkyPlace } from './sky-deck.ts'
+import { auroraStrength } from './aurora.ts'
 import { adaptation, airlight, cardIlluminant, whiteBalance } from './white-balance.ts'
 
 
@@ -35,7 +36,8 @@ export interface DaylightState {
    * noon-sun units {@link day} is in.
    *
    * 0 through every daylight hour, and through any night the moon is down, new
-   * or switched off at `daylight.moonStrength`. It is what weighs against
+   * or switched off at `daylight.moonStrength` or with the night sky
+   * (`atmosphere.starlight`, through `auroraStrength`). It is what weighs against
    * {@link day} for the key light's *place*, so a night with anything in this
    * is a night whose shadows have swung off the bearing the sun set on.
    */
@@ -496,7 +498,8 @@ export function createDaylight (config: LiveConfig): Daylight {
       // Astronomical twilight, which is the gate the moon opens on and a
       // different depth of the same night from `dark` above — see `darkAmount`.
       const astro = darkAmount(height)
-      const lunar = moonAmount(moonAt.height, moonPhase(year), astro) * daylight.moonStrength
+      const lunar = moonAmount(moonAt.height, moonPhase(year), astro) * daylight.moonStrength *
+        auroraStrength(atmosphere.starlight)
       const share = keyShare(day, lunar)
 
       keyPlace(sunAt, moonAt, share, keyAt)

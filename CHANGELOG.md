@@ -2,6 +2,18 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## stone that has weathered — joints and crystal in every stone, the meadow is turf again, and four panel rows fewer
+
+the `near` frame's stones were smooth blobs, and its meadow was mottled white. bisecting with a debug albedo found why: `weatherable` read the terrain's olive sward as stone (73% of the terrain's vertices), so the turf took lichen crust and strata; and the moss mix was laid over the albedo the stone block *began* with, so the strata's darkening was computed and discarded.
+
+- **joints and crystal.** [`props/fissure.ts`](src/scene/props/fissure.ts), inside the stone block after the strata: two steep world joint sets (0.46 m and 0.71 m), each fracture wandering off its plane and broken into lengths by the other set so cracks end in t-junctions; a dark recess with a lip that turns the normal into it; and a 4.5 cm crystal hash, dark mica and pale polished quartz in its tails. every boulder, dyke, cairn, erratic and crag on every tier, from the albedo alone; each scale fades by its own pixel width. no texture, uniform, varying or program.
+- **the meadow is turf.** `TURF_LEAN` / `TURF_COOL` (green over red and over blue, on the square root) keep the sward out of the stone block: terrain stone share 73% → 14%, rock and shore only. every palette stone and timber still weathers.
+- **one albedo through the block.** moss and lichen now mix over what the strata and joints left, so the beds darken the far range as `strata.ts` always claimed.
+- **the panel: four rows and a section fewer.** moonlight is a share of the night sky (`daylight.moonStrength` × `auroraStrength(atmosphere.starlight)`): *night sky · stars, aurora, moonlight*. `wind.bearing`, `camera.tiltNear` and `camera.tiltFar` are config leaves; *framing* is gone.
+- **cost: none counted.** mobile tour census unchanged (default 134 draws, near 85, far 113, night and winter 138; 1.02M / 0.94M / 1.45M tris; 0 errors); desktop near 104 draws, 2.58M, 0 errors. the term is about 40 scalar operations per stone fragment, skipped on the joints' and crystal's pixel-width fades.
+- **scape:diff vs main:** near 1.03% changed (max block 13.1%), every other tour pose 0.00%, no structural change.
+- **tests:** `fissure.test.ts` pins the block order, that the moss mixes over the running albedo, unit steep non-parallel planes, the spacing, the open share of crack and the hash; `weathering.test.ts` pins that the terrain's sward bins are not stone.
+
 ## stones in the bare ground — gravel in every yard and track, shingle on the strand, and two panel rows fewer
 
 the `near` frame's farmyard was the smoothest thing in it: tan felt between the grit and the hummocks. bare earth on this coast is soil with stones lying proud of it.

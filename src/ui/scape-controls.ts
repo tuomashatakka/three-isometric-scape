@@ -152,7 +152,8 @@ function toggled (
  *
  * A row is a *look* someone would turn: how hard it rains, how much snow lies.
  * The rate a beacon turns at, the height of the haar's top, how far ahead of
- * the rain the ice veil runs, the lag of high water — those are the physics of
+ * the rain the ice veil runs, the lag of high water, the wind's bearing, the
+ * camera's tilt — those are the physics of
  * the place, and live on as config leaves for `--set` and the url, not rows.
  * Every effect is one strength row; the panel only shrinks.
  */
@@ -185,7 +186,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         // Live: the arc is solved per frame, so dragging the coast north until
         // the winter loses its daylight is a slider that tells the truth.
         range('daylight.latitude', 'latitude °n', 0, 80, 0.5),
-        range('daylight.moonStrength', 'moonlight', 0, 0.6, 0.01),
       ],
     },
     {
@@ -229,9 +229,8 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         // land, and the steam off the open water in the weeks of the year it has.
         toggled('mist · ground, sea smoke, night bank', range('atmosphere.mistAmount', 'density', 0, 1, 0.01), 0.34),
         toggled('light through the deck', range('shafts.strength', 'brightness', 0, 0.6, 0.005, quality.shaftSheets > 0), 0.22),
-        toggled('night sky · stars, aurora', range('atmosphere.starlight', 'starlight', 0, 1.5, 0.01, quality.starCount > 0 || quality.auroraLayers > 0), 0.85),
+        toggled('night sky · stars, aurora, moonlight', range('atmosphere.starlight', 'starlight', 0, 1.5, 0.01, quality.starCount > 0 || quality.auroraLayers > 0), 0.85),
         range('wind.strength', 'wind', 0, 3, 0.01),
-        range('wind.bearing', 'wind bearing', -180, 180, 1),
       ],
     },
     {
@@ -261,14 +260,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         toggled('lamps ashore', range('windows.glow', 'near and far', 0, 2, 0.01), 0.95),
         toggled('coastal light', range('beacon.lamp', 'lamp', 0, 2, 0.01, quality.beaconBlades > 0), 0.85),
         toggled('carried lamp', range('cursorLight.intensity', 'strength', 0, 2, 0.01, quality.cursorLight), 0.6),
-      ],
-    },
-    {
-      group:    'camera',
-      title:    'framing',
-      controls: [
-        range('camera.tiltNear', 'tilt zoomed in', 8, 60, 1),
-        range('camera.tiltFar', 'tilt zoomed out', 8, 70, 1),
       ],
     },
     {

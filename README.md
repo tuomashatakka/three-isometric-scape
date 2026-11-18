@@ -430,6 +430,7 @@ src/
         ├── weathering.ts           moss on the tops, lichen on the faces: every grey stone, slate and old board
         ├── boards.ts               every painted wall built of boards: battens on falu red, laps on limewash
         ├── strata.ts               bedding on every steep stone face: beds and laminae, lit lips, the far range to a boulder
+        ├── fissure.ts              joints and crystal in every stone: two fracture sets with lit lips, mica and quartz grain
         ├── transmission.ts         light through the crown: the far side of every tree, lit through its foliage
         ├── ploppable.ts            2d placement with a ground-following foundation
         ├── fence.ts / wall.ts      continuous ground-following runs
@@ -742,6 +743,16 @@ grey stone and silvered timber in a coastal photograph are never the colour they
 - **keyed on the albedo, not on a prop flag.** `weatherable` takes near-neutral mid-greys only. chroma is measured on the square root of the linear albedo, so the band reads like the palette. paint, plants, sand, straw, soil, whitewash and snow keep their colour. `weathering.test.ts` pins this against the palette: granite, slate, dead wood and driftwood weather, falu red, trim white, grass, sand, hay and soil do not.
 - **one fetch, one field.** the grain map is read along the face (the upright grain's skewed projection, so nothing smears down a wall) at `LICHEN_TILE`, a 1.5 m repeat. the high half of the field is moss and the low tail is lichen, so they never fight over a texel. past `LICHEN_REPEATS` the rosettes would shimmer, so the mean cover stands in for them.
 - **no knob.** it rides on `terrain.detailGrain`. wet darkens it and snow lies over it, in the order the world does them.
+- **turf is not stone.** the terrain's olive sward is as neutral as granite by chroma, so until the turf gate (`TURF_LEAN`, `TURF_COOL`: green over red *and* over blue, on the square root) three quarters of the land's vertices weathered — the meadow in the `near` frame was crusted white with lichen and ruled with strata. every stone and timber in the palette leans red of green; the gate drops the terrain's stone share from 73% to 14% (rock and shore).
+- **one albedo through the block.** the moss and the lichen are mixed over what the strata and the joints left, not over the colour the block began with — before, the strata's darkening was computed and thrown away.
+
+### joints and crystal
+
+a stone at the `near` frame was a smooth, evenly lit blob. real granite and gneiss are broken by *joint sets* — families of parallel fractures across the whole outcrop — and every face between them is speckled with crystal. [`props/fissure.ts`](src/scene/props/fissure.ts) is both, inside the stone block after the strata, so every boulder, dyke course, cairn, erratic, crag and outcrop gets them from the albedo alone, on every tier:
+
+- **two joint sets** (`JOINTS`: steep world planes 0.46 m and 0.71 m apart), each wandering a hand's width off its plane, each fracture broken into lengths by the *other* set's lattice so cracks end in t-junctions (`JOINT_OPEN` of the lengths are open). a crack is a dark recess (`JOINT_DARK`) with a lip that turns the normal into it, so it is lit rather than drawn. planes in three dimensions cut every face in lines whichever way it is turned, so nothing smears down a wall.
+- **crystal**: one hash per `CRYSTAL` 4.5 cm world cell, dark (mica) and pale (quartz, a little polished) in its tails.
+- each scale lets go by its own screen width (`FISSURE_FADE`, `CRYSTAL_FADE`), so a wide frame keeps its tone and does not shimmer. no texture, uniform, varying or program; `fissureAt` and `jointCoord` are the cpu twins.
 
 ## every wall is built of boards
 
@@ -3809,7 +3820,7 @@ a drawer on the right edge exposes the scene's optics, the three clocks, the air
 
 **its furniture is markup, not script.** the `<aside>`, the header, the collapse handle, the form and the footer ship in [`index.html`](index.html); [`graphics-panel.ts`](src/ui/graphics-panel.ts) fills the form and wires the two buttons. that is what lets the drawer survive the canvas being replaced under it after a context loss — and after the effects switch rebuilds the scape — and it gives the panel a shape before its module has parsed. only the controls are built at runtime, because only those depend on which tier resolved.
 
-**a row is a look, not a physics constant.** the panel was twenty sections and a hundred and six rows; it is eleven and sixty-three. every effect is one strength row (a lamp's flicker depth, the haar's top, the tide's lag, the caustics' cell size, the beacon's turn rate are the place's physics and live on as config leaves for `--set` and the url), the three clocks share one section, and the swash, the floes, the hearth, the cart, the lamps and the gulls file under *the sea*, *season* and *life on the coast*.
+**a row is a look, not a physics constant.** the panel was twenty sections and a hundred and six rows; it is eleven and sixty-three. every effect is one strength row (a lamp's flicker depth, the haar's top, the tide's lag, the caustics' cell size, the beacon's turn rate are the place's physics and live on as config leaves for `--set` and the url), the three clocks share one section, and the swash, the floes, the hearth, the cart, the lamps and the gulls file under *the sea*, *season* and *life on the coast*. later runs took it further: the moon's light is a share of the night sky (`daylight.moonStrength` × `auroraStrength(atmosphere.starlight)`), so *night sky · stars, aurora, moonlight* is one row; the wind's bearing and the camera's two tilts are config leaves, and the *framing* section is gone.
 
 **sections are `<details>`, and their animation is five css declarations.** ten flat legends in a nineteen-rem drawer is a list rather than an interface: finding the snow line meant reading every legend on the way past it. runs of sections now share a heading — *look*, *time*, *air*, *ground & water*, *camera*, *device* — and each one collapses on its own underneath it, remembering by name whether the reader left it open. a `<details>` already collapses, takes the keyboard and announces its state; `interpolate-size: allow-keywords` plus a `block-size` transition on `::details-content` is the whole animation, and both degrade to an instant open on a browser without them. there is no javascript in the collapse at all.
 
