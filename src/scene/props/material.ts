@@ -21,6 +21,7 @@ import type { SeasonState } from '../season.ts'
 import { createTextureCatalogue } from '../textures/catalogue.ts'
 import type { TextureCatalogue } from '../textures/catalogue.ts'
 import { GROUND_NORMAL_GAIN } from '../textures/normals.ts'
+import { GRAVEL_FRAGMENT, GRAVEL_PARS_FRAGMENT } from './gravel.ts'
 import { HUMMOCK_FRAGMENT, HUMMOCK_PARS_FRAGMENT, HUMMOCK_SNOW } from './hummock.ts'
 import { PUDDLE_DECLARE, PUDDLE_FRAGMENT, PUDDLE_HOLLOW } from './puddle.ts'
 import type { WeatherState } from '../weather.ts'
@@ -514,6 +515,7 @@ ${GRAIN_FRAGMENT}
 ${heathFragment('uDetailMap')}
 ${SOIL_NORMAL_FRAGMENT}
 ${HUMMOCK_FRAGMENT}
+${GRAVEL_FRAGMENT}
 ${propGrainFragment(false)}
 ${BOARD_FRAGMENT}
 ${weatheringFragment('uDetailMap')}
@@ -556,6 +558,7 @@ ${heathFragment('uWearMap')}
   // there is nothing there to catch the light on.
 ${SOIL_NORMAL_FRAGMENT}
 ${HUMMOCK_FRAGMENT}
+${GRAVEL_FRAGMENT}
 ${propGrainFragment(true)}
 ${BOARD_FRAGMENT}
 ${weatheringFragment('uDetailMap')}
@@ -876,7 +879,7 @@ export function createScapeMaterials (
     // decision taken per compile is a branch in a function three already
     // considers long enough.
     const detailPars = extra.detail
-      ? DETAIL_PARS_FRAGMENT + HUMMOCK_PARS_FRAGMENT + (detailTaps >= 6 ? DETAIL_FULL_PARS_FRAGMENT : '')
+      ? DETAIL_PARS_FRAGMENT + HUMMOCK_PARS_FRAGMENT + GRAVEL_PARS_FRAGMENT + (detailTaps >= 6 ? DETAIL_FULL_PARS_FRAGMENT : '')
       : ''
 
     // `?skip=inject` leaves the mesh, the geometry and the vertex colours exactly
