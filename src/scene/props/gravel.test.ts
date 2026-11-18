@@ -2,12 +2,13 @@ import { describe, expect, it } from 'bun:test'
 import { SCAPE_PALETTE } from '../config-palette.ts'
 import { GRAVEL_FRAGMENT, GRAVEL_PARS_FRAGMENT, STONE_RADIUS, bareness, stone } from './gravel.ts'
 
+
 const linear = (hex: number): [number, number, number] => {
   const c = (v: number): number => {
     const s = v / 255
     return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
   }
-  return [ c((hex >> 16) & 255), c((hex >> 8) & 255), c(hex & 255) ]
+  return [ c(hex >> 16 & 255), c(hex >> 8 & 255), c(hex & 255) ]
 }
 
 const bare = (name: keyof typeof SCAPE_PALETTE.palette): number => bareness(...linear(SCAPE_PALETTE.palette[name]))

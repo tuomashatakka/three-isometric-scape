@@ -75,16 +75,20 @@ export function stoneHash (x: number, y: number): number {
 }
 
 export interface Stone {
+
   /** Centre within the cell, 0..1 each way. */
-  cx:     number
-  cy:     number
+  cx: number
+  cy: number
+
   /** Radius along the long axis, as a share of the cell; the short one is `radius / squash`. */
   radius: number
   squash: number
+
   /** 0..1: the draw that decides whether the cell holds a stone at a given density. */
   chance: number
+
   /** 0..1: the stone's own lean, warm to cool. */
-  tone:   number
+  tone: number
 }
 
 /** The stone a lattice cell holds, if the density lets it — the glsl's arithmetic. */
