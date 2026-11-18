@@ -202,9 +202,8 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       group:    'time',
       title:    'weather',
       controls: [
-        toggled('rain', range('weather.rain', 'how hard it falls', 0, 1, 0.01, quality.rainDrops > 0), 0.9),
+        toggled('rain', range('weather.rain', 'how hard it falls · and the wet it leaves', 0, 1, 0.01, quality.rainDrops > 0), 0.9),
         toggled('hail', range('weather.hail', 'how hard it comes down', 0, 1, 0.01, quality.hailStones > 0), 0.75),
-        range('weather.wet', 'wet ground', 0, 1, 0.01),
         toggled('far squall', range('squall.strength', 'how heavy it lies', 0, 1, 0.01, quality.squallSheets > 0), 0.7),
         // The bow and the halo come out on the edges of a band, so the front's
         // scrubber is what walks them in and out.
@@ -244,7 +243,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         toggled('the sky in the water · sea, glitter, tarns', range('water.mirror', 'mirror', 0, 1.5, 0.01), 1),
         range('water.state', 'sea state · swell, surf, caps', 0, 2, 0.01),
         toggled('the wash', range('swash.reach', 'run-up (Hunt)', 0, 2, 0.01), 1),
-        toggled('caustics', range('water.caustics', 'strength', 0, 1.5, 0.01), 1),
         toggled('the tide', range('tide.range', 'spring range (m)', 0, 1.6, 0.01), 0.8),
         toggled('boat wakes', range('water.wakeStrength', 'wake strength', 0, 1.5, 0.01), 0.78),
         toggled('running water · beck and fall', range('beck.flow', 'flow (m/s)', 0, 4, 0.05), 1.1),

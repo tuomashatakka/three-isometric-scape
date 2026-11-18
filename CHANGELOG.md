@@ -2,6 +2,15 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## stones in the bare ground — gravel in every yard and track, shingle on the strand, and two panel rows fewer
+
+the `near` frame's farmyard was the smoothest thing in it: tan felt between the grit and the hummocks. bare earth on this coast is soil with stones lying proud of it.
+
+- **the stones.** `props/gravel.ts` adds `scapeStone` to the terrain's own program variant (`USE_COLOR_ALPHA`): a pebble lattice (0.2 m) and a rotated cobble lattice (0.8 m), one stone per cell at most and never past its cell, so a fragment reads one cell's three hashes instead of searching a voronoi neighbourhood. each stone is a turned, elongated dome that turns the normal, takes its own grey at the soil's lightness, shades the soil at its foot, and darkens and smooths when wet. it is keyed on the albedo (`bareness`: warm, unvegetated, not pale), so it reaches the track, yard, trodden ground, peat, mud and shore on every island with no flag, and stays off turf, snow, scree and dune. stony and clean patches come from one octave of the hummock noise.
+- **the panel: two rows fewer.** *caustics* (`water.caustics`) and *wet ground* (`weather.wet`) are config leaves now. the rain row says what it does: *how hard it falls · and the wet it leaves*.
+- **cost: none counted.** mobile tour census unchanged (default 134 draws, near 85, far 113, night and winter 138; 1.02M / 0.94M / 1.45M tris; 0 shader errors). the term is about 40 scalar operations and six hashes per terrain fragment in the close frames, skipped on a uniform branch past 170 pebble cells across the frame.
+- **tests:** `gravel.test.ts` pins that every stone stays inside its cell, that the density draw is uniform, which palette entries take stones and which never do, and that the term compiles only into the terrain variant.
+
 ## the haar folds into the air — the night bank as a column of fog in every program, the phone gets it, and the stars and the aurora on one row
 
 the night bank was two to five world-sized transparent sheets: a full-frame blend each, a baked field, a render slot, a tier count. a hillside met them as staggered contour lines, and the phone tier had none. a surface seen from above through a level layer of fog is dimmed by the column of fog over it, and that column is a function of the fragment's height alone, so the bank is now that function.
