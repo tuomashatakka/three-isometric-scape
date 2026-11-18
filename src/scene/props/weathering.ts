@@ -1,4 +1,5 @@
 import { repeatKeepGlsl } from '../frame.ts'
+import { FISSURE_GLSL } from './fissure.ts'
 import { STRATA_GLSL } from './strata.ts'
 
 /**
@@ -38,6 +39,15 @@ export const LICHEN_REPEATS = [ 40, 120 ] as const
  */
 export const STONE_CHROMA = [ 0.19, 0.27 ] as const
 
+/**
+ * Green over red and over blue (on the square root), past which a grey is turf
+ * and not stone: the terrain's olive sward is as neutral as granite by chroma,
+ * and without this gate three quarters of the land took lichen and strata. Every
+ * stone and timber in the palette leans red of green.
+ */
+export const TURF_LEAN = [ 0.005, 0.02 ] as const
+export const TURF_COOL = [ 0.02, 0.05 ] as const
+
 /** The linear luminance band weathering takes: not soot, not whitewash or snow. */
 export const STONE_DARK  = [ 0.025, 0.07 ] as const
 export const STONE_LIGHT = [ 0.45, 0.66 ] as const
@@ -68,8 +78,10 @@ export function weatherable (r: number, g: number, b: number): number {
   const lo     = Math.sqrt(Math.min(r, g, b))
   const luma   = 0.2126 * r + 0.7152 * g + 0.0722 * b
   const chroma = (hi - lo) / (hi + 0.02)
+  const turf   = smooth(TURF_LEAN[0], TURF_LEAN[1], Math.sqrt(g) - Math.sqrt(r)) *
+    smooth(TURF_COOL[0], TURF_COOL[1], Math.sqrt(g) - Math.sqrt(b))
 
-  return (1 - smooth(STONE_CHROMA[0], STONE_CHROMA[1], chroma)) *
+  return (1 - turf) * (1 - smooth(STONE_CHROMA[0], STONE_CHROMA[1], chroma)) *
     smooth(STONE_DARK[0], STONE_DARK[1], luma) *
     (1 - smooth(STONE_LIGHT[0], STONE_LIGHT[1], luma))
 }
@@ -90,13 +102,17 @@ export function weatheringFragment (map: string): string {
     float hi = sqrt(max(c.r, max(c.g, c.b)));
     float lo = sqrt(max(0.0, min(c.r, min(c.g, c.b))));
     float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
-    float stone = (1.0 - smoothstep(${f(STONE_CHROMA[0])}, ${f(STONE_CHROMA[1])}, (hi - lo) / (hi + 0.02))) *
+    vec3 root = sqrt(max(c, vec3(0.0)));
+    float turf = smoothstep(${f(TURF_LEAN[0])}, ${f(TURF_LEAN[1])}, root.g - root.r) *
+      smoothstep(${f(TURF_COOL[0])}, ${f(TURF_COOL[1])}, root.g - root.b);
+    float stone = (1.0 - turf) * (1.0 - smoothstep(${f(STONE_CHROMA[0])}, ${f(STONE_CHROMA[1])}, (hi - lo) / (hi + 0.02))) *
       smoothstep(${f(STONE_DARK[0])}, ${f(STONE_DARK[1])}, luma) *
       (1.0 - smoothstep(${f(STONE_LIGHT[0])}, ${f(STONE_LIGHT[1])}, luma)) * min(1.0, uDetailStrength);
 
     if (stone > 0.002) {
       float alt  = cameraPosition.y - dot(vViewPosition, viewMatrix[1].xyz);
 ${STRATA_GLSL}
+${FISSURE_GLSL}
       float keep = ${repeatKeepGlsl(`scapeRepeats * ${f(LICHEN_TILE)}`, LICHEN_REPEATS)};
       float field = 0.5;
 
@@ -115,7 +131,8 @@ ${STRATA_GLSL}
       float crust = stone * ${f(LICHEN_COVER)} * mix(0.12, smoothstep(0.42, 0.36, field), keep) * (1.0 - moss);
       vec3 lichen = mix(${vec3(XANTHORIA)}, ${vec3(LICHEN)}, smoothstep(0.0, ${f(SPLASH_ZONE)}, alt - uSwashLevel));
 
-      diffuseColor.rgb = mix(mix(c, ${vec3(MOSS)}, moss), lichen, crust);
+      // Over what the strata and the joints left, not the albedo the block began with.
+      diffuseColor.rgb = mix(mix(diffuseColor.rgb, ${vec3(MOSS)}, moss), lichen, crust);
       roughnessFactor  = clamp(roughnessFactor + moss * 0.1 + crust * 0.05, 0.05, 1.0);
     }
   }
