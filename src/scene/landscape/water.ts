@@ -963,7 +963,9 @@ export function createWater (
       )
 
       waveTime.value                   = phase
-      uniforms.uBoatWakeStrength.value = config().water.wakeStrength
+      // The wake is the sea's answer to a hull, on the sea state's row: a still
+      // sea (state 0) is still behind the boats too.
+      uniforms.uBoatWakeStrength.value = config().water.wakeStrength * Math.min(1, config().water.state)
       uniforms.uSparkle.value          = sunGlint(config().water) * (1 - 0.85 * fall)
       uniforms.uMirror.value           = config().water.mirror
       uniforms.uWaveHeight.value       = config().water.waveHeight * config().water.state
