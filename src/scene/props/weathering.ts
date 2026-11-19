@@ -92,7 +92,7 @@ const f    = (v: number): string => v.toFixed(3)
 /**
  * The term, for the ground program's normal stage. Reads `scapeFlat`,
  * `scapeRepeats`, `scapeDetailScale`, `vScapeFace`, `vScapeGround`,
- * `uDetailStrength` and `uSwashLevel`, all of which the detail injection
+ * `uDetailStrength`, `uSwashLevel` and the roof share `scapeRoof` (`courses.ts`), all of which the detail injection
  * declares ahead of it; `map` is the grain sampler.
  */
 export function weatheringFragment (map: string): string {
@@ -107,7 +107,7 @@ export function weatheringFragment (map: string): string {
       smoothstep(${f(TURF_COOL[0])}, ${f(TURF_COOL[1])}, root.g - root.b);
     float stone = (1.0 - turf) * (1.0 - smoothstep(${f(STONE_CHROMA[0])}, ${f(STONE_CHROMA[1])}, (hi - lo) / (hi + 0.02))) *
       smoothstep(${f(STONE_DARK[0])}, ${f(STONE_DARK[1])}, luma) *
-      (1.0 - smoothstep(${f(STONE_LIGHT[0])}, ${f(STONE_LIGHT[1])}, luma)) * min(1.0, uDetailStrength);
+      (1.0 - smoothstep(${f(STONE_LIGHT[0])}, ${f(STONE_LIGHT[1])}, luma)) * min(1.0, uDetailStrength) * (1.0 - scapeRoof);
 
     if (stone > 0.002) {
       float alt  = cameraPosition.y - dot(vViewPosition, viewMatrix[1].xyz);

@@ -691,6 +691,7 @@ the primitives themselves — `box`, `cyl`, `cone`, `ball`, `hedron`, `plank`, `
 | `strata.ts` | bedding (8.5 m beds, 0.9 m laminae, lit lips, pixel-faded) on every steep stone face, inside `weatheringFragment`'s stone block; `strataShade` / `parting` are its cpu twins |
 | `fissure.ts` | two joint sets (lit, t-junctioned fractures) and crystal grain in every stone, inside the stone block after the strata; `fissureAt` / `jointCoord` / `jointHash` are its cpu twins |
 | `boards.ts` | board-and-batten and weatherboard seams, tone and relief on every upright painted / whitewashed face, both tap paths; `boardShare` / `lapShare` are its cpu twins |
+| `courses.ts` | shingle courses on every pitched roof of the shingle family: butt shadows, staggered joints, silvered shingles, moss in the lines, both tap paths, never the terrain; leaves `scapeRoof` for the stone term; `courseShare` / `courseAt` are its cpu twins |
 | `landscape/instance-tone.ts` | the scatter's per-instance tint: grey shade × a warm/cool lean hashed from position, scaled by `familyChroma` — every stamped family, no rng draw, no program |
 | `transmission.ts` | light through the crown: the key light again on foliage faces turned from it (`TRANSMIT_FRAGMENT` replaces `lights_fragment_end` in the foliage program only) |
 

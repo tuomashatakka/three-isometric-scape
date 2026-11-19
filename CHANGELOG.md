@@ -2,6 +2,16 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## every roof laid in courses — shingle rows with butt shadows, staggered joints and silvered shingles on every pitched roof, and two panel rows fewer
+
+the chapel, the farmhouses, the boathouses and the mill wore their roofs as single charcoal slabs — the largest flat surfaces left in the `near` frame.
+
+- **the courses.** [`props/courses.ts`](src/scene/props/courses.ts), a kit term in the shared ground material on both tap paths, after the boards and before the stone term: faces pitched like a roof whose albedo is the shingle family (warmer than granite, cooler than timber and peat) lay 0.21 m courses up the fall line and 0.17 m shingles along the eave, staggered each course; a shadow line under every butt, a lip turned down the slope, rolled joints, one shingle a shade off the next, a fifth of them silvered, moss in the wet lines. the geometry comes from the face's own unperturbed normal and world height — no texture, uniform, varying or program, every tier. the terrain's variant (`USE_COLOR_ALPHA`) never evaluates it; the stone term stands back by the `scapeRoof` it leaves, so no roof is ruled with strata.
+- **the panel: two rows fewer.** the wash rides the sea state — run-up already scales with the wave height `water.state` drives — so *the wash* is gone and `swash.reach` (Hunt's coefficient) is a config leaf; the floes follow the sea ice they stand in, so *floes* is folded into *sea ice · freeze and floes* and `pack.cover` is a config leaf.
+- **cost: none counted.** mobile near census unchanged (85 draws, 0.94M tris, 0 errors); desktop compiles clean (0 errors). about 50 scalar operations per roof fragment, skipped on a branch everywhere else.
+- **scape:diff vs main:** near 0.28% changed (max block 15.5%, the chapel roof), every other tour pose 0.00%, no structural change.
+- **tests:** `courses.test.ts` pins that both shingles lay courses on a pitched roof, that granite, timber, peat, turf, paint and limewash never do, that walls, flats and ridge caps are not roofing, the course arithmetic, and that the term never reaches the terrain and costs no texture, uniform or varying.
+
 ## stone that has weathered — joints and crystal in every stone, the meadow is turf again, and four panel rows fewer
 
 the `near` frame's stones were smooth blobs, and its meadow was mottled white. bisecting with a debug albedo found why: `weatherable` read the terrain's olive sward as stone (73% of the terrain's vertices), so the turf took lichen crust and strata; and the moss mix was laid over the albedo the stone block *began* with, so the strata's darkening was computed and discarded.

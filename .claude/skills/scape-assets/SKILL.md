@@ -46,7 +46,7 @@ imports only the roster, so it loads when the scene itself is broken.
   `bun run assets --kit` first; extend the helper every stone / board / roof is
   built through, and every island gets it. A term keyed on the albedo
   (`heathFragment`, `weatheringFragment` in `props/material.ts` and
-  `props/weathering.ts`, `BOARD_FRAGMENT` in `props/boards.ts`, `STRATA_GLSL` in `props/strata.ts`) reaches every
+  `props/weathering.ts`, `BOARD_FRAGMENT` in `props/boards.ts`, `COURSE_FRAGMENT` in `props/courses.ts`, `STRATA_GLSL` in `props/strata.ts`) reaches every
   prop with no flag — a painted wall gets its boards from its colour and a steep
   grey face its bedding, so a new building needs no cladding geometry and a new
   cliff no ledges. Per-instance colour
