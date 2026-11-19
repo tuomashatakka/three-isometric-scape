@@ -2,6 +2,17 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## grass that has blades — the sward in tufts and wind-combed strands on every green, and two panel rows fewer
+
+turf was the largest surface in the `near` frame and the last that read as felt: a tint between the grit and the hummocks, with the comb of a laid sward nowhere in it.
+
+- **the sward.** [`props/sward.ts`](src/scene/props/sward.ts), in the terrain's own variant after the gravel: 6 × 17 cm strands in columns along the prevailing bearing (`uDriftDir`, the drifts' compass — no new uniform), swirled by an octave so the comb wanders, each strand its own width, place and lightness; rounded across and laid over downwind, so they turn the normal; cavity in the gaps and at the roots, straw on the tips in patches a few metres across; tussock tufts in a rotated 0.55 m one-cell lattice over them. keyed on the albedo's greenness, faded per scale to its own mean as the frame widens. every tier, no texture, uniform, varying, program or draw.
+- **the key was measured, not assumed.** the first key (the raw palette's greenness, past 0.45) reached *no* field: a debug albedo showed the terrain's turf, after the season and the heath, measures 0.25–0.45. `LEAF_KEY` is 0.12–0.32; the trodden yard stays under 0.12.
+- **the panel: two rows fewer.** the cloud shadow is already the cover's product, so *sky clouds · deck and its shadow* is one row and `atmosphere.cloudShadow` a config leaf; a wake is the sea's answer to a hull, so it rides *sea state* (`water.ts` scales it by the state up to 1) and `water.wakeStrength` is a config leaf.
+- **cost: none counted.** mobile tour census unchanged (default 134 draws, near 85, far 113, noon 134, night and winter 138; 1.02M / 0.94M / 1.45M tris; 0 errors); desktop near 104 draws, 2.58M tris, 0 errors. four hashes and two octaves per turf fragment, skipped on a branch off the turf and in wide frames.
+- **scape:diff vs main:** near 1.52% changed (max block 17.7%, the turf), every other tour pose 0.00%, no structural change.
+- **tests:** `sward.test.ts` pins that a tuft never leaves its cell and a strand never leaves its column, that the greens take it and track, peat, stone, snow and strand do not, that the key sits inside the turf's measured range, that each scale fades to its stated mean before it goes under a couple of pixels, and that it is terrain-only with no texture or new uniform.
+
 ## every roof laid in courses — shingle rows with butt shadows, staggered joints and silvered shingles on every pitched roof, and two panel rows fewer
 
 the chapel, the farmhouses, the boathouses and the mill wore their roofs as single charcoal slabs — the largest flat surfaces left in the `near` frame.

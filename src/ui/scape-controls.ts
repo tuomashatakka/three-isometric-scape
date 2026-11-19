@@ -218,14 +218,10 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       title:    'sky & mist',
       controls: [
         range('atmosphere.fogDensity', 'fog density', 0, 0.9, 0.01),
-        // The cover is in the shadow's own product: switching the deck off
-        // takes the dapple with it.
-        toggled(
-          'sky clouds',
-          range('atmosphere.cloudCover', 'cover', 0, 1, 0.01),
-          0.62,
-          [ range('atmosphere.cloudShadow', 'shadow', 0, 1, 0.01) ],
-        ),
+        // The cover is in the shadow's own product, so one row is the deck and
+        // the dapple both: \`atmosphere.cloudShadow\` — how dark a cloud's
+        // shadow is, which is the light's physics — is a config leaf only.
+        toggled('sky clouds · deck and its shadow', range('atmosphere.cloudCover', 'cover', 0, 1, 0.01), 0.62),
         // One fog on the ground, whichever surface it lies on: the mist over the
         // land, and the steam off the open water in the weeks of the year it has.
         toggled('mist · ground, sea smoke, night bank', range('atmosphere.mistAmount', 'density', 0, 1, 0.01), 0.34),
@@ -243,9 +239,11 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         toggled('the sky in the water · sea, glitter, tarns', range('water.mirror', 'mirror', 0, 1.5, 0.01), 1),
         // The wash rides the sea state (its run-up scales with the wave), so
         // \`swash.reach\` — Hunt's coefficient, physics — is a config leaf only.
+        // A wake is the sea's answer to a hull, so it rides the sea state's row
+        // (\`water.ts\` scales it by the state up to 1): \`water.wakeStrength\`
+        // is a config leaf for \`--set\` and the url.
         range('water.state', 'sea state · swell, surf, caps, wash', 0, 2, 0.01),
         toggled('the tide', range('tide.range', 'spring range (m)', 0, 1.6, 0.01), 0.8),
-        toggled('boat wakes', range('water.wakeStrength', 'wake strength', 0, 1.5, 0.01), 0.78),
         toggled('running water · beck and fall', range('beck.flow', 'flow (m/s)', 0, 4, 0.05), 1.1),
       ],
     },
