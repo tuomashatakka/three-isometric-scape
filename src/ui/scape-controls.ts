@@ -194,8 +194,9 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       controls: [
         toggled('snow', range('season.snow', 'cover', 0, 1, 0.01), 0.85),
         range('season.turn', 'leaf turn', 0, 1, 0.01),
-        toggled('sea ice', range('season.ice', 'freeze', 0, 1, 0.01), 0.9),
-        toggled('floes', range('pack.cover', 'plates standing', 0, 1, 0.01, quality.floeCount > 0), 1),
+        // The plates standing on the sound are the sea ice's, so they follow
+        // its freeze; \`pack.cover\` stays a config leaf for \`--set\` and the url.
+        toggled('sea ice · freeze and floes', range('season.ice', 'freeze', 0, 1, 0.01), 0.9),
       ],
     },
     {
@@ -240,8 +241,9 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         // One row for the sky in every water: the sea's mirror and the clouds
         // in it, the glitter of the sun and the moon, and the tarns' polish.
         toggled('the sky in the water · sea, glitter, tarns', range('water.mirror', 'mirror', 0, 1.5, 0.01), 1),
-        range('water.state', 'sea state · swell, surf, caps', 0, 2, 0.01),
-        toggled('the wash', range('swash.reach', 'run-up (Hunt)', 0, 2, 0.01), 1),
+        // The wash rides the sea state (its run-up scales with the wave), so
+        // \`swash.reach\` — Hunt's coefficient, physics — is a config leaf only.
+        range('water.state', 'sea state · swell, surf, caps, wash', 0, 2, 0.01),
         toggled('the tide', range('tide.range', 'spring range (m)', 0, 1.6, 0.01), 0.8),
         toggled('boat wakes', range('water.wakeStrength', 'wake strength', 0, 1.5, 0.01), 0.78),
         toggled('running water · beck and fall', range('beck.flow', 'flow (m/s)', 0, 4, 0.05), 1.1),
