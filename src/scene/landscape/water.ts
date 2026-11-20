@@ -803,7 +803,7 @@ export function createWater (
     // coast is spared. The first is resolved on the cpu because it is a curve of
     // the wind every fragment would otherwise re-derive; the second is the
     // authored share, straight through. See `water-caps.ts`.
-    uCaps:     { value: 0 },
+    uCaps:     { value: new Vector2() },
     uCapsLee:  { value: config().water.whitecapLee },
     uSwellLee: { value: config().water.swellLee },
 

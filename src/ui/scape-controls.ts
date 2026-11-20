@@ -153,8 +153,8 @@ function toggled (
  * A row is a *look* someone would turn: how hard it rains, how much snow lies.
  * The rate a beacon turns at, the height of the haar's top, how far ahead of
  * the rain the ice veil runs, the lag of high water, the wind's bearing, the
- * camera's tilt — those are the physics of
- * the place, and live on as config leaves for `--set` and the url, not rows.
+ * camera's tilt, the latitude, the strength of the surface detail
+ * every material shares — those are the physics of the place, and live on as config leaves for `--set` and the url, not rows.
  * Every effect is one strength row; the panel only shrinks.
  */
 export function createScapeControls (quality: AtmosphereQuality): ControlSection[] {
@@ -173,7 +173,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         // The light that arrives second-hand: the sky a neighbour hides, and the
         // sunlit ground (or snow) lighting every face from below (\`ground-bounce.ts\`).
         toggled('indirect light', range('look.ao', 'occlusion and ground bounce', 0, 2, 0.01), 1),
-        range('terrain.detailGrain', 'surface detail · grain, boards, lichen', 0, 1, 0.01),
       ],
     },
     {
@@ -188,9 +187,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         toggled('year cycle', range('season.speed', 'years per minute', 0, 1, 0.01), 0.08),
         { ...range('weather.time', 'time in the front', 0, 1, 0.002), live: true },
         toggled('weather cycle', range('weather.speed', 'fronts per minute', 0, 1, 0.01), 0.14),
-        // Live: the arc is solved per frame, so dragging the coast north until
-        // the winter loses its daylight is a slider that tells the truth.
-        range('daylight.latitude', 'latitude °n', 0, 80, 0.5),
       ],
     },
     {

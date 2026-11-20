@@ -2,6 +2,17 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the sea goes dark — whitecaps sized by the wind's physics, not painted over the sound, and two panel rows fewer
+
+four fifths of the `default` and `far` frames are sea, and the sea read milky grey, paler than the land. zeroing knobs one at a time found what painted it: not the mirror, the haze, the deck or the water's colour, but the whitecaps. they were tuned to tear "a fifth to a third" of a sea that was up, held at 55% through a still, and drawn as their average at wide zoom, so 15% foam lay over the whole sound.
+
+- **Monahan's whitecaps.** [`landscape/water-caps.ts`](src/scene/landscape/water-caps.ts): the coverage is `W = 3.84e-6 · U^3.41` (`whitecapFraction`), with `wind.strength` at 9 m/s a unit (`WIND_METRES`) and the sea state carrying the wind it was raised by (`SEA_WIND`), so a still keeps its white. that is about a percent at force five and a tenth in a gale. the cut in `water.wave` is the share's own quantile (`capsCut`, off the measured tail), sent in the same uniform (`uCaps` is now a `vec2`). `water.whitecap` is the share of Monahan (1 is a real sea).
+- **refactor: one config leaf and two workarounds gone.** `water.whitecapOnset`, `HELD` and `CAP_MEAN` are gone. the cube is the onset, and the far average is the share at the white it carries.
+- **the panel: two rows fewer.** *latitude °n* and *surface detail · grain, boards, lichen* are now config leaves (`daylight.latitude` and `terrain.detailGrain`, reachable through `--set` and the url). they are the physics of the place, not a look.
+- **measured (phone, studio, tour):** mean luminance default 108.3 → 99.6, far 101.3 → 88.8, noon 105.2 → 93.9; a sound pixel in `far` (90,114,122) → (44,75,91). near, night and winter unmoved (no open sea at 1% caps that the frame resolves). census unchanged: default 134 draws, near 85, far 113, noon 134, night and winter 138.
+- **scape:map:** `caps  still 0.01  rest 0.01  gust 0.017  wind 0.9 (8.1 m/s)` (was 0.154 / 0.181 / 0.21).
+- **tests:** `water-caps.test.ts` checks that the curve is Monahan's (under 0.1% at 4 m/s, about a percent at 9, over 8% at 20), that the authored still is between 0.2% and 3% white, that it rises monotonically with the wind once the wind outblows the sea, that the cut climbs the map's tail as the share falls, and that the share and the cut travel together.
+
 ## the ground lights the walls — the sky's floor is the turf or the snow under the sun, one directional light out of every program, and a panel row fewer
 
 the hemisphere's floor was a fixed share of the meadow under the sky at every hour and season, and a second directional light, meadow-green and aimed up from the anti-sun, stood in for the sunlit ground. it lit the far side of every roof like a wall and bounced olive off a snowfield.

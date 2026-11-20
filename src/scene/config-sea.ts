@@ -175,7 +175,9 @@ export interface SeaConfig {
     surfExposure: number
 
     /**
-     * How much white the open sound carries when it is blowing, 0..1.
+     * How much white the open sound carries, as a share of Monahan's measured
+     * whitecap coverage at the wind (\`water-caps.ts\`): 1 is a real sea — about
+     * one percent white at force five, ten in a gale — and 0 is a glass sound.
      *
      * The switch for the whitecaps, and the only one: 0 is the unbroken sheet
      * of blue this scape had between its islands in a flat calm and in a near
@@ -192,30 +194,6 @@ export interface SeaConfig {
      * have a sheltered coast under a hard blow.
      */
     whitecap: number
-
-    /**
-     * The wind strength at which the whole open sound is breaking.
-     *
-     * Dimensionless, in `wind.strength`'s own units, and it is what makes a
-     * gust visible on the water. A sea does not whiten evenly from a calm — it
-     * holds, starts breaking somewhere around force four, and then whitens
-     * fast — so the curve below this number is where every gust in the scape
-     * lives and above it a harder wind adds nothing.
-     *
-     * **It is measured against the *gusted* strength, not the authored one**,
-     * and that is the trap this number fell into once already. `wind.strength`
-     * in the config is the wind at rest; what reaches `capsAmount` is
-     * `WindState.strength`, which is that times the front — up to
-     * `1 + wind.gust`. At 1.25 against an authored 0.9 the arithmetic looked
-     * right and the sea was saturated before the front arrived: `--poses blow`
-     * came out **identical to the byte** at 0.9 and at 2.4. It has to clear
-     * `wind.strength * (1 + wind.gust)` with room left over, which 2.2 against
-     * 1.31 does.
-     *
-     * At 0 the sea is fully capped at every wind, which is the honest reading
-     * of "there is no threshold" rather than a special case.
-     */
-    whitecapOnset: number
 
     /**
      * How much of the open sound's white a fully sheltered sea is spared, 0..1.
@@ -431,9 +409,8 @@ export const SCAPE_SEA: SeaConfig = {
     // has raised no sea at all behind it. 0.85 leaves sheltered water about a
     // seventh of the open sound's white, which reads as a slick rather than as
     // a hole cut in the water.
-    whitecap:      0.28,
-    whitecapOnset: 2.2,
-    whitecapLee:   0.85,
+    whitecap:    1,
+    whitecapLee: 0.85,
 
     // The swell's share, and the one number here that is set by what a harbour
     // looks like rather than by what the sound does. Just under a half: enough

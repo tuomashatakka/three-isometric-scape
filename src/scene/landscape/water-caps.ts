@@ -1,5 +1,4 @@
 import type { IUniform } from 'three'
-import { smoothstep } from 'threejs-scene'
 import type { ScapeConfig } from '../config.ts'
 
 
@@ -25,10 +24,9 @@ import type { ScapeConfig } from '../config.ts'
  * Three terms, and the first of them costs nothing at all:
  *
  * **the coverage** is the wind, through {@link capsAmount}, resolved on the cpu
- * into one uniform. Whitecaps are a threshold phenomenon — a sea does not whiten
- * gradually from a calm, it starts breaking somewhere around force four and then
- * whitens fast — which is what `whitecapOnset` says and what makes a gust
- * visible on the water rather than merely present in the numbers.
+ * into one uniform: Monahan's measured whitecap share at the wind's speed, which
+ * goes as its cube and a half — nothing in a breeze, a percent at force five, a
+ * tenth in a gale — and the cut in the map that whitens that share.
  *
  * **the field** is the fractal map the surface is already bound to, read in a
  * frame turned into the wind and squashed along it, then thresholded — torn
@@ -55,55 +53,91 @@ import type { ScapeConfig } from '../config.ts'
  */
 
 /**
- * How hard the sea is breaking, before anything about the fragment is known.
- *
- * `onset` is the wind strength at which the whole open sound is breaking, so the
- * curve below it is where every gust lives. Above it the sea is fully capped and
- * a harder wind adds nothing — which is the physics and also the thing that
- * stops a gust front from flashing the sound white every seven minutes.
- *
- * **`HELD` is why a still photograph of this scape still has white in it**, and
- * it is the surf's argument rather than a second one: `STILL` zeroes
- * `wind.strength` by definition, and a capture is nonetheless a photograph of a
- * coast with a sea running on it — the breakers are held at three quarters of
- * their authored strength for exactly this reason, in `water.ts`'s own `update`.
- * A swell steep enough to be tripping on every beach in the frame is a swell
- * with white on its crests out in the sound, and a scape that drew the first and
- * not the second would be claiming the wind died between the shore and the
- * water. Slightly under the surf's fraction because a whitecap is the one of the
- * two that genuinely needs the wind that is blowing now.
- *
- * The one honest way to a glassy sea is `water.whitecap` at zero, which is a
- * switch, is the only one, and is exactly what `blow-none` in `--poses blow`
- * asks for.
+ * Metres a second of wind per unit of `wind.strength`: the authored 0.9 is a
+ * fresh breeze, force five, and the 2.4 of `--poses blow` a whole gale.
  */
-const HELD = 0.55
+export const WIND_METRES = 9
 
-export function capsAmount (authored: number, onset: number, strength: number): number {
-  if (!(authored > 0))
-    return 0
+/**
+ * The wind, in `wind.strength`'s units, that raised a sea of state one.
+ *
+ * A sea state *is* a wind that has blown — the swell, the surf and the caps
+ * are three readings of it — so a still (which `STILL` takes in a dead calm)
+ * keeps the white its sea was raised with, and a harder wind than the sea
+ * remembers adds to it. Only `water.whitecap` at zero is a glass sound.
+ */
+export const SEA_WIND = 1.1
 
-  const blown = onset > 0
-    ? smoothstep(0, onset, Math.max(0, strength))
-    : 1
+/** The most of the sound the caps may take, however hard it blows: past this it is spindrift, not caps. */
+export const CAP_MAX = 0.3
 
-  return authored * (HELD + (1 - HELD) * blown)
+/**
+ * Monahan & O'Muircheartaigh (1980): the share of the sea surface white with
+ * breaking water at a 10 m wind of `metres` a second — `3.84e-6 · U^3.41`.
+ *
+ * The number this system was missing. The caps were tuned so "a fifth to a
+ * third" of a sea that was properly up was torn, and a still held 15% of the
+ * sound white — which, averaged at the wide frame, laid a milky sheet over
+ * four fifths of the picture: the sea read paler than the land. A real force
+ * five breaks on about one percent of the water and a gale on about ten, so a
+ * sea from the air is dark, with white *flecks* on it. That is the photograph.
+ */
+export function whitecapFraction (metres: number): number {
+  return metres > 0 ? Math.min(CAP_MAX, 3.84e-6 * metres ** 3.41) : 0
 }
 
 /**
- * The two uniforms this system owns, set together.
- *
- * Here rather than inline in the lake's `update` for the reason `setSwell` and
- * `setRoost` are where they are: the coverage curve and the lee strength are
- * one idea read once a frame, and the lake's update is already at the statement
- * ceiling the lint config enforces.
+ * How much of the sound is breaking: `scale` of Monahan's share at whichever
+ * is harder, the wind blowing now or the wind the sea `state` was raised by.
+ */
+export function capsAmount (scale: number, state: number, strength: number): number {
+  if (!(scale > 0) || !(state > 0))
+    return 0
+
+  const wind = Math.max(Math.max(0, strength), SEA_WIND * state)
+
+  return Math.min(CAP_MAX, scale * whitecapFraction(wind * WIND_METRES))
+}
+
+/**
+ * `water.wave`'s upper tail: the share of the map above a value, measured off
+ * the baked texture (mean 0.557; the 65th, 90th, 95th and 99th percentiles are
+ * 0.68, 0.725, 0.769 and 0.831; its maximum 0.89). Cutting the map at the
+ * value a share sits at whitens exactly that share of the water.
+ */
+const WAVE_TAIL: readonly (readonly [number, number])[] = [
+  [ 0.35, 0.68 ], [ 0.1, 0.725 ], [ 0.05, 0.769 ], [ 0.01, 0.831 ], [ 0.001, 0.875 ],
+]
+
+/** The cut in `water.wave` above which `share` of the sea lies — piecewise in the log of the share. */
+export function capsCut (share: number): number {
+  const s = Math.min(WAVE_TAIL[0][0], Math.max(WAVE_TAIL[WAVE_TAIL.length - 1][0], share))
+
+  for (let i = 1; i < WAVE_TAIL.length; i++) {
+    const [ s0, c0 ] = WAVE_TAIL[i - 1]
+    const [ s1, c1 ] = WAVE_TAIL[i]
+
+    if (s >= s1) {
+      const t = Math.log(s0 / s) / Math.log(s0 / s1)
+      return c0 + (c1 - c0) * t
+    }
+  }
+
+  return WAVE_TAIL[WAVE_TAIL.length - 1][1]
+}
+
+/**
+ * The two uniforms this system owns, set together: `uCaps` is the share and
+ * the cut it sits at, `uCapsLee` the lee's strength.
  */
 export function setCaps (
   uniforms: Record<string, IUniform>,
   water:    ScapeConfig['water'],
   strength: number,
 ): void {
-  uniforms.uCaps.value    = capsAmount(water.whitecap * water.state, water.whitecapOnset, strength)
+  const share = capsAmount(water.whitecap, water.state, strength)
+
+  uniforms.uCaps.value.set(share, capsCut(share))
   uniforms.uCapsLee.value = water.whitecapLee
 }
 
@@ -184,20 +218,6 @@ const CAP_DRIFT = 5.2
 const CAP_BANK = 0.7
 
 /**
- * How much of the water a fully capped sea has white on it, as a share of the
- * coverage dial.
- *
- * Read off the map's own distribution rather than chosen, and it has to be: it
- * is what keeps the far view and the near view the same brightness. At the held
- * coverage of a still the cut lands near `water.wave`'s seventieth percentile,
- * so something under a third of the sound is torn, and {@link CAP_TORN} takes
- * most of a half off the white on it — which multiplies out to a little over one
- * times the dial. If the cut or `CAP_TORN` ever move, this moves with them, and
- * the symptom of forgetting is a sea that changes brightness as you zoom.
- */
-const CAP_MEAN = 1.05
-
-/**
  * How white the whitest cap is.
  *
  * Under one, and it is the difference between foam and paint. `palette.foam` is
@@ -237,11 +257,11 @@ const CAP_TORN = 0.62
  * from the outside — see the cut below.
  */
 export const WATER_CAPS_GLSL = /* glsl */`
-  uniform float uCaps;
+  uniform vec2 uCaps;
   uniform float uCapsLee;
 
   float scapeCaps (vec2 ground, vec4 shelter, float open) {
-    if (uCaps <= 0.001 || open <= 0.001)
+    if (uCaps.x <= 0.0001 || open <= 0.001)
       return 0.0;
 
     // The lee, out of the shelter map the caller already fetched — which is a
@@ -270,42 +290,20 @@ export const WATER_CAPS_GLSL = /* glsl */`
     // across is a tight one — see the cut below.
     float paws = sin(rows.y * 1.7 + rows.x * 1.1) * sin(rows.x * 1.3 - rows.y * 0.8);
 
-    // The cut walks down as the sea gets up, and the two ends of it were
-    // measured off the map rather than chosen. Four octaves of seamless value
-    // noise is nothing like a ramp: water.wave spans 0.22 to 0.89 with a mean of
-    // 0.557, and its ninetieth, ninety-fifth and ninety-ninth percentiles are
-    // 0.725, 0.769 and 0.831. A cut written at 0.9 — which is what "the top
-    // tenth of nought-to-one" gives you — is above the texture's own maximum,
-    // and a build that wrote one drew a sound with nothing whatever on it while
-    // carrying a perfectly correct coverage in its uniform.
-    //
-    // So 0.68 is around the sixty-fifth percentile and 0.42 under the fifth, and
-    // the coverage dial walks between them. Deliberately low, and the failure
-    // that put it there is worth writing down: a cut up near the ninety-fifth
-    // leaves a dozen isolated white shapes floating on a flat sea, which reads
-    // as paper rather than as water. Broken water is *connected* — it covers a
-    // fifth to a third of a sea that is properly up — so the cut goes where that
-    // much of the distribution is, and CAP_TORN takes the paint back off.
-    // The weather over it, which is the only term here that does not repeat with
-    // the tile. scapeWeatherBank is declared by the cloud shadow's chunk, which
-    // water.ts compiles into this program ahead of this one — see CAP_BANK.
+    // The cut is the share's own quantile of the map (\`capsCut\`, on the cpu),
+    // nudged by the paws and walked down by the weather bank: a squall is
+    // water that has got up, not water that is whiter.
     float cut  = clamp(
-      mix(0.68, 0.42, uCaps) + 0.025 * paws - scapeWeatherBank(ground) * ${CAP_BANK.toFixed(2)},
+      uCaps.y + 0.025 * paws - scapeWeatherBank(ground) * ${CAP_BANK.toFixed(2)} * 0.25,
       0.3,
-      0.86
+      0.9
     );
-    float caps = smoothstep(cut, cut + 0.08, texture2D(uWaveMap, rows).r) * ${CAP_TORN.toFixed(2)};
+    float caps = smoothstep(cut, cut + 0.03, texture2D(uWaveMap, rows).r) * ${CAP_TORN.toFixed(2)};
 
-    // And where the frame is too wide to hold a cap, the same water is its own
-    // *average* instead of its own pattern — which is not a fallback, it is what
-    // a capped sea looks like from far enough away. A whitecap is a few metres
-    // across and the widest frame this camera opens is 1400 m, where a few
-    // metres is two pixels: what a pattern draws there is a scatter of isolated
-    // specks that reads as snow on the water, and what a sea actually does is go
-    // pale. CAP_MEAN is the area the streaks cover at the same coverage, so the
-    // two are the same amount of white and the crossover is not a step in
-    // brightness.
-    return mix(uCaps * ${CAP_MEAN.toFixed(2)}, caps, 1.0 - smoothstep(0.006, 0.014, fwidth(rows.y)))
+    // Where the frame is too wide to hold a cap, the same water is its own
+    // average: the share the streaks cover, at the white they carry, so the
+    // crossover is not a step in brightness.
+    return mix(uCaps.x * ${CAP_TORN.toFixed(2)}, caps, 1.0 - smoothstep(0.006, 0.014, fwidth(rows.y)))
       * open * run;
   }
 `

@@ -753,11 +753,9 @@ function hailLine (hail: MapStats['hail']): string {
  * gap between them is how much of the effect a viewer ever gets to watch
  * happen.
  *
- * The note is the failure that has no other symptom. With the onset at or under
- * the authored wind the sea is saturated before the gust arrives, so the front
- * crosses water that cannot answer it — and every frame of every capture still
- * looks entirely correct, because a fully capped sound is a perfectly
- * reasonable picture of a blow.
+ * The note is the failure that has no other symptom. With the sea state's own
+ * wind (`SEA_WIND`) above the gusted one the front crosses water that cannot
+ * answer it — and every frame of every capture still looks entirely correct.
  */
 /**
  * The sea state, and the two ways it says the sea is not doing what the readme
@@ -782,11 +780,11 @@ function swellLine (swell: MapStats['swell'], world: number): string {
 
 function capsLine (caps: MapStats['caps']): string {
   return `caps  still ${caps.still}  rest ${caps.rest}  gust ${caps.gust}  ` +
-    `onset ${caps.onset} vs wind ${caps.wind}  lee ${caps.lee}` +
+    `wind ${caps.wind} (${caps.metres} m/s)  lee ${caps.lee}` +
     (caps.rest <= 0
       ? '  <- the sound never breaks: whitecap is at zero'
       : caps.gust <= caps.rest + 0.001
-        ? '  <- saturated at rest: the gust front crosses a sea that cannot answer it'
+        ? '  <- the sea state outblows the gust: the front crosses a sea that cannot answer it'
         : '')
 }
 
