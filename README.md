@@ -298,6 +298,7 @@ src/
     ├── windows.ts                  lamplight in the farmstead windows, and the household that lights it
     ├── shore-lights.ts             the far coast's lit windows, as one camera-facing points draw
     ├── sky-light.ts                the sky as a light: a horizon band and an aspect in the hemisphere term every program evaluates
+    ├── ground-bounce.ts            the hemisphere's floor: turf or snow under the sun and sky that reach it
     ├── film.ts                     the grade as one function: in the lens with a chain, in the materials' tone mapping without
     ├── mist.ts                     the upright mist slices (the ground mist and the sea smoke are terms in aerial.ts)
     ├── haar.ts                     the night fog bank: the four gates that make one, and the column the fog chunk draws
@@ -684,10 +685,20 @@ the sky was two colours. three's hemisphere light mixes a ground colour and a sk
 
 every frame had an olive cast, and the haze only greyed it over. with the aerial perspective switched off, the opening frame's sea was rgb 85 96 80 and the far range was khaki. the cause was the light rig: a cream key light (`sunColor` 0xffe8bd), an olive floor to the hemisphere (`hemiGround` 0x3d4433) and the meadow-green bounce all land on every surface together. a photograph never shows that, because a camera divides out the colour of the light it was exposed under. a white card in the sun prints white, and what is left is the colour of the things.
 
-- **one gain, at the source.** [`white-balance.ts`](src/scene/white-balance.ts) takes the light on a flat white card (`cardIlluminant`: the key light by the sine of its height, plus the sky half of the hemisphere). it then works out a partial von kries gain (`whiteBalance`, `(lum / channel) ^ adapt` per channel, rescaled so the card's luminance is unchanged). `daylight.sample` multiplies that gain into every colour it hands out: the sun, the hemisphere, the sky dome, the haze, the water's mirror and the clouds. the bounce light takes it through `DaylightState.balance`. because it lands before any program sees a colour, it costs nothing on every tier.
+- **one gain, at the source.** [`white-balance.ts`](src/scene/white-balance.ts) takes the light on a flat white card (`cardIlluminant`: the key light by the sine of its height, plus the sky half of the hemisphere). it then works out a partial von kries gain (`whiteBalance`, `(lum / channel) ^ adapt` per channel, rescaled so the card's luminance is unchanged). `daylight.sample` multiplies that gain into every colour it hands out: the sun, the hemisphere, the sky dome, the haze, the water's mirror and the clouds. because it lands before any program sees a colour, it costs nothing on every tier.
 - **partial, as a camera on auto is.** `ADAPT_DAY` 0.7 in daylight, `ADAPT_NIGHT` 0.3 in the dark, and a golden sun takes back `GOLDEN_KEEP` (0.45) of it. an evening stays warm, a moonlit night stays blue, and noon prints neutral with a trace of warmth in the sunlit faces.
 - **the sun's hue is the air's.** `atmosphere.sunColor` is gone. `airlight(height)` is the sun's white seen through `AIR_COLUMN` × air mass of the same `AIR_SPECTRUM` the aerial perspective takes blue out of distance with. so the sun and the haze agree on what this air is, and the key light reddens as it sinks without a palette entry saying so.
-- **the hemisphere's floor is the meadow under the sky.** `atmosphere.hemiGround` is gone too. it is `palette.meadow × hemiSky × GROUND_BOUNCE` (0.7).
+- **the hemisphere's floor is the ground under the light.** `atmosphere.hemiGround` is gone too, and so are the fixed `GROUND_BOUNCE` (0.7 × the meadow under the sky) and the second directional light that stood in for the sunlit ground (`bounce`, aimed up from the anti-sun). see *the ground lights the walls* below.
+
+### the ground lights the walls
+
+a level ground of albedo `a` under sky irradiance `E_sky` and a key at sine-of-height `y` sends up radiance `a (E_sky + E_key·y) / π`, and a face looking down at it receives π times that. three's hemisphere term is irradiance in the same units as a directional light's `color · intensity · dotNL`, so [`ground-bounce.ts`](src/scene/ground-bounce.ts) writes the floor colour every frame as `a · (sky + key · keyIntensity · y · lit / skyIntensity)`:
+
+- **a is the ground as it lies** — `palette.meadow` blended to `palette.snow` by the season's cover (`SNOW_SHARE` 0.85 at full cover). a sunlit snowfield lights every eave, bough underside and shaded wall from below; a green summer does not.
+- **lit is the ground the key reaches** — the cloud shadow's mean darkness (`cloudCover × cloudShadow`) takes its cut, so broken sun warms the floor and overcast leaves the sky-lit ground alone.
+- **the indirect-light row** (`look.ao`) scales the key's share beside the sky occlusion; at zero the floor is the sky-lit ground and nothing else.
+
+it rides the hemisphere term every program already evaluates, so it is on every tier at no shader cost — and the directional light it replaced is out of every lit program. measured on the phone: the snowy noon yard 86.7 → 87.8 mean luminance (12.7% of pixels moved, all shaded faces over snow), the green noon yard 66.8 → 65.0 (the anti-sun lamp had been lighting the far side of every roof), the tour frames within a point of where they were.
 - `palette.sky` moved from 0x98a9b4 to 0x9eaab0. the blue it had been given to fight the olive cast is now the balance's to give.
 
 `white-balance.test.ts` states the claim. a white card at a summer noon prints at least 1.5 × (1 − `ADAPT_DAY`) nearer neutral than the raw light. no hour moves its luminance. an evening card stays warm (r/b > 1.15) and a night card stays cold (r/b < 0.9).

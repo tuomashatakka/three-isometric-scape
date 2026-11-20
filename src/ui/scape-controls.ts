@@ -165,9 +165,14 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       open:     true,
       controls: [
         range('look.intensity', 'film grade', 0, 1, 0.01),
-        toggled('glare', range('look.glare', 'bloom, streak and shafts', 0, 3, 0.01, quality.bloom), 1),
+        // The light through the deck is glare too — a bright gap smeared by the
+        // air rather than the glass — so it rides this row (\`shafts.strength\`
+        // is its share, a config leaf), and the row is live wherever either is.
+        toggled('glare', range('look.glare', 'bloom, streak, rays through the deck', 0, 3, 0.01, quality.bloom || quality.shaftSheets > 0), 1),
         toggled('lens', range('look.lens', 'defocus, fringe, halation, grain', 0, 2, 0.01), 1),
-        toggled('occlusion', range('look.ao', 'shade where things meet', 0, 2, 0.01), 1),
+        // The light that arrives second-hand: the sky a neighbour hides, and the
+        // sunlit ground (or snow) lighting every face from below (\`ground-bounce.ts\`).
+        toggled('indirect light', range('look.ao', 'occlusion and ground bounce', 0, 2, 0.01), 1),
         range('terrain.detailGrain', 'surface detail · grain, boards, lichen', 0, 1, 0.01),
       ],
     },
@@ -225,7 +230,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         // One fog on the ground, whichever surface it lies on: the mist over the
         // land, and the steam off the open water in the weeks of the year it has.
         toggled('mist · ground, sea smoke, night bank', range('atmosphere.mistAmount', 'density', 0, 1, 0.01), 0.34),
-        toggled('light through the deck', range('shafts.strength', 'brightness', 0, 0.6, 0.005, quality.shaftSheets > 0), 0.22),
         toggled('night sky · stars, aurora, moonlight', range('atmosphere.starlight', 'starlight', 0, 1.5, 0.01, quality.starCount > 0 || quality.auroraLayers > 0), 0.85),
         range('wind.strength', 'wind', 0, 3, 0.01),
       ],

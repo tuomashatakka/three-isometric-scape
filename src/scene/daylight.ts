@@ -12,16 +12,15 @@ export interface DaylightState {
   /** Unit vector from the focus toward the key light. Never points below the horizon. */
   direction: Vector3
 
-  sun:        Color
-  horizon:    Color
-  skyTop:     Color
-  hemiSky:    Color
-  hemiGround: Color
+  sun:     Color
+  horizon: Color
+  skyTop:  Color
+  hemiSky: Color
 
   /**
    * The camera's white balance for this instant, already multiplied into every
-   * colour above (`white-balance.ts`). Held for the lights built from a colour
-   * of their own, such as the ground bounce, which have to take the same gain.
+   * colour above (`white-balance.ts`). Held for anything built from a colour
+   * of its own, which has to take the same gain.
    */
   balance: Color
 
@@ -98,16 +97,6 @@ export const KEY_FLOOR = 0.16
  * daylight half of the cycle is exactly the light it always was.
  */
 const STARLIGHT = 0.03
-
-/**
- * The hemisphere's floor: the sky's light, come back off the meadow.
- *
- * It was `atmosphere.hemiGround`, an olive picked by hand, and it was a third
- * of what put the olive cast on every frame. The floor of the sky is the
- * ground's albedo under the sky's own light, so it is that, at the share of
- * the sky a meadow sends back up.
- */
-const GROUND_BOUNCE = 0.7
 
 /** How far the key light's colour is pulled to the moon's own face at full moon. */
 const MOON_TINT = 0.7
@@ -437,12 +426,10 @@ export function createDaylight (config: LiveConfig): Daylight {
   // overlay writes a palette entry, so a rebuild is what changes them — and
   // eight fresh Colors a frame to re-read a constant nobody can move is a cost
   // with no knob behind it.
-  const noonSun    = new Color()
-  const noonTop    = new Color(authored.atmosphere.skyTop)
-  const noonSky    = new Color(authored.palette.sky)
-  const noonHemi   = new Color(authored.atmosphere.hemiSky)
-  const noonGround = new Color(authored.palette.meadow).multiply(noonHemi)
-    .multiplyScalar(GROUND_BOUNCE)
+  const noonSun   = new Color()
+  const noonTop   = new Color(authored.atmosphere.skyTop)
+  const noonSky   = new Color(authored.palette.sky)
+  const noonHemi  = new Color(authored.atmosphere.hemiSky)
   const dusk      = new Color(authored.daylight.dusk)
   const night     = new Color(authored.daylight.night)
   const deepNight = new Color(authored.daylight.night).multiplyScalar(0.32)
@@ -458,7 +445,6 @@ export function createDaylight (config: LiveConfig): Daylight {
     horizon:      new Color(),
     skyTop:       new Color(),
     hemiSky:      new Color(),
-    hemiGround:   new Color(),
     balance:      new Color(1, 1, 1),
     sunStrength:  authored.atmosphere.sunStrength,
     hemiStrength: authored.atmosphere.hemiStrength,
@@ -527,7 +513,6 @@ export function createDaylight (config: LiveConfig): Daylight {
         .lerp(deepNight, dark)
       state.hemiSky.copy(noonHemi).lerp(dusk, golden * 0.4)
         .lerp(night, dark)
-      state.hemiGround.copy(noonGround).lerp(deepNight, dark * 0.8)
 
       // The key light's own budget, and the term that used to be a flat 0.05
       // floor standing in for a moon nobody had solved. It is three sources now
@@ -548,7 +533,6 @@ export function createDaylight (config: LiveConfig): Daylight {
       state.horizon.multiply(state.balance)
       state.skyTop.multiply(state.balance)
       state.hemiSky.multiply(state.balance)
-      state.hemiGround.multiply(state.balance)
 
       return state
     },
