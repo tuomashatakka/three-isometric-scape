@@ -2,6 +2,16 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the ground lights the walls — the sky's floor is the turf or the snow under the sun, one directional light out of every program, and a panel row fewer
+
+the hemisphere's floor was a fixed share of the meadow under the sky at every hour and season, and a second directional light, meadow-green and aimed up from the anti-sun, stood in for the sunlit ground. it lit the far side of every roof like a wall and bounced olive off a snowfield.
+
+- **the floor is physics.** [`ground-bounce.ts`](src/scene/ground-bounce.ts): `a · (sky + key · keyIntensity · y · lit / skyIntensity)`. the albedo is the turf blended to the snow by the season's cover, and `lit` is the cloud deck's mean shadow taken off. it rides the hemisphere term every program already evaluates, on every tier.
+- **cost cut: one directional light fewer** in every lit program on every tier (`bounce` and its target are gone from `atmosphere.ts`). `GROUND_BOUNCE` and `DaylightState.hemiGround` are gone too.
+- **the panel: one row fewer.** *light through the deck* rides *glare* (`shafts.strength` is now its share and a config leaf; the row is live where either bloom or shaft sheets exist). *occlusion* became *indirect light · occlusion and ground bounce*: `look.ao` scales the key's share of the floor too.
+- **measured (phone, studio):** snowy noon yard 86.7 → 87.8 mean luminance with 12.7% of pixels moved, all of them shaded faces over snow. green noon yard 66.8 → 65.0. tour: near 91.8 → 90.1 (9.3% moved), default/far/noon within a point, night and winter unmoved (no sun on the ground). census unchanged: default 134 draws, near 85, far 113, noon 134, night and winter 138; 28 programs.
+- **tests:** `ground-bounce.test.ts` checks that a snowfield's floor is over 4 × the turf's, that full shadow, a set key and a row at zero all leave the sky-lit ground, that the floor never exceeds the light falling on the ground, and that the result is deterministic.
+
 ## grass that has blades — the sward in tufts and wind-combed strands on every green, and two panel rows fewer
 
 turf was the largest surface in the `near` frame and the last that read as felt: a tint between the grit and the hummocks, with the comb of a laid sward nowhere in it.

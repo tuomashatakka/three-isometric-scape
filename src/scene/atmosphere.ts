@@ -1,7 +1,6 @@
 import {
   Color,
   DataTexture,
-  DirectionalLight,
   Fog,
   LinearFilter,
   RGBAFormat,
@@ -9,6 +8,7 @@ import {
   Vector3,
 } from 'three'
 import type {
+  DirectionalLight,
   HemisphereLight,
   Object3D,
   OrthographicCamera,
@@ -20,7 +20,8 @@ import type { SceneContext } from 'threejs-scene'
 import { standardLighting } from 'threejs-scene/modules/lighting'
 import { groundFogAmount, hazeRange, installAerialPerspective, packFogFar, packFogNear, seaSmokeShare } from './aerial.ts'
 import { haarAmount } from './haar.ts'
-import { seaSmokeAmount } from './season.ts'
+import { seaSmokeAmount, snowAmount } from './season.ts'
+import { groundBounce } from './ground-bounce.ts'
 import { installDirectFilm, packExposure } from './film.ts'
 import { installSkyLight } from './sky-light.ts'
 import { landmassTerrain } from './config.ts'
@@ -274,7 +275,9 @@ export function createAtmosphereLayer ({
   const direction   = sky.direction
   const sunPosition = new Vector3()
   const horizon     = new Color()
-  const bounceBase  = new Color(authored.palette.meadow)
+  const turf        = new Color(authored.palette.meadow)
+  const snow        = new Color(authored.palette.snow)
+  const floor       = new Color()
   const tallest     = Math.max(
     ...authored.archipelago.landmasses.map(
       landmass => landmassTerrain(authored, landmass).height,
@@ -293,13 +296,10 @@ export function createAtmosphereLayer ({
     },
     hemi: {
       skyColor:    authored.atmosphere.hemiSky,
-      groundColor: sky.hemiGround.getHex(),
+      groundColor: 0x000000,
       intensity:   authored.atmosphere.hemiStrength,
     },
   })
-
-  const bounce      = new DirectionalLight(bounceBase, authored.atmosphere.sunStrength * 0.25)
-  bounce.castShadow = false
 
   const fog             = new Fog(authored.palette.fog, 1, 2)
   const skyData         = new Uint8Array(SKY_STEPS * 4)
@@ -441,7 +441,21 @@ export function createAtmosphereLayer ({
     rig.sun.color.copy(sky.sun)
     rig.sun.intensity = sky.sunStrength
     rig.hemi.color.copy(sky.hemiSky)
-    rig.hemi.groundColor.copy(sky.hemiGround)
+    // The floor is the ground under this light, as it lies this week: turf or
+    // snow, sunlit or under the deck (`ground-bounce.ts`). It replaced a fixed
+    // olive and a second directional light aimed up from the anti-sun.
+    rig.hemi.groundColor.copy(groundBounce(floor, {
+      turf,
+      snow,
+      cover:        snowAmount(config().season.time) * config().season.snow,
+      sky:          sky.hemiSky,
+      skyIntensity: rig.hemi.intensity,
+      key:          sky.sun,
+      keyIntensity: sky.sunStrength,
+      keyHeight:    direction.y,
+      shade:        config().atmosphere.cloudCover * config().atmosphere.cloudShadow,
+      bounce:       config().look.ao,
+    }))
     rig.hemi.intensity = sky.hemiStrength * SKY_FILL
 
     rig.sun.position.copy(target).addScaledVector(direction, SUN_DISTANCE)
@@ -451,21 +465,6 @@ export function createAtmosphereLayer ({
 
     if (rig.sun.castShadow && shadowDue())
       fitShadow(rig.sun, camera, target, viewSize, tallest)
-
-    // The ground bounce carries a little of the key light's colour, so it warms
-    // through golden hour and goes cold at night instead of staying a fixed
-    // green fill that no longer belongs to any of the skies above it.
-    bounce.color.copy(bounceBase).multiply(sky.balance)
-      .lerp(sky.sun, 0.3)
-    // The moon's share is in it for the same reason: the bounce is the key
-    // light coming back off the ground, and on a clear night the key light is
-    // the moon rather than a floor.
-    bounce.intensity = config().atmosphere.sunStrength * 0.25 *
-      (0.12 + 0.88 * (sky.day + sky.moon))
-    bounce.position.copy(target).addScaledVector(direction, -SUN_DISTANCE)
-    bounce.position.y = target.y + SUN_DISTANCE * 0.28
-    bounce.target.position.copy(target)
-    bounce.target.updateMatrixWorld()
   }
 
   /** The clock at the last frame, to tell a scrub from the drift of the cycle. */
@@ -483,7 +482,6 @@ export function createAtmosphereLayer ({
       if (rig)
         rig.sun.castShadow = quality.shadows
 
-      ctx.scene.add(bounce, bounce.target)
       ctx.scene.fog        = fog
       ctx.scene.background = skyTexture
 
@@ -512,9 +510,6 @@ export function createAtmosphereLayer ({
       if (ownerScene?.background === skyTexture)
         ownerScene.background = previousBackground
 
-      bounce.removeFromParent()
-      bounce.target.removeFromParent()
-      bounce.dispose()
       skyTexture.dispose()
       lighting.dispose?.()
 

@@ -469,8 +469,10 @@ export function createShaftsLayer ({
     },
 
     update () {
-      const { atmosphere, camera, shafts, terrain } = config()
-      const amount                                  = shaftAmount(shafts.strength, atmosphere.cloudCover, daylight.day) * shaftFade(camera.viewSize)
+      const { atmosphere, camera, look, shafts, terrain } = config()
+      // The deck's rays are glare in the air: `shafts.strength` is their share
+      // of the glare row, so the one row turns the bloom and the rays together.
+      const amount = shaftAmount(shafts.strength * look.glare, atmosphere.cloudCover, daylight.day) * shaftFade(camera.viewSize)
 
       mesh.visible = amount > VISIBLE_AT
 
