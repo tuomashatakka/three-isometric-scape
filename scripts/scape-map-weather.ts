@@ -26,7 +26,7 @@ import {
 } from '../src/scene/halo.ts'
 import { stormLive, stormPeak, stormSchedule, stormSites } from '../src/scene/storm.ts'
 import { snowAmount } from '../src/scene/season.ts'
-import { capsAmount } from '../src/scene/landscape/water-caps.ts'
+import { WIND_METRES, capsAmount } from '../src/scene/landscape/water-caps.ts'
 import { swellStats } from '../src/scene/landscape/swell.ts'
 import type { SwellStats } from '../src/scene/landscape/swell.ts'
 import { moonGlint, phosphorAmount, trackAmount } from '../src/scene/landscape/water-gleam.ts'
@@ -310,11 +310,11 @@ export interface WeatherStats {
    * that says whether a gust front is something the water can answer.
    */
   caps: {
-    still: number
-    rest:  number
-    gust:  number
-    onset: number
-    wind:  number
+    still:  number
+    rest:   number
+    gust:   number
+    metres: number
+    wind:   number
 
     /** How much of the white the lee of a coast is spared, 0..1. */
     lee: number
@@ -683,10 +683,9 @@ export function shaftStats (config: ScapeConfig): WeatherStats['shafts'] {
  * picture cannot reach without a pose that names a wind.
  *
  * `rest` against `gust` is the finding, and the failure it catches has no other
- * symptom: if `whitecapOnset` is set at or under the authored `wind.strength`,
- * the sound is already saturated when nothing is gusting, the front crosses
- * water that cannot answer it, and every frame of every capture still looks
- * entirely correct.
+ * symptom: if the sea state's own wind (`SEA_WIND`) stands above the gusted
+ * one, the front crosses water that cannot answer it, and every frame of every
+ * capture still looks entirely correct.
  */
 /**
  * The sea state, measured off the config rather than described.
@@ -713,16 +712,16 @@ export function seaStats (config: ScapeConfig): WeatherStats['swell'] {
 }
 
 export function capsStats (config: ScapeConfig): WeatherStats['caps'] {
-  const { whitecap, whitecapOnset, whitecapLee } = config.water
-  const { strength, gust }                       = config.wind
+  const { whitecap, state, whitecapLee } = config.water
+  const { strength, gust }               = config.wind
 
   return {
-    still: round(capsAmount(whitecap, whitecapOnset, 0), 3),
-    rest:  round(capsAmount(whitecap, whitecapOnset, strength), 3),
-    gust:  round(capsAmount(whitecap, whitecapOnset, strength * (1 + gust)), 3),
-    onset: round(whitecapOnset, 2),
-    wind:  round(strength, 2),
-    lee:   round(whitecapLee, 2),
+    still:  round(capsAmount(whitecap, state, 0), 3),
+    rest:   round(capsAmount(whitecap, state, strength), 3),
+    gust:   round(capsAmount(whitecap, state, strength * (1 + gust)), 3),
+    metres: round(strength * WIND_METRES, 1),
+    wind:   round(strength, 2),
+    lee:    round(whitecapLee, 2),
   }
 }
 

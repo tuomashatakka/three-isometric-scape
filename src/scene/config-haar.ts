@@ -89,7 +89,7 @@ export interface HaarConfig {
      *
      * Dimensionless, in `wind.strength`'s own units, and it is measured against
      * the **gusted** strength rather than the authored one — the same trap
-     * `water.whitecapOnset` fell into once already. What reaches
+     * the whitecaps' retired onset fell into once already. What reaches
      * `haarAmount` is `WindState.strength`, which is the authored wind
      * times the front, up to `1 + wind.gust`. At 1.9 against an authored 0.9
      * gusting to about 1.2 the bank is roughly half out at rest and thins

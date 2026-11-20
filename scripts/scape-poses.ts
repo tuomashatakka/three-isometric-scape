@@ -1158,8 +1158,9 @@ export const TOURS: Record<string, Pose[]> = {
    * Aimed at the one thing the tour genuinely cannot reach rather than at
    * something it merely renders small: `STILL` zeroes `wind.strength` by
    * definition, so every capture this scape has ever taken was taken in a dead
-   * calm. The whitecaps are held at `HELD` through that calm for the surf's own
-   * reason — see `landscape/water-caps.ts` — but the *wind's* half of them,
+   * calm. The whitecaps keep the wind their sea state was raised by
+   * (`SEA_WIND` in `landscape/water-caps.ts`) through that calm, but the
+   * *wind's* half of them,
    * which is the interesting half, is invisible to any pose that does not name a
    * wind after the still has zeroed it. These do, which is what `set` running
    * after `STILL` in `shotUrl` is for.
@@ -1167,11 +1168,9 @@ export const TOURS: Record<string, Pose[]> = {
    * **The three winds are not the three you would first write down**, and the
    * pair that got cut is the finding. `wind.strength` is the wind *at rest* and
    * what reaches `capsAmount` is that times the gust front — which at the parked
-   * `wind.time` is already about a third up. So 0.9 against 1.6 is 1.2 against
-   * 2.1 against an onset of 1.25: both over it, both fully capped, and the two
-   * frames came out identical to the byte. The bracket has to straddle the
-   * onset, not sit above it twice, so `blow-light` is a breeze that barely lifts
-   * the sea off its held floor and `blow-hard` is past saturation.
+   * `wind.time` is already about a third up. Monahan's cube means a breeze
+   * changes nothing the sea state had not already raised (`blow-light`), a
+   * fresh wind adds a percent, and a gale (`blow-hard`) whitens a tenth.
    *
    * `blow-lee` is the half you can see from across the room, and it needs its
    * own frame because a lee is a *local* thing: the wind runs toward roughly

@@ -85,7 +85,7 @@ describe('haarAmount', () => {
   })
 
   /**
-   * The trap `water.whitecapOnset` fell into once already, stated here as a fact
+   * The trap the whitecaps' retired onset fell into once already, stated here as a fact
    * about the numbers rather than as prose. `STILL` zeroes `wind.strength`, so
    * every capture this scape takes is taken in a dead calm — set the scour at or
    * under the wind that is actually blowing and the bank exists only in
