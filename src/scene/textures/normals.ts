@@ -91,4 +91,52 @@ export function normalFromHeight (
   return out
 }
 
+/**
+ * How hard the sea's baked slope leans, per unit of the wave map's height a
+ * texel. Measured, not chosen: the ripple used to tilt its normal by the
+ * noise's *value* (`v - 0.5`, a mean of 0.128 a component), and this puts the
+ * slope's mean component at the same 0.13, so the sea is exactly as rough as it
+ * was — only now the tilt is a gradient, and an iso-line of the noise is no
+ * longer one facet turned one way (`normals.test.ts`).
+ */
+export const WAVE_RELIEF = 19
+
+/**
+ * The wave map: the height kept in red, its own slope in green and blue.
+ *
+ * The lake's ripple used to read the noise's *value* as a slope, one read for x
+ * and another for z. A value is not a slope: every contour of the field got the
+ * same tilt, so the mirror drew the noise's iso-lines across the sea — the
+ * marbled, wood-grain rings of every wide frame. A height field's slope is its
+ * gradient, which is curl-free and turns the normal across a contour rather
+ * than along it.
+ *
+ * A 3×3 Sobel rather than a central difference, because the height is bytes:
+ * a two-texel difference of an 8-bit field quantizes to a handful of steps,
+ * and a handful of slopes is the terracing this replaces. Sobel averages four.
+ * Alpha is left alone; red is never touched, so every reader of the height
+ * (the slicks, the caps, the race) reads the field it always did.
+ */
+export function slopeFromHeight (source: Uint8Array, size: number, relief = WAVE_RELIEF): Uint8Array {
+  const out    = new Uint8Array(source)
+  const period = Math.max(1, size - 1)
+
+  const heightAt = (x: number, y: number): number =>
+    source[((y % period + period) % period * size + (x % period + period) % period) * 4] / 255
+
+  for (let y = 0; y < size; y += 1)
+    for (let x = 0; x < size; x += 1) {
+      const dx = (heightAt(x + 1, y - 1) + 2 * heightAt(x + 1, y) + heightAt(x + 1, y + 1) -
+        heightAt(x - 1, y - 1) - 2 * heightAt(x - 1, y) - heightAt(x - 1, y + 1)) / 8
+      const dy = (heightAt(x - 1, y + 1) + 2 * heightAt(x, y + 1) + heightAt(x + 1, y + 1) -
+        heightAt(x - 1, y - 1) - 2 * heightAt(x, y - 1) - heightAt(x + 1, y - 1)) / 8
+      const index = (y * size + x) * 4
+
+      out[index + 1] = encode(Math.max(-1, Math.min(1, dx * relief)))
+      out[index + 2] = encode(Math.max(-1, Math.min(1, dy * relief)))
+    }
+
+  return out
+}
+
 import { hypot3 } from '../hypot.ts'

@@ -575,6 +575,7 @@ const WATER_ROOST_NORMAL = /* glsl */`(1.0 + roost * uRoostChop * 2.6)`
 
 const WATER_NORMAL_FRAGMENT_LITE = /* glsl */`
   #include <normal_fragment_begin>
+  vec3 deckNormal = normal;
   normal = normalize(normal + vec3(
     -(swellX - swell) * uWaveHeight * 2.4,
     0.0,
@@ -594,16 +595,17 @@ const WATER_NORMAL_FRAGMENT = /* glsl */`
   // elevation, and then the whole sea blows out at once.
   vec2 rippleUv = vWaterGround * uRippleScale;
   //
-  // Both reads are untiled. A 34 m ripple tile on one lattice was the sea's half
-  // of the wallpaper — forty-five identical rows of the same normal from coast
-  // to coast, read off the specular as plainly as off the albedo.
-  float ripplA = 0.5;
-  float ripplB = 0.5;
+  // The ripple is a slope, not a height: the map carries its own gradient in
+  // green and blue, and the normal tilts by that. It used to tilt by the
+  // noise's *value*, one read for x and another for z, so every iso-line of
+  // the field was one facet turned one way and the mirror drew the contours
+  // across the sea as marbled rings. Two octaves, both untiled — a 34 m tile
+  // on one lattice was forty-five identical rows of the same normal.
+  vec2 ripple = vec2(0.0);
 
-  if (rippleKeep > 0.0) {
-    ripplA = mix(0.5, scapeUntiled(uWaveMap, rippleUv + uRippleOffset), rippleKeep);
-    ripplB = mix(0.5, scapeUntiled(uWaveMap, rippleUv * 1.73 - uRippleOffset * 1.31), rippleKeep);
-  }
+  if (rippleKeep > 0.0)
+    ripple = (scapeUntiledSlope(uWaveMap, rippleUv + uRippleOffset)
+      + scapeUntiledSlope(uWaveMap, rippleUv * 1.73 - uRippleOffset * 1.31)) * 0.7071 * rippleKeep;
 
   // A slick has had its capillary waves damped flat; the chop keeps them all.
   float rippleGain = uRippleStrength * ${SLICK_RIPPLE_GLSL};
@@ -611,10 +613,18 @@ const WATER_NORMAL_FRAGMENT = /* glsl */`
   // Everything the surface does to its own normal goes away under ice, in one
   // multiply: a shelf is flat, and a ripple normal on it is the giveaway that
   // the freeze is paint rather than a state the water is in.
-  normal = normalize(normal + vec3(
-    (ripplA - 0.5) * rippleGain - (swellX - swell) * uWaveHeight * 2.4,
+  // The deck is read along a ray the ripple alone has bent (water-gleam.ts):
+  // the swell's tilt, dragged ninety metres up to the deck and over again by
+  // a rise squared, folded the cloud image into caustic rings — the marbled
+  // wood grain over every frame that resolved the swell. A real sea averages
+  // that fold inside every pixel; this one shades the swell through the sky's
+  // gradient and its own faces instead, and lets the ripple streak the image.
+  vec3 deckNormal = normalize(normal - vec3(ripple.x, 0.0, ripple.y) * rippleGain * (1.0 - iceCover));
+
+  normal = normalize(normal - vec3(
+    ripple.x * rippleGain + (swellX - swell) * uWaveHeight * 2.4,
     0.0,
-    (ripplB - 0.5) * rippleGain - (swellZ - swell) * uWaveHeight * 2.4
+    ripple.y * rippleGain + (swellZ - swell) * uWaveHeight * 2.4
   ) * (1.0 - iceCover) * ${WATER_ROOST_NORMAL});
 `
 

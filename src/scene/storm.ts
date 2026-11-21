@@ -610,8 +610,11 @@ export function createStormFlashes ({
       const storm    = now.storm
       const viewSize = deckViewSize(camera, config)
       const strikes  = lit(weather.phase, storm.rate, storm.flash)
-      const glowSeen = storm.strength * stormReveal(viewSize, now.camera) * now.weather.rain
-      const forkSeen = storm.fork * stormForkReveal(viewSize, now.camera) * now.weather.rain
+      // Lightning lights the squall's own cloud, so it rides that row:
+      // \`storm.strength\` and \`storm.fork\` are shares of the squall.
+      const squall   = Math.max(0, now.squall.strength)
+      const glowSeen = storm.strength * squall * stormReveal(viewSize, now.camera) * now.weather.rain
+      const forkSeen = storm.fork * squall * stormForkReveal(viewSize, now.camera) * now.weather.rain
       const spread   = archipelago.size * storm.reach
 
       // Lit by the hour, like the shower on the water: the channel is white and

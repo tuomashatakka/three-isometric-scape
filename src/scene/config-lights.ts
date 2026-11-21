@@ -196,7 +196,7 @@ export const SCAPE_LIGHTS: LightsConfig = {
   // enough to feel responsive without reading as jitter.
   cursorLight: {
     color:     0xffa84c,
-    intensity: 0.6,
+    intensity: 0.63,
     distance:  15,
     decay:     2,
     lift:      2,

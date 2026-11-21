@@ -3,7 +3,7 @@ import { SCAPE_CONFIG } from '../config.ts'
 import { SURVEY_BUDGET_MS, surveyArchipelago } from './archipelago.ts'
 import { solveCoastline } from './coast.ts'
 import { MAX_DEPTH } from './shore-mask.ts'
-import { WADE, surveyShoals } from './shoal.ts'
+import { DEEPEN, MEANDER, WADE, edgeWander, meander, surveyShoals } from './shoal.ts'
 
 
 const archipelago       = surveyArchipelago(SCAPE_CONFIG)
@@ -135,8 +135,9 @@ describe('a bank can be seen', () => {
       // Against the bank's whole bounding footprint, which is the honest
       // denominator: the rectangle is as wide at the root as it is at the tip
       // and the bank is not, so a third of it is what a spit that fans out can
-      // ever fill.
-      expect(shelf / total).toBeGreaterThan(0.3)
+      // ever fill — and a quarter since the crest sinks seaward (`DEEPEN`),
+      // which spends the tip on fading out rather than on a hard end.
+      expect(shelf / total).toBeGreaterThan(0.25)
       expect(shelf).toBeGreaterThan(3_000)
     }
   })
@@ -190,5 +191,38 @@ describe('the banks are deterministic', () => {
   test('the field is a pure function of the point', () => {
     for (const point of footprint(0))
       expect(shoals.heightAt(point.x, point.z)).toBe(shoals.heightAt(point.x, point.z))
+  })
+})
+
+describe('a bank is laid by a drift, not ruled', () => {
+  test('the crest leaves the coast on the axis and wanders off it seaward', () => {
+    expect(meander(0, 1.3)).toBe(0)
+
+    let most = 0
+    for (let at = 0; at <= 1; at += 0.01)
+      most = Math.max(most, Math.abs(meander(at, 1.3)))
+
+    expect(most).toBeGreaterThan(MEANDER * 0.3)
+    expect(most).toBeLessThanOrEqual(MEANDER)
+  })
+
+  test('the flanks scallop, and never pinch the bank shut', () => {
+    const gains = Array.from({ length: 240 }, (_, along) => edgeWander(along, 0.7))
+
+    expect(Math.min(...gains)).toBeGreaterThan(0.6)
+    expect(Math.max(...gains) - Math.min(...gains)).toBeGreaterThan(0.2)
+  })
+
+  test('the crest sinks seaward, so the shallow tint fades along the spit', () => {
+    const [ first ] = banks
+    const midway    = first.length * 0.4
+    const x         = first.root.x + Math.cos(first.bearing) * midway
+    const z         = first.root.z + Math.sin(first.bearing) * midway
+    const root      = shoals.heightAt(first.root.x, first.root.z)
+
+    expect(DEEPEN).toBeGreaterThan(0)
+    // Off the axis the meander may have carried the crest; the root's height
+    // is the most the bank ever stands, anywhere along it.
+    expect(shoals.heightAt(x, z)).toBeLessThan(root)
   })
 })

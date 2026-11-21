@@ -794,6 +794,16 @@ from the archipelago frame the whole picture was grey. the culprit was found by 
 
 **the panel, two rows and a section fewer.** *the sky in the water · sea, glitter, tarns* (`water.mirror`) turns the sea's mirror, the sun's glitter (`sunGlint` = `water.sparkle` × mirror), the moon's track (a share of the glitter) and the tarns' polish (`tarn.mirror` × mirror). *glitter · sun and moon* and *the tarns* are config leaves now; *running water* joined the sea, and *fresh water* is gone.
 
+## the sea reads as water
+
+at every frame that resolves the swell the sea was marbled with closed contour rings, and a pale ruled bar ran off the lee of every island. both were found by zeroing knobs: `water.mirror=0` and `water.waveHeight=0` each took the rings away, `shoals.reach=0` the bars.
+
+- **the deck along the ripple's ray.** the mirror read the deck along the ray the *swell* had bent, and a degree of tilt drags that image `2 · deck / rise²` metres: the swell folded the cloud field into caustic rings. the deck is now read along `deckNormal`, the ripple's alone ([`water.ts`](src/scene/landscape/water.ts), [`water-gleam.ts`](src/scene/landscape/water-gleam.ts)); the swell shades the mirror through the dome's gradient and its own faces.
+- **the ripple is a slope.** `water.wave` carries its own Sobel gradient in green and blue (`slopeFromHeight` in [`normals.ts`](src/scene/textures/normals.ts)), and the ripple tilts by it (`scapeUntiledSlope`, the second read's gradient turned back through the transpose). it used to tilt by the noise's value, which made every iso-line one facet. same four fetches.
+- **spits laid by a drift.** the shoal banks ([`shoal.ts`](src/scene/landscape/shoal.ts)) meander off their axis, scallop at the flanks, and sink seaward (`DEEPEN`), so the shallow tint fades along them instead of ending in a ruled tip.
+
+**the panel, two rows fewer.** lightning rides *far squall* (`storm.strength` and `storm.fork` are shares of `squall.strength`); the carried lamp rides *lamps* (`cursorLight.intensity` is a share of `windows.glow`).
+
 ## the coast across the water is a mountain range
 
 from the archipelago frame the far coast — a quarter of the picture on both flanks — read as radial brush strokes: the sweep had four rings over the six hundred metres of hinterland, so every colour and normal there was stretched along the bearing between rings 150 m apart, and its rock faces were one flat grey. and over the sea, the cloud shadow tiled at 92 m, so the open water was spotted like a leopard with sixteen shadows across the frame.

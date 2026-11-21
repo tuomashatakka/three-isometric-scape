@@ -206,12 +206,13 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       controls: [
         toggled('rain', range('weather.rain', 'how hard it falls · and the wet it leaves', 0, 1, 0.01, quality.rainDrops > 0), 0.9),
         toggled('hail', range('weather.hail', 'how hard it comes down', 0, 1, 0.01, quality.hailStones > 0), 0.75),
-        toggled('far squall', range('squall.strength', 'how heavy it lies', 0, 1, 0.01, quality.squallSheets > 0), 0.7),
+        // The lightning lights the squall's cloud, so it rides this row:
+        // \`storm.strength\` and \`storm.fork\` are its shares, config leaves.
+        toggled('far squall · and its lightning', range('squall.strength', 'how heavy it lies', 0, 1, 0.01, quality.squallSheets > 0 || quality.stormFlashes > 0), 0.7),
         // The bow and the halo come out on the edges of a band, so the front's
         // scrubber is what walks them in and out.
         // One row for both arcs: the ring is a share of the bow (`haloStrength`).
         toggled('rainbow & halo', range('rainbow.strength', 'how brightly they stand', 0, 1, 0.01, quality.rainbowArcs > 0 || quality.haloArcs > 0), 0.85),
-        toggled('lightning', range('storm.strength', 'how the cloud lights', 0, 1, 0.01, quality.stormFlashes > 0), 0.85),
       ],
     },
     {
@@ -254,12 +255,11 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         toggled('gulls', range('birds.flight', 'aloft', 0, 1, 0.01, quality.birdCount > 0), 0.85),
         toggled('seals', range('haulout.ashore', 'hauled out', 0, 1, 0.01, quality.sealCount > 0), 0.78),
         toggled('chimneys', range('hearth.smoke', 'smoke', 0, 1, 0.01, quality.hearthPuffs > 0), 0.52),
-        // One row for every lamp ashore, near and far: the far coast's glow is
-        // a share of this one. Occupancy, a kiln's draw and a cart's haul are
+        // One row for every lamp, near, far and carried: the far coast's glow
+        // and the cursor's lantern (\`cursorLight.intensity\`) are shares of it. Occupancy, a kiln's draw and a cart's haul are
         // the place's physics, and live on as config leaves.
-        toggled('lamps ashore', range('windows.glow', 'near and far', 0, 2, 0.01), 0.95),
+        toggled('lamps · ashore, far and carried', range('windows.glow', 'glow', 0, 2, 0.01), 0.95),
         toggled('coastal light', range('beacon.lamp', 'lamp', 0, 2, 0.01, quality.beaconBlades > 0), 0.85),
-        toggled('carried lamp', range('cursorLight.intensity', 'strength', 0, 2, 0.01, quality.cursorLight), 0.6),
       ],
     },
     {
