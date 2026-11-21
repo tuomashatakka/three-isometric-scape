@@ -254,12 +254,12 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       controls: [
         toggled('gulls', range('birds.flight', 'aloft', 0, 1, 0.01, quality.birdCount > 0), 0.85),
         toggled('seals', range('haulout.ashore', 'hauled out', 0, 1, 0.01, quality.sealCount > 0), 0.78),
-        toggled('chimneys', range('hearth.smoke', 'smoke', 0, 1, 0.01, quality.hearthPuffs > 0), 0.52),
-        // One row for every lamp, near, far and carried: the far coast's glow
-        // and the cursor's lantern (\`cursorLight.intensity\`) are shares of it. Occupancy, a kiln's draw and a cart's haul are
-        // the place's physics, and live on as config leaves.
-        toggled('lamps · ashore, far and carried', range('windows.glow', 'glow', 0, 2, 0.01), 0.95),
-        toggled('coastal light', range('beacon.lamp', 'lamp', 0, 2, 0.01, quality.beaconBlades > 0), 0.85),
+        // One row for every household and every lamp: the far coast's glow, the
+        // cursor's lantern (\`cursorLight.intensity\`), the coastal light
+        // (\`beacon.lamp\`) and the chimneys (\`hearth.smoke\`) are shares of
+        // it. Occupancy, a kiln's draw and a cart's haul are the place's
+        // physics, and live on as config leaves.
+        toggled('lamps & hearths · ashore, far, carried, the light', range('windows.glow', 'glow', 0, 2, 0.01), 0.95),
       ],
     },
     {

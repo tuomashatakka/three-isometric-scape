@@ -707,7 +707,8 @@ export interface SitesConfig {
     turn: number
 
     /**
-     * Lamp brightness. 0 is a light that was never lit.
+     * Lamp brightness, as a share of `windows.glow`: the overlay's one lamps
+     * row lights the coast's lamp with the farm's. 0 is a light never lit.
      *
      * Scaled by how far the sun is down, so the lamp comes up through dusk and
      * out again at dawn without this being touched — see `scene/beacon.ts`.
@@ -949,7 +950,7 @@ export const SCAPE_SITES: SitesConfig = {
     minRock:   6,
     freeboard: 1.2,
     turn:      4,
-    lamp:      0.34,
+    lamp:      0.358,
 
     // Measured rather than chosen: the optic's warm white is ~0.76 linear and
     // the lamp opens at 0.34 of it, so the frame saw ~0.26 against a threshold

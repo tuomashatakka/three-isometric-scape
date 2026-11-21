@@ -86,7 +86,9 @@ export interface LightsConfig {
   hearth: {
 
     /**
-     * How thick the smoke stands over the roofs, 0..1.
+     * How thick the smoke stands over the roofs, 0..1, as a share of
+     * `windows.glow`: a hearth is a household awake, like its lamp, so the
+     * overlay's lamps row banks both.
      *
      * 0 is a farm with cold hearths, and it is the switch — there is no plume to
      * draw when this is zero. How much harder the fires are banked in the cold
@@ -215,7 +217,7 @@ export const SCAPE_LIGHTS: LightsConfig = {
   // the year is a different plume rather than a third of them being the same
   // fully opaque one.
   hearth: {
-    smoke:  0.62,
+    smoke:  0.653,
     rise:   11,
     speed:  1.6,
     drag:   0.55,

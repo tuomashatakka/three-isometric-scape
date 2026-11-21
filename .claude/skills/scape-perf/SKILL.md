@@ -86,7 +86,7 @@ exact — the procedure is in `scape-verify`.
   extend it with the new field.
 - **shader tap counts** — `detailTaps` (1 = the lite ground path on
   minimal/mobile: one soil read for grain + relief normal; 6 = that + relief march + macro octave + puddles), `reliefSteps`,
-  `lensTaps`: fill-rate levers, each compiled per tier.
+  `lensTaps`, `contactSlots` (spheres a fragment reads from its contact cell, `contact.ts`; close frames only): fill-rate levers, each compiled per tier.
 - **world-sized sheets** (mist slices, clouds) — each is a
   full-frame blend. If the thing is a function of where the fragment is, it is a
   term in the aerial chunk instead (`groundFog`, `seaSmoke` and the haar's column in `aerial.ts`

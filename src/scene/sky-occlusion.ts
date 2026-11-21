@@ -1,5 +1,6 @@
 import { DataTexture, LinearFilter, Matrix4, RGBAFormat, UnsignedByteType, Vector2, Vector3, Vector4 } from 'three'
-import type { BufferGeometry, IUniform, InstancedMesh, Material, Mesh, Object3D } from 'three'
+import type { BufferGeometry, Camera, IUniform, InstancedMesh, Material, Mesh, Object3D } from 'three'
+import { createContact } from './contact.ts'
 
 /**
  * How much of the sky each point of the scape can see, baked once.
@@ -53,8 +54,11 @@ export interface SkyOcclusion {
   /** Bake from the terrain and from everything standing on it. Replaces any earlier bake. */
   bake(ground: readonly Object3D[], standing: readonly Object3D[]): void
 
-  /** The strength, `look.ao`: 0 turns both the shade and the march's shadow off. */
-  update(strength: number): void
+  /**
+   * The strength, `look.ao`: 0 turns the shade, the contact and the march's
+   * shadow off. With a camera, the contact slots follow its focus and frame.
+   */
+  update(strength: number, camera?: Camera): void
   dispose(): void
 }
 
@@ -83,6 +87,22 @@ export interface SkyGrid {
  */
 export const SKY_REACHES = [ 1.2, 3.5, 9, 26, 70 ] as const
 export const SKY_WEIGHTS = [ 0.42, 0.38, 0.32, 0.45, 0.4 ] as const
+
+/**
+ * The seat, on the solid's side: a face that is not turned to the sky loses up
+ * to {@link SEAT_DEPTH} of it within {@link SEAT_HEIGHT} m of the ground — the
+ * crease a stone or a post makes going into the turf, which a 1.5 m texel can
+ * never resolve. The terrain's own variant does not take it.
+ */
+export const SEAT_HEIGHT = 0.45
+export const SEAT_DEPTH  = 0.55
+
+/** What the seat leaves of the sky on a face with up component `up`, `rise` metres over the ground. */
+export function seatShade (rise: number, up: number): number {
+  const t = Math.min(1, Math.max(0, rise / SEAT_HEIGHT))
+
+  return 1 - SEAT_DEPTH * (1 - t * t * (3 - 2 * t)) * (1 - Math.max(0, up))
+}
 
 /** The first reach that is the terrain's: from here on the average is of the ground, not of what stands on it. */
 export const TERRAIN_REACH = 3
@@ -440,7 +460,17 @@ export function skyOcclusionGlsl (march: number): string {
     float ground  = uSkyRange.x + sky.b * uSkyRange.y;
     float rise    = (sky.a - sky.b) * uSkyRange.y;
     float above   = clamp((world.y - ground) / max(rise, 0.6), 0.0, 1.0);
+
     return pow(max(mix(sky.r, sky.g, above), 0.02), uSkyStrength);
+  }
+
+  // The seat: the crease where a stone, a post or a wall goes into the soil.
+  // Not on the terrain (its own variant) and not on what faces the sky.
+  float scapeSeat (vec3 world, vec3 face) {
+    vec4 sky     = texture2D(uSkyMap, (world.xz - uSkyRect.xy) * uSkyRect.zw);
+    float ground = uSkyRange.x + sky.b * uSkyRange.y;
+    float crease = 1.0 - smoothstep(0.0, ${SEAT_HEIGHT.toFixed(2)}, world.y - ground);
+    return 1.0 - ${SEAT_DEPTH.toFixed(2)} * crease * (1.0 - max(face.y, 0.0)) * min(uSkyStrength, 1.0);
   }
 
   float scapeSunLit (vec3 world, vec3 face) {
@@ -478,7 +508,13 @@ export const SKY_OCCLUSION_FRAGMENT = /* glsl */`
   #include <aomap_fragment>
   vec3 scapeSkyAt    = SCAPE_SKY_AT;
   float scapeSkySeen = scapeSky(scapeSkyAt);
-  float scapeSunSeen = mix(1.0, scapeSkySeen, 0.3) * scapeSunLit(scapeSkyAt, inverseTransformDirection(normal, viewMatrix));
+  vec3 scapeSkyFace  = inverseTransformDirection(normal, viewMatrix);
+  #ifndef USE_COLOR_ALPHA
+    scapeSkySeen *= scapeSeat(scapeSkyAt, scapeSkyFace);
+  #endif
+  vec2 scapeTouch    = mix(vec2(1.0), scapeContact(scapeSkyAt, scapeSkyFace, normalize(uSkySun - scapeSkyAt)), min(uSkyStrength, 1.0));
+  scapeSkySeen      *= scapeTouch.x;
+  float scapeSunSeen = mix(1.0, scapeSkySeen, 0.3) * scapeSunLit(scapeSkyAt, scapeSkyFace) * scapeTouch.y;
   reflectedLight.indirectDiffuse  *= scapeSkySeen;
   reflectedLight.indirectSpecular *= scapeSkySeen;
   reflectedLight.directDiffuse    *= scapeSunSeen;
@@ -496,6 +532,9 @@ export interface SkyOcclusionOptions {
 
   /** Taps the sun's shadow walks (`quality.sunMarch`); 0 on a tier with a shadow map. */
   march: number
+
+  /** Props the contact shade takes at once (`quality.contactSlots`). */
+  slots: number
 
   /** The floor the ground grid starts at where no terrain covers it — the sea. */
   floor: number
@@ -521,11 +560,13 @@ export function createSkyOcclusion (options?: SkyOcclusionOptions): SkyOcclusion
     uSkyTexel:    { value: options ? options.grid.span / options.grid.size : 1 },
     uSkySun:      { value: new Vector3(0, 1e4, 0) },
   }
+  const march   = options?.march ?? 0
+  const contact = createContact(options?.slots ?? 0, march > 0)
 
   return {
-    uniforms,
-    glsl:  skyOcclusionGlsl(options?.march ?? 0),
-    march: options?.march ?? 0,
+    uniforms: { ...uniforms, ...contact.uniforms },
+    glsl:     skyOcclusionGlsl(march) + contact.glsl,
+    march,
 
     follow (sun) {
       uniforms.uSkySun.value = sun
@@ -536,15 +577,19 @@ export function createSkyOcclusion (options?: SkyOcclusionOptions): SkyOcclusion
         return
 
       bakeInto(options, groundRoots, standing)
+      contact.gather(collectSolids(standing, options.solid))
     },
 
-    update (strength) {
+    update (strength, camera) {
       uniforms.uSkyStrength.value = Math.max(0, strength)
+
+      contact.aim(camera, strength > 0)
     },
 
     // Back to the blank texel rather than freed and left: the landscape keeps
     // this across a rebuild, and the next build draws before its bake lands.
     dispose () {
+      contact.dispose()
       map.value.dispose()
       map.value = blank()
     },
@@ -581,7 +626,7 @@ export function createSkyOcclusion (options?: SkyOcclusionOptions): SkyOcclusion
     texture.generateMipmaps = false
     texture.needsUpdate     = true
     map.value.dispose()
-    map.value = texture; (globalThis as unknown as { skyDebug: unknown }).skyDebug = { data, lo, hi, grid }
+    map.value = texture
     rect.set(grid.minX, grid.minZ, 1 / grid.span, 1 / grid.span)
     uniforms.uSkyRange.value.set(lo, hi - lo)
   }

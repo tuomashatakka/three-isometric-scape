@@ -230,6 +230,7 @@ src/
     ├── beacon.ts                   the coastal light: the lamp, and the beams it sweeps
     ├── clouds.ts                   the deck: the shadow's own field drawn at the cloud's place, lit on its sun side
     ├── cloud-shadow.ts             one cloud field (`scapeCloudField`): the shadow, the deck and the sea's mirror read it
+    ├── contact.ts                  contact shade: small solids as spheres, binned round the frame — their shade, their shadow on the phone, the seat
     ├── sky-occlusion.ts            the sky map: every solid rasterised from above once, how much sky each point sees, and the sun's shadow marched across it
     ├── frame.ts                    how many repeats of a world-space tile the frame is wide, and how much of it a reader keeps
     ├── weather-bank.ts             the one world-sized field: what stops every frame-sized tile reading as wallpaper
@@ -733,6 +734,18 @@ the mobile frame had no shadows at all. phones skip the shadow map — the hidde
 **one knob for occlusion.** `look.ao` was the strength of the ultra-only gtao. it is now the strength of the sky map on every tier, and 0 turns off both the shade and the march's shadow. it is in the optics panel as *occlusion*. `terrain.detailScale` and `terrain.detailMacro` are constants (`DETAIL_TILE`, `DETAIL_MACRO` in `props/material.ts`): neither was ever a decision about the place. the panel loses two soil sliders and gains one.
 
 **cost.** no draws, no triangles, the same 30 programs. the bake runs once, in the task after the first dressed frame. on this container it takes 0.34 s on mobile; desktop measured 1.0 s before the box blur was rewritten to walk rows, which cut the blur from 353 to 135 ms at 1536². the texture is an rgba8 upload of 9.4 mb on mobile and 16.8 mb on desktop. ultra runs one full-resolution pass fewer.
+
+## every thing meets the ground
+
+the sky map's first reach is 1.2 m and the phone's texel is 1.48 m, so on the tier most people see it had nothing to say at a stone's foot: the bale, the boulders, the barrel and the cairn stood on the yard with no shade under them and, under sun, no shadow either, because the march walks the same texels. [`contact.ts`](src/scene/contact.ts) gives them both, on every tier, with no draw:
+
+- **every small solid is a sphere.** at the bake, every instance of every solid family (and every lone small mesh) is sized off its bounding box: half its footprint, never much taller than it stands. moving families (the flock, a dynamic instance buffer) and anything merged larger than 2.6 m are left to the bake's own reaches.
+- **binned, not looped.** when the frame moves, the spheres are binned into a 96² grid over the ground the frame can see (`CONTACT_WINDOW` view heights square: a yard on a mound is ten metres nearer the lens than the focus) — a float texture, written only when the window crosses a cell. a fragment reads the `quality.contactSlots` spheres that reach its own cell (4 on the phone, 6 on desktop), largest first, with `texelFetch`. past a 90 m view there is no window and the read returns on its first test.
+- **shade.** a sphere of radius r at distance l takes `cos θ · r²/l²` of the sky — the solid angle it covers, cosine-weighted: the ground at a stone's foot darkens and the shade is gone a stride off; a face turned away takes nothing, so a stone never shades itself.
+- **shadow, where there is no shadow map.** the same spheres cast a soft shadow along the sun, its penumbra widening a fifth of a metre per metre of throw (`CONTACT_PENUMBRA`). it compiles in only on the tiers whose march is on.
+- **the seat.** the solid's own side of the crease: a face not turned to the sky loses up to half its sky within 45 cm of the ground (`SEAT_HEIGHT`, off the bake's ground height), so every post, wall foot and stone goes into the turf. not on the terrain.
+
+**cost.** no draws, triangles or programs; one float texture (590 kb at 4 slots) uploaded when the window moves, and up to `contactSlots` fetches on close frames only. measured on the phone `near` frame: 18% of pixels moved, mean luminance 90.2 → 87.1, every other tour pose 0.00–0.02%.
 
 ## the fog on the low ground
 
@@ -1601,7 +1614,7 @@ on the furthest skerry the ring has, there is a lighthouse: a battered stone tow
 
 **a beam is two crossed fans, not a cone**, and that is the finding this run turned up. the first version was a five-sided cone at a flat tint, and it photographed as a plank of cream-coloured timber: a cone's surface is all silhouette and no axis, so nothing about it gets brighter toward the middle, and additive blending saturated the whole shape into a solid slab. two ruled fans crossed at right angles have a middle — they are brightest where they intersect, which is the axis — and the colour is graded per *vertex* down the length and out to both edges, so the beam dies into the night at `beacon.beamReach` instead of ending in an edge. both grades are deliberately gentle: a steep one across the width leaves a bright wire with nothing either side of it, which is a laser rather than a lantern. the material writes no depth and takes no fog, because fog would mix a beam toward the fog colour and then *add* it, which puts a grey cone in a hazy sky.
 
-**brightness is most of whether it reads as light at all.** the same geometry at `beacon.lamp` 0.62 is a solid shape and at 0.34 is a glow, because additive fill over near-black water saturates long before it looks bright. that is why the default is low and the slider goes to 2.
+**brightness is most of whether it reads as light at all.** the same geometry at `beacon.lamp` 0.62 is a solid shape and at 0.34 is a glow (now `beacon.lamp` 0.358 × `windows.glow` 0.95: the lamp is a share of the lamps row), because additive fill over near-black water saturates long before it looks bright. that is why the default is low and the slider goes to 2.
 
 **the bloom was never handed the lamp.** the material carries a note saying the haze around the light is the bloom's business rather than the mesh's, which was the
 right intent and did not happen: measured at the same pose with `look.bloom` (now `look.glare`) on and off, **not one pixel of three hundred thousand differed by more than two levels**.

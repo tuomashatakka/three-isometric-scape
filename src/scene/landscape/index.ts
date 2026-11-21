@@ -259,6 +259,7 @@ export function createLandscape (
     grid:  skyGrid(config().archipelago.worldSize, quality.skyTexels),
     solid: material => material === materials?.ground || material === materials?.foliage,
     march: quality.shadows ? 0 : quality.sunMarch,
+    slots: quality.contactSlots,
     floor: config().terrain.waterLevel,
   })
 
@@ -708,7 +709,7 @@ export function createLandscape (
       // read the same four uniforms, so the shadow is placed once and then
       // three programs are handed the answer.
       shadow.update(wind)
-      occlusion.update(config().look.ao)
+      occlusion.update(config().look.ao, ctx.camera)
 
       advancePopulated(frame.delta, year.time, now, front.fall)
       dressing?.update(ctx.camera, ctx.renderer.domElement.clientHeight, config().lod)

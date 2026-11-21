@@ -390,6 +390,14 @@ export interface AtmosphereQuality {
    */
   sunMarch: number
 
+  /**
+   * Spheres a fragment's contact shade reads (`contact.ts`): the most that may
+   * reach one cell of the binned window, largest first. Each is a sphere's
+   * occlusion (and, with no shadow map, its shadow) on every ground and
+   * foliage fragment of a close frame, and nothing on a wide one.
+   */
+  contactSlots: number
+
   /** Screen-space reflections on the lake. */
   ssr: boolean
 
@@ -726,6 +734,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     scatterScale:    0.16,
     skyTexels:       1024,
     sunMarch:        4,
+    contactSlots:    4,
     ssr:             false,
     godRays:         false,
     traa:            false,
@@ -785,6 +794,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     scatterScale:    0.32,
     skyTexels:       1536,
     sunMarch:        6,
+    contactSlots:    4,
     ssr:             false,
     godRays:         false,
     traa:            false,
@@ -860,6 +870,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     scatterScale:    1,
     skyTexels:       2048,
     sunMarch:        0,
+    contactSlots:    6,
     ssr:             false,
     godRays:         true,
     traa:            false,
@@ -919,6 +930,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     scatterScale:    1.5,
     skyTexels:       2048,
     sunMarch:        0,
+    contactSlots:    6,
     ssr:             true,
     godRays:         true,
     traa:            true,

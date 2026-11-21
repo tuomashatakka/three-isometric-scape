@@ -142,7 +142,7 @@ export function kilnDensity (config: ScapeConfig, phase: number): number {
 }
 
 export function hearthDensity (config: ScapeConfig, growth: number): number {
-  const smoke = Math.max(0, config.hearth.smoke)
+  const smoke = Math.max(0, config.hearth.smoke * config.windows.glow)
   const cold  = Math.min(1, Math.max(0, 1 - growth))
 
   return Math.min(1, smoke * (1 + Math.max(0, config.hearth.winter) * cold))
