@@ -10,7 +10,7 @@ function withIntensity (intensity: number) {
 describe('the day response', () => {
   test('is out at noon and at full strength at midnight', () => {
     expect(cursorLightStrength(SCAPE_CONFIG, 1)).toBe(0)
-    expect(cursorLightStrength(SCAPE_CONFIG, 0)).toBeCloseTo(SCAPE_CONFIG.cursorLight.intensity, 6)
+    expect(cursorLightStrength(SCAPE_CONFIG, 0)).toBeCloseTo(SCAPE_CONFIG.cursorLight.intensity * SCAPE_CONFIG.windows.glow, 6)
   })
 
   test('comes up through dusk rather than switching on', () => {
@@ -27,7 +27,7 @@ describe('the day response', () => {
 
   test('a day beyond the ends of its range cannot push it negative or dim it twice', () => {
     expect(cursorLightStrength(SCAPE_CONFIG, 1.4)).toBe(0)
-    expect(cursorLightStrength(SCAPE_CONFIG, -0.4)).toBeCloseTo(SCAPE_CONFIG.cursorLight.intensity, 6)
+    expect(cursorLightStrength(SCAPE_CONFIG, -0.4)).toBeCloseTo(SCAPE_CONFIG.cursorLight.intensity * SCAPE_CONFIG.windows.glow, 6)
   })
 })
 

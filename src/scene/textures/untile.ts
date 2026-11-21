@@ -103,6 +103,18 @@ export const UNTILE_GLSL = /* glsl */`
     float second = texture2D(map, turned).r;
     return 0.5 + (first + second - 1.0) * 0.7071;
   }
+
+  // The slope a map carries in green and blue (see slopeFromHeight), untiled
+  // the same way. The second read's uv was turned and scaled, so its gradient
+  // is turned back through the transpose — the chain rule, and the reason the
+  // two reads' slopes add as one surface rather than two crossed ones.
+  vec2 scapeUntiledSlope (sampler2D map, vec2 uv) {
+    vec2 turned = mat2(${turnC}, ${turnS}, -${turnS}, ${turnC}) * uv
+      + vec2(${UNTILE_SHIFT[0].toFixed(2)}, ${UNTILE_SHIFT[1].toFixed(2)});
+    vec2 first  = texture2D(map, uv).gb * 2.0 - 1.0;
+    vec2 second = texture2D(map, turned).gb * 2.0 - 1.0;
+    return (first + mat2(${turnC}, -${turnS}, ${turnS}, ${turnC}) * second) * 0.7071;
+  }
 #endif
 `
 

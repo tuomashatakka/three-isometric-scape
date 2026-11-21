@@ -396,6 +396,7 @@ bun run scape:shot --poses cart                     # the cart on the track, 5 f
 bun run scape:shot --poses crossing                 # the decks over the water, 5 frames, three islands, three sizes, and one from under the deck at the ebb
 bun run scape:shot --poses rigs                     # the plough pattern on the infield, 6 frames, four fields and one, a low sun and a high one, the turn and the snow
 bun run scape:shot --poses rotation                 # the course each field is in, 6 frames, the three courses one each and the ley beside the corn, dry, through the year
+bun run scape:shot --poses sea                      # the sea at the swell's own scale (150–400 m): the mirror, the ripple and the spits, with a flat-swell control
 bun run scape:shot --poses hjell                    # the drying racks above the harbour, 4 frames, loaded, bare, pulled back, and under snow
 bun run scape:shot --poses kiln                     # the lime kiln on the brae, 4 frames, burning, cold, pulled back, and with the wind put back
 bun run scape:shot --rot 30 --zoom 12 --time 0.02

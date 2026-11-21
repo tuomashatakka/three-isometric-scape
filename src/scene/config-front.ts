@@ -264,12 +264,14 @@ export const SCAPE_FRONT: FrontConfig = {
   // front: a system nobody ever sees fire is a system nobody finds out the scape
   // has. Two thirds of the comb carry a strike, which is five or six flashes in
   // the minute and a half a squall takes to cross.
+  // Both strengths are shares of \`squall.strength\` (the lightning lights the
+  // squall's cloud): at the squall's 0.7 they are the 0.85 and 0.9 they were.
   storm: {
-    strength: 0.85,
+    strength: 1.2,
     rate:     0.66,
     flash:    0.0016,
     reach:    0.12,
-    fork:     0.9,
+    fork:     1.3,
   },
   // Every one of these came down after the first frames were looked at, and the
   // first set is worth recording because it is the obvious set: a wide band, a

@@ -23,7 +23,8 @@ export interface CursorLightOptions {
 export function cursorLightStrength (config: ScapeConfig, day: number): number {
   const dusk = Math.min(1, Math.max(0, 1 - day))
 
-  return Math.max(0, config.cursorLight.intensity) * dusk * dusk
+  // A share of the lamps ashore: one row lights every lamp, carried ones too.
+  return Math.max(0, config.cursorLight.intensity) * Math.max(0, config.windows.glow) * dusk * dusk
 }
 
 /**

@@ -70,4 +70,20 @@ export const ROTATION_TOURS: Record<string, Pose[]> = {
     { name: 'rotation-turn', zoom: 26, season: 0.72, set: PAIR },
     { name: 'rotation-winter', zoom: 26, season: 0.02, set: PAIR },
   ],
+
+  /**
+   * The sea at the scale its swell resolves at: 150–400 m, the islands with
+   * the sound round them. The tour jumps from ten metres to fourteen hundred,
+   * so it never saw the marbled mirror (the swell folding the deck's image
+   * into rings) or the ruled spits off every island — both of which covered
+   * most of this frame. `sea` is the home island and its bank at 260 m,
+   * `sea-close` the open sound at 150 m where the ripple is still drawn, and
+   * `sea-flat` is `water.waveHeight=0`, the control: what is left when the
+   * swell is gone is the mirror and the deck alone.
+   */
+  sea: [
+    { name: 'sea', zoom: 260 },
+    { name: 'sea-close', zoom: 150, set: [ 'camera.focusX=60', 'camera.focusZ=-40' ]},
+    { name: 'sea-flat', zoom: 260, set: [ 'water.waveHeight=0' ]},
+  ],
 }

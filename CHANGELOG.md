@@ -2,6 +2,18 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the sea reads as water — no more wood grain in the mirror, spits laid by a drift, and two panel rows fewer
+
+at every frame that resolves the swell (a view of 150–400 m: the islands with the sound round them) the sea was marbled with closed contour rings, like the grain of a plank, and a pale ruler-straight bar ran 240 m off the lee of every island. zeroing one knob at a time found both: `water.mirror=0` and `water.waveHeight=0` each took the rings away, `shoals.reach=0` took the bars.
+
+- **the deck is read along the ripple's ray.** [`water-gleam.ts`](src/scene/landscape/water-gleam.ts): the mirror followed the swell-bent reflected ray 90 m up to the deck, and a tilt of a few degrees drags that image `2 · deck / rise²` — tens of metres — so the swell folded the cloud field into caustic rings. the deck lookup now uses `deckNormal` (the ripple alone, set in both normal chunks of [`water.ts`](src/scene/landscape/water.ts)); the swell still shades the mirror through the sky's gradient and its own faces.
+- **the ripple is a slope, not a height.** the ripple normal tilted by the noise's *value* — every iso-line one facet. `water.wave` now carries its own 3×3 Sobel gradient in green and blue ([`slopeFromHeight`](src/scene/textures/normals.ts), `WAVE_RELIEF` measured to the old mean tilt: 0.124 against 0.128), red untouched for the slicks, caps and race; `scapeUntiledSlope` ([`untile.ts`](src/scene/textures/untile.ts)) turns the second read's gradient back through the transpose. same four fetches as before.
+- **spits laid by a drift.** [`shoal.ts`](src/scene/landscape/shoal.ts): the crest line meanders off the axis (`MEANDER`, zero at the root), the flanks scallop (`EDGE_WANDER`), and the crest sinks 1.4 m seaward (`DEEPEN`), so the shallow tint fades along the bank instead of stopping at a ruled end.
+- **the panel: two rows fewer.** *lightning* rides *far squall · and its lightning* (`storm.strength` and `storm.fork` are shares of `squall.strength`, retuned so the opening frame is unchanged); *carried lamp* rides *lamps · ashore, far and carried* (`cursorLight.intensity` is a share of `windows.glow`).
+- **cost: none.** no draw, program, uniform or texture added; the ripple's four fetches are the same four. mobile tour census unchanged (default 134 draws, near 85, far 113, noon 134, night and winter 138; 1.02M / 0.94M / 1.45M tris; 0 errors).
+- **scape:diff vs main (tour):** default 0.04%, near 0.00%, far 0.15%, noon 0.13%, night 0.00%, winter 0.01%, no structural change — the tour jumps from 10 m to 1400 m and never resolves the swell, so the new `sea` set (`--poses sea`: 260 m, 150 m, and a flat-swell control) is where this shows.
+- **tests:** `normals.test.ts` pins that the wave map's height is untouched, the slope's mean tilt matches the old value's, and that it points uphill; `shoal.test.ts` that the crest leaves the coast on the axis and wanders seaward, the flanks scallop without pinching shut, and the crest sinks; `water-gleam.test.ts` that the deck is read along `deckNormal`; `untile.test.ts` the transpose.
+
 ## the sea goes dark — whitecaps sized by the wind's physics, not painted over the sound, and two panel rows fewer
 
 four fifths of the `default` and `far` frames are sea, and the sea read milky grey, paler than the land. zeroing knobs one at a time found what painted it: not the mirror, the haze, the deck or the water's colour, but the whitecaps. they were tuned to tear "a fifth to a third" of a sea that was up, held at 55% through a still, and drawn as their average at wide zoom, so 15% foam lay over the whole sound.

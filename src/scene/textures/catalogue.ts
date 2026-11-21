@@ -1,7 +1,7 @@
 import { DataTexture, LinearFilter, LinearMipmapLinearFilter, NoColorSpace, RGBAFormat, RepeatWrapping } from 'three'
 import type { Texture } from 'three'
 import { createNoiseTexture, createSeamlessNoiseTexture } from 'threejs-scene/modules/assets'
-import { normalFromHeight } from './normals.ts'
+import { normalFromHeight, slopeFromHeight } from './normals.ts'
 
 
 /**
@@ -117,7 +117,7 @@ export const TEXTURES: readonly TextureEntry[] = [
   {
     id:        'water.wave',
     origin:    'catalogue',
-    purpose:   'fractal value noise the lake shades from — neighbouring texels agree which way the surface leans',
+    purpose:   'fractal value noise in r, its own slope in gb — the lake reads the height for its patches and the gradient for its ripple normal',
     size:      256,
     module:    'textures/catalogue.ts',
     consumers: [ 'uWaveMap' ],
@@ -297,8 +297,15 @@ const BUILDERS: Record<string, (seed: number, catalogue: TextureCatalogue) => Te
   'water.ripple': seed =>
     mipped(createNoiseTexture({ size: 128, seed: seed ^ 0x2f1a, monochrome: true, lift: 0.1 })),
 
-  'water.wave': seed =>
-    mipped(createSeamlessNoiseTexture({ size: 256, seed: seed ^ 0x51b7, frequency: 5, octaves: 4 })),
+  // The height in red, its own slope in green and blue (`slopeFromHeight`):
+  // the ripple tilts by the gradient, never by the value.
+  'water.wave': seed => {
+    const texture = createSeamlessNoiseTexture({ size: 256, seed: seed ^ 0x51b7, frequency: 5, octaves: 4 })
+    const image   = texture.image as { data: Uint8Array }
+
+    image.data = slopeFromHeight(image.data, 256)
+    return mipped(texture)
+  },
 }
 
 /** Every id the catalogue builds itself, in roster order. */

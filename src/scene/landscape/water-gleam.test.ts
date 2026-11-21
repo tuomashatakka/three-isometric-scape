@@ -109,7 +109,10 @@ describe('the sky in the water', () => {
 
   test('the mirror reads the reflected ray and the cloud it meets, not the cloud\'s shadow', () => {
     expect(WATER_REFLECTION_FRAGMENT).toContain('reflect(-viewDir, normalize(normal))')
-    expect(WATER_REFLECTION_FRAGMENT).toContain('scapeCloudMirror(vWaterGround, skyRay)')
+    expect(WATER_REFLECTION_FRAGMENT).toContain('scapeCloudMirror(vWaterGround, deckRay)')
+    // The deck is read along a ray the ripple alone bent: the swell's tilt,
+    // dragged up to the deck, folded the cloud image into caustic rings.
+    expect(WATER_REFLECTION_FRAGMENT).toContain('reflect(-viewDir, deckNormal)')
     expect(WATER_REFLECTION_FRAGMENT).not.toContain('* cloudShade * swellShade')
   })
 

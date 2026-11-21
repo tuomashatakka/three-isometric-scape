@@ -163,6 +163,40 @@ interface Bank {
 }
 
 /**
+ * How far the crest line wanders off the bank's axis, in half-widths at the
+ * root. Zero at the root, so the bank still leaves the coast it was shed
+ * from; most of a half-width by the tip.
+ *
+ * A bank laid down by a drift is not ruled: the current that built it swings
+ * with the tide and the weather, so a spit runs in long bends and its flanks
+ * are scalloped by the eddies off it. Ruled straight, all six banks read in
+ * the wide frames as pale bars laid on the sea, every one the same width the
+ * whole way out. The phase is the root's place, so each bank bends its own way
+ * and the field stays a pure function of the point.
+ */
+export const MEANDER = 0.9
+
+/**
+ * Metres the crest sinks from the root to the tip. A drift builds its bank
+ * highest where it leaves the coast and runs out deeper as it loses its load,
+ * so the shallow tint fades along the spit rather than stopping at its end.
+ */
+export const DEEPEN = 1.4
+
+/** How much of the half-width the flanks scallop by, either way. */
+export const EDGE_WANDER = 0.3
+
+/** The crest line's offset from the axis at `at` 0..1 along the bank, in half-widths. */
+export function meander (at: number, phase: number): number {
+  return MEANDER * Math.sin(at * Math.PI * 0.5) * Math.sin(at * 4.1 + phase)
+}
+
+/** The flanks' gain on the half-width `along` metres out: two incommensurate scallops. */
+export function edgeWander (along: number, phase: number): number {
+  return 1 + EDGE_WANDER * 0.5 * (Math.sin(along / 19 + phase * 1.7) + Math.sin(along / 47 - phase))
+}
+
+/**
  * The height a bank claims at a point, or `null` where it has none.
  *
  * A flat-topped ridge, widening seaward and ending in a rounded tip — see
@@ -179,8 +213,9 @@ function bankHeight (bank: Bank, seabed: number, x: number, z: number): number |
     return null
 
   const at    = along / bank.shoal.length
-  const width = bank.shoal.halfWidth * (1 + bank.shoal.spread * at)
-  const cross = (dx * bank.dirZ - dz * bank.dirX) / width
+  const phase = bank.shoal.root.x * 0.071 + bank.shoal.root.z * 0.053
+  const width = bank.shoal.halfWidth * (1 + bank.shoal.spread * at) * edgeWander(along, phase)
+  const cross = (dx * bank.dirZ - dz * bank.dirX - meander(at, phase) * bank.shoal.halfWidth) / width
 
   if (cross <= -1 || cross >= 1)
     return null
@@ -188,7 +223,7 @@ function bankHeight (bank: Bank, seabed: number, x: number, z: number): number |
   const flank = 1 - smoothstep(CREST_ACROSS, 1, Math.abs(cross))
   const taper = 1 - smoothstep(CREST_ALONG, 1, at)
 
-  return seabed + (bank.crown - seabed) * flank * taper
+  return seabed + (bank.crown - DEEPEN * at - seabed) * flank * taper
 }
 
 /**
@@ -358,7 +393,7 @@ export function surveyShoals (
         crown:   waterLevel - shoals.crest,
         centreX: root.x + dirX * middle,
         centreZ: root.z + dirZ * middle,
-        bound:   middle + shoals.halfWidth * (1 + shoals.spread),
+        bound:   middle + shoals.halfWidth * ((1 + shoals.spread) * (1 + EDGE_WANDER) + MEANDER),
       })
     }
 

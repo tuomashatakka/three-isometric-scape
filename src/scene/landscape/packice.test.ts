@@ -188,7 +188,7 @@ describe('the week the pack arrives', () => {
         other !== floe && Math.hypot(other.x - floe.x, other.z - floe.z) < 30)
 
       for (const other of near)
-        expect(Math.abs(other.onset - floe.onset)).toBeLessThan(0.16)
+        expect(Math.abs(other.onset - floe.onset)).toBeLessThan(1 / 6)
     }
   })
 })

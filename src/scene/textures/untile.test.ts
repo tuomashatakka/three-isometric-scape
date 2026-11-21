@@ -41,7 +41,10 @@ describe('the untiled read', () => {
     const s = (Math.sin(UNTILE_TURN) * UNTILE_RATIO).toFixed(6)
 
     expect(UNTILE_GLSL).toContain(`mat2(${c}, ${s}, -${s}, ${c})`)
-    expect(UNTILE_GLSL.match(/texture2D/g)).toHaveLength(2)
+    // Two reads for the height, two for the slope.
+    expect(UNTILE_GLSL.match(/texture2D/g)).toHaveLength(4)
+    // The slope's second read is turned back through the transpose.
+    expect(UNTILE_GLSL).toContain(`mat2(${c}, -${s}, ${s}, ${c}) * second`)
   })
 
   test('the cloud shadow reads its detail through it', () => {
