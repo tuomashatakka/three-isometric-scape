@@ -71,7 +71,7 @@ describe('STILL covers everything the overlay can animate', () => {
 
   test('the overlay is the set this is derived from, and it is not empty', () => {
     // If this ever collapses, every assertion below passes vacuously.
-    expect(live.length).toBeGreaterThan(30)
+    expect(live.length).toBeGreaterThan(20)
   })
 
   test('every rate the overlay exposes is stopped', () => {

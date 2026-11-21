@@ -52,7 +52,7 @@ export interface BeaconLightOptions {
 export function lampBrightness (config: ScapeConfig, day: number): number {
   const dusk = Math.min(1, Math.max(0, 1 - day))
 
-  return Math.max(0, config.beacon.lamp) * dusk * dusk
+  return Math.max(0, config.beacon.lamp * config.windows.glow) * dusk * dusk
 }
 
 /**

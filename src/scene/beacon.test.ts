@@ -18,7 +18,7 @@ function withLamp (lamp: number) {
 describe('the lamp', () => {
   test('is out at noon and burning at midnight', () => {
     expect(lampBrightness(SCAPE_CONFIG, 1)).toBe(0)
-    expect(lampBrightness(SCAPE_CONFIG, 0)).toBeCloseTo(SCAPE_CONFIG.beacon.lamp, 6)
+    expect(lampBrightness(SCAPE_CONFIG, 0)).toBeCloseTo(SCAPE_CONFIG.beacon.lamp * SCAPE_CONFIG.windows.glow, 6)
   })
 
   test('comes up through dusk rather than switching on', () => {
@@ -35,7 +35,7 @@ describe('the lamp', () => {
 
   test('a day beyond the ends of its range cannot push it negative or dim it twice', () => {
     expect(lampBrightness(SCAPE_CONFIG, 1.4)).toBe(0)
-    expect(lampBrightness(SCAPE_CONFIG, -0.4)).toBeCloseTo(SCAPE_CONFIG.beacon.lamp, 6)
+    expect(lampBrightness(SCAPE_CONFIG, -0.4)).toBeCloseTo(SCAPE_CONFIG.beacon.lamp * SCAPE_CONFIG.windows.glow, 6)
   })
 })
 
@@ -109,7 +109,7 @@ describe('the glow the bloom has to catch', () => {
     const LAMP_LUMINANCE  = 0.76
     const BLOOM_THRESHOLD = 0.94
 
-    const unlit = LAMP_LUMINANCE * config.beacon.lamp
+    const unlit = LAMP_LUMINANCE * config.beacon.lamp * config.windows.glow
     const lit   = unlit * lampGlow(config, atmosphereQuality('desktop'))
 
     expect(unlit).toBeLessThan(BLOOM_THRESHOLD)

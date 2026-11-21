@@ -30,7 +30,7 @@ export type TextureId =
   'ground.grain' | 'ground.normal' | 'ground.wear' | 'prop.bark' | 'sky.cloudShadow' |
   'water.ripple' | 'water.wave' | 'water.shoreMask' | 'water.shelterMask' |
   'weather.squall' | 'sky.deck' | 'sky.aurora' | 'sky.gradient' | 'mist.field' |
-  'ground.sky'
+  'ground.sky' | 'ground.contact'
 
 /**
  * Where a texture's pixels come from.
@@ -185,6 +185,14 @@ export const TEXTURES: readonly TextureEntry[] = [
     size:      2048,
     module:    'sky-occlusion.ts',
     consumers: [ 'uSkyMap' ],
+  },
+  {
+    id:        'ground.contact',
+    origin:    'baked',
+    purpose:   'the small solids round the frame as spheres, binned into cells, rewritten when the window moves',
+    size:      96,
+    module:    'contact.ts',
+    consumers: [ 'uContactMap' ],
   },
 ]
 

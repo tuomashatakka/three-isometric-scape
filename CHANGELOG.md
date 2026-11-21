@@ -2,6 +2,18 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## every thing meets the ground — contact shade and shadow under every stone, bale and post on every tier, and two panel rows fewer
+
+on the phone's `near` frame the bale, the boulders, the barrel, the cairn and the tufts stood on the yard with nothing under them. the sky bake's contact reach (1.2 m) is under the phone's texel (1.48 m), and the march that stands in for a shadow map walks the same texels, so a metre-wide stone had neither a shade nor a shadow.
+
+- **every small solid is a sphere.** [`contact.ts`](src/scene/contact.ts): at the bake every instance of every solid family is sized off its bounding box (moving flocks and merged meshes left to the bake). when the frame moves, the spheres are binned into a 96² float grid over the ground the frame can see, and a fragment reads only its own cell's `quality.contactSlots` spheres (4 phone, 6 desktop) with `texelFetch`.
+- **shade, shadow, seat.** a sphere takes `cos θ · r²/l²` of the sky (its cosine-weighted solid angle), so the ground darkens to a stone's foot and clears a stride off; on the tiers with no shadow map the same spheres cast a soft shadow along the sun, penumbra widening with throw; and the seat (`sky-occlusion.ts`) darkens the lower 45 cm of every face not turned to the sky, off the bake's ground height. all three ride `scapeSkySeen` / `scapeSunSeen`, so `look.ao` still turns everything off.
+- **cleanup.** a stray `globalThis.skyDebug` assignment left in the sky bake is gone.
+- **the panel: two rows fewer.** *coastal light* and *chimneys* ride *lamps & hearths* — `beacon.lamp` and `hearth.smoke` are shares of `windows.glow` (retuned to 0.358 and 0.653 so the defaults are unchanged); a lit lamp and a banked hearth are the same household awake.
+- **cost.** no draw, triangle or program: mobile census unchanged (default 134 draws, near 85, 1.02M / 0.94M tris, 28 programs, 0 errors); desktop near 104 draws, 2.61M tris, 0 errors. one float texture (590 kB on the phone) re-uploaded only when the window crosses a cell; past a 90 m view no window and no fetch.
+- **measured (studio, own pixel table vs main):** phone near 18.2% of pixels moved, mean luminance 90.2 → 87.1; desktop near 19.5%, 101.0 → 99.1; default, far, noon, night and winter 0.00–0.02% (wide frames: no window).
+- **tests:** `contact.test.ts` — the ground at a stone's foot loses sky and a stride off keeps it, a stone never shades itself, the shadow falls away from the sun and never behind it, the seat spares what faces the sky, the window snaps to cells, a cell holds its slots largest first and never a sphere outside the window, binning is deterministic, flocks and tufts are not candidates, and the shadow compiles only where the march is on.
+
 ## the sea reads as water — no more wood grain in the mirror, spits laid by a drift, and two panel rows fewer
 
 at every frame that resolves the swell (a view of 150–400 m: the islands with the sound round them) the sea was marbled with closed contour rings, like the grain of a plank, and a pale ruler-straight bar ran 240 m off the lee of every island. zeroing one knob at a time found both: `water.mirror=0` and `water.waveHeight=0` each took the rings away, `shoals.reach=0` took the bars.

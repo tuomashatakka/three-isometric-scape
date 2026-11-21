@@ -198,7 +198,7 @@ describe('how hard the fires burn', () => {
   })
 
   test('midsummer is the authored strength and nothing on top of it', () => {
-    expect(hearthDensity(SCAPE_CONFIG, 1)).toBeCloseTo(SCAPE_CONFIG.hearth.smoke, 6)
+    expect(hearthDensity(SCAPE_CONFIG, 1)).toBeCloseTo(SCAPE_CONFIG.hearth.smoke * SCAPE_CONFIG.windows.glow, 6)
   })
 
   /**
