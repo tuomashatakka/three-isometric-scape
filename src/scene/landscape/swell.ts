@@ -169,6 +169,24 @@ const SHOAL_FLOOR = 0.06
 const SWELL_SHADE = 2.4
 
 /**
+ * The swell's tilt on the shading normal, per metre of height difference
+ * across the {@link SWELL_STEP} (so 1 / step is the surface's true slope).
+ *
+ * It was 2.4: four times the slope of the very geometry it shades, and at this
+ * camera's grazing rise a tenth of a radian swings the reflected ray from the
+ * pale horizon to the dark dome — every swell train drew itself across the
+ * wide frame as ruled bright and dark bands. A real sea at that distance shows
+ * its swell only as a faint lineation, because the slope is a few hundredths
+ * and each pixel averages the ripple riding on it. Twice the true slope (the
+ * one the silhouette carries): at exactly the true slope the swell vanished
+ * from the `sea` frame and the sound read as glass; at twice it, it reads as a
+ * long, low lineation and the ranks no longer rule the `far` frame.
+ */
+export const SWELL_STEP = 1.6
+export const SWELL_TILT = 2 / SWELL_STEP
+export const SWELL_TILT_GLSL = SWELL_TILT.toFixed(4)
+
+/**
  * How much a bank lifts the swell passing over it.
  *
  * Green's law: a wave crossing onto a shelf keeps its energy, loses the water
@@ -264,8 +282,8 @@ ${FRAME_GLSL}
 
     return vec3(
       scapeWave(p, gain),
-      scapeWave(p + vec2(1.6, 0.0), gain),
-      scapeWave(p + vec2(0.0, 1.6), gain)
+      scapeWave(p + vec2(${glsl(SWELL_STEP)}, 0.0), gain),
+      scapeWave(p + vec2(0.0, ${glsl(SWELL_STEP)}), gain)
     );
   }
 `

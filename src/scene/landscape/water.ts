@@ -31,7 +31,7 @@ import { MAX_DEPTH, bakeShoreMask } from './shore-mask.ts'
 import { WATER_CAPS_GLSL, setCaps } from './water-caps.ts'
 import { WATER_ICE_GLSL } from './water-ice.ts'
 import { WATER_SHELTER_GLSL, bakeShelterMask } from './shelter.ts'
-import { WATER_SWELL_FACES_GLSL, WATER_SWELL_GLSL, setSwell, swellRate, swellWavenumber } from './swell.ts'
+import { SWELL_TILT_GLSL, WATER_SWELL_FACES_GLSL, WATER_SWELL_GLSL, setSwell, swellRate, swellWavenumber } from './swell.ts'
 import { BOAT_WAKE_GLSL } from './water-wake.ts'
 import {
   CAUSTIC_RATE,
@@ -577,9 +577,9 @@ const WATER_NORMAL_FRAGMENT_LITE = /* glsl */`
   #include <normal_fragment_begin>
   vec3 deckNormal = normal;
   normal = normalize(normal + vec3(
-    -(swellX - swell) * uWaveHeight * 2.4,
+    -(swellX - swell) * uWaveHeight * ${SWELL_TILT_GLSL},
     0.0,
-    -(swellZ - swell) * uWaveHeight * 2.4
+    -(swellZ - swell) * uWaveHeight * ${SWELL_TILT_GLSL}
   ) * (1.0 - iceCover) * ${WATER_ROOST_NORMAL});
 `
 
@@ -622,9 +622,9 @@ const WATER_NORMAL_FRAGMENT = /* glsl */`
   vec3 deckNormal = normalize(normal - vec3(ripple.x, 0.0, ripple.y) * rippleGain * (1.0 - iceCover));
 
   normal = normalize(normal - vec3(
-    ripple.x * rippleGain + (swellX - swell) * uWaveHeight * 2.4,
+    ripple.x * rippleGain + (swellX - swell) * uWaveHeight * ${SWELL_TILT_GLSL},
     0.0,
-    ripple.y * rippleGain + (swellZ - swell) * uWaveHeight * 2.4
+    ripple.y * rippleGain + (swellZ - swell) * uWaveHeight * ${SWELL_TILT_GLSL}
   ) * (1.0 - iceCover) * ${WATER_ROOST_NORMAL});
 `
 

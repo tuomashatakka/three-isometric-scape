@@ -816,9 +816,10 @@ export function haarStats (
  * cell as wide as the archipelago is white weather with no edge in any frame.
  */
 export function hailStats (config: ScapeConfig): WeatherStats['hail'] {
-  const { hail, hailCell, time } = config.weather
-  const chill                    = hailChill(snowAmount(config.season.time) * config.season.snow)
-  const radius                   = hailCellRadius(config.archipelago.worldSize, hailCell)
+  const { hail: hailShare, hailCell, time, rain } = config.weather
+  const hail                                      = hailShare * rain
+  const chill                                     = hailChill(snowAmount(config.season.time) * config.season.snow)
+  const radius                                    = hailCellRadius(config.archipelago.worldSize, hailCell)
 
   let best    = 0
   let share   = 0

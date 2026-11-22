@@ -224,6 +224,13 @@ describe('createWeather', () => {
     expect(state.wet).toBe(0)
   })
 
+  test('hail rides the rain row: no rain, no hail', () => {
+    const dry   = { ...SCAPE_CONFIG, weather: { ...SCAPE_CONFIG.weather, rain: 0 }}
+    const state = createWeather(() => dry).sample(HAIL_CENTRE, week(0.5))
+
+    expect(state.hail).toBe(0)
+  })
+
   test('publishes the hail beside the fall rather than inside it', () => {
     const weather = createWeather(() => SCAPE_CONFIG)
     const state   = weather.sample(HAIL_CENTRE, week(0.5))
