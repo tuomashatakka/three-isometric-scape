@@ -253,7 +253,8 @@ export function createWeather (config: LiveConfig): Weather {
       const { weather } = config()
 
       state.fall = showerAmount(wrapped) * weather.rain
-      state.hail = hailAmount(wrapped) * hailChill(sleet) * weather.hail
+      // Hail rides the rain's row: \`weather.hail\` is its share of the shower.
+      state.hail = hailAmount(wrapped) * hailChill(sleet) * weather.hail * weather.rain
       state.wet  = wetAmount(wrapped) * weather.rain * weather.wet * (1 - sleet)
 
       return state

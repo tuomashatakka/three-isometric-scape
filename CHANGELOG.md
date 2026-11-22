@@ -2,6 +2,16 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the wide sea loses its ruled bands — the swell shades at its own slope, and two panel rows fewer
+
+in the `far` frame (and every frame from ~300 m out) the whole sound was ruled in bright and dark diagonal bands, a stripe for every rank of every swell train. zeroing knobs one at a time found the term: `water.waveHeight=0` took the bands away, but `water.mirror=0` and the swell's albedo shade (`SWELL_SHADE=0`) did not. what was left was the swell's tilt on the shading normal. it was `diff · waveHeight · 2.4` over a 1.6 m step, which is **3.84×** the slope of the geometry it shades. at this camera's grazing rise, a tenth of a radian swings the reflected ray from the pale horizon to the dark dome, and the sky's gradient (`pow(rise, 0.45–0.75)`) and the hemisphere's specular amplified it.
+
+- **the swell tilts at twice its true slope** (`SWELL_TILT` = 2 / `SWELL_STEP` in [`swell.ts`](src/scene/landscape/swell.ts), used by both normal chunks of [`water.ts`](src/scene/landscape/water.ts)). at exactly the true slope the swell vanished from the `sea` frame and the sound read as glass. at twice it, the swell reads as a long, low lineation and the bands are gone. the 1.6 m difference step is now one named constant (`SWELL_STEP`), not three literals.
+- **the panel: two rows fewer.** *hail* rides *rain & hail · and the wet they leave* (`weather.hail` is a share of `weather.rain`, retuned 0.75 → 0.83 so the opening frame is unchanged). *seals* rides *wildlife · gulls aloft, seals ashore* (`haulout.ashore` is a share of `birds.flight`, retuned 0.78 → 0.92). `scape:map`'s hail line reads the product.
+- **cost: none.** a constant changed: no draw, program, uniform or texture. mobile tour census unchanged (default 134 draws, near 85, far 113, noon 134, night and winter 138; 1.02M / 0.94M / 1.45M / 1.02M tris; 28 programs; 0 errors).
+- **measured.** studio before/after on the phone tier: far 11.6% of pixels moved by more than 4 levels, mean luminance 88.7 → 88.7 (a redistribution, not a grade), row-to-row luminance step 2.51 → 2.40. default, near, noon, night and winter 0.0–0.1%. `scape:diff --ref origin/main --tolerance 0.03`: far **2.47% CHANGED, worst block 43.8%**, no structural change. at the default tolerance of 0.1 it reads 0.00%: a low-amplitude repaint sits under pixelmatch's perceptual cut.
+- **tests:** `swell.test.ts` checks that the shading tilt stays within 1–2× the slope of the surface it shades, and that the steepest face shades under nine degrees with all three trains cresting together (it was 0.24 rad at 3.84×). `weather.test.ts` checks no rain, no hail.
+
 ## every thing meets the ground — contact shade and shadow under every stone, bale and post on every tier, and two panel rows fewer
 
 on the phone's `near` frame the bale, the boulders, the barrel, the cairn and the tufts stood on the yard with nothing under them. the sky bake's contact reach (1.2 m) is under the phone's texel (1.48 m), and the march that stands in for a shadow map walks the same texels, so a metre-wide stone had neither a shade nor a shadow.

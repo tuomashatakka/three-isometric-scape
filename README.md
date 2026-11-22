@@ -817,6 +817,14 @@ at every frame that resolves the swell the sea was marbled with closed contour r
 
 **the panel, two rows fewer.** lightning rides *far squall* (`storm.strength` and `storm.fork` are shares of `squall.strength`); the carried lamp rides *lamps* (`cursorLight.intensity` is a share of `windows.glow`).
 
+## the wide sea loses its ruled bands
+
+from three hundred metres out the sound was ruled in bright and dark bands, one per rank of each swell train. `water.waveHeight=0` took them away. `water.mirror=0` and the swell's albedo shade did not. the term was the swell's tilt on the shading normal, at 3.84× the slope of the geometry it shades. at this camera's grazing rise that swings the reflected ray from the horizon to the dome.
+
+- **the swell tilts at twice its true slope** (`SWELL_TILT`, `SWELL_STEP` in [`swell.ts`](src/scene/landscape/swell.ts)). at exactly the true slope the sound read as glass. at twice it, the swell reads as a long, low lineation. a real sea at that distance shows its swell only faintly, because each pixel averages the ripple riding on it.
+
+**the panel, two rows fewer.** hail rides *rain & hail* (`weather.hail` is a share of `weather.rain`). the seals ride *wildlife* (`haulout.ashore` is a share of `birds.flight`).
+
 ## the coast across the water is a mountain range
 
 from the archipelago frame the far coast — a quarter of the picture on both flanks — read as radial brush strokes: the sweep had four rings over the six hundred metres of hinterland, so every colour and normal there was stretched along the bearing between rings 150 m apart, and its rock faces were one flat grey. and over the sea, the cloud shadow tiled at 92 m, so the open water was spotted like a leopard with sixteen shadows across the frame.

@@ -204,8 +204,9 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       group:    'time',
       title:    'weather',
       controls: [
-        toggled('rain', range('weather.rain', 'how hard it falls · and the wet it leaves', 0, 1, 0.01, quality.rainDrops > 0), 0.9),
-        toggled('hail', range('weather.hail', 'how hard it comes down', 0, 1, 0.01, quality.hailStones > 0), 0.75),
+        // Hail falls out of the same showers, so it rides this row:
+        // \`weather.hail\` is its share (a config leaf).
+        toggled('rain & hail · and the wet they leave', range('weather.rain', 'how hard it falls', 0, 1, 0.01, quality.rainDrops > 0 || quality.hailStones > 0), 0.9),
         // The lightning lights the squall's cloud, so it rides this row:
         // \`storm.strength\` and \`storm.fork\` are its shares, config leaves.
         toggled('far squall · and its lightning', range('squall.strength', 'how heavy it lies', 0, 1, 0.01, quality.squallSheets > 0 || quality.stormFlashes > 0), 0.7),
@@ -252,8 +253,9 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       group:    'ground & water',
       title:    'life on the coast',
       controls: [
-        toggled('gulls', range('birds.flight', 'aloft', 0, 1, 0.01, quality.birdCount > 0), 0.85),
-        toggled('seals', range('haulout.ashore', 'hauled out', 0, 1, 0.01, quality.sealCount > 0), 0.78),
+        // One row for the colonies: the gulls aloft, and the seals hauled out
+        // as a share of it (\`haulout.ashore\`, a config leaf).
+        toggled('wildlife · gulls aloft, seals ashore', range('birds.flight', 'life', 0, 1, 0.01, quality.birdCount > 0 || quality.sealCount > 0), 0.85),
         // One row for every household and every lamp: the far coast's glow, the
         // cursor's lantern (\`cursorLight.intensity\`), the coastal light
         // (\`beacon.lamp\`) and the chimneys (\`hearth.smoke\`) are shares of

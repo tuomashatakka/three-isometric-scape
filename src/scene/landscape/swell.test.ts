@@ -3,6 +3,8 @@ import { SCAPE_CONFIG } from '../config.ts'
 import { MAX_DEPTH } from './shore-mask.ts'
 import {
   SWELL_GRAVITY,
+  SWELL_STEP,
+  SWELL_TILT,
   SWELL_TRAINS,
   shoalGain,
   swellBearings,
@@ -180,5 +182,26 @@ describe('what scape:map is told', () => {
     expect(stats.deep).toBeCloseTo(1, 9)
     expect(stats.crest).toBeGreaterThan(stats.breaker)
     expect(stats.breaker).toBeGreaterThan(stats.deep)
+  })
+})
+
+
+describe('the swell on the shading normal', () => {
+  // The tilt the fragment gives a slope, against the slope itself (1 / step):
+  // the shading may lean on the swell, but within a small multiple of the
+  // geometry it shades — at 3.84 every train ruled the wide frame in bands.
+  test('tilts within twice the slope of the surface it shades', () => {
+    const exaggeration = SWELL_TILT * SWELL_STEP
+
+    expect(exaggeration).toBeGreaterThanOrEqual(1)
+    expect(exaggeration).toBeLessThanOrEqual(2)
+  })
+
+  test('the steepest face, every train cresting together, shades under nine degrees', () => {
+    const { waveHeight } = SCAPE_CONFIG.water
+    const steepest       = SWELL_TRAINS.reduce((sum, train) =>
+      sum + train.amplitude * swellWavenumber(train.length * swellLength), 0)
+
+    expect(steepest * waveHeight * SWELL_TILT * SWELL_STEP).toBeLessThan(0.15)
   })
 })

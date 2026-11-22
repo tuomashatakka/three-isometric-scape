@@ -143,9 +143,12 @@ export function createSealColony ({
   let rolled = 0
 
   function place (): void {
-    const live               = config()
-    const water              = live.terrain.waterLevel
-    const { ashore, emerge } = live.haulout
+    const live       = config()
+    const water      = live.terrain.waterLevel
+    const { emerge } = live.haulout
+    // The colony rides the coast's one life row (\`birds.flight\`, the gulls'):
+    // \`haulout.ashore\` is its share, a config leaf.
+    const ashore = live.haulout.ashore * Math.min(1, Math.max(0, live.birds.flight))
 
     for (const [ index, seal ] of seals.entries()) {
       const clear = sealClearance(seal, water, tide.level)

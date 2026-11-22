@@ -66,7 +66,7 @@ bun run scape:diff --help                                         # --threshold 
   poses that moved; a `structural:` line compares `scape:map --json` both sides.
 - Mobile (the default) has no post chain and the lite ground path: a change
   there reads **0.00% everywhere** at mobile. Diff at `--tier desktop`.
-- Noise floor is 0.00% at the default tolerance: a zero means zero.
+- Noise floor is 0.00% at the default tolerance: a zero means zero, *at that tolerance*. A low-amplitude shading change (a normal's tilt, a cloud shadow) can read 0.00% at 0.1 and 2–3% CHANGED at `--tolerance 0.03`. Rerun tighter before calling a shading change invisible.
 - To iterate on a picture, use the `scape-studio` skill instead.
 
 ## CI

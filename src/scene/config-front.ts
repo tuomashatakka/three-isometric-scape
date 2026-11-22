@@ -250,7 +250,7 @@ export const SCAPE_FRONT: FrontConfig = {
     // the rain and the better part of the way into the hail — so the frame the
     // scape is graded on is a frame this system is in, which is the same
     // argument the weather's own phase is set by.
-    hail:     0.75,
+    hail:     0.83,
     hailCell: 0.22,
   },
   squall: {

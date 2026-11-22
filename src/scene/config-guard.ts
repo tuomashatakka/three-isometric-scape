@@ -271,7 +271,7 @@ export const SCAPE_GUARD: GuardConfig = {
     sill:    0.5,
     reach:   1.5,
     stone:   13,
-    ashore:  0.78,
+    ashore:  0.92,
     emerge:  0.12,
     shuffle: 3,
   },
