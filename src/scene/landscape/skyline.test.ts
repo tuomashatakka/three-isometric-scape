@@ -3,7 +3,7 @@ import { MeshStandardMaterial, Vector3 } from 'three'
 import { SCAPE_CONFIG } from '../config.ts'
 import type { ScapeConfig } from '../config.ts'
 import { SHORE_STEPS, patchReach, surveyFarShore } from './farshore.ts'
-import { SKYLINE_RINGS, createFarShore, sectionAt, skylineSubdivision } from './skyline.ts'
+import { SKYLINE_RINGS, createFarShore, plateauAt, sectionAt, skylineSubdivision } from './skyline.ts'
 
 
 const material = new MeshStandardMaterial()
@@ -172,6 +172,52 @@ describe('the far coast, as geometry', () => {
 
     const fine = createFarShore(SCAPE_CONFIG, shore, material, 3)!
     expect(fine.geometry.getAttribute('position').count).toBe(SHORE_STEPS * 3 * RINGS)
+  })
+
+  test('the hinterland forgets the skyline — no summit is extruded inland as a spoke', () => {
+    // The claim behind the streaks' fix, about the buffer: on bearings with
+    // all their land, the height at the rim does not follow the crest. When it
+    // was the crest times a share the two correlated at 1.
+    const crest: number[] = []
+    const rim:   number[] = []
+
+    for (let step = 0; step < SHORE_STEPS; step += 1) {
+      const sample = shore.samples[step]
+
+      if (sample.land < 0.999)
+        continue
+
+      crest.push(sample.crest)
+      rim.push(position.getY(step * RINGS + RINGS - 1))
+    }
+
+    const mean = (values: number[]): number => values.reduce((sum, value) => sum + value, 0) / values.length
+    const mc   = mean(crest)
+    const mr   = mean(rim)
+    let cov = 0
+    let vc  = 0
+    let vr  = 0
+
+    crest.forEach((value, at) => {
+      cov += (value - mc) * (rim[at] - mr)
+      vc  += (value - mc) ** 2
+      vr  += (rim[at] - mr) ** 2
+    })
+
+    expect(crest.length).toBeGreaterThan(SHORE_STEPS / 4)
+    expect(Math.abs(cov / Math.sqrt(vc * vr))).toBeLessThan(0.5)
+  })
+
+  test('the plateau behind the coast stays inside its band, and is deterministic', () => {
+    for (let at = 0; at < 200; at += 1) {
+      const x = Math.cos(at) * (1800 + at * 3)
+      const z = Math.sin(at) * (1800 + at * 3)
+      const p = plateauAt(x, z, SCAPE_CONFIG.seed)
+
+      expect(p).toBeGreaterThanOrEqual(0.42 - 1e-9)
+      expect(p).toBeLessThanOrEqual(0.74 + 1e-9)
+      expect(plateauAt(x, z, SCAPE_CONFIG.seed)).toBe(p)
+    }
   })
 
   test('a scape with no far coast draws nothing at all', () => {

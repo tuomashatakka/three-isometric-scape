@@ -116,6 +116,9 @@ const MASSIF_WEIGHT = [ 0.55, 0.3, 0.15 ]
 const GULLIES = 110
 const MEANDER = 1.6
 
+/** The size of a catchment that carries gullies, in metres. */
+const GATHER_SCALE = 150
+
 /**
  * How far a bay drops the foot of the face, as a share of the crest, and the
  * feature size of the bays in metres. Sized so the deepest bay reaches about a
@@ -138,6 +141,32 @@ export function skylineSubdivision (terrainSegments: number): number {
   return Math.min(4, Math.max(1, Math.round(terrainSegments / 72)))
 }
 
+/** The mean of {@link ridged} over a uniform input: ∫(1 − |2v − 1|)² dv. */
+const RIDGED_MEAN = 1 / 3
+
+/**
+ * The hinterland's own height field, in metres of feature size.
+ *
+ * Past the ridge the ground used to be the bearing's crest times a share, so
+ * every summit and col of the skyline was extruded a kilometre inland as a
+ * radial ridge or trough — and from the archipelago frame the whole far coast
+ * read as brush strokes along the bearings, whatever the ring count. Inland the
+ * ground now forgets its bearing: the crest hands over to a plateau read from
+ * world-space noise (the fells behind the coast), which has no spokes because it
+ * does not know what a bearing is.
+ */
+const PLATEAU_SCALE = 460
+const PLATEAU_LOW   = 0.42
+const PLATEAU_HIGH  = 0.74
+
+/** The fell height behind the coast at one point, as a share of `farShore.rise`. */
+export function plateauAt (x: number, z: number, seed: number): number {
+  const broad = valueNoise(x / PLATEAU_SCALE, z / PLATEAU_SCALE, seed + 57.3) * 0.7 +
+    valueNoise(x / (PLATEAU_SCALE * 0.43), z / (PLATEAU_SCALE * 0.43), seed - 12.9) * 0.3
+
+  return PLATEAU_LOW + (PLATEAU_HIGH - PLATEAU_LOW) * smoothstep(0.2, 0.8, broad)
+}
+
 /** Ridged, 0 in a valley floor and 1 on a crest. */
 function ridged (value: number): number {
   const fold = 1 - Math.abs(value * 2 - 1)
@@ -152,12 +181,23 @@ function ridged (value: number): number {
  * gully kept straight for a kilometre would be a spoke.
  */
 export function reliefAt (x: number, z: number, bearing: number, seed: number, drain: number): number {
-  const massif = MASSIF_SCALES.reduce((sum, scale, octave) =>
-    sum + ridged(valueNoise(x / scale, z / scale, seed + octave * 7.13)) * MASSIF_WEIGHT[octave], 0)
-  const wander = (valueNoise(x / 130, z / 130, seed - 4.4) - 0.5) * MEANDER * Math.PI * 2 / GULLIES
-  const gully  = ridged(ringNoise(bearing + wander, GULLIES, 41.9 + seed * 0.013))
+  // The finest octave holds only where the rings are close (the face): inland
+  // they are ~60 m apart, and a 38 m octave sampled there aliases into strokes
+  // stretched along the bearing. It fades to its own mean, so nothing rises.
+  const massif = MASSIF_SCALES.reduce((sum, scale, octave) => {
+    const fine = octave === MASSIF_SCALES.length - 1 ? drain : 1
+    const lift = ridged(valueNoise(x / scale, z / scale, seed + octave * 7.13))
 
-  return massif * (1 - 0.45 * drain) + gully * 0.45 * drain
+    return sum + (lift * fine + RIDGED_MEAN * (1 - fine)) * MASSIF_WEIGHT[octave]
+  }, 0)
+  const wander = (valueNoise(x / 130, z / 130, seed - 4.4) - 0.5) * MEANDER * Math.PI * 2 / GULLIES
+  // A gully is cut where water gathers, not down every bearing: patches of the
+  // face carry drainage and the rest is massif, so no stroke runs unbroken
+  // from the strand to the vale.
+  const gathers = smoothstep(0.35, 0.7, valueNoise(x / GATHER_SCALE, z / GATHER_SCALE, seed + 5.9)) * drain
+  const gully   = ridged(ringNoise(bearing + wander, GULLIES, 41.9 + seed * 0.013))
+
+  return massif * (1 - 0.45 * gathers) + gully * 0.45 * gathers
 }
 
 /** 0..1 — how far a bay has eaten into the foot of the face here. */
@@ -232,7 +272,9 @@ export function sectionAt (
   // The gullies bite deeper the higher up the face they are — a foot of
   // shingle is not carved the way a summit is.
   const bite   = GULLY * Math.min(1, 0.3 + (u + 1) * 0.7)
-  const ground = base + crest * share * (1 - bite * (1 - reliefAt(x, z, bearing, seed, 1 - smoothstep(0.2, VALE, u)))) - dip
+  const inland = smoothstep(0, VALE, u)
+  const height = crest + (farShore.rise * plateauAt(x, z, seed) - crest) * inland
+  const ground = base + height * share * (1 - bite * (1 - reliefAt(x, z, bearing, seed, 1 - smoothstep(-0.2, 0.6, u)))) - dip
 
   out.x      = x
   out.z      = z
@@ -281,6 +323,7 @@ function groundTone (
   share:  number,
   steep:  number,
   stand:  number,
+  crag:   number,
   haze:   number,
   out:    Color,
 ): Color {
@@ -288,7 +331,10 @@ function groundTone (
 
   const treeline = 0.5 + 0.3 * stand
   out.lerp(tones.scree, smoothstep(treeline - 0.15, treeline + 0.1, share))
-  out.lerp(tones.rock, smoothstep(0.3, 0.6, steep))
+  // Bare rock on the spurs of the fells, where the massif stands proud: what
+  // reads at a kilometre is the pattern of outcrop against vegetation, and the
+  // slope alone puts rock only on the seaward face.
+  out.lerp(tones.rock, Math.max(smoothstep(0.3, 0.6, steep), smoothstep(0.55, 0.75, crag) * smoothstep(0.3, 0.55, share)))
   out.lerp(tones.wet, 1 - smoothstep(0.5, 3, height))
 
   return out.lerp(tones.haze, haze)
@@ -342,15 +388,18 @@ function paintRing (
   setTones(config)
 
   for (let at = 0; at < position.length / 3; at += 1) {
-    const ring  = at % rings
-    const x     = position[at * 3]
-    const y     = position[at * 3 + 1]
-    const z     = position[at * 3 + 2]
-    const stand = valueNoise(x / 90, z / 90, config.seed + 3.1) * 0.6 +
-      valueNoise(x / 31, z / 31, config.seed + 9.7) * 0.4
-    const haze   = 0.3 * smoothstep(RIDGE, rings - 1, ring)
+    const ring = at % rings
+    const x    = position[at * 3]
+    const y    = position[at * 3 + 1]
+    const z    = position[at * 3 + 2]
+    // No octave under twice the inland ring spacing (~60 m): a finer one is
+    // sampled once a vertex and smeared along the bearing between rings.
+    const stand = valueNoise(x / 180, z / 180, config.seed + 3.1) * 0.6 +
+      valueNoise(x / 120, z / 120, config.seed + 9.7) * 0.4
+    const haze = 0.3 * smoothstep(RIDGE, rings - 1, ring)
+    const crag = reliefAt(x, z, 0, config.seed, 0)
 
-    groundTone(y - water, (y - water) / rise, 1 - normal[at * 3 + 1], stand, haze, blend)
+    groundTone(y - water, (y - water) / rise, 1 - normal[at * 3 + 1], stand, crag, haze, blend)
       .toArray(colour, at * 3)
   }
 

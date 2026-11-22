@@ -245,8 +245,10 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         // (\`water.ts\` scales it by the state up to 1): \`water.wakeStrength\`
         // is a config leaf for \`--set\` and the url.
         range('water.state', 'sea state · swell, surf, caps, wash', 0, 2, 0.01),
-        toggled('the tide', range('tide.range', 'spring range (m)', 0, 1.6, 0.01), 0.8),
-        toggled('running water · beck and fall', range('beck.flow', 'flow (m/s)', 0, 4, 0.05), 1.1),
+        // The tide's spring range and the beck's flow are the place's
+        // hydrology — a range in metres, a speed in metres a second — not a
+        // look anyone turns: \`tide.range\` and \`beck.flow\` are config
+        // leaves for \`--set\` and the url.
       ],
     },
     {
