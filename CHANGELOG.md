@@ -2,6 +2,19 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the far shores become land — the hinterland forgets its bearing, and two panel rows fewer
+
+in the `default` frame the far coast is a quarter of the picture on both flanks, and it read as radial brush strokes. more rings had not moved it (#126), and zeroing the cloud, mist, fog, lens, glare and indirect light left it in place: it was the ground itself. past the ridge the height was the bearing's crest times a share, so every summit and col of the skyline was extruded a kilometre inland as a spoke, and the gullies — ridged noise along the bearing — ran unbroken from the strand to the vale.
+
+- **a plateau behind the coast.** [`skyline.ts`](src/scene/landscape/skyline.ts): across the vale the crest hands over to `plateauAt`, a 460 m world-space field at 42–74 % of `farShore.rise`, so the fells inland have their own shape and no bearing.
+- **gullies where water gathers.** the drainage is cut only where a 150 m catchment field says so (`GATHER_SCALE`), and only on the seaward face (`drain` fades by `u` 0.6, not the vale).
+- **no octave under twice the ring spacing inland.** the massif's 38 m octave fades to its mean (`RIDGED_MEAN`) past the face; the stands' noise is 180/120 m, not 90/31.
+- **bare rock on the spurs.** the colour field puts outcrop where the massif stands proud above 30 % of the rise, not only on the steep face.
+- **the panel: two rows fewer.** *the tide* and *running water · beck and fall* are gone: `tide.range` and `beck.flow` are hydrology, config leaves for `--set` and the url, defaults unchanged.
+- **cost: none.** same mesh, same triangle count, built once; mobile tour census unchanged (default 134 draws, near 85, far 113, noon 134, night and winter 138; 1.02M / 0.94M / 1.45M tris; 0 errors).
+- **measured (studio, phone tier, vs main):** default 18.0 % of pixels moved, noon 18.2 %, winter 2.3 %, night 1.8 %, near and far 0.00 %.
+- **tests:** `skyline.test.ts`: the rim's height no longer follows the crest across full-land bearings (|r| < 0.5), and the plateau stays in its band and is deterministic.
+
 ## the wide sea loses its ruled bands — the swell shades at its own slope, and two panel rows fewer
 
 in the `far` frame (and every frame from ~300 m out) the whole sound was ruled in bright and dark diagonal bands, a stripe for every rank of every swell train. zeroing knobs one at a time found the term: `water.waveHeight=0` took the bands away, but `water.mirror=0` and the swell's albedo shade (`SWELL_SHADE=0`) did not. what was left was the swell's tilt on the shading normal. it was `diff · waveHeight · 2.4` over a 1.6 m step, which is **3.84×** the slope of the geometry it shades. at this camera's grazing rise, a tenth of a radian swings the reflected ray from the pale horizon to the dark dome, and the sky's gradient (`pow(rise, 0.45–0.75)`) and the hemisphere's specular amplified it.
