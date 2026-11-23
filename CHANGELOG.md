@@ -2,6 +2,17 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## one curve — the frame develops once, the shade opens and the colour comes back, the desktop yard loses its veil, and two panel rows fewer
+
+the film developed every frame twice: a display-space s-curve "stock" (square root, contrast about half, squared back, a teal cast at 0.32, a lifted black) and then ACES on top. two toes and two shoulders in series crushed every shaded wall to the same charcoal and drained colour from the whole frame. on the phone `near` frame the chapel's weatherboard printed at 53 of 255 and the falu-red barn at 81/67/66.
+
+- **AgX is the one curve** ([`film.ts`](src/scene/film.ts)), on both paths: `CustomToneMapping` inside every material on the phone, `renderer.toneMapping` behind the lens pass on desktop. the grade ahead of it is what a print adds: contrast as a power about mid-grey (`CONTRAST_REACH` 0.24, so black stays black and nothing under the pivot is clipped), the chroma AgX takes back (`FILM_SATURATION`), dye density (24 → 20 %) and the split tone. the stock, its cast, lean and lift, the film shoulder (AgX rolls a highlight to white itself) and `gradeContrast` are deleted.
+- **measured (phone `near`, studio):** chapel wall 53 → 74, barn 81/67/66 → 109/67/59 (red), cobbles 38 → 44, yard 125 → 140; mean 82.7 → 90.8. `scape:diff --ref origin/main --poses tour`: near 24.4 % of pixels; the wide frames move under the default tolerance and show at `--tolerance 0.03` (default 17.8 %, noon 21.5 %, night 8.1 %). no structural change.
+- **the desktop yard is clear.** the sun shafts' sheets lie between the water and the deck, so in a frame tens of metres across the camera looked through all of them at once: a grey veil over the desktop `near` frame (mean 113 of 255; 65 with the shafts at zero). `shaftFade` now brings them in between 24 and 80 m (`SHAFT_NEAR`) as well as fading them out past 220–650 m.
+- **the panel: two rows fewer.** *far squall · and its lightning* and *rainbow & halo* are weather the front brings through on its own clock (the bow already needs the rain's drops): `squall.strength` and `rainbow.strength` are config leaves for `--set` and the url, defaults unchanged.
+- **cost: none.** no draw, triangle, texture or program (phone near 85 draws / 0.94M, default 134 / 1.02M, 28 programs; desktop near 104 / 2.61M, default 231 / 4.58M, 57 programs; 0 errors). the grade is about twenty scalar operations a fragment fewer than the stock it replaces.
+- **tests:** `film.test.ts`: no second curve and no display-space stock ahead of AgX, a 2 % and a 5 % shade stay more than 2.2× apart, contrast keeps mid-grey and black in place. `shafts.test.ts`: no beam at the yard.
+
 ## the far ground gets grain and the desktop glass comes clean — rock through the snow, peat in the moor, no more bands or screen door, and two panel rows fewer
 
 two whole-frame faults. at the `default`, `far` and `winter` frames the ground was its vertex colour alone (every grain term lets go with the zoom, and the far shore's vertices stand 35–60 m apart), so the fells were felt and the snowfields had no rock in them. and on desktop the lens painted its own artifacts: zeroing knobs one at a time put horizontal bands across the whole `default` frame, and a screen door with pale rims round every stone over `near`, on `look.lens`, and then on its contact term alone.

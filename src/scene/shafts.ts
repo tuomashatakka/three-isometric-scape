@@ -148,6 +148,16 @@ export function shaftAmount (
 export const SHAFT_FADE = [ 220, 650 ] as const
 
 /**
+ * View sizes, metres, between which the beams come in as the camera pulls
+ * back from the yard. A frame a few tens of metres across sits *inside* one
+ * beam: every sheet of the column lies over the whole picture, and on the
+ * desktop `near` frame they were a grey veil that halved the contrast (mean
+ * luminance 113 against 65 with the shafts at zero). From inside, a beam is
+ * the lit patch on the ground the cloud shadow already draws.
+ */
+export const SHAFT_NEAR = [ 24, 80 ] as const
+
+/**
  * How much of the beams a frame of this size shows, 0..1.
  *
  * A shaft is a curtain of lit air a cloud's width across, and it is seen by
@@ -158,10 +168,12 @@ export const SHAFT_FADE = [ 220, 650 ] as const
  * that distance instead.
  */
 export function shaftFade (viewSize: number): number {
-  const [ from, to ] = SHAFT_FADE
-  const t            = clamp01((viewSize - from) / (to - from))
+  const ease = (from: number, to: number): number => {
+    const t = clamp01((viewSize - from) / (to - from))
+    return t * t * (3 - 2 * t)
+  }
 
-  return 1 - t * t * (3 - 2 * t)
+  return ease(SHAFT_NEAR[0], SHAFT_NEAR[1]) * (1 - ease(SHAFT_FADE[0], SHAFT_FADE[1]))
 }
 
 /**

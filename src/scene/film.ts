@@ -1,4 +1,4 @@
-import { ACESFilmicToneMapping, Color, CustomToneMapping, ShaderChunk } from 'three'
+import { AgXToneMapping, CustomToneMapping, ShaderChunk } from 'three'
 import type { WebGLRenderer } from 'three'
 
 
@@ -8,8 +8,7 @@ import type { WebGLRenderer } from 'three'
  * The grade used to be a 33³ lookup texture sampled by the lens pass, picked
  * from seven recipes — which meant it existed only where a post chain did. The
  * phone tier has none (it loses its context linking one), so the frames most
- * people see went out ungraded: no contrast about mid-grey, no shoulder, no
- * stock, no split tone.
+ * people see went out ungraded.
  *
  * The lookup was only ever a closed-form function baked into a cube, so it is
  * that function again, {@link FILM_GLSL}, and it runs in whichever stage the
@@ -17,18 +16,24 @@ import type { WebGLRenderer } from 'three'
  *
  * - **with a chain**, in the lens pass (`lens.ts`), on the composed frame;
  * - **without one**, inside every material's own tone-mapping stage — three's
- *   `CustomToneMapping` hook — just before the ACES curve the bare renderer
- *   already ran there. No render target, no pass, no extra program: the grade
- *   rides in programs the tier links anyway.
+ *   `CustomToneMapping` hook — just before the curve. No render target, no
+ *   pass, no extra program: the grade rides in programs the tier links anyway.
  *
  * Both run in linear hdr ahead of the same tone curve, so a phone and a desktop
- * develop the same stock — and the same vignette and grain, which need only a
+ * develop the same print — and the same vignette and grain, which need only a
  * pixel's place in the frame ({@link FRAME_VARYING}). What the direct path
  * cannot do is anything that reads a neighbour — defocus, halation and
  * micro-contrast stay the lens's.
  *
- * There is one stock, {@link STOCK}: the camera is already white-balanced to
- * the light, and a selector of seven looks was seven ways to undo that.
+ * **One curve.** The frame was developed twice: a display-space S-curve
+ * "stock" (square root, contrast about half, squared back, a teal cast and a
+ * lifted black) and then ACES on top. Two shoulders and two toes in series
+ * crushed every wall in shade to the same charcoal and drained the turf to
+ * grey. The curve is AgX alone now — the one tone curve, with its own
+ * highlight roll-off toward white — and the grade ahead of it is only what a
+ * print adds: a gentle contrast as a power about mid-grey, the chroma AgX
+ * takes back, dye density and the split tone. The camera is already
+ * white-balanced to the light, so there is no cast.
  */
 
 /** Rec. 709 luminance weights. */
@@ -41,25 +46,19 @@ export const LIGHT_TINT = [ 1.05, 1, 0.93 ] as const
 /** The most of the tint the split tone applies, at full grade strength. */
 export const SPLIT_REACH = 0.7
 
-/**
- * The film's shoulder: how far a highlight past paper white loses its colour.
- *
- * A digital sensor clips each channel on its own, so a bright sail or a sunlit
- * gable goes to a flat saturated block; film's dyes saturate together and a
- * highlight runs off toward white. It starts at a luminance only the lit
- * highlights reach, so the mid-tones and every shadow are untouched.
- */
-export const FILM_SHOULDER = [ 0.7, 1.8 ] as const
-export const SHOULDER_PULL = 0.55
-
-/** Contrast about mid-grey at full grade strength, over the 1.0 of no grade. */
-export const CONTRAST_REACH = 0.2
+/** Contrast about mid-grey at full grade strength: the exponent's reach over 1. */
+export const CONTRAST_REACH = 0.24
 
 /** Mid-grey in linear light: the pivot the contrast turns about. */
 export const MID_GREY = 0.18
 
-/** Saturation the film always has, at any strength. */
-export const FILM_SATURATION = 1.06
+/**
+ * Saturation the film gives back at full strength. AgX walks every colour
+ * toward the white point as it brightens — which is what keeps a sunlit gable
+ * from going to a flat saturated block — and takes a little chroma from the
+ * mid-tones on the way; the print gives that back.
+ */
+export const FILM_SATURATION = 0.16
 
 /**
  * Dye density: how much of its light a fully saturated colour gives up.
@@ -70,30 +69,7 @@ export const FILM_SATURATION = 1.06
  * it prints. It is what separates a moss green from a neon one. A grey has no
  * dye to lay down and is untouched, so the exposure and the white balance hold.
  */
-export const DYE_DENSITY = 0.24
-
-/**
- * The stock: a cool, slightly lifted nordic negative. `contrast` turns about
- * half of display white, `split` leans the shade teal and the light amber,
- * `tint` at `amount` is the cast and `lift` the floor of the blacks.
- */
-export const STOCK = {
-  contrast:   1.14,
-  split:      0.62,
-  saturation: 0.94,
-  tint:       '#9fb8c4',
-  amount:     0.32,
-  lift:       0.024,
-} as const
-
-/** The stock's cast as a gain on red, green, blue — its brightest channel is left alone. */
-export const STOCK_GAIN: readonly [number, number, number] = (() => {
-  const tint      = new Color(STOCK.tint)
-  const brightest = Math.max(tint.r, tint.g, tint.b, 1e-6)
-  const gain      = (value: number): number => 1 + (value / brightest - 1) * STOCK.amount
-
-  return [ gain(tint.r), gain(tint.g), gain(tint.b) ]
-})()
+export const DYE_DENSITY = 0.2
 
 type Rgb = readonly [number, number, number]
 
@@ -104,11 +80,6 @@ const each    = (c: Rgb, f: (value: number, channel: 0 | 1 | 2) => number): Rgb 
 function smooth (low: number, high: number, value: number): number {
   const t = clamp01((value - low) / (high - low))
   return t * t * (3 - 2 * t)
-}
-
-/** The share of a fragment's chroma the shoulder takes, at grade strength `intensity`. */
-export function shoulder (lightness: number, intensity: number): number {
-  return smooth(FILM_SHOULDER[0], FILM_SHOULDER[1], lightness) * SHOULDER_PULL * intensity
 }
 
 /** The multiplier on one channel for a fragment of luminance `lightness`, at `strength` 0..1. */
@@ -123,45 +94,22 @@ export function dyeDensity (saturation: number, intensity: number): number {
   return 1 - DYE_DENSITY * clamp01(saturation) * clamp01(intensity)
 }
 
-/** The contrast the grade applies at `strength` 0..1 — the flat grey wash gains its depth here. */
-export function gradeContrast (strength: number): number {
-  return 1 + CONTRAST_REACH * clamp01(strength)
-}
-
-/** What the stock makes of a linear colour under paper white, at full strength: developed in display space. */
-export function stock (colour: Rgb): Rgb {
-  const curved = each(colour, value => clamp01((Math.sqrt(clamp01(value)) - 0.5) * STOCK.contrast + 0.5))
-  const light  = luma(curved)
-  const shade  = 1 - light
-  const lean   = [ light * 0.05 - shade * 0.015, light * 0.02 + shade * 0.025, shade * 0.05 - light * 0.05 ]
-  const split  = each(curved, (value, channel) => clamp01(value + lean[channel] * STOCK.split))
-  const grey   = luma(split)
-
-  return each(split, (value, channel) => {
-    const dyed = clamp01(grey + (value - grey) * STOCK.saturation)
-    return STOCK.lift + dyed * dyed * STOCK_GAIN[channel] * (1 - STOCK.lift)
-  })
-}
-
 /**
  * The whole grade on one linear-hdr colour at `strength` 0..1 — what
  * {@link FILM_GLSL} evaluates, kept here so a test can state what it does.
  */
 export function film (colour: Rgb, strength: number): Rgb {
-  const contrast = gradeContrast(strength)
-  const pivoted  = each(colour, value => Math.max(0, (value - MID_GREY) * contrast + MID_GREY))
-  const grey     = luma(pivoted)
-  const vivid    = each(pivoted, value => Math.max(0, grey + (value - grey) * FILM_SATURATION))
-  const peak     = Math.max(vivid[0], vivid[1], vivid[2])
-  const density  = dyeDensity((peak - Math.min(vivid[0], vivid[1], vivid[2])) / Math.max(peak, 1e-4), strength)
-  const dense    = each(vivid, value => value * density)
-  const bright   = luma(dense)
-  const rolled   = each(dense, value => value + (bright - value) * shoulder(bright, strength))
-  const dyed     = stock(rolled)
-  const printed  = each(rolled, (value, channel) => value + (dyed[channel] - value) * strength)
-  const lit      = luma(printed)
+  const s       = clamp01(strength)
+  const power   = 1 + CONTRAST_REACH * s
+  const pivoted = each(colour, value => MID_GREY * Math.pow(Math.max(0, value) / MID_GREY, power))
+  const grey    = luma(pivoted)
+  const vivid   = each(pivoted, value => Math.max(0, grey + (value - grey) * (1 + FILM_SATURATION * s)))
+  const peak    = Math.max(vivid[0], vivid[1], vivid[2])
+  const density = dyeDensity((peak - Math.min(vivid[0], vivid[1], vivid[2])) / Math.max(peak, 1e-4), s)
+  const dense   = each(vivid, value => value * density)
+  const lit     = luma(dense)
 
-  return each(printed, (value, channel) => value * splitTone(lit, channel, strength))
+  return each(dense, (value, channel) => value * splitTone(lit, channel, s))
 }
 
 const vec3 = (c: readonly number[]): string => `vec3(${c.map(v => v.toFixed(4)).join(', ')})`
@@ -170,33 +118,20 @@ const vec3 = (c: readonly number[]): string => `vec3(${c.map(v => v.toFixed(4)).
 export const FILM_GLSL = /* glsl */ `
   vec3 scapeFilm (vec3 col, float strength) {
     const vec3 W = ${vec3(LUMA)};
+    float s = clamp(strength, 0.0, 1.0);
 
-    // Contrast about mid-grey, then the film's own saturation.
-    col = max((col - ${MID_GREY.toFixed(2)}) * (1.0 + ${CONTRAST_REACH.toFixed(2)} * clamp(strength, 0.0, 1.0)) + ${MID_GREY.toFixed(2)}, 0.0);
-    col = max(mix(vec3(dot(col, W)), col, ${FILM_SATURATION.toFixed(2)}), 0.0);
+    // Contrast about mid-grey as a power, so black stays black and no shade
+    // under the pivot is crushed to it; then the chroma the curve takes back.
+    col = ${MID_GREY.toFixed(2)} * pow(max(col, 0.0) / ${MID_GREY.toFixed(2)}, vec3(1.0 + ${CONTRAST_REACH.toFixed(2)} * s));
+    col = max(mix(vec3(dot(col, W)), col, 1.0 + ${FILM_SATURATION.toFixed(2)} * s), 0.0);
 
     // Dye density: the more saturated the colour, the less light it lets through.
     float peak = max(col.r, max(col.g, col.b));
-    col *= 1.0 - ${DYE_DENSITY.toFixed(2)} * clamp((peak - min(col.r, min(col.g, col.b))) / max(peak, 1e-4), 0.0, 1.0) * clamp(strength, 0.0, 1.0);
-    // The shoulder: a highlight past paper white runs off toward white.
-    float bright = dot(col, W);
-    col = mix(col, vec3(bright), smoothstep(${FILM_SHOULDER[0].toFixed(2)}, ${FILM_SHOULDER[1].toFixed(2)}, bright) * ${SHOULDER_PULL.toFixed(2)} * strength);
-
-    // The stock: its curve, its lean, its dyes, its cast and its lifted blacks.
-    // Developed in display space (a square root is near enough the transfer
-    // curve): a stock's S-curve pivots on what the eye calls half, and turned
-    // about half of *linear* white it crushed every shade under 6% to black.
-    vec3  dye   = clamp((sqrt(clamp(col, 0.0, 1.0)) - 0.5) * ${STOCK.contrast.toFixed(2)} + 0.5, 0.0, 1.0);
-    float light = dot(dye, W);
-    float shade = 1.0 - light;
-    dye = clamp(dye + vec3(light * 0.05 - shade * 0.015, light * 0.02 + shade * 0.025, shade * 0.05 - light * 0.05) * ${STOCK.split.toFixed(2)}, 0.0, 1.0);
-    dye = clamp(mix(vec3(dot(dye, W)), dye, ${STOCK.saturation.toFixed(2)}), 0.0, 1.0);
-    dye = ${STOCK.lift.toFixed(3)} + dye * dye * ${vec3(STOCK_GAIN)} * ${(1 - STOCK.lift).toFixed(3)};
-    col = mix(col, dye, strength);
+    col *= 1.0 - ${DYE_DENSITY.toFixed(2)} * clamp((peak - min(col.r, min(col.g, col.b))) / max(peak, 1e-4), 0.0, 1.0) * s;
 
     // The split tone: cool shade, warm light, mid-tones left alone.
     float lit = dot(col, W);
-    col *= vec3(1.0) + strength * ${SPLIT_REACH.toFixed(2)}
+    col *= vec3(1.0) + s * ${SPLIT_REACH.toFixed(2)}
          * ((1.0 - smoothstep(0.0, 0.25, lit)) * (${vec3(SHADE_TINT)} - 1.0)
             + smoothstep(0.35, 1.5, lit) * (${vec3(LIGHT_TINT)} - 1.0));
 
@@ -295,7 +230,7 @@ const DIRECT_TONE_MAPPING = /* glsl */ `
     float tone = clamp( dot( color, vec3( 0.2126, 0.7152, 0.0722 ) ), 0.0, 1.0 );
     float seed = fract( sin( dot( gl_FragCoord.xy, vec2( 127.1, 311.7 ) ) ) * 43758.5453 );
     color = max( color + ( seed - 0.5 ) * ${LENS_GRAIN.toFixed(4)} * lens * ( 0.35 + 2.6 * tone * ( 1.0 - tone ) ), 0.0 );
-    return ACESFilmicToneMapping( color * ( exposure / max( toneMappingExposure, 1e-4 ) ) );
+    return AgXToneMapping( color * ( exposure / max( toneMappingExposure, 1e-4 ) ) );
   }
 `
 
@@ -315,7 +250,7 @@ export function installDirectFilm (renderer: WebGLRenderer, direct: boolean): vo
     ShaderChunk.tonemapping_pars_fragment = ShaderChunk.tonemapping_pars_fragment
       .replace(IDENTITY_TONE_MAPPING, DIRECT_TONE_MAPPING)
 
-  renderer.toneMapping = direct && directFilmInstalled() ? CustomToneMapping : ACESFilmicToneMapping
+  renderer.toneMapping = direct && directFilmInstalled() ? CustomToneMapping : AgXToneMapping
 }
 
 // perf: ~70 scalar operations per fragment in programs the tier already

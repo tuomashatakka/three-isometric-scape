@@ -208,13 +208,11 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         // Hail falls out of the same showers, so it rides this row:
         // \`weather.hail\` is its share (a config leaf).
         toggled('rain & hail · and the wet they leave', range('weather.rain', 'how hard it falls', 0, 1, 0.01, quality.rainDrops > 0 || quality.hailStones > 0), 0.9),
-        // The lightning lights the squall's cloud, so it rides this row:
-        // \`storm.strength\` and \`storm.fork\` are its shares, config leaves.
-        toggled('far squall · and its lightning', range('squall.strength', 'how heavy it lies', 0, 1, 0.01, quality.squallSheets > 0 || quality.stormFlashes > 0), 0.7),
-        // The bow and the halo come out on the edges of a band, so the front's
-        // scrubber is what walks them in and out.
-        // One row for both arcs: the ring is a share of the bow (`haloStrength`).
-        toggled('rainbow & halo', range('rainbow.strength', 'how brightly they stand', 0, 1, 0.01, quality.rainbowArcs > 0 || quality.haloArcs > 0), 0.85),
+        // The far squall and its lightning, and the bow and the halo, are
+        // what the front brings through on its own clock — the front's
+        // scrubber walks them in and out, and the bow already needs the rain's
+        // drops. \`squall.strength\` and \`rainbow.strength\` are config
+        // leaves for \`--set\` and the url, defaults unchanged.
       ],
     },
     {

@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { SCAPE_CONFIG } from './config.ts'
 import {
   SHAFT_FADE,
+  SHAFT_NEAR,
   shaftAmount,
   shaftFade,
   shaftLift,
@@ -256,9 +257,13 @@ describe('shaftStackGeometry', () => {
 })
 
 describe('shaftFade', () => {
-  test('beams are whole close in and gone at the archipelago frame', () => {
+  test('beams are whole at a hamlet frame, and gone inside one beam and at the archipelago frame', () => {
     expect(shaftFade(SHAFT_FADE[0])).toBe(1)
     expect(shaftFade(SCAPE_CONFIG.camera.viewSize)).toBe(0)
     expect(shaftFade(400)).toBeGreaterThan(shaftFade(500))
+    // From inside a beam the column is a veil over the whole frame: none at the yard.
+    expect(shaftFade(SHAFT_NEAR[0])).toBe(0)
+    expect(shaftFade(10)).toBe(0)
+    expect(shaftFade(SHAFT_NEAR[1])).toBe(1)
   })
 })
