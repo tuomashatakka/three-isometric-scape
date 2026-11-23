@@ -845,23 +845,19 @@ the phone tier has no post chain — it loses its context linking one — so the
 the lookup was only ever a closed-form function baked into a cube. [`film.ts`](src/scene/film.ts) is that function again (`FILM_GLSL`, with `film()` beside it for the tests), and it runs in whichever stage the tier has:
 
 - **with a chain**, the lens pass calls it on the composed frame, where the lut fetch was.
-- **without one**, it is three's `CustomToneMapping`: every material develops its own fragment, then runs the same ACES curve the bare renderer already ran there. no render target, no pass, no extra program — the grade rides in programs the tier links anyway, which is the one place the context-loss budget has room.
+- **without one**, it is three's `CustomToneMapping`: every material develops its own fragment, then runs the one tone curve (AgX). no render target, no pass, no extra program — the grade rides in programs the tier links anyway, which is the one place the context-loss budget has room.
 
 **the strength rides in the exposure.** a bare renderer hands every program exactly one global uniform at that stage, `toneMappingExposure`. `packExposure` puts the grade's strength in multiples of four above the exposure (which is always under four), and `look.lens` in multiples of *that*, and the shader takes them apart again, so `look.intensity` and `look.lens` are live on the phone with no uniform plumbed through eighty materials.
 
 **the frame has a place on the phone.** the vignette and the grain are functions of where a pixel is, not of its neighbours, so they are the film's and not the lens pass's. every fogged program's vertex stage already runs the aerial chunk; it hands down the clip position in one `vec3` varying (`FRAME_VARYING`), the tone-mapping stage divides it for the pixel's place and reads the frame's aspect off the same varying's screen derivatives — no resolution uniform. the phone gets the cos⁴ falloff (`LENS_VIGNETTE`) and a grain pinned to the pixel grid (`LENS_GRAIN`; the stage has no clock), both on `look.lens`. a program with no fog has no place and takes no vignette. the iris (`atmosphere.ts`) keeps its own value and never reads the renderer's back.
 
-**the stock develops in display space.** the cube was indexed by linear light, so its s-curve turned about half of *linear* white and crushed every shade under 6% to the lift — a barn wall in shadow went to one flat blue-black. the curve runs on the square root of the colour now and is squared back, so mid-grey stays where the exposure put it and the shade keeps its detail. this moves desktop too (near: median luma 74 → 86, shade open).
-
-**one stock.** the camera is white-balanced to the light, and a selector of seven looks was seven ways to undo that. `look.grade`, `lut.ts`, the seven recipes and the cube are gone; `look.intensity` is the one knob (*film grade*).
+**one curve.** the frame used to be developed twice: a display-space s-curve "stock" (square root, contrast about half, squared back, a teal cast, a lifted black) and then ACES on top. two toes and two shoulders in series crushed every wall in shade to the same charcoal and drained the turf to grey — on the phone `near` frame the chapel's shaded weatherboard printed at 53 of 255 and the falu-red barn at 81/67/66, a red no one would call red. the curve is AgX alone now, on both paths (`renderer.toneMapping` with a chain, `CustomToneMapping` without), and the grade ahead of it is only what a print adds: contrast as a power about mid-grey (`CONTRAST_REACH`, so black stays black and no shade under the pivot is clipped), the chroma AgX takes back (`FILM_SATURATION`), dye density and the split tone. AgX walks a highlight toward white itself, so the film's own shoulder is gone too. the camera is white-balanced to the light, so there is no cast.
 
 **cost.** mobile census unchanged — near 87 / 0.90M, default 139 / 0.95M, 30 programs — plus about forty scalar operations per fragment. desktop near 222 / 4.82M, 63 programs; the lens loses a 3d fetch and the app a 144 kB texture and its bake. what the direct path cannot do is anything that reads a neighbour: defocus, halation, micro-contrast and the vignette stay the lens's.
 
-## the shoulder of the film
+## the dye of the film
 
-a screen makes a colour vivid by adding light; film makes it by laying down dye, and more dye is less light. `dyeDensity` takes up to 24% of a fully saturated colour's light (`DYE_DENSITY`) and none of a grey's, ahead of the shoulder, on every tier — a moss green rather than a neon one.
-
-a sensor clips each channel on its own, so a lit gable goes to a flat saturated block. film's dyes saturate together, so a highlight runs off toward white. the film's grade (`film.ts`) takes up to `SHOULDER_PULL` of a fragment's chroma between luminance 0.7 and 1.8 (`FILM_SHOULDER`), scaled by the grade's strength. it adds no fetch, and nothing under paper white moves.
+a screen makes a colour vivid by adding light; film makes it by laying down dye, and more dye is less light. `dyeDensity` takes up to 20% of a fully saturated colour's light (`DYE_DENSITY`) and none of a grey's, on every tier — a moss green rather than a neon one. a highlight past paper white runs off toward white in the tone curve itself (AgX), so the film has no shoulder of its own.
 
 ## the sky in the puddles
 
@@ -897,7 +893,7 @@ the end of the optical chain used to be seven full-screen passes on desktop — 
 - **natural vignetting** — the cos⁴ law of a lens whose half-diagonal sees about 40°.
 - **micro-contrast** — a four-tap unsharp mask in the focused band only, the crispness a sharp lens has and a multisampled render does not.
 - **halation** — the film's red ring round whatever is brighter than paper white ([`halationSource`](src/scene/lens.ts)): eight turned taps at 16 px on the highlight excess, tinted `HALATION_TINT`, so sun glints, lit windows and the sun's disc glow warm at their edges and the rest of the frame is untouched. desktop and ultra only. it rides `look.lens`, as does the grain: **`look.grain` is retired** and the panel's film-grain row with it. the grain's clock is the wind's, so `wind.speed=0` holds it for stills.
-- **the grade and the grain** — contrast, saturation, the stock, then the split tone — one function, [`film.ts`](src/scene/film.ts) — (shade a touch cool, light a touch warm, mid-tones untouched, luminance-preserving, driven by `look.intensity` so it adds no knob), then grain that is strongest in the mid-tones, where film shows it.
+- **the grade and the grain** — contrast as a power about mid-grey, saturation, dye, then the split tone, ahead of the one AgX curve — one function, [`film.ts`](src/scene/film.ts) — (shade a touch cool, light a touch warm, mid-tones untouched, luminance-preserving, driven by `look.intensity` so it adds no knob), then grain that is strongest in the mid-tones, where film shows it.
 
 **one knob.** `look.lens` drives the defocus, the fringe, the vignette and the micro-contrast together, because they are one optical decision — how much glass is in the picture — and four sliders for it let a reader dial a lens no one ever made. at 0 the scape is a pinhole; at 1 it is the old default tilt-shift and vignette; at 2 it is a cheap wide-angle. `look.tiltShift` and `look.vignette` are gone.
 
@@ -1965,6 +1961,9 @@ those slices follow the focus point rather than the world origin — a stack pin
 so the shafts get their own virtual sun in [`post.ts`](src/scene/post.ts): placed a fraction of the frame away along the real sun direction, clamped just past the frame edge, faded to nothing as it leaves the view. the direction is honest — taken live from the atmosphere's sun — but the distance is a framing decision, because an orthographic camera has no vanishing point to inherit one from.
 
 the same class of bug is why the water's ripple map carries mipmaps: a 128px noise texture sampled at roughly one texel per pixel aliases into a field of bright specks, and the ray pass turns every speck into a streak.
+
+
+**not from inside a beam.** the lit column's sheets lie between the water and the deck, so a frame a few tens of metres across looks down through all of them at once: on the desktop `near` frame they laid a grey veil over the whole yard (mean luminance 113 of 255 against 65 with the shafts at zero). `shaftFade` brings them in between 24 and 80 m of frame (`SHAFT_NEAR`) as well as taking them out past 220–650 m; from inside, a beam is the lit patch on the ground the cloud shadow already draws.
 
 ## the lake, and the angle that broke it
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { ACESFilmicToneMapping, CustomToneMapping, NoToneMapping, ShaderChunk } from 'three'
+import { AgXToneMapping, CustomToneMapping, NoToneMapping, ShaderChunk } from 'three'
 import type { WebGLRenderer } from 'three'
 import {
   CONTRAST_REACH,
@@ -8,21 +8,14 @@ import {
   FRAME_VARYING,
   LENS_VIGNETTE,
   FILM_GLSL,
-  FILM_SHOULDER,
   LIGHT_TINT,
   MID_GREY,
   SHADE_TINT,
-  SHOULDER_PULL,
-  STOCK,
-  STOCK_GAIN,
   dyeDensity,
   film,
-  gradeContrast,
   installDirectFilm,
   packExposure,
-  shoulder,
   splitTone,
-  stock,
   unpackExposure,
   vignette,
 } from './film.ts'
@@ -52,25 +45,6 @@ describe('the split tone', () => {
   })
 })
 
-describe('the film shoulder', () => {
-  it('leaves everything under paper white alone, and a zero grade', () => {
-    expect(shoulder(0.5, 1)).toBe(0)
-    expect(shoulder(FILM_SHOULDER[0], 1)).toBe(0)
-    expect(shoulder(3, 0)).toBe(0)
-  })
-
-  it('takes more colour the brighter the highlight, never all of it', () => {
-    let last = 0
-    for (let l = 0.7; l <= 3; l += 0.1) {
-      const pull = shoulder(l, 1)
-      expect(pull).toBeGreaterThanOrEqual(last)
-      last = pull
-    }
-    expect(last).toBeCloseTo(SHOULDER_PULL, 6)
-    expect(last).toBeLessThan(1)
-  })
-})
-
 describe('the dye density', () => {
   it('leaves a grey and a zero grade alone', () => {
     expect(dyeDensity(0, 1)).toBe(1)
@@ -96,11 +70,15 @@ describe('the dye density', () => {
 describe('the grade as a whole', () => {
   const grey = (value: number) => [ value, value, value ] as const
 
-  it('turns contrast about mid-grey, and no further than its reach', () => {
-    expect(gradeContrast(0)).toBe(1)
-    expect(gradeContrast(1)).toBeCloseTo(1 + CONTRAST_REACH)
-    expect(gradeContrast(5)).toBeCloseTo(1 + CONTRAST_REACH)
-    expect(gradeContrast(-1)).toBe(1)
+  it('turns contrast about mid-grey as a power: the pivot and black stay put', () => {
+    expect(film(grey(MID_GREY), 1)[1]).toBeCloseTo(MID_GREY, 2)
+    expect(film(grey(0), 1)[1]).toBe(0)
+
+    const luma = (c: readonly number[]) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+    // A shade at a third of mid-grey loses no more than its reach in stops.
+    const shade = luma(film(grey(0.06), 1)) / 0.06
+    expect(shade).toBeLessThan(1)
+    expect(shade).toBeGreaterThan(Math.pow(1 / 3, CONTRAST_REACH) * 0.9)
   })
 
   it('is the raw render for a grey at strength zero', () => {
@@ -116,7 +94,7 @@ describe('the grade as a whole', () => {
     expect(lit - dark).toBeGreaterThan(0.5 - 0.08)
   })
 
-  it('leaves the stock\'s shade cooler than its light', () => {
+  it('leaves the print\'s shade cooler than its light', () => {
     const [ r, , b ]   = film(grey(0.03), 1)
     const [ lr, , lb ] = film(grey(0.9), 1)
     expect(b).toBeGreaterThan(r)
@@ -130,11 +108,6 @@ describe('the grade as a whole', () => {
           expect(Number.isFinite(channel)).toBe(true)
           expect(channel).toBeGreaterThanOrEqual(0)
         }
-  })
-
-  it('casts the stock without brightening its brightest channel', () => {
-    expect(Math.max(...STOCK_GAIN)).toBe(1)
-    expect(Math.min(...STOCK_GAIN)).toBeGreaterThan(0.8)
   })
 })
 
@@ -184,14 +157,14 @@ describe('the film on a tier with no post chain', () => {
     const chunk = ShaderChunk.tonemapping_pars_fragment
     expect(renderer.toneMapping).toBe(CustomToneMapping)
     expect(chunk.split('vec3 scapeFilm').length).toBe(2)
-    expect(chunk).toContain('ACESFilmicToneMapping( color * ( exposure')
+    expect(chunk).toContain('AgXToneMapping( color * ( exposure')
     expect(chunk).not.toContain('CustomToneMapping( vec3 color ) { return color; }')
   })
 
   it('leaves a tier with a chain on the plain curve, and its lens on the same function', () => {
     const renderer = { toneMapping: NoToneMapping } as unknown as WebGLRenderer
     installDirectFilm(renderer, false)
-    expect(renderer.toneMapping).toBe(ACESFilmicToneMapping)
+    expect(renderer.toneMapping).toBe(AgXToneMapping)
 
     const lens = createLensPass({ taps: 0, grain: false, defocus: null })
     expect(lens.material.fragmentShader).toContain(FILM_GLSL)
@@ -199,17 +172,17 @@ describe('the film on a tier with no post chain', () => {
   })
 })
 
-describe('the stock', () => {
-  it('keeps detail in the deep shade instead of crushing it to the lift', () => {
-    const luma = (c: readonly number[]) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
-    const deep = luma(stock([ 0.02, 0.02, 0.02 ]))
-    const dark = luma(stock([ 0.05, 0.05, 0.05 ]))
-    expect(deep).toBeGreaterThan(STOCK.lift)
-    expect(dark - deep).toBeGreaterThan(0.015)
+describe('one curve', () => {
+  it('develops the frame once: no second curve or display-space stock ahead of AgX', () => {
+    expect(FILM_GLSL).not.toContain('sqrt')
+    expect(FILM_GLSL).not.toContain('ACES')
+    expect(ShaderChunk.tonemapping_pars_fragment.split('AgXToneMapping( color * ( exposure').length).toBe(2)
   })
 
-  it('all but leaves mid-grey where the exposure put it', () => {
-    const [ , g ] = stock([ MID_GREY, MID_GREY, MID_GREY ])
-    expect(Math.abs(g - MID_GREY)).toBeLessThan(0.03)
+  it('keeps detail in the deep shade: a wall at 2% and one at 5% stay apart', () => {
+    const luma = (c: readonly number[]) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+    const deep = luma(film([ 0.02, 0.02, 0.02 ], 1))
+    const dark = luma(film([ 0.05, 0.05, 0.05 ], 1))
+    expect(dark / deep).toBeGreaterThan(2.2)
   })
 })
