@@ -1,6 +1,7 @@
 import { TRANSMIT_FRAGMENT } from './transmission.ts'
 import { BOARD_FRAGMENT } from './boards.ts'
 import { COURSE_FRAGMENT } from './courses.ts'
+import { MOTTLE_PARS_FRAGMENT, mottleFragment } from './mottle.ts'
 import { Color, Vector2 } from 'three'
 import type { IUniform, MeshStandardMaterial, WebGLProgramParametersWithUniforms } from 'three'
 import { kitMaterial, markShared } from 'threejs-scene/modules/assets'
@@ -878,6 +879,9 @@ export function createScapeMaterials (
       // standing in.
       up ? SWASH_FRAGMENT : '',
       extra.lie ? seasonFragment(extra.lie, aspect, drift) : '',
+
+      // Last, so the snow it cuts rock through is the snow the year laid.
+      extra.detail ? mottleFragment(detailTaps >= 6) : '',
     ].join('\n')
 
     // Resolved out here rather than inside the closure. Which uniforms the
@@ -885,7 +889,7 @@ export function createScapeMaterials (
     // decision taken per compile is a branch in a function three already
     // considers long enough.
     const detailPars = extra.detail
-      ? DETAIL_PARS_FRAGMENT + HUMMOCK_PARS_FRAGMENT + GRAVEL_PARS_FRAGMENT + SWARD_PARS_FRAGMENT + (detailTaps >= 6 ? DETAIL_FULL_PARS_FRAGMENT : '')
+      ? DETAIL_PARS_FRAGMENT + MOTTLE_PARS_FRAGMENT + HUMMOCK_PARS_FRAGMENT + GRAVEL_PARS_FRAGMENT + SWARD_PARS_FRAGMENT + (detailTaps >= 6 ? DETAIL_FULL_PARS_FRAGMENT : '')
       : ''
 
     // `?skip=inject` leaves the mesh, the geometry and the vertex colours exactly

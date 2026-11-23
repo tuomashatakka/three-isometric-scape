@@ -45,7 +45,6 @@ const NOT_A_RATE: Record<string, string> = {
   // The turn of the *year*, not a rate of turning: 0..1 for how hard the season
   // withers what is green. What it scales is a tint derived from `season.time`,
   // and that phase is pinned per pose by `--season`.
-  'season.turn': 'an amount, 0..1 — the year turning, not a rate',
 
 }
 
