@@ -193,8 +193,9 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       group:    'time',
       title:    'season',
       controls: [
+        // How far the leaves turn is the year's own colour, carried by the
+        // clock above: \`season.turn\` is a config leaf for \`--set\` and the url.
         toggled('snow', range('season.snow', 'cover', 0, 1, 0.01), 0.85),
-        range('season.turn', 'leaf turn', 0, 1, 0.01),
         // The plates standing on the sound are the sea ice's, so they follow
         // its freeze; \`pack.cover\` stays a config leaf for \`--set\` and the url.
         toggled('sea ice · freeze and floes', range('season.ice', 'freeze', 0, 1, 0.01), 0.9),
@@ -272,8 +273,9 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       persist:  false,
       controls: [
         range('runtime.pixelRatio', 'pixel ratio', 0.5, 2, 0.05),
+        // The shadow's cadence is the tier's decision (\`main.ts\` writes it):
+        // \`runtime.shadowCadence\` is a config leaf for \`--set\` and the url.
         range('runtime.frameCap', 'frame cap · 0 free', 0, 120, 5),
-        range('runtime.shadowCadence', 'shadow every n frames', 1, 4, 1, quality.shadows),
       ],
     },
     {

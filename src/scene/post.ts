@@ -38,12 +38,15 @@ export interface PostOptions {
  * closed below 0.7 of that, which is the depth of field of a macro lens a
  * hand's breadth from a model railway. A camera that frames twelve metres of
  * yard keeps most of it sharp, and five pixels at the frame edge is the most a
- * photograph of a place shows. The vignette is the old default amount.
+ * photograph of a place shows. Five still read as a miniature at the yard frame
+ * (every sheep and wall stone a soft blob along the bottom of the picture), and
+ * a tilt-shift blur is the single loudest "model railway" tell there is: three
+ * pixels softens the edge of the frame without turning the place into a toy.
+ * The vignette is the old default amount.
  */
-const LENS_BLUR       = 5
+const LENS_BLUR       = 3
 const LENS_ABERRATION = 3.5
 const LENS_SHARPEN    = 0.4
-const LENS_CONTACT    = 0.55
 const LENS_HALATION   = 0.35
 
 /**
@@ -170,8 +173,6 @@ export function createAtmospherePost ({
       focus:    focusUv.set(Math.min(1, Math.max(0, (projected.x + 1) / 2)), focusNow),
       perMetre: depthDefocus(viewHeight, tanElevation),
       span:     camera.far - camera.near,
-      viewHeight,
-      slope:    1 / Math.max(0.05, tanElevation),
     })
   }
 
@@ -320,7 +321,6 @@ export function createAtmospherePost ({
       aberration: LENS_ABERRATION * look.lens,
       vignette:   LENS_VIGNETTE * look.lens,
       sharpen:    LENS_SHARPEN * Math.min(1, look.lens),
-      contact:    LENS_CONTACT * Math.min(1, look.lens),
       halation:   quality.lensTaps > 0 ? LENS_HALATION * Math.min(1, look.lens) : 0,
       grain:      quality.grain ? LENS_GRAIN * Math.min(1, look.lens) : 0,
       intensity:  look.intensity,

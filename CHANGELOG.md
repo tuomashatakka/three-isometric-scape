@@ -2,6 +2,18 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the far ground gets grain and the desktop glass comes clean — rock through the snow, peat in the moor, no more bands or screen door, and two panel rows fewer
+
+two whole-frame faults. at the `default`, `far` and `winter` frames the ground was its vertex colour alone (every grain term lets go with the zoom, and the far shore's vertices stand 35–60 m apart), so the fells were felt and the snowfields had no rock in them. and on desktop the lens painted its own artifacts: zeroing knobs one at a time put horizontal bands across the whole `default` frame, and a screen door with pale rims round every stone over `near`, on `look.lens`, and then on its contact term alone.
+
+- **the mottle.** [`props/mottle.ts`](src/scene/props/mottle.ts), the last ground term, after the year, on every ground program and tier: a smooth world field (26 m, three octaves; plus a broad 83 m octave on the six-tap path) applied by what the albedo is (`mottleClass`). snow is cut by near-black wet rock where the field runs low and sooner on a steep face; turf takes peat hags and straw; stone takes lichen and wet streaks. value noise in place, not a fetch: read at tens of metres, the grit map (unmipmapped) came back as salt.
+- **the screen-space contact shade is deleted.** [`focal.ts`](src/scene/focal.ts) wrote ten depth taps a pixel looking for a 0.7 m rise. at the wide frame that is a tenth of a pixel and the rise was the depth buffer's quantisation, hence the bands; at the yard it was an undenoised spiral. `contact.ts` already shades every small solid's foot in the materials on every tier, so the focal pass is the defocus alone (1 fetch a half-res pixel, was 11) and `LensLook.contact` is gone.
+- **less miniature.** `LENS_BLUR` 5 → 3 px at a 12 m frame: the yard's sheep and wall stones no longer melt along the frame's foot.
+- **the panel: two rows fewer.** *leaf turn* (`season.turn`, the year's own colour) and *shadow every n frames* (`runtime.shadowCadence`, which `main.ts` sets per tier) are config leaves for `--set` and the url, defaults unchanged.
+- **cost.** no draw, triangle, texture, uniform or program: mobile tour census unchanged (default 134 draws, near 85, far 113, noon 134, night and winter 138; 1.02M / 0.94M / 1.45M tris; 0 errors). desktop: ten fewer depth fetches per half-res pixel in the focal pass. twelve hashes per ground fragment on the phone, sixteen on desktop.
+- **looked at.** phone `winter` and `far`: ragged rock through the snow on the far fells and the ice island; `noon`/`default`: heath and peat patches on the far shores. desktop `default` free of the bands, desktop `near` free of the screen door and rims.
+- **tests:** `mottle.test.ts` — snow reads as snow, scree as stone, meadow as turf; no green is ever snow; the shares never exceed the colour; the field is deterministic, smooth across a metre and has patches both ways; neither path fetches a texture. `focal.test.ts` loses the contact cases.
+
 ## the far shores become land — the hinterland forgets its bearing, and two panel rows fewer
 
 in the `default` frame the far coast is a quarter of the picture on both flanks, and it read as radial brush strokes. more rings had not moved it (#126), and zeroing the cloud, mist, fog, lens, glare and indirect light left it in place: it was the ground itself. past the ridge the height was the bearing's crest times a share, so every summit and col of the skyline was extruded a kilometre inland as a spoke, and the gullies — ridged noise along the bearing — ran unbroken from the strand to the vale.
