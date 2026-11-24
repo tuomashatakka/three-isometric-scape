@@ -27,7 +27,7 @@ import { installSkyLight } from './sky-light.ts'
 import { landmassTerrain } from './config.ts'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import { createDaylight } from './daylight.ts'
-import { adaptExposure, targetExposure } from './exposure.ts'
+import { FRONT_SCATTER, adaptExposure, frontVeil, incidentLight, meteredExposure, overcast } from './exposure.ts'
 import type { DaylightState } from './daylight.ts'
 import type { AtmosphereQuality } from './quality.ts'
 import type { WeatherState } from './weather.ts'
@@ -263,6 +263,12 @@ export function createAtmosphereLayer ({
   // alone, so the adaptation reads this and never the renderer.
   let exposure = 1
 
+  /** What the meter reads off the light the rig casts this frame (`exposure.ts`). */
+  let metered = 1
+
+  /** The share of the key the front takes this frame. */
+  let veil = 0
+
   function expose (renderer: WebGLRenderer, next: number): void {
     exposure                     = next
     renderer.toneMappingExposure = directFilm ? packExposure(next, config().look.intensity, config().look.lens) : next
@@ -414,6 +420,14 @@ export function createAtmosphereLayer ({
     // sun is on this week is read rather than tracked — one authority for the
     // year, whichever module happens to be advancing it.
     daylight.sample(clock.time, config().season.time)
+    // Under a front the sky is the cloud's grey, not the clear dome's blue:
+    // the dome, the haze, the hemisphere and the key all lose their chroma by
+    // the veil (`exposure.ts`), so the sea mirrors an overcast too.
+    veil = weather ? frontVeil(weather.fall) : 0
+    overcast(sky.horizon, veil)
+    overcast(sky.skyTop, veil)
+    overcast(sky.hemiSky, veil)
+    overcast(sky.sun, veil)
 
     const target   = readCameraFocus(camera)
     const viewSize = camera.userData.viewSize as number ?? config().camera.viewSize
@@ -438,8 +452,11 @@ export function createAtmosphereLayer ({
     if (!rig)
       return
 
+    // The front veils the key and scatters part of it into the sky
+    // (`exposure.ts`): a squall falls through grey light, not through sun.
+    const shade = config().atmosphere.cloudCover * config().atmosphere.cloudShadow
     rig.sun.color.copy(sky.sun)
-    rig.sun.intensity = sky.sunStrength
+    rig.sun.intensity = sky.sunStrength * (1 - veil)
     rig.hemi.color.copy(sky.hemiSky)
     // The floor is the ground under this light, as it lies this week: turf or
     // snow, sunlit or under the deck (`ground-bounce.ts`). It replaced a fixed
@@ -451,12 +468,16 @@ export function createAtmosphereLayer ({
       sky:          sky.hemiSky,
       skyIntensity: rig.hemi.intensity,
       key:          sky.sun,
-      keyIntensity: sky.sunStrength,
+      keyIntensity: rig.sun.intensity,
       keyHeight:    direction.y,
-      shade:        config().atmosphere.cloudCover * config().atmosphere.cloudShadow,
+      shade,
       bounce:       config().look.ao,
     }))
-    rig.hemi.intensity = sky.hemiStrength * SKY_FILL
+    rig.hemi.intensity = sky.hemiStrength * SKY_FILL * (1 + FRONT_SCATTER * veil)
+    metered = meteredExposure(
+      incidentLight(rig.sun.color, rig.sun.intensity, direction.y, rig.hemi.color, rig.hemi.intensity, shade),
+      sky.day,
+    )
 
     rig.sun.position.copy(target).addScaledVector(direction, SUN_DISTANCE)
     sunPosition.copy(rig.sun.position)
@@ -488,20 +509,18 @@ export function createAtmosphereLayer ({
       reframe(0, 0)
       lastClock = config().daylight.time
       installDirectFilm(ctx.renderer, directFilm)
-      expose(ctx.renderer, targetExposure(sky.day, sky.moon))
+      expose(ctx.renderer, metered)
     },
 
     update (_state, frame, ctx) {
       reframe(frame.elapsed, frame.delta)
 
-      // The iris: opens at night, stops down in the sun (`exposure.ts`). A
-      // scrub of the clock is a cut, not a drift, so it is metered at once.
+      // The iris follows the meter (`exposure.ts`). A scrub of the clock is
+      // a cut, not a drift, so it is metered at once.
       const clock = config().daylight.time
       const cut   = Math.abs(clock - lastClock) > 0.02 && Math.abs(clock - lastClock) < 0.98
       lastClock   = clock
-      expose(ctx.renderer, cut
-        ? targetExposure(sky.day, sky.moon)
-        : adaptExposure(exposure, targetExposure(sky.day, sky.moon), frame.delta))
+      expose(ctx.renderer, cut ? metered : adaptExposure(exposure, metered, frame.delta))
     },
 
     dispose () {

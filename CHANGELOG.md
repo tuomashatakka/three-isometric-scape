@@ -2,6 +2,17 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the squall greys the light and the camera meters it — the front veils the sun, the sky goes to the cloud's grey, an incident meter sets the iris, and two panel rows fewer
+
+nothing in the scape dimmed the sun under a rain front: the tour's six frames all sit in a shower (`weather.time` 0.19, fall 0.26) and every one of them was lit by full, hard sunlight with rain streaks over it, under a blue dome the sea mirrored. and the iris ran on the clock alone (0.92 by day, 1.16 by night), so a squall, a winter noon nine degrees up and a clear midsummer noon all printed at the same stop.
+
+- **the front veils the key** ([`exposure.ts`](src/scene/exposure.ts), applied in `atmosphere.ts`): `frontVeil(weather.fall)` takes up to 80 % of the key (smoothstep to `FRONT_SHUT` 0.5), `FRONT_SCATTER` hands 15 % of the veil back to the hemisphere, and `overcast` takes the dome, the haze colour, the hemisphere and the key toward their own grey (85 % at a full veil, brightness kept). the ground bounce takes the veiled key. a shower is soft light under a grey sky.
+- **an incident meter sets the iris.** `incidentLight`: the key on a level card through the veil and the deck's mean shade, plus the sky, as the rig casts them; `meteredExposure` corrects 0.75 of the ratio to the clear midsummer noon (which still meters to 0.92), capped by a ceiling that falls with the daylight (1.5 by day, 1.16 at night). measured: tour default/near 0.94 → 1.07, full squall 1.24, a winter noon 1.30, sunrise 1.29; the night unchanged. `targetExposure(day, moon)` is gone.
+- **measured (phone, studio, mean ± sd of luminance, before → after):** near 63.3 ± 34.7 → 60.8 ± 30.7 (the hard sun-and-shadow contrast softens), default 103.7 → 99.8, far 94.5 → 90.5, noon 98.5 → 96.0, winter 86.5 → 88.3, night 66.0 → 65.2. a forced full squall (`weather.time=0.28`) against a clear spell (`0.0`) at the yard: grey, wet and flat against sunlit — the front is something you can see coming now.
+- **the panel: two rows fewer.** *year cycle* and *weather cycle* were rates, not looks: `season.speed` and `weather.speed` are config leaves for `--set` and the url, defaults unchanged. the scrubbers stay.
+- **cost: none.** no draw, triangle, texture, uniform or program (phone near 84 draws / 0.94M, default 134 / 1.02M, 28 programs; desktop near 103 / 2.61M, default 231 / 4.58M; 0 errors). a few scalar operations a frame on the cpu.
+- **tests:** `exposure.test.ts`: a clear midsummer noon meters to the noon stop; a front, a low sun and a winter noon open up; the night never opens past the adapted eye; more light never opens the iris; the veil never takes all the key; an overcast keeps a colour's brightness.
+
 ## one curve — the frame develops once, the shade opens and the colour comes back, the desktop yard loses its veil, and two panel rows fewer
 
 the film developed every frame twice: a display-space s-curve "stock" (square root, contrast about half, squared back, a teal cast at 0.32, a lifted black) and then ACES on top. two toes and two shoulders in series crushed every shaded wall to the same charcoal and drained colour from the whole frame. on the phone `near` frame the chapel's weatherboard printed at 53 of 255 and the falu-red barn at 81/67/66.

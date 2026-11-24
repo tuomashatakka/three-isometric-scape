@@ -306,7 +306,7 @@ src/
     ├── shafts.ts                   the daylight in the gaps of that deck: one stack, one draw, one cloud map
     ├── noise.ts                    deterministic height sampler
     ├── post.ts                     the chain: ao, ssr, bloom, sun shafts, the lens, traa
-    ├── exposure.ts                 the iris: tone-mapping exposure opens at night, stops down at noon
+    ├── exposure.ts                 the meter: the front veils the key, the iris meters the incident light
     ├── lens.ts                     one pass for the glass and the film: defocus, fringe, vignette, grade, grain
     ├── focal.ts                    the focal plane: a half-res defocus map off the depth, taken before the chain touches it
     ├── quality.ts                  minimal/mobile/desktop/ultra gpu budgets, and the unlock
@@ -878,9 +878,14 @@ the full ground program (desktop, ultra) gets puddles: one more wear fetch and o
 
 **six knobs fewer.** the rainbow's and the halo's band width, saturation and reach were sliders, and none is a decision about the place: the band widths and spectra are the optics of a drop and a crystal (`BOW_WIDTH`, `BOW_SATURATION` in `rainbow.ts`, `HALO_WIDTH`, `HALO_SATURATION` in `halo.ts`), and the two were always meant to hang at one distance, `SKY_OPTIC_REACH`. the sky panel keeps strength, the outer bow, the mock suns, the pillar and the lead.
 
-## the iris
+## the meter and the front's light
 
-exposure was a constant 0.98, so noon and a moonlit night were metered alike and the night could only be dark by being dim. [`exposure.ts`](src/scene/exposure.ts) gives the renderer an iris: `targetExposure(day, moon)` runs from 0.92 in full sun to 1.16 in the dark (moonlight holds it a little shut), and `atmosphere.ts` eases `toneMappingExposure` toward it at 1.4 e-folds a second — an iris, not a cut. a scrub of the clock (a jump of more than 0.02 of a day in one frame) is metered at once, so a capture at `--time 0.95` is the night's exposure and not a drift toward it. it lives on the renderer, not in the lens, so **every tier has it**, mobile with no chain included.
+exposure was a constant 0.98, then an iris on the clock alone (0.92 by day, 1.16 by night) — so a noon under a rain front, a winter noon with the sun nine degrees up and a clear midsummer noon printed at the same stop, and since nothing dimmed the sun under the front either, a squall fell through hard sunlight. [`exposure.ts`](src/scene/exposure.ts) is two physical facts now:
+
+- **the front veils the key.** `frontVeil(weather.fall)` takes up to `FRONT_VEIL` (0.8) of the key's intensity — full once the fall reaches `FRONT_SHUT` — and `FRONT_SCATTER` hands a share of it to the hemisphere. `overcast` takes the dome, the haze, the hemisphere and the key toward their own grey by the same veil, brightness kept, so the sky the sea mirrors is the cloud's too. the floor's bounce (`ground-bounce.ts`) is fed the veiled key. a squall is soft light under a grey sky, not streaks over a sunny frame.
+- **the camera meters what falls on the focus.** `incidentLight` is an incident meter: the key on a level card through the veil and the deck's mean shade (`cloudCover × cloudShadow`), plus the sky, as the rig casts them. `meteredExposure` corrects `METER_GAIN` (0.75) of the ratio to `METER_REF` — the clear midsummer noon, which meters to 0.92 — between that stop and a ceiling that falls with the daylight (`EXPOSURE_OPEN` 1.5 by day, `EXPOSURE_NIGHT` 1.16 in the dark), so an overcast or a winter noon opens up two thirds of a stop and a night only as far as an adapted eye.
+
+`atmosphere.ts` eases `toneMappingExposure` toward the reading at 1.4 e-folds a second — an iris, not a cut. a scrub of the clock (a jump of more than 0.02 of a day in one frame) is metered at once, so a capture at `--time 0.95` is the night's exposure and not a drift toward it. it lives on the renderer, not in the lens, so **every tier has it**, mobile with no chain included, and it costs no draw, program or uniform.
 
 **one knob fewer:** `look.godRays` is retired. the sun's shafts are the same scattered light as the bloom and the streak, so they ride `look.glare` (`GLARE_RAYS` in `post.ts`); at 0 the pass is not built.
 
