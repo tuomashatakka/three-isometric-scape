@@ -262,10 +262,10 @@ export interface AtmosphereQuality {
    * as frozen — what a plate buys is the edge and the shadow on it.
    *
    * It is a budget of *seats*, and how many of them are standing in any week is
-   * the year's — the same split `cliffBirds` has. At the authored `season.ice`
+   * the year's — the same split `cliffBirds` has. At the authored `season.snow`
    * the deepest week of the winter stands a little over two thirds of them, and
    * the rest are the outer pack, which wants a harder freeze than this coast's
-   * year reaches. Turning `season.ice` up to 1 brings them in.
+   * year reaches. A harder winter (`season.snow` toward 1) brings them in.
    *
    * At the authored `pack.spacing` the search offers 627 seats in the whole
    * archipelago, so the two top tiers both take the field entire and only the

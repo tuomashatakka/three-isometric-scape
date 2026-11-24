@@ -133,6 +133,18 @@ export function seaSmokeAmount (phase: number): number {
 }
 
 /**
+ * How hard a winter of `snow` (0..1, `season.snow`) shuts the sea, 0..1. A
+ * touch harder than it whitens the land — the sound stays shut for weeks after
+ * the fells go brown — and it was the retired `season.ice` leaf's 0.9 at the
+ * authored 0.85, so the panel lost a row and the sound kept its ice.
+ */
+export const FREEZE_PER_SNOW = 0.9 / 0.85
+
+export function winterFreeze (snow: number): number {
+  return Math.min(1, Math.max(0, snow * FREEZE_PER_SNOW))
+}
+
+/**
  * The seasonal axis.
  *
  * Built the way `daylight.ts` is built, and for the same reason: the authored
@@ -203,7 +215,7 @@ export function createSeason (config: LiveConfig): Season {
       state.tintAmount = Math.min(1, Math.max(wither, turn) * season.turn)
       state.snow       = snowAmount(wrapped) * season.snow
       state.snowLine   = terrain.waterLevel + season.snowLine
-      state.freeze     = freezeAmount(wrapped) * season.ice
+      state.freeze     = freezeAmount(wrapped) * winterFreeze(season.snow)
 
       state.tint.copy(sere).lerp(autumn, turn)
       state.snowColor.set(palette.snow)

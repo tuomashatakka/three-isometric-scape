@@ -29,7 +29,18 @@ export interface SeasonConfig {
     /** Full years per minute. 0 freezes the year wherever `time` left it. */
     speed: number
 
-    /** How white deep winter gets, 0..1. 0 is a scape that never sees snow. */
+    /**
+     * How hard the winter is, 0..1: how white the land gets, and — by
+     * `winterFreeze` in `season.ts` — how hard the sea shuts. 0 is a scape
+     * that never sees snow or ice.
+     *
+     * One knob since the sea ice's own `ice` leaf retired: the two curves
+     * still neither start nor end together (the land whitens on one cold
+     * night, the sea needs the whole season — `snowAmount` and `freezeAmount`
+     * keep that), but how *hard* a winter is was one decision split over two
+     * panel rows. `water.iceReach` decides how far out from the bank the
+     * freeze carries.
+     */
     snow: number
 
     /**
@@ -78,16 +89,6 @@ export interface SeasonConfig {
 
     /** How hard the year turns and withers what is green, 0..1. */
     turn: number
-
-    /**
-     * How hard the winter shuts the water, 0..1. 0 is a sea that never freezes.
-     *
-     * Separate from `snow` because they are separate winters: the land whitens
-     * on one cold night and the sea needs the whole season, so the two curves
-     * neither start nor end together. `water.iceReach` decides how far out from
-     * the bank this carries.
-     */
-    ice: number
   }
 }
 
@@ -118,6 +119,5 @@ export const SCAPE_SEASON: SeasonConfig = {
     // the other.
     snowDrift: 3.4,
     turn:      0.55,
-    ice:       0.9,
   },
 }

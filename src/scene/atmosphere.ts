@@ -454,9 +454,14 @@ export function createAtmosphereLayer ({
 
     // The front veils the key and scatters part of it into the sky
     // (`exposure.ts`): a squall falls through grey light, not through sun.
-    const shade = config().atmosphere.cloudCover * config().atmosphere.cloudShadow
+    // The deck's shade blocks only the sun the front has left (`shadeAmount`).
+    const shade = config().atmosphere.cloudCover * config().atmosphere.cloudShadow * (1 - veil)
     rig.sun.color.copy(sky.sun)
     rig.sun.intensity = sky.sunStrength * (1 - veil)
+    // What is left of the key under the front is scattered forward through
+    // the cloud, not a disc: its shadow map fades with the veil, so a squall
+    // casts no hard shadow of a post across the yard.
+    rig.sun.shadow.intensity = 1 - veil
     rig.hemi.color.copy(sky.hemiSky)
     // The floor is the ground under this light, as it lies this week: turf or
     // snow, sunlit or under the deck (`ground-bounce.ts`). It replaced a fixed

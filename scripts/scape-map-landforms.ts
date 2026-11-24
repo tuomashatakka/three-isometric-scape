@@ -18,7 +18,7 @@ import { birdAshore } from '../src/scene/landscape/seabirds.ts'
 import { ROOST_RESOLUTION, roostAmount, surveyRoosts } from '../src/scene/landscape/roost.ts'
 import { MAX_DEPTH, bakeDepthGrid } from '../src/scene/landscape/shore-mask.ts'
 import { planTreeline } from '../src/scene/landscape/treeline.ts'
-import { freezeAmount } from '../src/scene/season.ts'
+import { freezeAmount, winterFreeze } from '../src/scene/season.ts'
 import { tideAmplitudeAt } from '../src/scene/tide.ts'
 import type { MapStats } from './scape-map.ts'
 import { hypot } from '../src/scene/hypot.ts'
@@ -1180,7 +1180,7 @@ const MAP_TIER_PLATES = 620
 export function packStats (survey: ArchipelagoSurvey, config: ScapeConfig): MapStats['pack'] {
   const floes    = planPackIce(survey, config, MAP_TIER_PLATES)
   const offered  = planPackIce(survey, config, Number.MAX_SAFE_INTEGER).length
-  const deepest  = freezeAmount(0) * config.season.ice
+  const deepest  = freezeAmount(0) * winterFreeze(config.season.snow)
   const legs     = survey.waterways.route.legs.map(leg => leg.points)
   const standing = (freeze: number): number =>
     floes.filter(floe => floeExtent(floe, freeze, config.pack.cover) > 0).length
@@ -1194,7 +1194,7 @@ export function packStats (survey: ArchipelagoSurvey, config: ScapeConfig): MapS
     offered,
     full:    standing(deepest),
     deep:    standing(1),
-    summer:  standing(freezeAmount(0.5) * config.season.ice),
+    summer:  standing(freezeAmount(0.5) * winterFreeze(config.season.snow)),
     first:   floes.length ? round(Math.min(...onsets), 2) : 0,
     last:    floes.length ? round(Math.max(...onsets), 2) : 0,
     small:   floes.length ? round(Math.min(...lengths), 1) : 0,

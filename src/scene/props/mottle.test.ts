@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { SCAPE_PALETTE } from '../config-palette.ts'
-import { MOTTLE_FINE, MOTTLE_PARS_FRAGMENT, mottleClass, mottleField, mottleFragment, mottleNoise } from './mottle.ts'
+import { GULLY_CELL, MOTTLE_FINE, MOTTLE_PARS_FRAGMENT, gullyField, mottleClass, mottleField, mottleFragment, mottleNoise, slopeField } from './mottle.ts'
 
 
 const linear = (hex: number): [number, number, number] => {
@@ -76,5 +76,42 @@ describe('mottle', () => {
     expect(mottleFragment(true)).not.toContain('texture')
     expect(MOTTLE_PARS_FRAGMENT).not.toContain('uniform')
     expect(mottleFragment(true).length).toBeGreaterThan(mottleFragment(false).length)
+  })
+
+  it('runs down the fall line on a slope, and is round on the level', () => {
+    // A face leaning east (normal +x): the fall line runs along x.
+    const nx = 0.7
+    let along  = 0
+    let across = 0
+    for (let i = 0; i < 300; i += 1) {
+      const x = i * 13.1 - 900
+      const z = i * 7.7 + 120
+      const g = gullyField(x, z, nx, 0)
+      along  += Math.abs(gullyField(x + GULLY_CELL, z, nx, 0) - g)
+      across += Math.abs(gullyField(x, z + GULLY_CELL, nx, 0) - g)
+    }
+    // A cell down the face is nearly the same gully; a cell across is the next rib.
+    expect(along * 1.6).toBeLessThan(across)
+
+    // Level ground: the three taps coincide, and the gully is the plain octave.
+    const flat = gullyField(55, -20, 0, 0)
+    expect(flat).toBe(gullyField(55, -20, 0, 0))
+
+    let sumX = 0
+    let sumZ = 0
+    for (let i = 0; i < 300; i += 1) {
+      const x = i * 13.1 - 900
+      const z = i * 7.7 + 120
+      sumX += Math.abs(gullyField(x + GULLY_CELL, z, 0, 0) - gullyField(x, z, 0, 0))
+      sumZ += Math.abs(gullyField(x, z + GULLY_CELL, 0, 0) - gullyField(x, z, 0, 0))
+    }
+    expect(sumX / sumZ).toBeGreaterThan(0.7)
+    expect(sumX / sumZ).toBeLessThan(1.4)
+  })
+
+  it('hands the level the round mottle and the steep the gully', () => {
+    expect(slopeField(0.4, -0.6, 0)).toBeGreaterThan(0)
+    expect(slopeField(0.4, -0.6, 1)).toBeLessThan(-0.3)
+    expect(mottleFragment(false)).toContain('nonPerturbedNormal')
   })
 })

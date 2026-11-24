@@ -708,7 +708,7 @@ export function createLandscape (
       // Before anything that draws with it. The ground, the grass and the lake
       // read the same four uniforms, so the shadow is placed once and then
       // three programs are handed the answer.
-      shadow.update(wind)
+      shadow.update(wind, front.fall)
       occlusion.update(config().look.ao, ctx.camera)
 
       advancePopulated(frame.delta, year.time, now, front.fall)

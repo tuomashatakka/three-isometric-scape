@@ -2,6 +2,16 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the snow lies in the gullies and the overcast casts no shade — rock runs down the fall line, the deck's shadows fade under a shut front, and one winter row
+
+the `winter` frame's far shores — the largest land in the tour — were a camouflage print: round black patches of bare rock tens of metres across lying on every slope and every flat alike. and under a falling front the deck kept printing its full shade on the ground: `scapeCloudShade` darkens the *albedo*, so a cloud went on blocking a sun the front had already veiled, and the overcast yard had dark patches in it that read as dirt.
+
+- **the fall line** ([`props/mottle.ts`](src/scene/props/mottle.ts)): on a slope the snow and stone mottle are tested against `gullyField` — a narrow 9 m octave averaged over three taps down the fall line, spread by the face's lean (16 m either side on a vertical face), the fall line read off the smooth world normal already in scope. on the level the taps coincide. the level holds its snow (`LEVEL_HOLD` 0.32), and the snow line on rock is crisp (`BARE_EDGE` −0.42..−0.78, was −0.2..−0.95). the far shores read as snowfields with rock ribs running down them, not a print; the fell island keeps its cover on the flats and loses it on the faces.
+- **the overcast casts no shade** ([`cloud-shadow.ts`](src/scene/cloud-shadow.ts), [`atmosphere.ts`](src/scene/atmosphere.ts)): `shadeAmount` takes the front's veil (`frontVeil(fall)`), so the deck's shadow fades with the sun it blocks; the incident meter's mean shade does too; and the key's shadow map fades with the veil (`shadow.intensity = 1 − veil`) — what is left of the sun under a squall is scattered through the cloud, not a disc.
+- **the panel: one row fewer.** *snow* and *sea ice* were one decision — how hard the winter is — on two rows: `season.ice` is retired and the freeze is `winterFreeze(season.snow)` (0.9 at the authored 0.85, so the sound keeps its ice). one row, *winter · snow, sea ice and floes*.
+- **cost:** two value noises (eight hashes) more per ground fragment on every tier; no draw, triangle, texture, uniform or program (phone near 84 draws / 0.94M, default 134 / 1.02M; desktop near 103 / 2.61M, winter 242 / 4.59M; 0 errors).
+- **tests:** `mottle.test.ts`: on a slope the field is far more alike a cell down the fall line than a cell across it, and round on the level. `cloud-shadow.test.ts`: the deck's shade fades with the veil, to a fifth under a shut front. `season.test.ts`: the freeze follows the winter.
+
 ## the squall greys the light and the camera meters it — the front veils the sun, the sky goes to the cloud's grey, an incident meter sets the iris, and two panel rows fewer
 
 nothing in the scape dimmed the sun under a rain front: the tour's six frames all sit in a shower (`weather.time` 0.19, fall 0.26) and every one of them was lit by full, hard sunlight with rain streaks over it, under a blue dome the sea mirrored. and the iris ran on the clock alone (0.92 by day, 1.16 by night), so a squall, a winter noon nine degrees up and a clear midsummer noon all printed at the same stop.

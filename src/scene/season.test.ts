@@ -7,6 +7,7 @@ import {
   seaSmokeAmount,
   snowAmount,
   turnAmount,
+  winterFreeze,
 } from './season.ts'
 
 
@@ -144,9 +145,9 @@ describe('createSeason', () => {
   })
 
   test('scales the freeze by how hard the winter is configured to be', () => {
-    const mild = createSeason(() => ({ ...SCAPE_CONFIG, season: { ...SCAPE_CONFIG.season, ice: 0 }}))
+    const mild = createSeason(() => ({ ...SCAPE_CONFIG, season: { ...SCAPE_CONFIG.season, snow: 0 }}))
 
-    expect(season.sample(0.06).freeze).toBeCloseTo(SCAPE_CONFIG.season.ice, 6)
+    expect(season.sample(0.06).freeze).toBeCloseTo(winterFreeze(SCAPE_CONFIG.season.snow), 6)
     expect(mild.sample(0.06).freeze).toBe(0)
   })
 
