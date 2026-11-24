@@ -78,7 +78,7 @@ describe('STILL covers everything the overlay can animate', () => {
     const missed = rates.filter(path => !stillPaths.has(path))
 
     // Named so a failure says which knob, not just that one is missing.
-    expect(rates.length).toBeGreaterThan(2)
+    expect(rates.length).toBeGreaterThan(0)
     expect(missed).toEqual([])
   })
 

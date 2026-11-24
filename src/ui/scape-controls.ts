@@ -179,14 +179,14 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       group:    'time',
       title:    'the clocks',
       controls: [
-        // The phases sit outside their switches on purpose: freezing a clock is
-        // exactly when you want to scrub it.
+        // The phases sit outside their switch on purpose: freezing a clock is
+        // exactly when you want to scrub it. Only the day runs from the panel;
+        // how fast the year and the fronts turn (`season.speed`,
+        // `weather.speed`) are rates, config leaves for `--set` and the url.
         { ...range('daylight.time', 'time of day', 0, 1, 0.002), live: true },
         toggled('day cycle', range('daylight.speed', 'cycles per minute', 0, 2, 0.01), 0.4),
         { ...range('season.time', 'time of year', 0, 1, 0.002), live: true },
-        toggled('year cycle', range('season.speed', 'years per minute', 0, 1, 0.01), 0.08),
-        { ...range('weather.time', 'time in the front', 0, 1, 0.002), live: true },
-        toggled('weather cycle', range('weather.speed', 'fronts per minute', 0, 1, 0.01), 0.14),
+        { ...range('weather.time', 'time in the front · the light greys under it', 0, 1, 0.002), live: true },
       ],
     },
     {
