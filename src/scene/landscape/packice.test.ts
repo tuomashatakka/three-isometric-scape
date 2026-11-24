@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { SCAPE_CONFIG } from '../config.ts'
 import type { ScapeConfig } from '../config.ts'
-import { freezeAmount } from '../season.ts'
+import { freezeAmount, winterFreeze } from '../season.ts'
 import { surveyArchipelago } from './archipelago.ts'
 import { fairwayClearance, floeExtent, planPackIce, sheetOver } from './packice.ts'
 
@@ -142,7 +142,7 @@ describe('the deal', () => {
 describe('the week the pack arrives', () => {
   test('is a summer with no ice standing on it at all', () => {
     for (const phase of [ 0.35, 0.5, 0.65 ]) {
-      const freeze = freezeAmount(phase) * config.season.ice
+      const freeze = freezeAmount(phase) * winterFreeze(config.season.snow)
 
       expect(floes.filter(floe => floeExtent(floe, freeze, 1) > 0)).toEqual([])
     }
@@ -150,11 +150,11 @@ describe('the week the pack arrives', () => {
 
   test('is a midwinter with most of the field standing, and a harder one with all of it', () => {
     // Two numbers rather than one, because they say different things. The
-    // authored year tops out at `season.ice`, so the outer pack — the water that
+    // authored year tops out at `winterFreeze(season.snow)`, so the outer pack — the water that
     // wants a harder winter than this coast gets — is surveyed and never
     // standing until the knob is turned up. A field that was entirely up at the
     // authored freeze would mean the search had stopped offering the outside.
-    const authored = freezeAmount(0) * config.season.ice
+    const authored = freezeAmount(0) * winterFreeze(config.season.snow)
     const hardest  = floes.filter(floe => floeExtent(floe, 1, 1) > 0.99)
     const standing = floes.filter(floe => floeExtent(floe, authored, 1) > 0.99)
 
@@ -195,7 +195,7 @@ describe('the week the pack arrives', () => {
 
 describe('the cover dial', () => {
   test('is the switch, and takes the pack away without moving what is left', () => {
-    const freeze = freezeAmount(0) * config.season.ice
+    const freeze = freezeAmount(0) * winterFreeze(config.season.snow)
 
     expect(floes.filter(floe => floeExtent(floe, freeze, 0) > 0)).toEqual([])
 

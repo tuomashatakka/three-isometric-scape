@@ -195,10 +195,10 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       controls: [
         // How far the leaves turn is the year's own colour, carried by the
         // clock above: \`season.turn\` is a config leaf for \`--set\` and the url.
-        toggled('snow', range('season.snow', 'cover', 0, 1, 0.01), 0.85),
-        // The plates standing on the sound are the sea ice's, so they follow
-        // its freeze; \`pack.cover\` stays a config leaf for \`--set\` and the url.
-        toggled('sea ice · freeze and floes', range('season.ice', 'freeze', 0, 1, 0.01), 0.9),
+        // One winter: the land's cover and the sound's freeze are one decision
+        // (`winterFreeze`), and the plates standing on the sound follow it;
+        // \`pack.cover\` stays a config leaf for \`--set\` and the url.
+        toggled('winter · snow, sea ice and floes', range('season.snow', 'how hard', 0, 1, 0.01), 0.85),
       ],
     },
     {

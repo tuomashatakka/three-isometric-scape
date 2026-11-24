@@ -3,6 +3,7 @@ import { describe, expect, test } from 'bun:test'
 import { CLOUD_CUT, CLOUD_EDGE, CLOUD_SHADOW_GLSL, shadeAmount, shadowThrow } from './cloud-shadow.ts'
 import { SCAPE_CONFIG } from './config.ts'
 import { KEY_FLOOR } from './daylight.ts'
+import { FRONT_VEIL, frontVeil } from './exposure.ts'
 
 
 const { cloudShadow, cloudCover, cloudHeight } = SCAPE_CONFIG.atmosphere
@@ -115,6 +116,13 @@ describe('and how dark it is allowed to be', () => {
   test('it never exceeds the authored darkness, however much light is up', () => {
     expect(shadeAmount(cloudShadow, 1, 1, 1)).toBeCloseTo(cloudShadow, 10)
     expect(shadeAmount(cloudShadow, 2, 4, 4)).toBeCloseTo(cloudShadow, 10)
+  })
+
+  test('it fades with the sun a falling front has already veiled', () => {
+    const clear = shadeAmount(cloudShadow, cloudCover, 1, 0)
+    expect(shadeAmount(cloudShadow, cloudCover, 1, 0, frontVeil(0))).toBe(clear)
+    expect(shadeAmount(cloudShadow, cloudCover, 1, 0, frontVeil(1))).toBeCloseTo(clear * (1 - FRONT_VEIL), 10)
+    expect(shadeAmount(cloudShadow, cloudCover, 1, 0, frontVeil(0.3))).toBeLessThan(clear)
   })
 })
 

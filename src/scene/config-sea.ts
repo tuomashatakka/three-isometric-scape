@@ -282,7 +282,7 @@ export interface SeaConfig {
      *
      * 0 freezes the open sea as readily as the bank, which is a lake rather
      * than a coast; 1 confines the ice to water shallow enough to lose its
-     * heat in a season. See `season.ice` for whether it freezes at all.
+     * heat in a season. See `season.snow` for whether it freezes at all.
      */
     iceReach: number
 

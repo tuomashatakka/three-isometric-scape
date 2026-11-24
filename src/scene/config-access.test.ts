@@ -99,7 +99,7 @@ describe('a knob moved after the scape was built', () => {
 
     expect(year.sample(0.06).freeze).toBeGreaterThan(0)
 
-    config.write('season.ice', 0)
+    config.write('season.snow', 0)
 
     expect(year.sample(0.06).freeze).toBe(0)
   })

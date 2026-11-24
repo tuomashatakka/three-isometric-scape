@@ -9,6 +9,7 @@ import type { TextureCatalogue } from './textures/catalogue.ts'
 import { UNTILE_GLSL } from './textures/untile.ts'
 import type { WindState } from './wind.ts'
 import { hypot } from './hypot.ts'
+import { frontVeil } from './exposure.ts'
 
 
 /**
@@ -60,8 +61,11 @@ export interface CloudShadow {
   /** What the shadow is doing right now. The instrument, and the test's subject. */
   state: CloudShadowState
 
-  /** Advance the drift and re-place the shadow under the key light. Allocation-free. */
-  update(wind: WindState): void
+  /**
+   * Advance the drift and re-place the shadow under the key light. Allocation-free.
+   * `fall` is the front's (`WeatherState.fall`): under a shut front there is no sun left for a cloud to block.
+   */
+  update(wind: WindState, fall?: number): void
 }
 
 export interface CloudShadowState {
@@ -189,6 +193,13 @@ export function shadowThrow (
  * nothing else in this scape has one — an effect is off when its strength is
  * zero.
  *
+ * `veil` is the front's ({@link frontVeil}): the share of the key a falling
+ * squall has already taken. The shadow is cast by the sun, and the albedo it
+ * darkens is lit by the sky too, so a cloud kept printing its full shade on a
+ * yard the front had already turned to grey light — the patches of shade
+ * under an overcast that read as dirt on the ground. They fade with the sun
+ * they block.
+ *
  * `moon` is in the same share-of-the-noon-sun units `day` is, so a full moon
  * throws a shadow about a sixth as dark as noon's, which is roughly what a
  * bright moon does to a snow field.
@@ -198,8 +209,9 @@ export function shadeAmount (
   cover:  number,
   day:    number,
   moon:   number,
+  veil = 0,
 ): number {
-  const light = Math.min(1, Math.max(0, day + moon))
+  const light = Math.min(1, Math.max(0, day + moon)) * (1 - Math.min(1, Math.max(0, veil)))
 
   return Math.max(0, shadow) * Math.min(1, Math.max(0, cover)) * light
 }
@@ -343,7 +355,7 @@ export function createCloudShadow (
     uniforms,
     state,
 
-    update (wind) {
+    update (wind, fall = 0) {
       const { atmosphere } = config()
       const sky            = daylight.sample(config().daylight.time, config().season.time)
       const tile           = 1 / Math.max(1, atmosphere.cloudScale)
@@ -389,6 +401,7 @@ export function createCloudShadow (
         atmosphere.cloudCover,
         sky.day,
         sky.moon,
+        frontVeil(fall),
       )
 
       cover.value = Math.min(1, Math.max(0, atmosphere.cloudCover))
