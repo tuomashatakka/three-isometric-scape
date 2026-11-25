@@ -44,8 +44,8 @@ export interface AtmosphereQuality {
   shaftSheets: number
   msaaSamples: number
 
-  /** Taps on the lens pass's defocus disc (`lens.ts`); 0 is a lens with no defocus. */
-  lensTaps: number
+  /** The lens pass's halation ring (`lens.ts`): eight fetches a fragment. */
+  halation: boolean
 
   /**
    * Stacked veils in the auroral deck. 0 is a sky that never lights up.
@@ -709,7 +709,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     mistLayers:      1,
     shaftSheets:     0,
     msaaSamples:     0,
-    lensTaps:        0,
+    halation:        false,
     auroraLayers:    0,
     starCount:       0,
     rainDrops:       0,
@@ -769,7 +769,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     mistLayers:      2,
     shaftSheets:     3,
     msaaSamples:     0,
-    lensTaps:        0,
+    halation:        false,
     auroraLayers:    1,
     starCount:       700,
     rainDrops:       900,
@@ -845,7 +845,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     mistLayers:      4,
     shaftSheets:     6,
     msaaSamples:     4,
-    lensTaps:        16,
+    halation:        true,
     auroraLayers:    2,
     starCount:       1_900,
     rainDrops:       2_600,
@@ -905,7 +905,7 @@ const PRESETS: Record<AtmosphereQualityTier, Omit<AtmosphereQuality, 'tier'>> = 
     mistLayers:      6,
     shaftSheets:     8,
     msaaSamples:     8,
-    lensTaps:        24,
+    halation:        true,
     auroraLayers:    3,
     starCount:       3_200,
     rainDrops:       4_200,
@@ -982,7 +982,6 @@ export function isQualityEffects (value: string): value is QualityEffects {
 const UNLOCKED_FLOOR = {
   mistLayers:   2,
   shaftSheets:  3,
-  lensTaps:     12,
   auroraLayers: 1,
   starCount:    700,
   rainDrops:    700,
@@ -1037,7 +1036,7 @@ export function unlockEffects (quality: AtmosphereQuality): AtmosphereQuality {
     post:         true,
     mistLayers:   Math.max(quality.mistLayers, UNLOCKED_FLOOR.mistLayers),
     shaftSheets:  Math.max(quality.shaftSheets, UNLOCKED_FLOOR.shaftSheets),
-    lensTaps:     Math.max(quality.lensTaps, UNLOCKED_FLOOR.lensTaps),
+    halation:     true,
     auroraLayers: Math.max(quality.auroraLayers, UNLOCKED_FLOOR.auroraLayers),
     starCount:    Math.max(quality.starCount, UNLOCKED_FLOOR.starCount),
     rainDrops:    Math.max(quality.rainDrops, UNLOCKED_FLOOR.rainDrops),

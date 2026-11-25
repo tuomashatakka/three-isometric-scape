@@ -12,6 +12,7 @@ import { defineModule } from 'threejs-scene'
 import { CLOUD_CUT, CLOUD_EDGE, shadowThrow } from './cloud-shadow.ts'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import type { DaylightState } from './daylight.ts'
+import { glareAmount } from './film.ts'
 import type { Vec2 } from './landscape/path.ts'
 import type { AtmosphereQuality } from './quality.ts'
 import type { TextureCatalogue } from './textures/catalogue.ts'
@@ -483,8 +484,8 @@ export function createShaftsLayer ({
     update () {
       const { atmosphere, camera, look, shafts, terrain } = config()
       // The deck's rays are glare in the air: `shafts.strength` is their share
-      // of the glare row, so the one row turns the bloom and the rays together.
-      const amount = shaftAmount(shafts.strength * look.glare, atmosphere.cloudCover, daylight.day) * shaftFade(camera.viewSize)
+      // of the glare (`glareAmount`), so the camera row turns the bloom and the rays together.
+      const amount = shaftAmount(shafts.strength * glareAmount(look), atmosphere.cloudCover, daylight.day) * shaftFade(camera.viewSize)
 
       mesh.visible = amount > VISIBLE_AT
 

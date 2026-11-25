@@ -1,6 +1,6 @@
 ---
 name: scape-perf
-description: Measure and cut the three-iso scape's rendering and first-load cost — draws, triangles, programs per tier with the studio's census, fill-rate passes like the one-pass lens (`lensTaps`), CPU build time with `scape:bench` and bun's cpu profiler — and the levers that exist (scatter LOD, tier counts, fog terms in the aerial chunk, survey memo). Use when a change adds geometry, a pass or build work, when asked to make rendering or loading faster, or before claiming a change is cheap.
+description: Measure and cut the three-iso scape's rendering and first-load cost — draws, triangles, programs per tier with the studio's census, fill-rate passes like the one-pass lens (`quality.halation`), CPU build time with `scape:bench` and bun's cpu profiler — and the levers that exist (scatter LOD, tier counts, fog terms in the aerial chunk, survey memo). Use when a change adds geometry, a pass or build work, when asked to make rendering or loading faster, or before claiming a change is cheap.
 ---
 
 # rendering cost
@@ -30,18 +30,18 @@ tris; `near` ~84 / 0.9M. Re-measure; do not quote these.
 ## passes the census cannot price — the lens
 
 `src/scene/lens.ts` is the whole glass and film in **one** full-screen pass:
-defocus disc, chromatic aberration, vignette, micro-contrast, the grade
+contrast-adaptive sharpen (no defocus — it was deleted), chromatic aberration, vignette, the grade
 (`film.ts`'s `scapeFilm`, alu only — no lut),
-halation (8 taps wherever `lensTaps > 0`), grain. It is one draw whatever it does, so its cost is fill: `lensTaps` texture
-fetches per pixel where the disc is wider than a third of a pixel (the
-out-of-focus part of the frame), plus the fixed taps of the rest.
+halation (8 taps wherever `quality.halation`), grain. It is one draw whatever it does, so its cost is fill: a fixed
+fourteen fetches a pixel (sharpen eight, aberration two, source one, …), eighteen
+more with halation. No focal pass, no depth read.
 
-| tier | post chain | `lensTaps` |
+| tier | post chain | `halation` |
 | --- | --- | --- |
-| minimal, mobile | off — no composer at all | 0 |
-| desktop | on, 4× msaa | 16 |
-| ultra | on, 8× msaa, + SSR, anamorphic, TRAA | 24 |
-| any, `runtime.effects=all` | on | ≥ 12 (`UNLOCKED_FLOOR`) |
+| minimal, mobile | off — no composer at all | false |
+| desktop | on, 4× msaa | true |
+| ultra | on, 8× msaa, + SSR, anamorphic, TRAA | true |
+| any, `runtime.effects=all` | on | true |
 
 - The taps are compiled into the program as a constant array: a different count
   is a different program, and 0 compiles the defocus out.
@@ -86,7 +86,7 @@ exact — the procedure is in `scape-verify`.
   extend it with the new field.
 - **shader tap counts** — `detailTaps` (1 = the lite ground path on
   minimal/mobile: one soil read for grain + relief normal; 6 = that + relief march + macro octave + puddles), `reliefSteps`,
-  `lensTaps`, `contactSlots` (spheres a fragment reads from its contact cell, `contact.ts`; close frames only): fill-rate levers, each compiled per tier.
+  `contactSlots` (spheres a fragment reads from its contact cell, `contact.ts`; close frames only): fill-rate levers, each compiled per tier.
 - **world-sized sheets** (mist slices, clouds) — each is a
   full-frame blend. If the thing is a function of where the fragment is, it is a
   term in the aerial chunk instead (`groundFog`, `seaSmoke` and the haar's column in `aerial.ts`

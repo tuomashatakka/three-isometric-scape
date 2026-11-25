@@ -1,26 +1,32 @@
 import { describe, expect, test } from 'bun:test'
-import { HALATION_TAPS, HALATION_THRESHOLD, halationSource, vogelDisc } from './lens.ts'
+import { HALATION_TAPS, HALATION_THRESHOLD, createLensPass, halationSource, sharpenHeadroom } from './lens.ts'
 
 
-describe('the lens defocus disc', () => {
-  test('is deterministic, and every tap sits inside the aperture', () => {
-    expect(vogelDisc(16)).toEqual(vogelDisc(16))
-    for (const [ x, y ] of vogelDisc(24))
-      expect(Math.hypot(x, y)).toBeLessThanOrEqual(1)
-  })
-
-  test('is centred, so a uniform frame defocuses to itself without drifting', () => {
-    for (const taps of [ 12, 16, 24 ]) {
-      const disc = vogelDisc(taps)
-      const mean = disc.reduce(([ ax, ay ], [ x, y ]) => [ ax + x / taps, ay + y / taps ], [ 0, 0 ])
-      expect(Math.hypot(mean[0], mean[1])).toBeLessThan(0.08)
+describe('the lens', () => {
+  test('has no depth of field: nothing in the pass reads a focal map or opens a disc', () => {
+    for (const halation of [ false, true ]) {
+      const pass   = createLensPass({ halation, grain: true })
+      const shader = (pass.material as { fragmentShader: string }).fragmentShader
+      expect(shader).not.toContain('tDefocus')
+      expect(shader).not.toContain('DISC')
+      expect(Object.keys(pass.uniforms)).not.toContain('uBlur')
+      pass.dispose()
     }
   })
 
-  test('covers the disc evenly: each half of the radius holds its share of the area', () => {
-    const disc  = vogelDisc(24)
-    const inner = disc.filter(([ x, y ]) => Math.hypot(x, y) < Math.SQRT1_2).length
-    expect(inner).toBe(12)
+  test('sharpens flat ground fully and a hard edge hardly at all', () => {
+    expect(sharpenHeadroom(0.3, 0.32)).toBeGreaterThan(0.9)
+    expect(sharpenHeadroom(0.02, 0.9)).toBeLessThan(0.2)
+    expect(sharpenHeadroom(0, 0)).toBe(0)
+  })
+
+  test('never pushes harder as the cross gains contrast', () => {
+    let last = Infinity
+    for (let hi = 0.3; hi <= 0.95; hi += 0.05) {
+      const room = sharpenHeadroom(0.3, hi)
+      expect(room).toBeLessThanOrEqual(last + 1e-9)
+      last = room
+    }
   })
 })
 

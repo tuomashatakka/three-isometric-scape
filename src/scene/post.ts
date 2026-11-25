@@ -1,4 +1,4 @@
-import { Vector2, Vector3 } from 'three'
+import { Vector3 } from 'three'
 import type { Mesh, OrthographicCamera } from 'three'
 import type { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
 import type { Pass } from 'three/addons/postprocessing/Pass.js'
@@ -8,19 +8,16 @@ import { createGodRaysPass, postProcessing } from 'threejs-scene/modules/post'
 import type { EffectContext, GodRaysPass } from 'threejs-scene/modules/post'
 import { createAnamorphic, createSsr, createTraa } from 'threejs-scene/modules/post/webgl'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
-import { createFocalPass, depthDefocus } from './focal.ts'
-import type { FocalPass } from './focal.ts'
-import { LENS_GRAIN, LENS_VIGNETTE, gradeAmount } from './film.ts'
-import { apertureReach, createLensPass } from './lens.ts'
+import { LENS_GRAIN, LENS_VIGNETTE, glareAmount, gradeAmount } from './film.ts'
+import { createLensPass } from './lens.ts'
 import type { LensPass } from './lens.ts'
 import type { AtmosphereQuality } from './quality.ts'
 
 
 export interface PostOptions {
-  camera:        OrthographicCamera
-  config:        LiveConfig
-  quality:       AtmosphereQuality
-  reducedMotion: boolean
+  camera:  OrthographicCamera
+  config:  LiveConfig
+  quality: AtmosphereQuality
 
   /** Sun position in world space, owned by the atmosphere module. */
   sunPosition: Vector3
@@ -32,21 +29,17 @@ export interface PostOptions {
 /**
  * What one unit of `look.lens` is, per effect of the glass.
  *
- * The blur is the disc's radius at half a frame of ground off the focal plane,
- * in buffer pixels, for a frame `APERTURE_REFERENCE` metres tall;
- * `apertureReach` scales it with the frame. It was 12.5 on a lens that never
- * closed below 0.7 of that, which is the depth of field of a macro lens a
- * hand's breadth from a model railway. A camera that frames twelve metres of
- * yard keeps most of it sharp, and five pixels at the frame edge is the most a
- * photograph of a place shows. Five still read as a miniature at the yard frame
- * (every sheep and wall stone a soft blob along the bottom of the picture), and
- * a tilt-shift blur is the single loudest "model railway" tell there is: three
- * pixels softens the edge of the frame without turning the place into a toy.
- * The vignette is the old default amount.
+ * There is no blur. The lens had a depth of field — a tilt-shift disc that
+ * opened with the distance off a focal plane — and every run that tuned it
+ * found the same thing: a camera that frames twelve metres of yard from the
+ * distance this one stands at has a hyperfocal distance shorter than its
+ * subject, and *any* visible defocus across a frame that size is the trick
+ * that makes a real town photograph as a model of one. The disc, the focal
+ * map and its depth read are gone; the sharpen is contrast-adaptive and runs
+ * over the whole frame instead of a focused band.
  */
-const LENS_BLUR       = 3
 const LENS_ABERRATION = 3.5
-const LENS_SHARPEN    = 0.4
+const LENS_SHARPEN    = 0.3
 const LENS_HALATION   = 0.35
 
 /**
@@ -62,14 +55,8 @@ const GLARE_STREAK = 1.2
 /** The sun's shafts are the same scattered light, smeared out of the bright pixels round the sun. */
 const GLARE_RAYS = 0.26
 
-/** Exponential approach rate for the focus band easing, in e-folds per second. */
-const SETTLE_RATE = 6.2
-
-const projected = new Vector3()
-const target    = new Vector3()
-const sunNdc    = new Vector3()
-const facing    = new Vector3()
-const focusUv   = new Vector2()
+const sunNdc = new Vector3()
+const target = new Vector3()
 
 // How far outside the frame the virtual sun may sit before the shafts are gone.
 const RAY_EDGE_IN  = 0.55
@@ -89,9 +76,9 @@ const RAY_REACH = 0.95
  *
  * Ambient occlusion has to see a sharp image, so it goes first. God rays go
  * after bloom because a bloomed sun throws brighter shafts. The lens sits
- * after all of them — in a real miniature photograph every one of those
- * effects happens in the scene and then the glass defocuses, fringes and
- * darkens the result, and the film grades and grains it (`lens.ts`, one pass
+ * after all of them — in a real photograph every one of those effects
+ * happens in the scene and then the glass sharpens, fringes and darkens the
+ * result, and the film grades and grains it (`lens.ts`, one pass
  * for all of that). TRAA resolves last.
  *
  * All of it lands before `OutputPass`, which is where tone-mapping happens
@@ -104,24 +91,15 @@ export function createAtmospherePost ({
   camera,
   config,
   quality,
-  reducedMotion,
   sunPosition,
   water,
 }: PostOptions): ScapeModule {
   let composer: EffectComposer | null = null
-  let focal: FocalPass | null         = null
   let bloom: UnrealBloomPass | null   = null
   let lens: LensPass | null           = null
   let godRays: GodRaysPass | null     = null
   let extras: Pass[]                  = []
   let elapsed                         = 0
-
-  /** Where the focused band is *now*, eased toward where it wants to be. */
-  let focusNow                        = Number.NaN
-
-  // The last frame's delta, so the focus band easing can run in `aimFocus`
-  // without the frame context leaking into the effects chain.
-  let frameDelta = 0
 
   // The chain's own copy of the surface. An `EffectComposer` snapshots the
   // renderer's pixel ratio when it is built and never looks again, so a live
@@ -131,49 +109,9 @@ export function createAtmospherePost ({
   let bufferWidth  = 0
   let bufferHeight = 0
 
-  function aimFocus (): void {
-    // The focused band is a horizontal stripe, not a point — a tilted lens
-    // focuses a plane, and from this camera that plane is the ground. When a fine pointer (mouse/pen) is on the canvas, the band tracks its
-    // screen y; otherwise it falls back to the camera's look-at projection.
-    const stored = camera.userData.target as readonly [number, number, number] | undefined
-    target.set(stored?.[0] ?? 0, stored?.[1] ?? 0, stored?.[2] ?? 0)
-    projected.copy(target).project(camera)
-
-    // All of this is in the shader's own 0..1 screen space, not the projection's
-    // -1..1 — the focus is compared against `vUv.y`. Converting once here and staying
-    // converted is what keeps the ease from blending two different spaces.
-    const lookAtLine = (projected.y + 1) / 2
-    const pointerY   = camera.userData.pointerScreenY as number | undefined
-    const wanted     = typeof pointerY === 'number' && !Number.isNaN(pointerY)
-      ? pointerY
-      : lookAtLine
-
-    // Eased across frames rather than re-derived within one, so the band
-    // actually travels instead of jumping a fixed fraction from a fresh anchor
-    // every time. A still pointer settles, which is what lets a capture be
-    // reproducible; reducedMotion and the first frame both snap.
-    focusNow = Number.isNaN(focusNow) || reducedMotion
-      ? wanted
-      : focusNow + (wanted - focusNow) * (1 - Math.exp(-frameDelta * SETTLE_RATE))
-
-    // The film's clock is the world's: wind.speed 0 holds the grain still too.
-    lens?.aim(focusNow, config().wind.speed > 0 ? elapsed : 0)
-
-    if (!focal)
-      return
-
-    // The focal plane's tilt is the camera's elevation; its depth is read off
-    // the buffer at the focused point, on the look-at line's vertical.
-    camera.getWorldDirection(facing)
-
-    const tanElevation = -facing.y / Math.max(1e-3, Math.hypot(facing.x, facing.z))
-    const viewHeight   = (camera.top - camera.bottom) / camera.zoom
-
-    focal.aim({
-      focus:    focusUv.set(Math.min(1, Math.max(0, (projected.x + 1) / 2)), focusNow),
-      perMetre: depthDefocus(viewHeight, tanElevation),
-      span:     camera.far - camera.near,
-    })
+  /** The film's clock is the world's: `wind.speed` 0 holds the grain still too. */
+  function tickFilm (): void {
+    lens?.tick(config().wind.speed > 0 ? elapsed : 0)
   }
 
   /**
@@ -196,6 +134,8 @@ export function createAtmospherePost ({
       return
 
     const viewSize = camera.userData.viewSize as number ?? config().camera.viewSize
+    const stored   = camera.userData.target as readonly [number, number, number] | undefined
+    target.set(stored?.[0] ?? 0, stored?.[1] ?? 0, stored?.[2] ?? 0)
 
     // Direction is taken live from the atmosphere's sun rather than from config,
     // so the shafts track the rig if the light is ever moved at runtime.
@@ -227,7 +167,7 @@ export function createAtmospherePost ({
       sunNdc.x * rein * 0.5 + 0.5,
       sunNdc.y * rein * 0.5 + 0.5,
     )
-    godRays.uniforms.uExposure.value = 0.16 * GLARE_RAYS * config().look.glare * fade
+    godRays.uniforms.uExposure.value = 0.16 * GLARE_RAYS * glareAmount(config().look) * fade
   }
 
   /**
@@ -263,10 +203,10 @@ export function createAtmospherePost ({
         thickness:   0.4,
       }))
 
-    if (quality.anamorphic && config().look.glare > 0)
-      built.push(createAnamorphic({ threshold: 0.86, scale: config().look.glare * GLARE_STREAK }))
+    if (quality.anamorphic && glareAmount(config().look) > 0)
+      built.push(createAnamorphic({ threshold: 0.86, scale: glareAmount(config().look) * GLARE_STREAK }))
 
-    if (quality.godRays && config().look.glare > 0) {
+    if (quality.godRays && glareAmount(config().look) > 0) {
       godRays = createGodRaysPass({ threshold: 0.94 })
       godRays.uniforms.uDensity.value = 0.55
       godRays.uniforms.uWeight.value  = 0.26
@@ -311,17 +251,11 @@ export function createAtmospherePost ({
   function syncLook (): void {
     const look = config().look
 
-    // The defocus is the one effect of the glass that is frame-sized: a close
-    // frame is a macro lens and blurs, the whole archipelago is an aerial
-    // photograph and does not.
-    const viewSize = camera.userData.viewSize as number ?? config().camera.viewSize
-
     lens?.look({
-      blur:       LENS_BLUR * look.lens * apertureReach(viewSize),
       aberration: LENS_ABERRATION * look.lens,
       vignette:   LENS_VIGNETTE * look.lens,
       sharpen:    LENS_SHARPEN * Math.min(1, look.lens),
-      halation:   quality.lensTaps > 0 ? LENS_HALATION * Math.min(1, look.lens) : 0,
+      halation:   quality.halation ? LENS_HALATION * Math.min(1, look.lens) : 0,
       grain:      quality.grain ? LENS_GRAIN * Math.min(1, look.lens) : 0,
       intensity:  gradeAmount(look),
     })
@@ -333,15 +267,15 @@ export function createAtmospherePost ({
     ) ?? null
 
     if (bloom)
-      bloom.strength = look.glare * GLARE_BLOOM
+      bloom.strength = glareAmount(look) * GLARE_BLOOM
   }
 
   const inner = postProcessing<ScapeConfig>({
-    depth: quality.ssr || quality.godRays || quality.lensTaps > 0,
+    depth: quality.ssr || quality.godRays,
 
     bloom: quality.bloom
       ? {
-        strength: config().look.glare * GLARE_BLOOM,
+        strength: glareAmount(config().look) * GLARE_BLOOM,
         radius:   0.7,
 
         // Above the fog, deliberately. Bloom is for highlights, and the fog
@@ -366,18 +300,7 @@ export function createAtmospherePost ({
 
       chain.push(...sceneEffects(ctx))
 
-      // Spliced in straight after the scene render, ahead of the bloom: the
-      // one place in the chain the shared depth is still the scene's. See focal.ts.
-      focal = quality.lensTaps > 0 && ctx.depthTexture ? createFocalPass(ctx.depthTexture) : null
-      // The composer sizes it from here on, at the drawing buffer's own ratio.
-      if (focal)
-        ctx.composer.insertPass(focal, 1)
-
-      lens = createLensPass({
-        taps:    quality.lensTaps,
-        grain:   quality.grain,
-        defocus: focal?.map ?? null,
-      })
+      lens = createLensPass({ halation: quality.halation, grain: quality.grain })
       lens.size(ctx.width, ctx.height)
       chain.push(lens)
       syncLook()
@@ -388,7 +311,6 @@ export function createAtmospherePost ({
         extras.push(traa)
       }
 
-      aimFocus()
       return chain
     },
 
@@ -402,13 +324,12 @@ export function createAtmospherePost ({
 
     build (ctx) {
       inner.build(ctx)
-      aimFocus()
+      tickFilm()
     },
 
     update (state, frame, ctx) {
-      frameDelta = Math.min(frame.delta, 0.1)
-      elapsed    = frame.elapsed
-      aimFocus()
+      elapsed = frame.elapsed
+      tickFilm()
       aimSun()
       syncSurface()
       syncLook()
@@ -443,14 +364,12 @@ export function createAtmospherePost ({
 
     dispose () {
       lens?.dispose()
-      focal?.dispose()
       for (const pass of extras)
         pass.dispose?.()
       inner.dispose?.()
 
       extras       = []
       lens         = null
-      focal        = null
       godRays      = null
       bloom        = null
       composer     = null
@@ -462,7 +381,7 @@ export function createAtmospherePost ({
 }
 
 // perf: the chain is off on mobile. Desktop runs bloom, god rays and the one
-// lens pass (16 defocus taps, grain) over 4x msaa. Ultra adds screen-space
+// lens pass (sharpen, fringe, halation, grain) over 4x msaa. Ultra adds screen-space
 // reflections on the lake, anamorphic streaks and a TRAA resolve. Every target
 // in the chain is reallocated only when the drawing buffer behind it actually
 // changed size.

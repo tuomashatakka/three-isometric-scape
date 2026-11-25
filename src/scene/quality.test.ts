@@ -40,7 +40,7 @@ describe('selectAtmosphereQuality', () => {
     expect(quality.bloom).toBe(false)
     expect(quality.grain).toBe(false)
     expect(quality.shadows).toBe(false)
-    expect(quality.lensTaps).toBe(0)
+    expect(quality.halation).toBe(false)
   })
 
   test('sends a very dense display to the capped mobile tier', () => {
@@ -186,7 +186,7 @@ describe('unlocking every effect', () => {
       expect(all.auroraLayers).toBeGreaterThan(0)
       expect(all.rainDrops).toBeGreaterThan(0)
       expect(all.mistLayers).toBeGreaterThan(0)
-      expect(all.lensTaps).toBeGreaterThan(0)
+      expect(all.halation).toBe(true)
       expect(all.detailTaps).toBeGreaterThanOrEqual(6)
       expect(all.reliefSteps).toBeGreaterThan(0)
     }

@@ -2,6 +2,17 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the lens stops shooting a model — the depth of field goes, the frame comes sharp, the bow leaves the sea, and one panel row fewer
+
+the desktop `near` frame was still a tilt-shift photograph: six runs had narrowed the lens's defocus (a disc that closed with the frame, a focal plane off the depth, three pixels instead of five) and every one still left the sheep and wall stones along the bottom of the yard soft — the loudest miniature tell there is. and the `default`, `noon` and opening frames, where the camera stands over the cloud deck, had a spectrum arch painted over the sea like a decal on a map.
+
+- **no depth of field** ([`lens.ts`](src/scene/lens.ts), [`post.ts`](src/scene/post.ts)): the Vogel disc, `focal.ts` and its half-res focal pass, `apertureReach`, `vogelDisc`, `LENS_BLUR`, the post chain's focus-band easing and the pointer's `pointerScreenY` in `camera-controls.ts` are deleted. `quality.lensTaps` becomes `quality.halation`, a switch for the one tapped ring left. the lens no longer asks the chain for depth
+- **contrast-adaptive sharpen over the whole frame**: the cross is weighted by its own headroom (`sharpenHeadroom`, the shape of AMD's CAS), so turf and haze crisp up and a roof against the sky does not ring; clarity at 0.5 of it (was 1.5, only in a focused band). `LENS_SHARPEN` 0.3
+- **the bow leaves the sea** ([`rainbow.ts`](src/scene/rainbow.ts)): `bowReveal` closes on the cloud deck's own reveal, so above the deck there is no arch over the archipelago; the halo shares it. the `bow` and `halo` pose sets shoot at 540 m, under the deck
+- **the panel: one row fewer.** *glare* rides the *camera* row (`glareAmount` in [`film.ts`](src/scene/film.ts): bloom, streak and the deck's rays scale with `look.lens`); `look.glare` stays a config leaf for `--set` and the url, and at the default camera renders as before
+- **cost:** desktop loses a render pass, its target and a program, and the lens a depth read; the lens is a fixed fourteen fetches (eighteen with halation) instead of up to sixteen to twenty-four disc taps. phone untouched (no chain): near 84 draws / 0.94M, default 134 / 1.02M; desktop near 103 → 102 draws / 2.61M; 0 errors
+- **tests:** `lens.test.ts`: no pass reads a focal map or opens a disc; the sharpen pushes flat ground fully and a hard edge hardly at all, and never harder as contrast grows. `rainbow.test.ts`: the bow is a window — whole between the yard and the deck, gone above it, one rise and one fall. `focal.test.ts` is deleted with its module
+
 ## the clouds get tops — the deck stands in relief, dense in the core and lit on the flank, and two panel rows fewer
 
 the `default` and `noon` frames — the two most people see, and wide frames, where the camera stands over the deck — were half sea and half a flat grey film: the deck was one alpha-0.5 sheet lit by a single "is it thinner toward the sun" read, so a cloud was a smudge with no top, and it greyed every island and all the open water it lay over.

@@ -267,7 +267,19 @@ export function installDirectFilm (renderer: WebGLRenderer, direct: boolean): vo
  * the row adds glass, never more grade; at zero the frame is a raw sensor.
  */
 type LookType = { intensity: number, lens: number }
+type GlareLook = { glare: number, lens: number }
 
 export function gradeAmount (look: LookType): number {
   return look.intensity * Math.min(1, Math.max(0, look.lens))
+}
+
+/**
+ * How much light the glass scatters: the bloom, the streak, and the rays the
+ * deck's gaps throw. Read off the same camera row, because a lens with no
+ * glass in it (`look.lens` 0) scatters nothing either; `look.glare` is the
+ * scatter at a full camera, a config leaf, so a run can tune a cleaner or a
+ * dirtier lens without a second slider on the panel.
+ */
+export function glareAmount (look: GlareLook): number {
+  return look.glare * Math.max(0, look.lens)
 }
