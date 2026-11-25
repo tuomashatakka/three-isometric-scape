@@ -362,7 +362,8 @@ export const TOURS: Record<string, Pose[]> = {
    * and not the inner one, which is correct and is also exactly the sort of
    * thing a set of six wide frames would report as nothing at all.
    *
-   * So these four move the hour rather than the camera. `bow-morning` is the
+   * So these four move the hour, at the `far` frame's 540 m: from the opening
+   * frame the camera is over the deck and the bow is not drawn (`bowReveal`). `bow-morning` is the
    * mid-morning sun at 28°, which stands both arcs well clear of the water;
    * `bow-low` is late evening at 10°, where the arc is at its tallest and the
    * gap between the two bows is widest; `bow-noon` is the one frame in the day
@@ -374,10 +375,10 @@ export const TOURS: Record<string, Pose[]> = {
    * had stopped reading the front.
    */
   bow: [
-    { name: 'bow-morning', time: 0.3, set: AT_BOW },
-    { name: 'bow-low', time: 0.85, set: AT_BOW },
-    { name: 'bow-noon', time: 0.5, set: AT_BOW },
-    { name: 'bow-clear', time: 0.3, set: NO_BOW },
+    { name: 'bow-morning', zoom: 540, time: 0.3, set: AT_BOW },
+    { name: 'bow-low', zoom: 540, time: 0.85, set: AT_BOW },
+    { name: 'bow-noon', zoom: 540, time: 0.5, set: AT_BOW },
+    { name: 'bow-clear', zoom: 540, time: 0.3, set: NO_BOW },
   ],
 
   /**
@@ -422,11 +423,11 @@ export const TOURS: Record<string, Pose[]> = {
    *   looks exactly like a success from any other frame
    */
   halo: [
-    { name: 'halo', time: 0.5, season: 0.125, set: AT_HALO },
-    { name: 'halo-pillar', time: 0.5, season: 0.9, set: AT_HALO },
-    { name: 'halo-high', time: 0.5, season: 0.125, set: [ ...AT_HALO, 'daylight.latitude=45' ]},
-    { name: 'halo-rain', time: 0.5, season: 0.5, set: AT_HALO },
-    { name: 'halo-clear', time: 0.5, season: 0.125, set: NO_HALO },
+    { name: 'halo', zoom: 540, time: 0.5, season: 0.125, set: AT_HALO },
+    { name: 'halo-pillar', zoom: 540, time: 0.5, season: 0.9, set: AT_HALO },
+    { name: 'halo-high', zoom: 540, time: 0.5, season: 0.125, set: [ ...AT_HALO, 'daylight.latitude=45' ]},
+    { name: 'halo-rain', zoom: 540, time: 0.5, season: 0.5, set: AT_HALO },
+    { name: 'halo-clear', zoom: 540, time: 0.5, season: 0.125, set: NO_HALO },
   ],
 
   /**

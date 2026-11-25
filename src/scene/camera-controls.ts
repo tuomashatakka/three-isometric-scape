@@ -288,12 +288,6 @@ export function createCameraControls (
 
   const { right, forward, raycaster, pointerNdc, aim: aimTarget } = scratch
 
-  // The cursor's vertical position in 0..1 screen space, for the tilt-shift
-  // focus band. NaN means no pointer has entered the canvas yet — the post
-  // chain falls back to the camera's look-at point. Only a fine pointer (mouse
-  // or pen) drives this; coarse pointers (touch) never write it, so the band
-  // stays at the look-at for the whole session.
-  let pointerScreenY = Number.NaN
   const boatFollow                                                = createBoatFollowController(baseRotation)
 
   /**
@@ -645,14 +639,6 @@ export function createCameraControls (
     // resolves per hover instead.
     if (event.pointerType === 'touch' || event.pointerType === 'pen')
       resolvePointerGround(x, y)
-
-    // Track where the cursor is for the tilt-shift focus band — only a fine
-    // pointer (mouse/pen) drives it; the gesture callback already filters by
-    // pointerType for the rotate verb, so this just writes the screen y.
-    if (event.pointerType === 'mouse' || event.pointerType === 'pen') {
-      const bounds = canvas.getBoundingClientRect()
-      pointerScreenY = 1 - (y - bounds.top) / bounds.height
-    }
   }
 
   function onDrag (dx: number, dy: number): void {
@@ -699,16 +685,12 @@ export function createCameraControls (
   }
 
   /**
-   * Track the cursor for the tilt-shift focus band and resolve the ground point
-   * under the pointer for anchored zooming.
+   * Resolve the ground point under the pointer for anchored zooming.
    *
-   * Only a fine pointer (mouse, pen) drives this — touch has no hover, so the
-   * band stays at the camera look-at for the whole session. A coarse pointer
-   * never writes `pointerScreenY` or `pointerGround`.
+   * Only a fine pointer (mouse, pen) drives this — touch has no hover. A
+   * coarse pointer never writes `pointerGround`.
    */
   function onHover (x: number, y: number): void {
-    const bounds = canvas.getBoundingClientRect()
-    pointerScreenY = 1 - (y - bounds.top) / bounds.height
     resolvePointerGround(x, y)
   }
 
@@ -819,10 +801,6 @@ export function createCameraControls (
     if (!boatFollow.active)
       pose.focus.y = landscape.heightAt(pose.focus.x, pose.focus.z)
     apply()
-
-    // Expose the cursor position for the tilt-shift focus band. NaN means no
-    // pointer has entered the canvas — the post chain uses the look-at point.
-    camera.userData.pointerScreenY = pointerScreenY
   }
 
   function attach (): () => void {
@@ -840,7 +818,6 @@ export function createCameraControls (
         onWheel,
         onHover,
         onLeave () {
-          pointerScreenY                = Number.NaN
           scratch.pointerGround         = null
           camera.userData.pointerGround = undefined
         },

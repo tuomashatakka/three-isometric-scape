@@ -164,13 +164,11 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       title:    'optics',
       open:     true,
       controls: [
-        // The light through the deck is glare too — a bright gap smeared by the
-        // air rather than the glass — so it rides this row (\`shafts.strength\`
-        // is its share, a config leaf), and the row is live wherever either is.
-        toggled('glare', range('look.glare', 'bloom, streak, rays through the deck', 0, 3, 0.01, quality.bloom || quality.shaftSheets > 0), 1),
-        // The grade and the glass are one camera (`gradeAmount` in film.ts):
-        // \`look.intensity\` is the grade at a full camera, a config leaf.
-        toggled('camera', range('look.lens', 'grade, defocus, fringe, halation, grain', 0, 2, 0.01), 1),
+        // The grade, the glass and the light it scatters are one camera
+        // (`gradeAmount` and `glareAmount` in film.ts): \`look.intensity\` is
+        // the grade and \`look.glare\` the bloom, streak and the rays through
+        // the deck at a full camera — config leaves for \`--set\` and the url.
+        toggled('camera', range('look.lens', 'grade, glare, fringe, halation, grain', 0, 2, 0.01), 1),
         // The light that arrives second-hand: the sky a neighbour hides, and the
         // sunlit ground (or snow) lighting every face from below (\`ground-bounce.ts\`).
         toggled('indirect light', range('look.ao', 'occlusion and ground bounce', 0, 2, 0.01), 1),

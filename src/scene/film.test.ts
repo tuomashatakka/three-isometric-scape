@@ -167,7 +167,7 @@ describe('the film on a tier with no post chain', () => {
     installDirectFilm(renderer, false)
     expect(renderer.toneMapping).toBe(AgXToneMapping)
 
-    const lens = createLensPass({ taps: 0, grain: false, defocus: null })
+    const lens = createLensPass({ halation: false, grain: false })
     expect(lens.material.fragmentShader).toContain(FILM_GLSL)
     expect(lens.material.fragmentShader).not.toContain('sampler3D')
   })

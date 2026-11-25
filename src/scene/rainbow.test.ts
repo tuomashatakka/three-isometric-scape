@@ -228,26 +228,39 @@ describe('bowHorizon', () => {
 })
 
 describe('bowReveal', () => {
-  test('is gone at the closest frame and whole at the widest', () => {
+  const at = (share: number): number =>
+    LIMITS.minViewSize + (LIMITS.maxViewSize - LIMITS.minViewSize) * share
+
+  test('is gone at the closest frame', () => {
     expect(bowReveal(LIMITS.minViewSize, LIMITS)).toBe(0)
-    expect(bowReveal(LIMITS.maxViewSize, LIMITS)).toBe(1)
   })
 
-  test('is already whole at the frame the scape opens on', () => {
-    expect(bowReveal(LIMITS.viewSize, LIMITS)).toBe(1)
+  test('is whole between the yard and the deck', () => {
+    expect(bowReveal(at(0.35), LIMITS)).toBe(1)
   })
 
-  test('never falls back as the view pulls out', () => {
-    let last = -1
+  test('is gone once the camera is above the deck: no arch painted over the archipelago', () => {
+    expect(bowReveal(LIMITS.maxViewSize, LIMITS)).toBe(0)
+    expect(bowReveal(LIMITS.viewSize, LIMITS)).toBeLessThan(0.05)
+  })
 
-    for (let step = 0; step <= 40; step += 1) {
-      const view    = LIMITS.minViewSize +
-        (LIMITS.maxViewSize - LIMITS.minViewSize) * (step / 40)
-      const reveal = bowReveal(view, LIMITS)
+  test('rises once and falls once as the view pulls out', () => {
+    let last   = -1
+    let turns  = 0
+    let rising = true
 
-      expect(reveal).toBeGreaterThanOrEqual(last)
+    for (let step = 0; step <= 80; step += 1) {
+      const reveal = bowReveal(at(step / 80), LIMITS)
+      if (rising && reveal < last - 1e-9) {
+        rising = false
+        turns += 1
+      }
+      if (!rising)
+        expect(reveal).toBeLessThanOrEqual(last + 1e-9)
       last = reveal
     }
+
+    expect(turns).toBe(1)
   })
 })
 

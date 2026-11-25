@@ -9,7 +9,7 @@ import { defineModule, smoothstep } from 'threejs-scene'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import { sunHeight, sunSwing } from './daylight.ts'
 import type { AtmosphereQuality } from './quality.ts'
-import { deckFocus, deckViewSize } from './sky-deck.ts'
+import { deckFocus, deckReveal, deckViewSize } from './sky-deck.ts'
 import type { SkyPlace } from './sky-deck.ts'
 import { showerAmount } from './weather.ts'
 import type { WeatherState } from './weather.ts'
@@ -104,7 +104,18 @@ const SUN_CLEAR = 0.09
 const REVEAL_IN  = 0.05
 const REVEAL_OUT = 0.28
 
-/** How much of the bow the view is far enough back to read, 0..1. */
+/**
+ * How much of the bow the view is far enough back to read, and still under
+ * the cloud deck to see, 0..1.
+ *
+ * A window, not a ramp. Pulled far enough out, the camera is above the deck
+ * (`deckReveal` is the same curve the clouds come in on) and looking *down*
+ * through it at the sea: there is no skyline for the arc to stand on, and a
+ * spectrum painted over the water from up there reads as a decal on the map.
+ * A bow seen from an aircraft is a full ring on the rain below the antisolar
+ * point — a few hundred metres across, never a coloured arch over a whole
+ * archipelago — so the wide frames go without one.
+ */
 export function bowReveal (viewSize: number, limits: ScapeConfig['camera']): number {
   const span = limits.maxViewSize - limits.minViewSize
 
@@ -112,7 +123,7 @@ export function bowReveal (viewSize: number, limits: ScapeConfig['camera']): num
     limits.minViewSize + span * REVEAL_IN,
     limits.minViewSize + span * REVEAL_OUT,
     viewSize,
-  )
+  ) * (1 - deckReveal(viewSize, limits))
 }
 
 /**
