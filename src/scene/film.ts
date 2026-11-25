@@ -257,3 +257,17 @@ export function installDirectFilm (renderer: WebGLRenderer, direct: boolean): vo
 // links (the grade ~46, the vignette and the grain the rest); no target, no
 // pass, no texture, one vec3 varying. The chain's lens loses a 3d fetch
 // and the app a 144 kB cube and its cpu bake.
+
+/**
+ * How hard the film is developed: the grade, read off the one camera row.
+ *
+ * The grade and the glass were two rows; they are one decision — how much of
+ * a camera stands between the place and the eye — so `look.lens` carries both,
+ * and `look.intensity` is the grade at a full camera (a config leaf). Over one
+ * the row adds glass, never more grade; at zero the frame is a raw sensor.
+ */
+type LookType = { intensity: number, lens: number }
+
+export function gradeAmount (look: LookType): number {
+  return look.intensity * Math.min(1, Math.max(0, look.lens))
+}

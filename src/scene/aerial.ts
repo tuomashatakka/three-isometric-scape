@@ -228,6 +228,22 @@ export function unpackFogNear (packed: number): FogNear {
   return { ground: whole / FOG_NEAR_STEPS, haar: packed - whole }
 }
 
+/** The mist at which the haze is exactly `atmosphere.fogDensity`: the opening config's. */
+export const AIR_MIST = 0.34
+
+/**
+ * The haze the air carries, given its density at an ordinary day and the mist.
+ *
+ * The haze and the mist were two rows; they are one air — a damp day is hazy
+ * as well as misty, a dry one clear to the far shore — so the mist row turns
+ * both: half the haze with no mist at all, the authored density at
+ * {@link AIR_MIST}, and twice it in a full bank. `atmosphere.fogDensity` stays
+ * a config leaf for \`--set\` and the url.
+ */
+export function airHaze (density: number, mist: number): number {
+  return density * (0.5 + 0.5 * Math.max(0, mist) / AIR_MIST)
+}
+
 /** The fog uniforms for a density, with the breath applied and clamped. */
 export function hazeRange (density: number, breath = 1, maxDensity = 0.94): HazeRange {
   const amount = Math.min(maxDensity, Math.max(0, density * breath))

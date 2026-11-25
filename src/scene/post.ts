@@ -10,7 +10,7 @@ import { createAnamorphic, createSsr, createTraa } from 'threejs-scene/modules/p
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import { createFocalPass, depthDefocus } from './focal.ts'
 import type { FocalPass } from './focal.ts'
-import { LENS_GRAIN, LENS_VIGNETTE } from './film.ts'
+import { LENS_GRAIN, LENS_VIGNETTE, gradeAmount } from './film.ts'
 import { apertureReach, createLensPass } from './lens.ts'
 import type { LensPass } from './lens.ts'
 import type { AtmosphereQuality } from './quality.ts'
@@ -323,7 +323,7 @@ export function createAtmospherePost ({
       sharpen:    LENS_SHARPEN * Math.min(1, look.lens),
       halation:   quality.lensTaps > 0 ? LENS_HALATION * Math.min(1, look.lens) : 0,
       grain:      quality.grain ? LENS_GRAIN * Math.min(1, look.lens) : 0,
-      intensity:  look.intensity,
+      intensity:  gradeAmount(look),
     })
 
     // The bloom pass belongs to the composer rather than to `effects`, so it is

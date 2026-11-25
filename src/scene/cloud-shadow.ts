@@ -265,24 +265,41 @@ export const CLOUD_SHADOW_GLSL = /* glsl */`
 ${WEATHER_BANK_GLSL}
 ${UNTILE_GLSL}
 ${FRAME_GLSL}
-  // The cloud standing over \`ground\`, 0..1: the field cut into cloud. Where
-  // the cloud *is* rather than where its shadow lies — the deck draws it at
-  // its own place with \`uCloudThrow\` added back (clouds.ts).
-  float scapeCloudField (vec2 ground) {
-    float keep   = ${repeatKeepGlsl('scapeFrameMetres() * uCloudScale', CLOUD_REPEATS)};
+  // How much of the deck's map is resolved in this frame: 0 in the wide frame,
+  // which reads the bank alone. Uniform across the frame.
+  float scapeCloudKeep () {
+    return ${repeatKeepGlsl('scapeFrameMetres() * uCloudScale', CLOUD_REPEATS)};
+  }
+
+  // The field before it is cut into cloud, 0..1 — the deck reads its slope as
+  // the relief of a cloud's top (clouds.ts).
+  float scapeCloudRaw (vec2 ground) {
+    float keep   = scapeCloudKeep();
     float detail = 0.5;
 
     // Uniform across the frame, so the wide frame skips both fetches.
     if (keep > 0.0)
       detail = mix(0.5, scapeUntiled(uCloudMap, ground * uCloudScale + uCloudOffset), keep);
 
-    float field  = clamp(detail + scapeWeatherBank(ground), 0.0, 1.0);
-    float spread = ${CLOUD_SPREAD.toFixed(2)} * (1.0 - keep);
+    return clamp(detail + scapeWeatherBank(ground), 0.0, 1.0);
+  }
+
+  // The raw field cut into cloud: the wider cut in the wide frame is roughly
+  // what averaging the cut over the detail would give.
+  float scapeCloudCut (float raw) {
+    float spread = ${CLOUD_SPREAD.toFixed(2)} * (1.0 - scapeCloudKeep());
     return smoothstep(
       ${CLOUD_CUT.toFixed(2)} - spread,
       ${(CLOUD_CUT + CLOUD_EDGE).toFixed(2)} + spread,
-      field
+      raw
     );
+  }
+
+  // The cloud standing over \`ground\`, 0..1: the field cut into cloud. Where
+  // the cloud *is* rather than where its shadow lies — the deck draws it at
+  // its own place with \`uCloudThrow\` added back (clouds.ts).
+  float scapeCloudField (vec2 ground) {
+    return scapeCloudCut(scapeCloudRaw(ground));
   }
 
   float scapeCloudShade (vec2 ground) {
