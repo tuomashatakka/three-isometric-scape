@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { ShaderChunk } from 'three'
 import {
+  AIR_MIST,
+  airHaze,
   AIR_SPECTRUM, GROUND_FOG_HEIGHT, aerialHaze, aerialHazeRgb, groundFog, groundFogAmount, groundFogBank, groundFogProfile, hazeRange,
   SEA_SMOKE_PER_MIST, installAerialPerspective, packFogFar, seaSmoke, seaSmokeShare, unpackFogFar,
 } from './aerial.ts'
@@ -138,5 +140,13 @@ describe('sea smoke', () => {
 
     expect(ShaderChunk.fog_fragment).toContain('floor( fogFar )')
     expect(ShaderChunk.fog_fragment).toContain('smokeAmount')
+  })
+})
+
+describe('one air', () => {
+  test('the haze rides the mist: the authored density at the opening mist, half with none, more in a bank', () => {
+    expect(airHaze(0.3, AIR_MIST)).toBeCloseTo(0.3, 6)
+    expect(airHaze(0.3, 0)).toBeCloseTo(0.15, 6)
+    expect(airHaze(0.3, 1)).toBeGreaterThan(0.3)
   })
 })

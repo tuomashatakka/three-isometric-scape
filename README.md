@@ -228,8 +228,8 @@ src/
     ├── camera-controls.ts          pointer, touch, keyboard, focus, orbit
     ├── camera-follow.ts            riding a moving fleet instance instead of the map
     ├── beacon.ts                   the coastal light: the lamp, and the beams it sweeps
-    ├── clouds.ts                   the deck: the shadow's own field drawn at the cloud's place, lit on its sun side
-    ├── cloud-shadow.ts             one cloud field (`scapeCloudField`): the shadow, the deck and the sea's mirror read it
+    ├── clouds.ts                   the deck: the shadow's own field at the cloud's place, tops in relief off the raw field, dense cores
+    ├── cloud-shadow.ts             one cloud field (`scapeCloudRaw` → `scapeCloudCut`): the shadow, the deck and the sea's mirror read it
     ├── contact.ts                  contact shade: small solids as spheres, binned round the frame — their shade, their shadow on the phone, the seat
     ├── sky-occlusion.ts            the sky map: every solid rasterised from above once, how much sky each point sees, and the sun's shadow marched across it
     ├── frame.ts                    how many repeats of a world-space tile the frame is wide, and how much of it a reader keeps
@@ -847,7 +847,7 @@ the lookup was only ever a closed-form function baked into a cube. [`film.ts`](s
 - **with a chain**, the lens pass calls it on the composed frame, where the lut fetch was.
 - **without one**, it is three's `CustomToneMapping`: every material develops its own fragment, then runs the one tone curve (AgX). no render target, no pass, no extra program — the grade rides in programs the tier links anyway, which is the one place the context-loss budget has room.
 
-**the strength rides in the exposure.** a bare renderer hands every program exactly one global uniform at that stage, `toneMappingExposure`. `packExposure` puts the grade's strength in multiples of four above the exposure (which is always under four), and `look.lens` in multiples of *that*, and the shader takes them apart again, so `look.intensity` and `look.lens` are live on the phone with no uniform plumbed through eighty materials.
+**the strength rides in the exposure.** a bare renderer hands every program exactly one global uniform at that stage, `toneMappingExposure`. `packExposure` puts the grade's strength in multiples of four above the exposure (which is always under four), and `look.lens` in multiples of *that*, and the shader takes them apart again, so `look.intensity` and `look.lens` are live on the phone with no uniform plumbed through eighty materials. the panel turns both from one *camera* row: the grade is `gradeAmount(look)` — `look.intensity` scaled by the lens up to one — so the grade and the glass are one decision.
 
 **the frame has a place on the phone.** the vignette and the grain are functions of where a pixel is, not of its neighbours, so they are the film's and not the lens pass's. every fogged program's vertex stage already runs the aerial chunk; it hands down the clip position in one `vec3` varying (`FRAME_VARYING`), the tone-mapping stage divides it for the pixel's place and reads the frame's aspect off the same varying's screen derivatives — no resolution uniform. the phone gets the cos⁴ falloff (`LENS_VIGNETTE`) and a grain pinned to the pixel grid (`LENS_GRAIN`; the stage has no clock), both on `look.lens`. a program with no fog has no place and takes no vignette. the iris (`atmosphere.ts`) keeps its own value and never reads the renderer's back.
 
@@ -3242,7 +3242,7 @@ both halves of that were learned from captures:
 
 ### it is made of the material everything else is made of
 
-the shared `ground` material, which is why this is as cheap as it is: no program of its own, no uniform of its own, no texture. it picks up the scape's linear fog, the snow line, the wet pass and the cloud shadow for nothing, because every one of those is already in the material every other static surface draws with. `atmosphere.fogDensity` is therefore the far coast's only live knob, and a second haze beside it would have been two answers to one question.
+the shared `ground` material, which is why this is as cheap as it is: no program of its own, no uniform of its own, no texture. it picks up the scape's linear fog, the snow line, the wet pass and the cloud shadow for nothing, because every one of those is already in the material every other static surface draws with. `atmosphere.fogDensity` (through `airHaze`, which the panel's *air* row turns with the mist) is therefore the far coast's only live knob, and a second haze beside it would have been two answers to one question.
 
 the one thing baked rather than inherited is **aerial perspective across the range's own depth**. the scape's fog is linear in *view depth*, and the camera at the zoom that can see any of this looks down at fifty degrees — so the outer rim, a kilometre further across the water than the ridge, is barely further from the camera and the fog treats the two the same. distance through the air is radial here, not axial, so the rings are lerped toward the horizon colour by their radius. it is an albedo rather than a light, so a hazier rim is still a dark rim at night.
 

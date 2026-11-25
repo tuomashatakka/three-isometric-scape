@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { AgXToneMapping, CustomToneMapping, NoToneMapping, ShaderChunk } from 'three'
 import type { WebGLRenderer } from 'three'
 import {
+  gradeAmount,
   CONTRAST_REACH,
   DYE_DENSITY,
   EXPOSURE_SPAN,
@@ -184,5 +185,14 @@ describe('one curve', () => {
     const deep = luma(film([ 0.02, 0.02, 0.02 ], 1))
     const dark = luma(film([ 0.05, 0.05, 0.05 ], 1))
     expect(dark / deep).toBeGreaterThan(2.2)
+  })
+})
+
+describe('the camera row', () => {
+  it('carries the grade up to a full camera, and the glass alone past it', () => {
+    expect(gradeAmount({ intensity: 0.8, lens: 1 })).toBeCloseTo(0.8, 6)
+    expect(gradeAmount({ intensity: 0.8, lens: 2 })).toBeCloseTo(0.8, 6)
+    expect(gradeAmount({ intensity: 0.8, lens: 0.5 })).toBeCloseTo(0.4, 6)
+    expect(gradeAmount({ intensity: 0.8, lens: 0 })).toBe(0)
   })
 })

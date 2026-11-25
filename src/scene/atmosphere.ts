@@ -18,11 +18,11 @@ import type {
 import { defineModule } from 'threejs-scene'
 import type { SceneContext } from 'threejs-scene'
 import { standardLighting } from 'threejs-scene/modules/lighting'
-import { groundFogAmount, hazeRange, installAerialPerspective, packFogFar, packFogNear, seaSmokeShare } from './aerial.ts'
+import { airHaze, groundFogAmount, hazeRange, installAerialPerspective, packFogFar, packFogNear, seaSmokeShare } from './aerial.ts'
 import { haarAmount } from './haar.ts'
 import { seaSmokeAmount, snowAmount } from './season.ts'
 import { groundBounce } from './ground-bounce.ts'
-import { installDirectFilm, packExposure } from './film.ts'
+import { gradeAmount, installDirectFilm, packExposure } from './film.ts'
 import { installSkyLight } from './sky-light.ts'
 import { landmassTerrain } from './config.ts'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
@@ -271,7 +271,7 @@ export function createAtmosphereLayer ({
 
   function expose (renderer: WebGLRenderer, next: number): void {
     exposure                     = next
-    renderer.toneMappingExposure = directFilm ? packExposure(next, config().look.intensity, config().look.lens) : next
+    renderer.toneMappingExposure = directFilm ? packExposure(next, gradeAmount(config().look), config().look.lens) : next
   }
 
   // `sky` is the live state object, and `direction` is its vector — both are
@@ -399,7 +399,7 @@ export function createAtmosphereLayer ({
       const facing = viewFlat.normalize().dot(sunFlat.normalize())
       const toward = Math.max(0, facing) ** 2
       const away   = Math.max(0, -facing)
-      const amount = Math.min(1, config().atmosphere.fogDensity * 1.4)
+      const amount = Math.min(1, airHaze(config().atmosphere.fogDensity, config().atmosphere.mistAmount) * 1.4)
 
       horizon.lerp(sky.sun, toward * SUN_SCATTER * amount)
       horizon.lerp(sky.skyTop, away * AWAY_SCATTER * amount)
@@ -435,7 +435,7 @@ export function createAtmosphereLayer ({
       Math.sin(elapsed * 0.041) * 0.6 +
       Math.sin(elapsed * 0.017) * 0.4
     ) * config().atmosphere.fogBreath
-    const range = hazeRange(config().atmosphere.fogDensity, breath, MAX_FOG)
+    const range = hazeRange(airHaze(config().atmosphere.fogDensity, config().atmosphere.mistAmount), breath, MAX_FOG)
 
     // `near` is not a distance here: the aerial chunk reads it as the ground
     // fog's optical depth with the night bank in its fraction, and the clear

@@ -164,12 +164,13 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       title:    'optics',
       open:     true,
       controls: [
-        range('look.intensity', 'film grade', 0, 1, 0.01),
         // The light through the deck is glare too — a bright gap smeared by the
         // air rather than the glass — so it rides this row (\`shafts.strength\`
         // is its share, a config leaf), and the row is live wherever either is.
         toggled('glare', range('look.glare', 'bloom, streak, rays through the deck', 0, 3, 0.01, quality.bloom || quality.shaftSheets > 0), 1),
-        toggled('lens', range('look.lens', 'defocus, fringe, halation, grain', 0, 2, 0.01), 1),
+        // The grade and the glass are one camera (`gradeAmount` in film.ts):
+        // \`look.intensity\` is the grade at a full camera, a config leaf.
+        toggled('camera', range('look.lens', 'grade, defocus, fringe, halation, grain', 0, 2, 0.01), 1),
         // The light that arrives second-hand: the sky a neighbour hides, and the
         // sunlit ground (or snow) lighting every face from below (\`ground-bounce.ts\`).
         toggled('indirect light', range('look.ao', 'occlusion and ground bounce', 0, 2, 0.01), 1),
@@ -219,14 +220,15 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       group:    'air',
       title:    'sky & mist',
       controls: [
-        range('atmosphere.fogDensity', 'fog density', 0, 0.9, 0.01),
         // The cover is in the shadow's own product, so one row is the deck and
         // the dapple both: \`atmosphere.cloudShadow\` — how dark a cloud's
         // shadow is, which is the light's physics — is a config leaf only.
         toggled('sky clouds · deck and its shadow', range('atmosphere.cloudCover', 'cover', 0, 1, 0.01), 0.62),
-        // One fog on the ground, whichever surface it lies on: the mist over the
-        // land, and the steam off the open water in the weeks of the year it has.
-        toggled('mist · ground, sea smoke, night bank', range('atmosphere.mistAmount', 'density', 0, 1, 0.01), 0.34),
+        // One air: the haze rides the mist (`airHaze` in aerial.ts), so a damp
+        // day is hazy as well as misty — \`atmosphere.fogDensity\` is a config
+        // leaf. The mist lies on whichever surface it meets: the land, and the
+        // steam off the open water in the weeks of the year it has.
+        toggled('air · haze, ground mist, sea smoke, night bank', range('atmosphere.mistAmount', 'density', 0, 1, 0.01), 0.34),
         toggled('night sky · stars, aurora, moonlight', range('atmosphere.starlight', 'starlight', 0, 1.5, 0.01, quality.starCount > 0 || quality.auroraLayers > 0), 0.85),
         range('wind.strength', 'wind', 0, 3, 0.01),
       ],
