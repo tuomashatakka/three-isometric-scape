@@ -1,4 +1,5 @@
 import { repeatKeepGlsl } from '../frame.ts'
+import { BARE_KEY_GLSL, TREAD_FRAGMENT } from './tread.ts'
 
 /** A number, as glsl reads it: always with a point. */
 const f = (v: number): string => Number.isInteger(v) ? v.toFixed(1) : String(v)
@@ -22,7 +23,7 @@ const f = (v: number): string => Number.isInteger(v) ? v.toFixed(1) : String(v)
  *   gradient comes out of the same arithmetic, so it turns the normal: every
  *   stone has a lit and a shaded side under a low sun.
  * - **its own grey.** A stone is not the soil's colour: it takes a neutral
- *   grey at the soil's lightness, leaning warm or cool by its hash — granite,
+ *   grey of its own (`STONE_ALBEDO`), leaning warm or cool by its hash — granite,
  *   gneiss and the odd lump of basalt — and the soil at its foot is darker,
  *   the cavity the sky cannot see into.
  * - **wet, it shines.** In a shower (`weather.wet`) the stone darkens and its
@@ -51,8 +52,11 @@ export const STONE_RISE = 0.55
 export const STONE_DENSITY = 0.85
 
 /** How far the soil at a stone's foot darkens, and how far a wet stone does. */
-export const STONE_FOOT = 0.4
+export const STONE_FOOT = 0.55
 export const STONE_WET  = 0.4
+
+/** A stone's own linear albedo, darkest to lightest: never the soil's. */
+export const STONE_ALBEDO = [ 0.09, 0.3 ] as const
 
 /** Pebble cells across the frame between which the term lets go. */
 export const GRAVEL_REPEATS = [ 70, 170 ] as const
@@ -108,26 +112,10 @@ export function stone (ix: number, iy: number): Stone {
   }
 }
 
-/**
- * How far an albedo (linear rgb) takes the stones, 0..1 — the glsl's `bare`:
- * warm, unvegetated and not pale.
- */
-export function bareness (r: number, g: number, b: number): number {
-  const clamp01 = (v: number): number => Math.min(1, Math.max(0, v))
-  const smooth  = (e0: number, e1: number, v: number): number => {
-    const t = clamp01((v - e0) / (e1 - e0))
-    return t * t * (3 - 2 * t)
-  }
-  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
-
-  return clamp01(1 - (g * 2 - r - b) / (g + 0.05) * 3) *
-    clamp01((r - b) / (r + 0.02) * 2.5 - 0.45) *
-    (1 - smooth(0.3, 0.5, lum))
-}
-
 /** Declared once per program, after the hummock's hash and octave. */
 export const GRAVEL_PARS_FRAGMENT = /* glsl */`
 #ifdef USE_COLOR_ALPHA
+${BARE_KEY_GLSL}
   // One cell's stone at p (lattice units): x the dome 0..1, yz its slope in
   // lattice units, w the stone's tone; x is zero off the stone or with no stone.
   vec4 scapeStone (vec2 p, float density) {
@@ -162,34 +150,36 @@ export const GRAVEL_PARS_FRAGMENT = /* glsl */`
 export const GRAVEL_FRAGMENT = /* glsl */`
 #ifdef USE_COLOR_ALPHA
   {
-    float keep = ${repeatKeepGlsl(`scapeFrameMetres() * ${f(1 / PEBBLE_CELL)}`, GRAVEL_REPEATS)};
-    vec3 c     = diffuseColor.rgb;
-    float lum  = dot(c, vec3(0.2126, 0.7152, 0.0722));
-    // Warm, unvegetated, not pale: earth, peat, mud and shingle; not turf, snow, rock or dune.
-    float bare = clamp(1.0 - (c.g * 2.0 - c.r - c.b) / (c.g + 0.05) * 3.0, 0.0, 1.0)
-               * clamp((c.r - c.b) / (c.r + 0.02) * 2.5 - 0.45, 0.0, 1.0)
-               * (1.0 - smoothstep(0.3, 0.5, lum));
-    float w    = bare * scapeFlat * uDetailStrength * keep;
+    vec3 c  = diffuseColor.rgb;
+    // The key saturates early: the yard and the track sit at 0.4 to 0.9.
+    float w = smoothstep(0.06, 0.4, scapeBare(c)) * scapeFlat * uDetailStrength;
     if (w > 0.01) {
-      // Stony and clean patches, a few metres across.
-      float patchy  = scapeOctave(vScapeGround * 0.31 + vec2(41.0, 7.0)).x;
-      float density = ${f(STONE_DENSITY)} * smoothstep(-0.6, 0.5, patchy);
-      vec4 pebble   = scapeStone(vScapeGround * ${f(1 / PEBBLE_CELL)}, density);
-      const mat2 turn = mat2(${f(TURN.cos)}, ${f(TURN.sin)}, ${f(-TURN.sin)}, ${f(TURN.cos)});
-      vec4 cobble   = scapeStone(turn * vScapeGround * ${f(1 / COBBLE_CELL)} + vec2(3.1, 9.7), density * 0.6);
-      cobble.yz     = cobble.yz * turn;
-      vec4 s        = cobble.x > pebble.x ? cobble : pebble;
-      float on      = smoothstep(0.0, 0.25, s.x) * w;
-      // The soil just off a stone is the cavity under its rim.
-      float foot    = (1.0 - smoothstep(1.0, 1.7, min(pebble.w, cobble.w))) * step(s.x, 0.0) * w;
+${TREAD_FRAGMENT}
+      float keep = ${repeatKeepGlsl(`scapeFrameMetres() * ${f(1 / PEBBLE_CELL)}`, GRAVEL_REPEATS)};
+      float wg   = w * keep;
+      if (wg > 0.01) {
+        // Stony and clean patches, a few metres across.
+        float patchy  = scapeOctave(vScapeGround * 0.31 + vec2(41.0, 7.0)).x;
+        float density = ${f(STONE_DENSITY)} * smoothstep(-0.6, 0.5, patchy);
+        vec4 pebble   = scapeStone(vScapeGround * ${f(1 / PEBBLE_CELL)}, density);
+        const mat2 turn = mat2(${f(TURN.cos)}, ${f(TURN.sin)}, ${f(-TURN.sin)}, ${f(TURN.cos)});
+        vec4 cobble   = scapeStone(turn * vScapeGround * ${f(1 / COBBLE_CELL)} + vec2(3.1, 9.7), density * 0.6);
+        cobble.yz     = cobble.yz * turn;
+        vec4 s        = cobble.x > pebble.x ? cobble : pebble;
+        float on      = smoothstep(0.0, 0.25, s.x) * wg;
+        // The soil just off a stone is the cavity under its rim.
+        float foot    = (1.0 - smoothstep(1.0, 1.7, min(pebble.w, cobble.w))) * step(s.x, 0.0) * wg;
 
-      normal = normalize(normal - mat3(viewMatrix) * vec3(s.y, 0.0, s.z) * on);
+        normal = normalize(normal - mat3(viewMatrix) * vec3(s.y, 0.0, s.z) * on);
 
-      vec3 stoneTint = mix(vec3(1.1, 1.0, 0.88), vec3(0.94, 0.97, 1.02), s.w) * (0.65 + 0.6 * fract(s.w * 5.3));
-      vec3 stoneCol  = vec3(lum * 0.85 + 0.01) * stoneTint * (0.7 + 0.45 * s.x);
-      diffuseColor.rgb  = mix(c, stoneCol * (1.0 - ${f(STONE_WET)} * uWetAmount), on);
-      diffuseColor.rgb *= 1.0 - ${f(STONE_FOOT)} * foot;
-      roughnessFactor   = mix(roughnessFactor, mix(0.7, 0.3, uWetAmount), on);
+        // A stone is its own rock, not the soil's lightness: granite, gneiss
+        // and the odd basalt, light enough to stand out of wet earth.
+        vec3 stoneTint = mix(vec3(1.1, 1.0, 0.88), vec3(0.94, 0.97, 1.02), s.w);
+        vec3 stoneCol  = vec3(mix(${f(STONE_ALBEDO[0])}, ${f(STONE_ALBEDO[1])}, fract(s.w * 5.3))) * stoneTint * (0.7 + 0.45 * s.x);
+        diffuseColor.rgb  = mix(diffuseColor.rgb, stoneCol * (1.0 - ${f(STONE_WET)} * uWetAmount), on);
+        diffuseColor.rgb *= 1.0 - ${f(STONE_FOOT)} * foot;
+        roughnessFactor   = mix(roughnessFactor, mix(0.7, 0.3, uWetAmount), on);
+      }
     }
   }
 #endif

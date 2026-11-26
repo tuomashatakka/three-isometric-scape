@@ -267,20 +267,13 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
     },
     {
       group:    'device',
-      title:    'performance',
-      persist:  false,
-      controls: [
-        // The pixel ratio and the shadow's cadence are the tier's decisions
-        // (\`main.ts\` writes them, the ratio capped at the device's own): a
-        // look nobody turns, so \`runtime.pixelRatio\` and
-        // \`runtime.shadowCadence\` are config leaves for \`--set\` and the url.
-        range('runtime.frameCap', 'frame cap · 0 free', 0, 120, 5),
-      ],
-    },
-    {
-      group:    'device',
       title:    'effects',
       controls: [
+        // The pixel ratio, the shadow's cadence and the frame cap are the
+        // tier's decisions (\`main.ts\` writes them, the ratio capped at the
+        // device's own): a look nobody turns, so \`runtime.pixelRatio\`,
+        // \`runtime.shadowCadence\` and \`runtime.frameCap\` are config leaves
+        // for \`--set\` and the url.
         {
           kind: 'select', path: 'runtime.effects', label: 'build', options: EFFECT_MODES, rebuild: true,
         },
