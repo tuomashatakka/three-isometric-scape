@@ -2,6 +2,17 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the bare ground gets a body — trodden earth, damp hollows and stones that read at the yard zoom, and one panel row fewer
+
+the farmyard is most of the `near` frame, and it still printed as one beige: the gravel was there, but every stone took the soil's own lightness and the whole bare-ground key ran at about half strength in the yard (painting the key showed 0.4–0.6), so there was nothing at the half-metre a hoof, a boot or a puddle makes.
+
+- **trodden earth** ([`props/tread.ts`](src/scene/props/tread.ts)), first in the bare-ground block: damp hollows (two octaves of the hummock noise at 2.4 m, the low half darker and smoother, darker again in a shower) and hoof-/boot-pits — the gravel's `scapeStone` lattice turned over at 0.42 m, denser in the damp, a paler rim, a cavity floor and water standing in the deepest when it rains (levelled normal, roughness 0.06)
+- **one bareness key** (`scapeBare` / `BARE_KEY_GLSL`, moved out of the gravel) that saturates by 0.4, so the yard and the track carry their terms at full weight
+- **stones of their own** (`STONE_ALBEDO` 0.09–0.30 linear, not the soil's lightness ×0.85) with a deeper foot cavity (`STONE_FOOT` 0.55)
+- **the panel: one row and one section fewer.** *frame cap* goes with the *performance* section: the tier decides it (`main.ts`), so `runtime.frameCap` stays a config leaf for `--set` and the url
+- **cost:** no draw, triangle, texture, uniform or program; one hash cell and three octaves more per bare terrain fragment, every tier, gone past ~150 pits across the frame. phone near 84 draws / 0.94M, default 134 / 1.02M, far 113 / 1.45M; 0 errors
+- **tests:** `tread.test.ts`: the tread rides inside the one bare-ground block after the key, a pit is a stone with its slope inverted, it resolves at the yard's zoom and lets go before a wide frame, water stands only in a shower
+
 ## the sea takes the sun as a sea does — one statistical glint at every distance, and one panel row fewer
 
 the sea is four fifths of the wide frames, and the sun on it was a hand-tuned blinn-phong lobe: an exponent by the sun's height, a stretch along its bearing and an elevation envelope, all tuned to the ripple's resolved normals. at a wide frame the ripple had filtered to its mean, so the sun on the sea came down to a few sparks or nothing at all.

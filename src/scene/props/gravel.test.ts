@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { SCAPE_PALETTE } from '../config-palette.ts'
-import { GRAVEL_FRAGMENT, GRAVEL_PARS_FRAGMENT, STONE_RADIUS, bareness, stone } from './gravel.ts'
+import { GRAVEL_FRAGMENT, GRAVEL_PARS_FRAGMENT, STONE_RADIUS, stone } from './gravel.ts'
+import { bareness } from './tread.ts'
 
 
 const linear = (hex: number): [number, number, number] => {
