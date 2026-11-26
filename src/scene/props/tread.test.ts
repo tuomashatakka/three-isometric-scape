@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { GRAVEL_FRAGMENT, GRAVEL_PARS_FRAGMENT } from './gravel.ts'
 import { BARE_KEY_GLSL, DAMP_CELL, DAMP_REPEATS, TREAD_CELL, TREAD_FRAGMENT, TREAD_REPEATS, bareness } from './tread.ts'
 
+
 describe('tread', () => {
   it('rides inside the bare-ground block, after the one bareness key', () => {
     expect(GRAVEL_PARS_FRAGMENT).toContain(BARE_KEY_GLSL.trim())
