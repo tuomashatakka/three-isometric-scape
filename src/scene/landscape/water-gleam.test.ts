@@ -1,7 +1,12 @@
 import { describe, expect, test } from 'bun:test'
 import { MIRROR_DECK, MIRROR_RISE_FLOOR, mirrorReach } from '../cloud-shadow.ts'
 import {
+  GLINT_CHOP,
+  GLINT_NEAR_SHARE,
+  GLINT_SLICK,
   WATER_REFLECTION_FRAGMENT,
+  beckmann,
+  glintVariance,
   moonGlint,
   phosphorAmount,
   sunGlint,
@@ -122,5 +127,42 @@ describe('the sky in the water', () => {
     expect(sunGlint(water)).toBeCloseTo(0.25, 6)
     expect(moonGlint(water)).toBeCloseTo(5, 6)
     expect(sunGlint({ ...water, mirror: 0 })).toBe(0)
+  })
+})
+
+
+describe('the glint is a distribution', () => {
+  test('integrates to one over the hemisphere, so a rougher sea spreads the sun rather than brightening it', () => {
+    // ∫ D(h) cos h dω = 1 is what makes Beckmann a density of facets.
+    for (const variance of [ GLINT_SLICK, GLINT_CHOP, 0.02 ]) {
+      let sum = 0
+      const steps = 4000
+
+      for (let i = 0; i < steps; i++) {
+        const theta = (i + 0.5) / steps * Math.PI / 2
+        sum += beckmann(Math.cos(theta), variance) * Math.cos(theta) * Math.sin(theta) * 2 * Math.PI * (Math.PI / 2 / steps)
+      }
+
+      expect(sum).toBeCloseTo(1, 2)
+    }
+  })
+
+  test('carries the whole variance from the archipelago and only the unresolved share up close', () => {
+    expect(glintVariance(1, 1000)).toBeCloseTo(GLINT_CHOP, 6)
+    expect(glintVariance(0, 1000)).toBeCloseTo(GLINT_SLICK, 6)
+    expect(glintVariance(1, 5)).toBeCloseTo(GLINT_CHOP * GLINT_NEAR_SHARE, 6)
+
+    for (let metres = 5; metres < 400; metres += 5)
+      expect(glintVariance(0.5, metres + 5)).toBeGreaterThanOrEqual(glintVariance(0.5, metres))
+  })
+
+  test('the chop widens the sun and dims its peak', () => {
+    expect(beckmann(1, GLINT_CHOP)).toBeLessThan(beckmann(1, GLINT_SLICK))
+    expect(beckmann(Math.cos(0.25), GLINT_CHOP)).toBeGreaterThan(beckmann(Math.cos(0.25), GLINT_SLICK))
+  })
+
+  test('the fragment carries the twin\'s constants and no hand-tuned lobe', () => {
+    expect(WATER_REFLECTION_FRAGMENT).toContain(GLINT_CHOP.toFixed(3))
+    expect(WATER_REFLECTION_FRAGMENT).not.toContain('exponent')
   })
 })
