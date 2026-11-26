@@ -2,6 +2,16 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the sea takes the sun as a sea does — one statistical glint at every distance, and one panel row fewer
+
+the sea is four fifths of the wide frames, and the sun on it was a hand-tuned blinn-phong lobe: an exponent by the sun's height, a stretch along its bearing and an elevation envelope, all tuned to the ripple's resolved normals. at a wide frame the ripple had filtered to its mean, so the sun on the sea came down to a few sparks or nothing at all.
+
+- **cox–munk glint** ([`landscape/water-gleam.ts`](src/scene/landscape/water-gleam.ts)): a beckmann facet density over the half-vector with the measured slope variance of a calm to fresh sea (`GLINT_SLICK` 0.012 → `GLINT_CHOP` 0.04 on `seaChop`), radiance `D·F/(4·N·V)`. the exponent, the bearing stretch, the elevation envelope and `KEY_GLITTER` are deleted
+- **lean in one line** (`glintVariance`): the lobe carries only the slopes the ripple map does not resolve in this frame, 0.3 of them close in and all of them past 160 m, plus most of the swell's tilt at a wide frame (`GLINT_SWELL_SPREAD`). close in, the sun breaks into scales. from the archipelago, a broad sheen toward the sun, broken by the cloud shadows (the `far` frame's upper right on both tiers)
+- **the panel: one row fewer.** *pixel ratio* goes: the tier decides it (`main.ts`), so `runtime.pixelRatio` stays a config leaf for `--set` and `?ratio=`
+- **cost:** no draw, triangle, texture, uniform or program. the glint is an `exp` and a `pow` in place of a `pow` and a stretch. phone near 84 draws / 0.94M, default 134 / 1.02M, far 113 / 1.45M; desktop near 216 / 4.97M, default 150 / 2.50M; 0 errors
+- **tests:** `water-gleam.test.ts`: the density integrates to one over the hemisphere, the wide frame carries the whole variance and the near frame only the unresolved share, the chop widens and dims the sun, and the fragment carries no hand-tuned exponent
+
 ## the lens stops shooting a model — the depth of field goes, the frame comes sharp, the bow leaves the sea, and one panel row fewer
 
 the desktop `near` frame was still a tilt-shift photograph: six runs had narrowed the lens's defocus (a disc that closed with the frame, a focal plane off the depth, three pixels instead of five) and every one still left the sheep and wall stones along the bottom of the yard soft — the loudest miniature tell there is. and the `default`, `noon` and opening frames, where the camera stands over the cloud deck, had a spectrum arch painted over the sea like a decal on a map.

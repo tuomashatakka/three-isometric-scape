@@ -83,12 +83,11 @@ export function moonGlint (water: GlintConfig): number {
  * and this is a mirror image of a disc, and there is no adaptation anywhere in
  * this pipeline to stand in for a pupil that has been open for an hour.
  *
- * **Not clamped at a full sun, and that is measured rather than assumed.** At
- * this camera the glitter term is worth about nineteen levels out of 255 at its
- * own maximum — the lobe is a mirror lobe, the fresnel at an isometric tilt is
- * a tenth, and the elevation envelope takes half of what is left — so a budget
- * that stops at 1 stops at a sheen. A night sea has no bright water to blow
- * out, which is the whole reason the ceiling was there.
+ * **Not clamped at a full sun.** The glint is a facet density times a Fresnel
+ * of a few per cent (see {@link beckmann}), so a budget that stops at 1 stops
+ * at a sheen; a night sea has no bright water to blow out, which is the whole
+ * reason a ceiling would be there. The pixel's own ceiling is
+ * {@link GLINT_CEILING}.
  *
  * Daylight is untouched at any setting of it — at noon `moon` is zero by
  * construction, so the sun's own path is exactly the path it always was.
@@ -185,17 +184,59 @@ export const WATER_PHOSPHOR_FRAGMENT = /* glsl */`
  * can never mirror a sky the reader is not looking at.
  */
 /**
- * How hard the key light's own reflection is laid over the sea.
+ * The sea's slopes, as a distribution rather than as a lobe.
  *
- * Above one deliberately: every factor in the glitter term is a fraction, and
- * six of them multiplied together land well under what the eye reads as a sun
- * on water, even once the lobe is wide enough to exist at all.
+ * The glitter was Blinn-Phong with an exponent picked by hand, stretched along
+ * the sun's bearing by hand and given an elevation envelope by hand — three
+ * guesses at what a wind-roughened surface does. Cox and Munk measured it from
+ * aircraft in 1954: the sea's slopes are near-Gaussian with a variance that
+ * rises with the wind, about `0.003 + 0.00512 U` at a wind of `U` m/s, and a
+ * slick (an oil or plankton film) damps it to under half. So the sun on the sea
+ * is a Beckmann distribution of facets with that variance, and the long path a
+ * low sun lays and the small spot a high one does fall out of it — no envelope.
  *
- * `SUN_GLITTER` until the lobe was allowed to fire at night. What is at the far
- * end of it is whichever body `keyPlace` put the light on, so the name it had
- * was true of the only hours it was ever switched on rather than of the term.
+ * And the variance is shared between the map and the lobe. Close in, the ripple
+ * normal already tilts each pixel — those slopes are resolved, and the lobe must
+ * only carry what is under a pixel, so the sun breaks into scales. From the
+ * archipelago the ripple has filtered to its mean and every slope is under the
+ * pixel, so the whole variance goes into the lobe and the sun lies on the sea
+ * as the broad sheen an aerial photograph shows (LEAN mapping, in one line).
  */
-const KEY_GLITTER = 2.6
+export const GLINT_SLICK = 0.012
+export const GLINT_CHOP  = 0.04
+
+/** The frame widths (metres) over which the ripple's slopes pass from the map into the lobe. */
+export const GLINT_RESOLVED: readonly [number, number] = [ 14, 160 ]
+
+/** The lobe's share of the variance in a frame that resolves the ripple. */
+export const GLINT_NEAR_SHARE = 0.3
+
+/** How much of the swell's tilt the wide frame's glint spreads into the lobe rather than draws. */
+export const GLINT_SWELL_SPREAD = 0.75
+
+/** The brightest a glint pixel is allowed, in units of the key light: no single facet blows out. */
+export const GLINT_CEILING = 3
+
+const smooth01 = (low: number, high: number, value: number): number => {
+  const t = Math.min(1, Math.max(0, (value - low) / (high - low)))
+
+  return t * t * (3 - 2 * t)
+}
+
+/** The slope variance the lobe carries for a chop 0..1 in a frame `metres` wide — the glsl's twin. */
+export function glintVariance (chop: number, metres: number): number {
+  const total = GLINT_SLICK + (GLINT_CHOP - GLINT_SLICK) * Math.min(1, Math.max(0, chop))
+  const share = GLINT_NEAR_SHARE + (1 - GLINT_NEAR_SHARE) * smooth01(GLINT_RESOLVED[0], GLINT_RESOLVED[1], metres)
+
+  return total * share
+}
+
+/** Beckmann's facet density for a half-vector at `cosH` to the normal, slope variance `variance`. */
+export function beckmann (cosH: number, variance: number): number {
+  const c2 = Math.max(cosH * cosH, 1e-6)
+
+  return Math.exp((c2 - 1) / (c2 * variance)) / (Math.PI * variance * c2 * c2)
+}
 
 export const WATER_REFLECTION_FRAGMENT = /* glsl */`
   {
@@ -238,113 +279,40 @@ export const WATER_REFLECTION_FRAGMENT = /* glsl */`
 
     outgoingLight = mix(outgoingLight, sky, clamp(mirror, 0.0, 0.82));
 
-    // The key light's glitter path. A low body over water lays a bright,
-    // wind-stretched
-    // highlight from the horizon toward the viewer — the single most
-    // recognisable thing about water at golden hour. The perturbed ripple
-    // normal from WATER_NORMAL_FRAGMENT is already in scope, and so are
-    // waterDepth, iceCover and openWater from the colour fragments.
-    //
-    // The lobe is Blinn-Phong: reflect the view about the ripple normal and
-    // test against the sun. The exponent tracks sun elevation inversely — low
-    // sun widens the lobe into a long streak, high sun tightens it to a disc.
-    // The two-noise-field glint from the albedo is recomputed at the same UV
-    // scale so the sun catches the same facets the ambient sparkle already
-    // lights, and the product of lobe × noise is near zero almost everywhere:
-    // only a scatter of isolated facets fires, which is how a glitter path
-    // actually reads from any orbit angle.
-    float sunElev = uSunDir.y;
-    if (sunElev > 0.01 && uTrack > 0.01) {
-      // The sun has to be brought into the space the normal is already in.
-      // normal and vViewPosition in a standard-material fragment are VIEW
-      // space; uSunDir is copied straight off the daylight sample and is
-      // WORLD space. Building a half-vector out of one of each compares two
-      // directions that do not live in the same room, so the lobe was tested
-      // against a bearing that meant nothing and never fired — which is why the
-      // fresnel half of this chunk worked and the sun half did not: that half
-      // is view-space throughout and never had to cross.
-      //
-      // A direction transforms by the rotation alone, so the upper 3x3 of
-      // viewMatrix is the whole conversion. Elevation stays read off the
-      // world vector, because "how high is the sun" is a fact about the sky
-      // rather than about where the reader happens to be standing.
+    // The key light's glint: Cox–Munk facets, a Beckmann density over the
+    // half-vector with the slope variance the ripple map does not already
+    // resolve in this frame (see \`glintVariance\`). The radiance is the
+    // microfacet one, D·F/(4·N·V), with Fresnel at the half-angle; the long path
+    // of a low sun and the small spot of a high one are the distribution's, not
+    // an envelope's.
+    if (uSunDir.y > 0.01 && uTrack > 0.01) {
+      // The sun into the view space the normal lives in (a direction turns by
+      // the rotation alone); uSunDir is world space.
       vec3 sunView = normalize(mat3(viewMatrix) * uSunDir);
       vec3 halfVec = normalize(viewDir + sunView);
-      float NdotH  = max(dot(normal, halfVec), 0.0);
+      float wide   = smoothstep(${GLINT_RESOLVED[0].toFixed(1)}, ${GLINT_RESOLVED[1].toFixed(1)}, scapeFrameMetres());
+      // The swell's facets are resolved geometry, but its trains are regular:
+      // a lobe tight on them rules the wide sheen into stripes. From the
+      // archipelago most of the swell's tilt goes into the spread instead.
+      vec3 glintNormal = normalize(mix(normalize(normal), deckNormal, wide * ${GLINT_SWELL_SPREAD.toFixed(2)}));
+      float cosH   = max(dot(glintNormal, halfVec), 1e-3);
+      float slopes = mix(${GLINT_SLICK.toFixed(3)}, ${GLINT_CHOP.toFixed(3)}, seaChop) * mix(${GLINT_NEAR_SHARE.toFixed(2)}, 1.0, wide);
+      float c2     = cosH * cosH;
+      float facets = exp((c2 - 1.0) / (c2 * slopes)) / (3.14159 * slopes * c2 * c2);
+      float fH     = 0.02 + 0.98 * pow(1.0 - max(dot(viewDir, halfVec), 0.0), 5.0);
+      float glint  = min(facets * fH / (4.0 * max(facing, 0.1)), ${GLINT_CEILING.toFixed(1)});
 
-      // Tight highlight. Low sun → lower exponent → wider lobe → longer
-      // glitter path. High sun → higher exponent → small bright disc. The
-      // 128/512 range keeps the path visible from golden hour through noon.
-      // A rippled sea is not polished metal. 128 to 512 is a mirror exponent —
-      // it holds the whole lobe within a couple of degrees of the exact mirror
-      // direction, which a surface this broken almost never presents. The ripple
-      // normal already supplies the variation, so the lobe wants to be wide
-      // enough that a patch of sea can actually hold it.
-      float exponent = mix(24.0, 120.0, smoothstep(0.0, 0.5, sunElev));
-      float spec = pow(NdotH, exponent);
-
-      // Stretch the lobe along the sun's horizontal azimuth when the sun is
-      // low. The glitter path is narrow cross-path but long along-path,
-      // because the angle of incidence varies slowly along the sun's bearing
-      // and rapidly across it. Projecting the half-vector onto the water
-      // surface and measuring its alignment with the sun's horizontal
-      // direction gives this stretch for free.
-      vec2 sunHoriz = sunView.xz;
-      float sunLen  = length(sunHoriz);
-      if (sunLen > 0.001) {
-        vec2 sunAz  = sunHoriz / sunLen;
-        float align = abs(dot(normalize(halfVec.xz + 0.0001), sunAz));
-        // At the horizon the stretch is full; overhead it vanishes and the
-        // lobe is round — which is exactly the difference between a path and
-        // a spot.
-        spec *= mix(1.0, mix(0.35, 1.0, align), smoothstep(0.35, 0.0, sunElev));
-      }
-
-      // Same two-noise-field glint the albedo uses: the product is near zero
-      // almost everywhere and spikes where both crests coincide, which is how
-      // glints are actually distributed on water — isolated, and never a
-      // pattern you can read. The UV scale matches the albedo sparkle so the
-      // sun catches the same facets.
+      // Two noise fields at the sparkle's scale break the near glint into the
+      // scales the ripple's crests catch; once those are under the pixel they
+      // are their own mean, and the wide frame keeps the sheen whole.
       vec2 sparkUv = vWaterGround * uSparkleScale;
-      float gA = texture2D(uRippleMap, sparkUv + uRippleOffset * 2.1).r;
-      float gB = texture2D(uRippleMap, sparkUv * 1.37 - uRippleOffset * 1.63).r;
-      float facet = pow(clamp(gA * gB * 1.42, 0.0, 1.0), 5.0);
+      float gA     = texture2D(uRippleMap, sparkUv + uRippleOffset * 2.1).r;
+      float gB     = texture2D(uRippleMap, sparkUv * 1.37 - uRippleOffset * 1.63).r;
+      float broken = mix(mix(0.35, 1.0, pow(clamp(gA * gB * 1.42, 0.0, 1.0), 5.0)), 1.0, wide);
 
-      // Elevation envelope: the path is brightest near the horizon where the
-      // geometry stretches the reflection across a long band of water, and
-      // fades to a small bright disc when the sun is overhead. The 0.1 floor
-      // keeps a visible spot at zenith. uTrack is what the body at the far end
-      // of the lobe is worth this hour, and it is what used to kill the whole
-      // term at night: a moon and a sun subtend the same half-degree, so the
-      // lobe itself needed nothing — only a term in front of it above zero.
-      // The facet field BREAKS THE HIGHLIGHT UP — it does not gate it. Multiplying
-      // directly is what made this invisible: the glitter field is near zero
-      // almost everywhere by construction (that is what makes the ambient glint
-      // read as isolated sparks rather than a sheet), and a 512-exponent lobe is
-      // near zero everywhere but the exact mirror. Two sparse masks multiplied
-      // together essentially never coincide, so the product was zero across the
-      // whole sea. Mixed instead, it does the job it was wanted for: the path stays
-      // continuous and the facets modulate it into scales rather than a smear.
-      float broken = mix(0.35, 1.0, facet);
-
-      // A low sun lays a long path and an overhead sun a small bright spot, so
-      // this favours the low end — but it never reaches zero, because a midday
-      // sun on water still has a highlight, and killing it outright was the
-      // second reason nothing showed.
-      float elevScale = mix(0.45, 1.0, smoothstep(0.45, 0.02, sunElev));
-
-      // Additive: the sun's own specular reflection is light arriving at the
-      // eye, separate from the ambient sky the fresnel already mixed in.
-      // Fresnel makes it stronger at grazing angles, which is correct — the
-      // glitter path is brightest where the sea is most mirror-like. openWater
-      // keeps it off dry land; ice scatters rather than mirrors.
-      //
-      // And cloudShade, which is where a cloud shadow on water is most obvious
-      // rather than least: this term is the brightest thing in the frame, and
-      // a glitter path that went on burning through the shadow crossing it
-      // would be the sea reflecting a sun that is not shining on it.
-      outgoingLight += uTrackColor * spec * broken * fresnel * elevScale * ${KEY_GLITTER.toFixed(2)} *
-        uTrack * openWater * (1.0 - iceCover) * cloudShade;
+      // Light arriving at the eye, so added after the mirror; never on ice or
+      // dry land, and never through a cloud's shadow.
+      outgoingLight += uTrackColor * glint * broken * uTrack * openWater * (1.0 - iceCover) * cloudShade;
     }
 
 ${WATER_PHOSPHOR_FRAGMENT}

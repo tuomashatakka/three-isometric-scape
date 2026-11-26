@@ -519,7 +519,7 @@ scripts/
 
 one `createApp` render loop; the post module is the only frame renderer. teardown releases geometries, materials, sky, mist, cloud-shadow and bathymetry textures, composer targets, and fullscreen passes.
 
-**the default pixel ratio is 1.0 on every tier that is actually detected.** this scape is drawn through a per-pixel post chain — bloom, god rays, the lens pass — so a retina desktop at 1.75 pays roughly three times the fill to sharpen an image whose whole look is soft focus and grain. `runtime.pixelRatio` in the overlay raises it when the point is a crisp still rather than a smooth scape.
+**the default pixel ratio is 1.0 on every tier that is actually detected.** this scape is drawn through a per-pixel post chain — bloom, god rays, the lens pass — so a retina desktop at 1.75 pays roughly three times the fill to sharpen an image whose whole look is soft focus and grain. `runtime.pixelRatio` (a config leaf, `--set` and `?ratio=`) raises it when the point is a crisp still rather than a smooth scape; the panel no longer has a row for it, because the tier decides it and nobody turns it as a look.
 
 the `ultra` tier adds screen-space reflections on the lake, anamorphic streaks and a traa resolve; it is only selected for a wide viewport on a many-core machine with a mouse.
 
@@ -705,6 +705,14 @@ it rides the hemisphere term every program already evaluates, so it is on every 
 `white-balance.test.ts` states the claim. a white card at a summer noon prints at least 1.5 × (1 − `ADAPT_DAY`) nearer neutral than the raw light. no hour moves its luminance. an evening card stays warm (r/b > 1.15) and a night card stays cold (r/b < 0.9).
 
 **cost.** no draws, triangles, programs, textures or uniforms; a dozen multiplies per `sample`, twice a frame. census identical to main: mobile default 139 / 0.95M, near 87 / 0.90M, far 115 / 1.38M, night 146, winter 145; desktop default 162 / 2.31M, near 222 / 4.82M.
+
+## the sun on the sea is a distribution
+
+the sea's glitter was a blinn-phong lobe with a hand-picked exponent (24 to 120 by the sun's height), stretched along the sun's bearing by hand and scaled by a hand-made elevation envelope, with `KEY_GLITTER` 2.6 over it all. from the archipelago it was a few sparks or nothing: the lobe was tuned to the ripple's resolved normals, and at a wide frame the ripple has filtered to its mean.
+
+- **cox–munk facets** ([`landscape/water-gleam.ts`](src/scene/landscape/water-gleam.ts)): the glint is a beckmann density over the half-vector, `D·F/(4·N·V)` with fresnel at the half-angle, under a ceiling of `GLINT_CEILING` (3) times the key light. the slope variance runs from `GLINT_SLICK` (0.012) on a slick to `GLINT_CHOP` (0.04) on the chop, the measured range of a calm sea and a fresh breeze. the long path of a low sun and the small spot of a high one come out of the distribution, not out of an envelope.
+- **the variance is shared between the map and the lobe** (`glintVariance`, lean mapping in one line). close in, the ripple normal already resolves most of the slopes, so the lobe carries `GLINT_NEAR_SHARE` (0.3) and the sun breaks into scales. past `GLINT_RESOLVED` (14 to 160 m of frame) the whole variance moves into the lobe. most of the swell's tilt goes into it as well (`GLINT_SWELL_SPREAD`), because a regular swell train under a tight lobe rules the sheen into stripes. the wide frames get the broad sheen aerial photographs show toward the sun.
+- `water-gleam.test.ts` states the claims. the density integrates to one, so a rougher sea spreads the sun rather than brightening it. the wide frame carries the whole variance, and the near frame carries only the unresolved share. the chop widens the sun and dims its peak.
 
 ## blue in the air and the water
 
@@ -3912,7 +3920,7 @@ it times nothing itself. [`vitals.ts`](src/scene/vitals.ts) has been measuring t
 
 ### the performance section
 
-three knobs applied live by [`runtime.ts`](src/scene/runtime.ts): pixel ratio, frame cap, and how often the shadow map is rebuilt.
+three knobs applied live by [`runtime.ts`](src/scene/runtime.ts): pixel ratio, frame cap, and how often the shadow map is rebuilt. only the frame cap is a panel row; the ratio and the cadence are the tier's and live on as config leaves.
 
 the last is the one worth explaining. three rebuilds the entire shadow depth pass — terrain, merged steading, every scattered instance — on **every frame it draws**, at up to 4096². nothing here moves fast enough to need that: the sun crosses the sky over minutes and the foliage sway is a slow shader animation. `runtime.ts` takes `shadowMap.autoUpdate` off the renderer and hands the map out on a cadence instead, and `atmosphere.ts` only fits the sun's frustum on the frames the map is actually rebuilt on.
 
