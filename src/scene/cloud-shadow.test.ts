@@ -139,14 +139,16 @@ describe('the lookup itself', () => {
    * there is one cut and one field: the deck draws \`scapeCloudField\` itself,
    * which is the follow-up the two bakes left open, closed.
    */
-  test('the deck draws the field the shadow is cut from', () => {
+  test('the deck draws the field the shadow is cut from, at the shadow\'s own cut', () => {
     const deck = readFileSync(new URL('clouds.ts', import.meta.url).pathname, 'utf8')
 
     expect(CLOUD_SHADOW_GLSL).toContain(`${CLOUD_CUT.toFixed(2)} - spread`)
     expect(CLOUD_SHADOW_GLSL).toContain(`${(CLOUD_CUT + CLOUD_EDGE).toFixed(2)} + spread`)
     expect(CLOUD_SHADOW_GLSL).toContain('scapeCloudField(ground)')
     expect(deck).toContain('CLOUD_SHADOW_GLSL')
-    expect(deck).not.toContain('CLOUD_CUT')
+    expect(deck).toContain('scapeCloudRaw(at)')
+    expect(deck).toContain("import { CLOUD_CUT, CLOUD_SHADOW_GLSL } from './cloud-shadow.ts'")
+    expect(deck).not.toMatch(/CLOUD_CUT\s*=/)
   })
 
   /**
