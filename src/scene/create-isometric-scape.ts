@@ -265,7 +265,7 @@ function hangSkies (
 ): ScapeModule[] {
   return [
     unless(skip, 'mist', () => createMistLayer({ camera, config, quality, daylight, textures, wind })),
-    unless(skip, 'clouds', () => createCloudLayer({ camera, config, daylight, shadow })),
+    unless(skip, 'clouds', () => createCloudLayer({ camera, config, daylight, shadow, billows: textures.get('water.wave') })),
     unless(skip, 'aurora', () => createAuroraLayer({ camera, config, quality, daylight })),
     unless(skip, 'nightsky', () => createNightSky({ camera, config, quality, daylight })),
   ].filter((module): module is ScapeModule => module !== null)

@@ -698,7 +698,7 @@ a level ground of albedo `a` under sky irradiance `E_sky` and a key at sine-of-h
 
 - **a is the ground as it lies** — `palette.meadow` blended to `palette.snow` by the season's cover (`SNOW_SHARE` 0.85 at full cover). a sunlit snowfield lights every eave, bough underside and shaded wall from below; a green summer does not.
 - **lit is the ground the key reaches** — the cloud shadow's mean darkness (`cloudCover × cloudShadow`) takes its cut, so broken sun warms the floor and overcast leaves the sky-lit ground alone.
-- **the indirect-light row** (`look.ao`) scales the key's share beside the sky occlusion; at zero the floor is the sky-lit ground and nothing else.
+- **`look.ao`** (a config leaf since the cumulus run; the panel row went) scales the key's share beside the sky occlusion; at zero the floor is the sky-lit ground and nothing else.
 
 it rides the hemisphere term every program already evaluates, so it is on every tier at no shader cost — and the directional light it replaced is out of every lit program. measured on the phone: the snowy noon yard 86.7 → 87.8 mean luminance (12.7% of pixels moved, all shaded faces over snow), the green noon yard 66.8 → 65.0 (the anti-sun lamp had been lighting the far side of every roof), the tour frames within a point of where they were.
 - `palette.sky` moved from 0x98a9b4 to 0x9eaab0. the blue it had been given to fight the olive cast is now the balance's to give.
@@ -825,6 +825,18 @@ from the archipelago frame the whole picture was grey. the culprit was found by 
 - **the sea mirrors the sky along the reflected ray.** [`landscape/water-gleam.ts`](src/scene/landscape/water-gleam.ts) reflects the eye about the normal the swell and the ripple have bent, takes the ray to world space, and reads the dome by how high it climbs and the cloud where it meets a base `MIRROR_DECK` (90 m) up. a degree of ripple tilt drags the image metres along the ray, so a cloud's reflection is broken into the wind's streaks; the reflection lies displaced from the shadow, as a mirror displaces it. the old `skyChop` dome guess is gone; a rough patch still mirrors less (`SKY_CHOP_GAIN_GLSL`) and higher.
 
 **the panel, two rows and a section fewer.** *the sky in the water · sea, glitter, tarns* (`water.mirror`) turns the sea's mirror, the sun's glitter (`sunGlint` = `water.sparkle` × mirror), the moon's track (a share of the glitter) and the tarns' polish (`tarn.mirror` × mirror). *glitter · sun and moon* and *the tarns* are config leaves now; *running water* joined the sea, and *fresh water* is gone.
+
+## cumulus from above: the deck is heaped, and has an edge
+
+at the archipelago frame the camera has climbed past the deck, and there the deck read the weather bank alone (the cloud map repeats too often to show, so `scapeCloudKeep` is zero): every cloud was a smooth field cut with a wide soft edge, a grey felt laid over half the sea. a cumulus seen from above is heaped — cells a few hundred metres across with turrets on them — and its edge is crisp, because the droplets end where the rising air does.
+
+- **billows at two scales** ([`clouds.ts`](src/scene/clouds.ts)): the sea's `water.wave` map (height in red, its own slope in green and blue) read at a 340 m cell and a 117 m turret, riding the cloud's drift, moves the field the cut is taken on (`BILLOW_WIDE` 0.34 in the wide frame, `BILLOW_NEAR` 0.16 where the cloud map resolves). two fetches; mipmapped, so a turret the frame cannot resolve averages away rather than to grit.
+- **an edge.** the deck cuts at the shadow's `CLOUD_CUT` over `DECK_EDGE` 0.12, not the shadow's soft 0.22-plus-spread, so the cloud has an edge and its shadow keeps a penumbra.
+- **relief and occlusion.** the billows' slope heaps turrets on the broad facet the sun lights; the hollows between them hold shade (light that went in came out of a neighbour); the core is opaque (`DECK_ALPHA` 0.9) and the fringe keeps `DECK_FRINGE` 0.45 of it.
+
+the shadow on the ground is unchanged: it is the field cast from 34 m, and soft is what it should be.
+
+**the panel, one row fewer.** *indirect light* goes: occlusion and ground bounce are the light of the place, measured at one. `look.ao` stays a config leaf.
 
 ## the sea reads as water
 

@@ -2,6 +2,16 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the clouds get a heap and an edge — cumulus seen from above at the archipelago zoom, and one panel row fewer
+
+the deck is half the `default` frame, and there it read the weather bank alone (`scapeCloudKeep` is zero at that width), cut with a wide soft edge: every cloud was grey felt over half the sea, and the ground under it showed through a 0.74 veil.
+
+- **billows** ([`clouds.ts`](src/scene/clouds.ts)): the sea's slope-carrying `water.wave` map at a 340 m cell and a 117 m turret, riding the cloud's drift, heaps the field the cut is taken on (`BILLOW_WIDE`/`BILLOW_NEAR`) and tilts the facet the sun lights (`BILLOW_RELIEF`); the hollows hold shade
+- **an edge** (`DECK_EDGE` 0.12 on the shadow's `CLOUD_CUT`), an opaque core (`DECK_ALPHA` 0.74 → 0.9) and a thin fringe (`DECK_FRINGE`); fair-weather cumulus with the sea between them, on every tier that draws the deck. the shadows on the ground are unchanged
+- **the panel: one row fewer.** *indirect light* goes; `look.ao` stays a config leaf. the optics section is the camera alone
+- **cost:** no draw, triangle, program or texture (the wave map is shared); two texture fetches per deck fragment, only once the camera has climbed past the deck. phone default 134 draws / 1.02M, far 113 / 1.45M; desktop default 150 / 2.50M; 0 errors
+- **tests:** `clouds.test.ts`: two billow scales off a slope-carrying map, an edge narrower than the shadow's, billows that move the edge most in the wide frame, and no change to the cover where the billows do not lean
+
 ## the air stands between the camera and the ground — the archipelago frame loses its spotlight, and one panel row fewer
 
 the haze was the ground distance from the focus, so every wide frame had a clear disc in the middle and a milky rim: the far shores were grey felt and the open sea a pale plate. zeroing the water's own light showed it (a black sea at the centre, a bright one at the rim).
