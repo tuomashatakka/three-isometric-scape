@@ -35,7 +35,7 @@ describe('ground bounce', () => {
     expect(luma(floor({ keyHeight: -0.3 }))).toBeCloseTo(luma(floor({ keyHeight: 0 })), 6)
   })
 
-  test('the indirect-light row at zero leaves the sky-lit ground alone', () => {
+  test('look.ao at zero leaves the sky-lit ground alone', () => {
     expect(luma(floor({ bounce: 0 }))).toBeCloseTo(luma(floor({ keyHeight: 0 })), 6)
     expect(luma(floor({ bounce: 2 }))).toBeGreaterThan(luma(floor()))
   })

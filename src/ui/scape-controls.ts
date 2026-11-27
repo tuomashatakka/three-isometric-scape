@@ -168,10 +168,11 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         // (`gradeAmount` and `glareAmount` in film.ts): \`look.intensity\` is
         // the grade and \`look.glare\` the bloom, streak and the rays through
         // the deck at a full camera — config leaves for \`--set\` and the url.
+        // The light that arrives second-hand — the sky a neighbour hides and the
+        // sunlit ground lighting every face from below (\`ground-bounce.ts\`) —
+        // is the light of the place, not a look: \`look.ao\` is a config leaf
+        // for \`--set\` and the url, measured at one and left there.
         toggled('camera', range('look.lens', 'grade, glare, fringe, halation, grain', 0, 2, 0.01), 1),
-        // The light that arrives second-hand: the sky a neighbour hides, and the
-        // sunlit ground (or snow) lighting every face from below (\`ground-bounce.ts\`).
-        toggled('indirect light', range('look.ao', 'occlusion and ground bounce', 0, 2, 0.01), 1),
       ],
     },
     {

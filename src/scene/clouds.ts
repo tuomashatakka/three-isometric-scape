@@ -1,7 +1,7 @@
 import { Color, DoubleSide, Mesh, PlaneGeometry, ShaderMaterial, Vector3 } from 'three'
-import type { IUniform, OrthographicCamera } from 'three'
+import type { IUniform, OrthographicCamera, Texture } from 'three'
 import { defineModule, smoothstep } from 'threejs-scene'
-import { CLOUD_SHADOW_GLSL } from './cloud-shadow.ts'
+import { CLOUD_CUT, CLOUD_SHADOW_GLSL } from './cloud-shadow.ts'
 import type { CloudShadow } from './cloud-shadow.ts'
 import type { LiveConfig, ScapeConfig, ScapeModule } from './config.ts'
 import type { DaylightState } from './daylight.ts'
@@ -22,10 +22,17 @@ export interface CloudOptions {
    * field at the cloud's own place, so there is one cloud and not two.
    */
   shadow: CloudShadow
+
+  /**
+   * A tiling height map with its own slope in green and blue (the sea's
+   * `water.wave`): the billows a cumulus top is heaped of, read at two
+   * scales. Shared, not owned — the catalogue frees it.
+   */
+  billows: Texture
 }
 
 /** The most of the frame a cloud's core hides, at full cover. Its thin edge lets the sea through. */
-export const DECK_ALPHA = 0.74
+export const DECK_ALPHA = 0.9
 
 /**
  * The tone of a cloud's sunlit side and its lee, as gains on the sky's own
@@ -48,6 +55,45 @@ export const TOP_STEP = 40
 /** Where a cloud's edge is cut, on the cut field: thinner than this is clear sky. */
 const EDGE_CUT = 0.04
 
+/**
+ * The billows a top is heaped of, as the metres one tile of the billow map
+ * spans: a cumulus cell, and the turrets on it.
+ *
+ * The deck read the shadow's field and nothing else, and in the frames that
+ * show it — the archipelago, where the camera has climbed past it — that field
+ * is the weather bank alone (`scapeCloudKeep` is zero there: the cloud map
+ * repeats too often to show). So every cloud the default frame drew was the
+ * bank cut with a wide soft edge: felt, with no edge a photograph of a cumulus
+ * from above ever shows. A real top is heaped: cells a few hundred metres
+ * across, turrets on them, and an edge that is crisp because the droplets end
+ * where the rising air does.
+ */
+export const BILLOW_TILES = [ 340, 117 ] as const
+
+/** The share of each billow scale in the heap. */
+const BILLOW_MIX = [ 0.64, 0.36 ] as const
+
+/**
+ * How far the billows move the field the cut is taken on: the edge's
+ * cauliflower. More in the wide frame, where the field under it is the smooth
+ * bank alone; less where the cloud map's own detail is resolved.
+ */
+export const BILLOW_WIDE = 0.34
+export const BILLOW_NEAR = 0.16
+
+/**
+ * The field's width over which a cloud's edge goes from clear sky to body: a
+ * twelfth of the shadow's own soft edge, so the deck has an edge and its shadow
+ * on the ground keeps the penumbra a shadow cast from 34 m has.
+ */
+export const DECK_EDGE = 0.12
+
+/** The share of the core's opacity a cloud's thin fringe keeps. */
+export const DECK_FRINGE = 0.45
+
+/** How much one unit of billow slope tilts the top's facet: the turrets' relief. */
+const BILLOW_RELIEF = [ 4.5, 3.0 ] as const
+
 /** How far past the world the deck runs, as a multiple of the world's width. */
 const DECK_REACH = 4.4
 
@@ -61,6 +107,18 @@ const WHITE = new Color('#ffffff')
  */
 export function deckAlpha (field: number, cover: number, reveal: number): number {
   return smoothstep(EDGE_CUT, 0.6, field) * Math.min(1, cover * 1.2) * reveal * DECK_ALPHA
+}
+
+/**
+ * The deck's body, 0..1, for the raw field, the heap of billows on it
+ * (`billow`, centred on zero) and how much of the cloud map the frame resolves
+ * (`keep`): the glsl's twin. The cut is the shadow's, the edge a twelfth as
+ * wide.
+ */
+export function deckBody (raw: number, billow: number, keep: number): number {
+  const heap = raw + (BILLOW_WIDE + (BILLOW_NEAR - BILLOW_WIDE) * keep) * billow
+
+  return smoothstep(CLOUD_CUT, CLOUD_CUT + DECK_EDGE, heap)
 }
 
 /**
@@ -82,8 +140,11 @@ const DECK_VERTEX = /* glsl */`
   }
 `
 
+const tiles = BILLOW_TILES.map(t => (1 / t).toFixed(6))
+
 const DECK_FRAGMENT = /* glsl */`
 ${CLOUD_SHADOW_GLSL}
+  uniform sampler2D uBillowMap;
   uniform vec3 uLit;
   uniform vec3 uShade;
   uniform vec3 uSunDir;
@@ -93,19 +154,31 @@ ${CLOUD_SHADOW_GLSL}
   void main () {
     // The cloud at its own place: the shadow's lookup is the cloud upsun of the
     // ground, so the throw is added back to find the cloud over this point.
-    vec2 at    = vDeckWorld.xz + uCloudThrow;
-    float raw  = scapeCloudRaw(at);
-    float body = scapeCloudCut(raw);
+    vec2 at   = vDeckWorld.xz + uCloudThrow;
+    float raw = scapeCloudRaw(at);
+
+    // The heap: two scales of billow riding the cloud's own drift (the offset
+    // is the drift less the throw, in tiles of the cloud map; \`at\` already
+    // carries the throw back). Mipmapped, so a turret the frame cannot resolve
+    // averages to nothing rather than to grit.
+    vec2 drift   = at + uCloudOffset / uCloudScale;
+    vec4 cell    = texture2D(uBillowMap, drift * ${tiles[0]});
+    vec4 turret  = texture2D(uBillowMap, drift * ${tiles[1]} + vec2(0.37, 0.71));
+    float billow = 2.0 * (${BILLOW_MIX[0].toFixed(2)} * cell.r + ${BILLOW_MIX[1].toFixed(2)} * turret.r - 0.5);
+    float heap   = raw + mix(${BILLOW_WIDE.toFixed(2)}, ${BILLOW_NEAR.toFixed(2)}, scapeCloudKeep()) * billow;
+    float body   = smoothstep(${CLOUD_CUT.toFixed(2)}, ${(CLOUD_CUT + DECK_EDGE).toFixed(2)}, heap);
     if (body < ${EDGE_CUT.toFixed(2)}) discard;
 
-    // The top's height is the raw field, which keeps rising inside the cut
-    // where the cut field is a plateau; its slope, two reads a step apart, is
-    // the facet the sun lights. Two reads rather than the screen's
-    // derivatives: those are taken over a pixel quad, and on a field this
-    // minified they stipple the deck into grit.
+    // The top's height is the raw field, which keeps rising inside the cut;
+    // its slope, two reads a step apart, is the broad facet the sun lights, and
+    // the billows' own slope (the map carries it in green and blue) heaps the
+    // turrets on it. No screen derivatives: taken over a pixel quad, on a field
+    // this minified they stipple the deck into grit.
     float hx    = scapeCloudRaw(at + vec2(${TOP_STEP.toFixed(1)}, 0.0)) - raw;
     float hz    = scapeCloudRaw(at + vec2(0.0, ${TOP_STEP.toFixed(1)})) - raw;
-    vec2 slope  = vec2(hx, hz) * ${(TOP_RELIEF / TOP_STEP).toFixed(2)};
+    vec2 slope  = vec2(hx, hz) * ${(TOP_RELIEF / TOP_STEP).toFixed(2)}
+                + (cell.gb - 0.5) * ${BILLOW_RELIEF[0].toFixed(2)}
+                + (turret.gb - 0.5) * ${BILLOW_RELIEF[1].toFixed(2)};
     vec3 n      = normalize(vec3(-slope.x, 1.0, -slope.y));
 
     // Lit on the facets turned to the sun, wrapped round the curve because a
@@ -115,12 +188,16 @@ ${CLOUD_SHADOW_GLSL}
 
     // A thick core is brighter from above than a thin edge — more of the light
     // that went in comes back out of the top — and the edge shows the grey of
-    // the cloud's own underside through it.
-    float depth  = smoothstep(0.0, 0.8, body);
-    float lit    = wrap * mix(0.72, 1.0, depth);
+    // the cloud's own underside through it. The hollows between turrets hold
+    // shade: light that went into them came out of a neighbour's side.
+    float depth  = smoothstep(${CLOUD_CUT.toFixed(2)}, ${(CLOUD_CUT + 0.3).toFixed(2)}, heap);
+    float hollow = smoothstep(-0.7, 0.5, billow);
+    float lit    = wrap * mix(0.6, 1.0, depth) * mix(0.55, 1.0, hollow);
     vec3 colour  = mix(uShade, uLit, lit);
 
-    gl_FragColor = vec4(colour, smoothstep(${EDGE_CUT.toFixed(2)}, 0.6, body) * uDeckAlpha);
+    // Thin at the fringe, opaque in the core: a cumulus a few hundred metres
+    // deep hides the sea under it; only its last wisps let it through.
+    gl_FragColor = vec4(colour, body * mix(${DECK_FRINGE.toFixed(2)}, 1.0, depth) * uDeckAlpha);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }
@@ -145,7 +222,7 @@ ${CLOUD_SHADOW_GLSL}
  * in, the camera stands under it and an overhead sheet could only cover the
  * picture.
  */
-export function createCloudLayer ({ camera, config, daylight, shadow }: CloudOptions): ScapeModule {
+export function createCloudLayer ({ camera, config, daylight, shadow, billows }: CloudOptions): ScapeModule {
   const size     = config().archipelago.worldSize * DECK_REACH
   const geometry = new PlaneGeometry(size, size)
   const tint     = new Color()
@@ -159,7 +236,7 @@ export function createCloudLayer ({ camera, config, daylight, shadow }: CloudOpt
     name:           'cloud-deck',
     vertexShader:   DECK_VERTEX,
     fragmentShader: DECK_FRAGMENT,
-    uniforms:       { ...shadow.uniforms, uLit: lit, uShade: shade, uSunDir: sunDir, uDeckAlpha: opacity },
+    uniforms:       { ...shadow.uniforms, uBillowMap: { value: billows }, uLit: lit, uShade: shade, uSunDir: sunDir, uDeckAlpha: opacity },
     transparent:    true,
     depthWrite:     false,
     side:           DoubleSide,
@@ -215,5 +292,5 @@ export function createCloudLayer ({ camera, config, daylight, shadow }: CloudOpt
 // perf: one unlit transparent quad, drawn only once the camera has climbed past
 // it, reading the shadow's own map and uniforms (three raw field reads a
 // fragment — here and a step east and north — each the shadow's untiled
-// lookup and the bank; one more than the flat deck's two). No bake, no texture of its
-// own; per frame two colours, a direction and an alpha.
+// lookup and the bank) and two billow fetches off the sea's shared wave map.
+// No bake, no texture of its own; per frame two colours, a direction and an alpha.

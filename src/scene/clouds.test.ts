@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
-import { DECK_ALPHA, deckAlpha, topLight } from './clouds.ts'
+import { CLOUD_CUT, CLOUD_EDGE } from './cloud-shadow.ts'
+import { BILLOW_NEAR, BILLOW_TILES, BILLOW_WIDE, DECK_ALPHA, DECK_EDGE, deckAlpha, deckBody, topLight } from './clouds.ts'
 
 
 describe('the cloud deck', () => {
@@ -39,5 +40,32 @@ describe('the cloud deck', () => {
   test('the relief is read off the raw field, two reads a step apart, and no screen derivative', () => {
     expect(source).toContain('scapeCloudRaw(at + vec2(')
     expect(source).not.toMatch(/dFd[xy]\(/)
+  })
+
+  test('a top is heaped of billows at two scales, a cumulus cell and its turrets, read off a slope-carrying map', () => {
+    expect(BILLOW_TILES[0]).toBeGreaterThan(BILLOW_TILES[1] * 2)
+    expect(source).toContain('uBillowMap')
+    expect(source).toContain('cell.gb')
+    expect(source).toContain('turret.gb')
+  })
+
+  test('the deck has an edge: clear to body over a sixth of the shadow\'s soft edge', () => {
+    expect(DECK_EDGE).toBeLessThan(CLOUD_EDGE)
+    expect(deckBody(CLOUD_CUT - 0.01, 0, 0)).toBe(0)
+    expect(deckBody(CLOUD_CUT + DECK_EDGE, 0, 0)).toBe(1)
+  })
+
+  test('the billows move the edge most in the wide frame, where the field under them is the smooth bank alone', () => {
+    expect(BILLOW_WIDE).toBeGreaterThan(BILLOW_NEAR)
+
+    const raw = CLOUD_CUT + DECK_EDGE / 2
+    expect(deckBody(raw, -0.3, 0)).toBe(0)
+    expect(deckBody(raw, 0.3, 0)).toBe(1)
+    expect(deckBody(raw, -0.3, 1)).toBeGreaterThan(deckBody(raw, -0.3, 0))
+  })
+
+  test('billows with no lean leave the cover where the shadow\'s field put it', () => {
+    for (const raw of [ 0.2, 0.5, 0.6, 0.9 ])
+      expect(deckBody(raw, 0, 0.5) > 0.5).toBe(raw > CLOUD_CUT + DECK_EDGE / 2)
   })
 })
