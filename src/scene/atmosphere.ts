@@ -18,7 +18,7 @@ import type {
 import { defineModule } from 'threejs-scene'
 import type { SceneContext } from 'threejs-scene'
 import { standardLighting } from 'threejs-scene/modules/lighting'
-import { airHaze, groundFogAmount, hazeRange, installAerialPerspective, packFogFar, packFogNear, seaSmokeShare } from './aerial.ts'
+import { airHaze, groundFogAmount, hazeExtinction, installAerialPerspective, packFogFar, packFogNear, seaSmokeShare } from './aerial.ts'
 import { haarAmount } from './haar.ts'
 import { seaSmokeAmount, snowAmount } from './season.ts'
 import { groundBounce } from './ground-bounce.ts'
@@ -435,7 +435,7 @@ export function createAtmosphereLayer ({
       Math.sin(elapsed * 0.041) * 0.6 +
       Math.sin(elapsed * 0.017) * 0.4
     ) * config().atmosphere.fogBreath
-    const range = hazeRange(airHaze(config().atmosphere.fogDensity, config().atmosphere.mistAmount), breath, MAX_FOG)
+    const extinction = hazeExtinction(airHaze(config().atmosphere.fogDensity, config().atmosphere.mistAmount), breath, MAX_FOG)
 
     // `near` is not a distance here: the aerial chunk reads it as the ground
     // fog's optical depth with the night bank in its fraction, and the clear
@@ -446,7 +446,7 @@ export function createAtmosphereLayer ({
     // The sea smoke rides the extinction length's fraction: the same fog on
     // the ground as the mist, decided by the year — the water steams in the
     // weeks it is open under a winter sky. See `seaSmoke` in `aerial.ts`.
-    fog.far  = packFogFar(range.far, seaSmokeShare(seaSmokeAmount(config().season.time), config().atmosphere.mistAmount))
+    fog.far  = packFogFar(extinction, seaSmokeShare(seaSmokeAmount(config().season.time), config().atmosphere.mistAmount))
     scatter()
 
     if (!rig)

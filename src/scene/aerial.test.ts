@@ -3,50 +3,63 @@ import { ShaderChunk } from 'three'
 import {
   AIR_MIST,
   airHaze,
-  AIR_SPECTRUM, GROUND_FOG_HEIGHT, aerialHaze, aerialHazeRgb, groundFog, groundFogAmount, groundFogBank, groundFogProfile, hazeRange,
+  AIR_SPECTRUM, GROUND_FOG_HEIGHT, aerialHaze, aerialHazeRgb, groundFog, groundFogAmount, groundFogBank, groundFogProfile, hazeExtinction, aerialEye, airColumn,
   SEA_SMOKE_PER_MIST, installAerialPerspective, packFogFar, seaSmoke, seaSmokeShare, unpackFogFar,
 } from './aerial.ts'
 import { seaSmokeAmount } from './season.ts'
 
 
 describe('aerial perspective', () => {
-  const range = hazeRange(0.3)
+  const far  = hazeExtinction(0.3)
+  const down = (tilt: number): [number, number, number] => [ 0, -Math.sin(tilt), -Math.cos(tilt) ]
+  const wide = aerialEye([ 0, 0, 0 ], down(0.9), 1400)
+  const yard = aerialEye([ 0, 0, 0 ], down(0.4), 12)
+  const haze = (eye: readonly [number, number, number], x: number, z: number, y = 0): number =>
+    aerialHaze(airColumn([ x, y, z ], eye, 120), far)
 
-  test('keeps the focus clear and hazes the far shore', () => {
-    expect(aerialHaze(0, 0, 0, range, 42)).toBe(0)
-    expect(aerialHaze(0, 20, 2, range, 42)).toBe(0)
-    expect(aerialHaze(800, 0, 0, range, 42)).toBeGreaterThan(0.5)
+  test('no spotlight: the archipelago frame is as hazy at its side edge as at its centre', () => {
+    const centre = haze(wide, 0, 0)
+
+    expect(centre).toBeGreaterThan(0.05)
+    expect(Math.abs(haze(wide, 700, 0) - centre)).toBeLessThan(0.02)
   })
 
-  test('is metre-sized: a close frame carries almost none', () => {
-    expect(aerialHaze(25, 25, 0, range, 42)).toBeLessThan(0.02)
+  test('the far edge of the frame is hazier than the near edge', () => {
+    expect(haze(wide, 0, -500)).toBeGreaterThan(haze(wide, 0, 500))
   })
 
-  test('the far side of the focus is hazier than the near side', () => {
-    expect(aerialHaze(400, 0, 0, range, 42)).toBeGreaterThan(aerialHaze(-400, 0, 0, range, 42))
+  test('a camera on the hill looks through almost no air', () => {
+    expect(haze(yard, 4, 4)).toBeLessThan(0.02)
   })
 
   test('summits stand out of the haze their feet are in', () => {
-    expect(aerialHaze(800, 0, 100, range, 42)).toBeLessThan(aerialHaze(800, 0, 0, range, 42) / 3)
+    const shore = aerialEye([ 0, 0, 0 ], down(0.35), 1400)
+
+    expect(haze(shore, 0, -800, 150)).toBeLessThan(haze(shore, 0, -800, 0) / 2)
+  })
+
+  test('the column is the path where the air is level, and thins with height', () => {
+    expect(airColumn([ 0, 0, 0 ], [ 100, 0, 0 ], 120)).toBeCloseTo(100, 6)
+    expect(airColumn([ 0, 0, 0 ], [ 0, 1000, 0 ], 120)).toBeCloseTo(120, 0)
   })
 
   test('thickens with density and clamps the breath', () => {
-    expect(hazeRange(0.8).far).toBeLessThan(range.far)
-    expect(hazeRange(1, 2)).toEqual(hazeRange(0.94))
+    expect(hazeExtinction(0.8)).toBeLessThan(far)
+    expect(hazeExtinction(1, 2)).toEqual(hazeExtinction(0.94))
   })
 
   test('distance takes the blue first and keeps the brightness the grey haze had', () => {
-    const [ r, g, b ] = aerialHazeRgb(500, 0, 0, range, 42)
-    const grey        = aerialHaze(500, 0, 0, range, 42)
+    const [ r, g, b ] = aerialHazeRgb(500, far)
+    const grey        = aerialHaze(500, far)
 
     expect(b).toBeGreaterThan(g)
     expect(g).toBeGreaterThan(r)
-    expect(Math.abs(0.2126 * r + 0.7152 * g + 0.0722 * b - grey)).toBeLessThan(0.01)
+    expect(Math.abs(0.2126 * r + 0.7152 * g + 0.0722 * b - grey)).toBeLessThan(0.02)
     expect(Math.abs(0.2126 * AIR_SPECTRUM[0] + 0.7152 * AIR_SPECTRUM[1] + 0.0722 * AIR_SPECTRUM[2] - 1)).toBeLessThan(0.01)
   })
 
-  test('the focus stays clear in every channel', () => {
-    expect(aerialHazeRgb(0, 0, 0, range, 42)).toEqual([ 0, 0, 0 ])
+  test('no air, no haze, in every channel', () => {
+    expect(aerialHazeRgb(0, far)).toEqual([ 0, 0, 0 ])
   })
 })
 

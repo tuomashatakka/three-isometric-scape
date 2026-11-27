@@ -235,9 +235,10 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
       group:    'ground & water',
       title:    'water',
       controls: [
-        // One row for the sky in every water: the sea's mirror and the clouds
-        // in it, the glitter of the sun and the moon, and the tarns' polish.
-        toggled('the sky in the water · sea, glitter, tarns', range('water.mirror', 'mirror', 0, 1.5, 0.01), 1),
+        // The sky in the water is Fresnel's, not a look: how much a surface
+        // mirrors at an angle is the index of water. \`water.mirror\` (the
+        // sea's mirror, the glitter and the tarns' polish at once) is a config
+        // leaf for \`--set\` and the url.
         // The wash rides the sea state (its run-up scales with the wave), so
         // \`swash.reach\` — Hunt's coefficient, physics — is a config leaf only.
         // A wake is the sea's answer to a hull, so it rides the sea state's row

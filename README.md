@@ -218,7 +218,7 @@ src/
 │   ├── scape-controls.ts           which config paths it exposes, in grouped sections
 │   └── settings-store.ts           local-storage snapshot of those same paths
 └── scene/
-    ├── aerial.ts                   aerial perspective: three's fog chunks, re-read as distance from the focus, thinning with height, blue first
+    ├── aerial.ts                   aerial perspective: three's fog chunks, re-read as the air column between the fragment and the eye, thinning with height, blue first
     ├── atmosphere.ts               gradient sky, the haze range, sun and fill rig
     ├── alpha-field.ts               the DataTexture the three sheet layers share
     ├── aurora.ts                   auroral veils over the dark half of the year
@@ -714,6 +714,16 @@ the sea's glitter was a blinn-phong lobe with a hand-picked exponent (24 to 120 
 - **cox–munk facets** ([`landscape/water-gleam.ts`](src/scene/landscape/water-gleam.ts)): the glint is a beckmann density over the half-vector, `D·F/(4·N·V)` with fresnel at the half-angle, under a ceiling of `GLINT_CEILING` (3) times the key light. the slope variance runs from `GLINT_SLICK` (0.012) on a slick to `GLINT_CHOP` (0.04) on the chop, the measured range of a calm sea and a fresh breeze. the long path of a low sun and the small spot of a high one come out of the distribution, not out of an envelope.
 - **the variance is shared between the map and the lobe** (`glintVariance`, lean mapping in one line). close in, the ripple normal already resolves most of the slopes, so the lobe carries `GLINT_NEAR_SHARE` (0.3) and the sun breaks into scales. past `GLINT_RESOLVED` (14 to 160 m of frame) the whole variance moves into the lobe. most of the swell's tilt goes into it as well (`GLINT_SWELL_SPREAD`), because a regular swell train under a tight lobe rules the sheen into stripes. the wide frames get the broad sheen aerial photographs show toward the sun.
 - `water-gleam.test.ts` states the claims. the density integrates to one, so a rougher sea spreads the sun rather than brightening it. the wide frame carries the whole variance, and the near frame carries only the unresolved share. the chop widens the sun and dims its peak.
+
+## the air stands between the camera and the ground
+
+the haze was the ground distance from the focus, as if someone stood at the middle of the frame and looked out. at the yard that is harmless: the far shore is out of the frame. at every frame that shows the archipelago it drew a **spotlight**: a clear disc at the centre and a milky rim, so the far shores came out as grey felt and the open sea as a pale plate. the find was an a/b with the water's own light zeroed (`outgoingLight = 0` after the reflection chunk). the sea at the frame's centre went black, and the edges stayed bright, so the haze was painting the rim.
+
+- **the eye stands somewhere for the air too.** [`aerial.ts`](src/scene/aerial.ts) puts the eye where the water's glint already stands it (`EYE_DISTANCE` frame widths back along the axis, [`frame.ts`](src/scene/frame.ts)). the optical depth is the path from the fragment to that eye through an atmosphere whose density falls off as `exp(-height / atmosphere.hazeHeight)` (`airColumn`). a wide frame is a camera far off and high, so it looks down through a near-even veil that deepens toward the frame's far edge, which is how an aerial photograph looks. a close frame is a camera on the hill, and the yard is clear without a radius compiled in to make it so.
+- **deleted:** the clear radius, the skew between the near and far side of the focus, `HazeRange` (now `hazeExtinction`, a number). `vAerial.x` is the air column in metres of sea-level air, and `.y` is spare.
+- **the panel: one row fewer.** *the sky in the water* goes: how much a surface mirrors at an angle is the index of water, Fresnel's and not a taste. `water.mirror` stays a config leaf for `--set` and the url.
+
+**cost.** no draw, triangle, texture, uniform or program. two `exp` per fogged vertex, in place of the ring's length. census unchanged: phone near 84 / 0.94M, default 134 / 1.02M, far 113 / 1.45M; desktop near 216 / 4.97M, default 150 / 2.50M.
 
 ## blue in the air and the water
 
