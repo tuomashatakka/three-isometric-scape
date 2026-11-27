@@ -2,6 +2,16 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the air stands between the camera and the ground — the archipelago frame loses its spotlight, and one panel row fewer
+
+the haze was the ground distance from the focus, so every wide frame had a clear disc in the middle and a milky rim: the far shores were grey felt and the open sea a pale plate. zeroing the water's own light showed it (a black sea at the centre, a bright one at the rim).
+
+- **the air column to the eye** ([`aerial.ts`](src/scene/aerial.ts), `airColumn`/`aerialEye`): the path from the fragment to the water's perspective eye (`EYE_DISTANCE` frame widths back) through an exponential atmosphere (`atmosphere.hazeHeight`). every fogged program, every tier, no new uniform. the far shores keep their olive and the open sea is blue to the frame's edge. the phone's noon frame went from luma 106 to 84, default 105 to 95, far 98 to 95. near is unchanged (60 → 61)
+- **deleted:** `CLEAR_RADIUS`, `AERIAL_SKEW`, `HazeRange`/`hazeRange` (now `hazeExtinction`)
+- **the panel: one row fewer.** *the sky in the water* goes (Fresnel is physics): `water.mirror` stays a config leaf
+- **cost:** no draw, triangle, texture, uniform or program; two `exp` per fogged vertex. phone near 84 draws / 0.94M, default 134 / 1.02M, far 113 / 1.45M; desktop near 216 / 4.97M, default 150 / 2.50M; 0 errors
+- **tests:** `aerial.test.ts`: no spotlight (the side edge as hazy as the centre), the far edge hazier than the near, the yard clear, summits out of their feet's haze, the column equals the path in level air and the scale height straight up
+
 ## the bare ground gets a body — trodden earth, damp hollows and stones that read at the yard zoom, and one panel row fewer
 
 the farmyard is most of the `near` frame, and it still printed as one beige: the gravel was there, but every stone took the soil's own lightness and the whole bare-ground key ran at about half strength in the yard (painting the key showed 0.4–0.6), so there was nothing at the half-metre a hoof, a boot or a puddle makes.
