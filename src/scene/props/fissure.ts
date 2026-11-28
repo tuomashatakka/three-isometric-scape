@@ -40,20 +40,25 @@ const unit = (x: number, y: number, z: number): [ number, number, number ] => {
   return [ x / l, y / l, z / l ]
 }
 
-/** Two sets, steep and nearly at right angles, as granite sheets and jointing break. */
+/**
+ * Two sets, steep and nearly at right angles, as granite sheets and jointing
+ * break — a metre and more apart, so a boulder carries two or three fractures
+ * and not a lattice. At half a metre with lit lips the sets drew a pale net
+ * over every stone in the `near` frame.
+ */
 export const JOINTS: readonly JointSet[] = [
-  { normal: unit(0.82, 0.24, 0.52), spacing: 0.46 },
-  { normal: unit(-0.5, 0.35, 0.79), spacing: 0.71 },
+  { normal: unit(0.82, 0.24, 0.52), spacing: 1.15 },
+  { normal: unit(-0.5, 0.35, 0.79), spacing: 1.7 },
 ]
 
 /** The open width of a fracture, as a share of its set's spacing (each side of the plane). */
-export const JOINT_WIDTH = 0.045
+export const JOINT_WIDTH = 0.016
 
 /** How far a fracture wanders off its plane, as a share of its spacing. */
 export const JOINT_WANDER = 0.16
 
 /** The share of a set's lengths that are open; the rest are tight and leave no line. */
-export const JOINT_OPEN = 0.62
+export const JOINT_OPEN = 0.5
 
 /** How dark the recess of an open fracture is. */
 export const JOINT_DARK = 0.72
@@ -144,13 +149,13 @@ export const FISSURE_GLSL = /* glsl */`
         // The recess, antialiased by its own width on screen; the lip, a band
         // twice as wide leaning toward the crack.
         vec2 jline = (1.0 - smoothstep(vec2(${f(JOINT_WIDTH)}), vec2(${f(JOINT_WIDTH)}) + jfw, abs(joff))) * jlive * jk;
-        vec2 jlip  = (1.0 - smoothstep(vec2(${f(JOINT_WIDTH)}), vec2(${f(JOINT_WIDTH * 3.5)}) + jfw, abs(joff))) * jlive * jk;
+        vec2 jlip  = (1.0 - smoothstep(vec2(${f(JOINT_WIDTH)}), vec2(${f(JOINT_WIDTH * 2.5)}) + jfw, abs(joff))) * jlive * jk;
 
         diffuseColor.rgb *= (1.0 - ${f(JOINT_DARK)} * jline.x) * (1.0 - ${f(JOINT_DARK)} * jline.y);
         roughnessFactor   = clamp(roughnessFactor + (jline.x + jline.y) * 0.15, 0.05, 1.0);
         vec3 jturn = ${v3(JOINTS[0].normal)} * sign(joff.x) * (jlip.x - jline.x) +
                      ${v3(JOINTS[1].normal)} * sign(joff.y) * (jlip.y - jline.y);
-        normal = normalize(normal + mat3(viewMatrix) * jturn * 1.1);
+        normal = normalize(normal + mat3(viewMatrix) * jturn * 0.7);
       }
 
       // Crystal: a tone per world cell, in its tails only, faded by its width on screen.

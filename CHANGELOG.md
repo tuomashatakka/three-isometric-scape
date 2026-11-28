@@ -2,6 +2,17 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## the stone stops wearing a net — moss in cushions, lichen in rosettes, joints a metre apart, on every rock on every island
+
+at the `near` frame every boulder, dyke course and crag face read as wrapped in camouflage netting. zeroing the joints showed the net was mostly the weathering: moss and lichen were two bands of the 1.5 m grit field, and a band of a fine noise is a contour line.
+
+- **moss** ([`props/weathering.ts`](src/scene/props/weathering.ts)): broad cushions on a smooth world field (`MOSS_PATCH` 0.9 m and a third of it, `scapeMottleNoise` in place) on the tops and the shaded faces, the grit only ragging the edge
+- **lichen**: one rosette per `ROSETTE_CELL` (0.34 m) of face, kept on a hash (`ROSETTE_SHARE` 0.55), placed and sized by hash inside `ROSETTE_MARGIN` of its cell — no search — orange in the splash zone, with a darker rim; each scale fades to its mean cover by its own screen width
+- **joints** ([`props/fissure.ts`](src/scene/props/fissure.ts)): sets at 1.15 m and 1.7 m (were 0.46/0.71), 1.6 cm open, half the lengths tight, a lower lip — a boulder carries two or three fractures
+- **refactor:** the weathering's dead `field` path (the grit as moss *and* lichen) is gone; one rag read feeds both edges
+- **cost:** no draw, triangle, texture, uniform or program; two value noises and a dozen ALU for the rosette per stone fragment, against one threshold path removed. phone near 84 draws / 0.94M, desktop near 102 / 2.61M (unchanged); 0 errors
+- **tests:** `weathering.test.ts`: no rosette reaches its cell's edge, the rosette cover is its share, the hashes are deterministic, and no growth thresholds the grit
+
 ## the clouds get a heap and an edge — cumulus seen from above at the archipelago zoom, and one panel row fewer
 
 the deck is half the `default` frame, and there it read the weather bank alone (`scapeCloudKeep` is zero at that width), cut with a wide soft edge: every cloud was grey felt over half the sea, and the ground under it showed through a 0.74 veil.
