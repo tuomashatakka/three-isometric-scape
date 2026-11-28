@@ -1,10 +1,18 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { CLOUD_CUT, CLOUD_EDGE } from './cloud-shadow.ts'
-import { BILLOW_NEAR, BILLOW_TILES, BILLOW_WIDE, DECK_ALPHA, DECK_EDGE, deckAlpha, deckBody, topLight } from './clouds.ts'
+import { BILLOW_NEAR, BILLOW_TILES, BILLOW_WIDE, DECK_ALPHA, DECK_EDGE, deckAlpha, deckBody, deckLift, topLight } from './clouds.ts'
+import { SCAPE_CONFIG } from './config.ts'
 
 
 describe('the cloud deck', () => {
+  test('no hill cuts it: its depth stands clear of the far shore\'s highest rise', () => {
+    const { atmosphere, farShore } = SCAPE_CONFIG
+    expect(atmosphere.cloudHeight + deckLift(atmosphere.cloudHeight, farShore.rise)).toBeGreaterThan(farShore.rise)
+    expect(deckLift(200, 100)).toBeGreaterThan(0)
+    expect(readFileSync(new URL('./clouds.ts', import.meta.url), 'utf8')).toContain('projectionMatrix[2][3] == 0.0')
+  })
+
   const source = readFileSync(new URL('clouds.ts', import.meta.url).pathname, 'utf8')
 
   test('draws the shadow\'s own field at the cloud\'s place, with no bake of its own', () => {

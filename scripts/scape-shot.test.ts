@@ -90,10 +90,10 @@ describe('STILL covers everything the overlay can animate', () => {
   })
 
   test('every amplitude that gates motion is stopped', () => {
-    for (const path of GATES_MOTION) {
-      expect(live).toContain(path)
+    // `wind.strength` left the panel for the sea-state row (the wind rests at
+    // it times `water.state`), so the still zeroes the leaf under that row.
+    for (const path of GATES_MOTION)
       expect(stillPaths.has(path)).toBe(true)
-    }
   })
 })
 

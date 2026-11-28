@@ -131,11 +131,35 @@ export function topLight (facing: number): number {
   return Math.min(1, Math.max(0, (facing + TOP_WRAP) / (1 + TOP_WRAP)))
 }
 
+/**
+ * How far the deck's *depth* stands above its height, in metres: enough that
+ * no hill reaches it. The deck sat at `atmosphere.cloudHeight` (34 m, the
+ * height its shadow is thrown from) and the far shore's hinterland climbs past
+ * twice that, so the land cut the sheet along its own 34 m contour — a white
+ * rim traced round every far coast in the archipelago frames, the cloud gone
+ * over every hill behind it. An orthographic frame cannot see how far along
+ * its axis a sheet lies, so the deck slides toward the camera by the lift over
+ * the axis' sine: every pixel stays where it was and nothing stands in front
+ * of it. A perspective camera would see the slide, and keeps the sheet where
+ * it is.
+ */
+export function deckLift (cloudHeight: number, hills: number): number {
+  return Math.max(0, hills - cloudHeight) + DECK_CLEARANCE
+}
+
+/** Metres the lifted deck stands clear of the highest hill. */
+const DECK_CLEARANCE = 8
+
 const DECK_VERTEX = /* glsl */`
+  uniform float uDeckLift;
   varying vec3 vDeckWorld;
   void main () {
     vec4 world  = modelMatrix * vec4(position, 1.0);
     vDeckWorld  = world.xyz;
+    if (projectionMatrix[2][3] == 0.0) {
+      vec3 forward = -vec3(viewMatrix[0][2], viewMatrix[1][2], viewMatrix[2][2]);
+      world.xyz   -= forward * (uDeckLift / max(-forward.y, 0.05));
+    }
     gl_Position = projectionMatrix * viewMatrix * world;
   }
 `
@@ -231,12 +255,13 @@ export function createCloudLayer ({ camera, config, daylight, shadow, billows }:
   const shade: IUniform<Color>    = { value: new Color() }
   const sunDir: IUniform<Vector3> = { value: new Vector3(0, 1, 0) }
   const opacity: IUniform<number> = { value: 0 }
+  const lift: IUniform<number>    = { value: deckLift(config().atmosphere.cloudHeight, config().farShore.rise) }
 
   const material = new ShaderMaterial({
     name:           'cloud-deck',
     vertexShader:   DECK_VERTEX,
     fragmentShader: DECK_FRAGMENT,
-    uniforms:       { ...shadow.uniforms, uBillowMap: { value: billows }, uLit: lit, uShade: shade, uSunDir: sunDir, uDeckAlpha: opacity },
+    uniforms:       { ...shadow.uniforms, uBillowMap: { value: billows }, uLit: lit, uShade: shade, uSunDir: sunDir, uDeckAlpha: opacity, uDeckLift: lift },
     transparent:    true,
     depthWrite:     false,
     side:           DoubleSide,

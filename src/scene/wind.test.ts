@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import type { FrameContext, SceneContext } from 'threejs-scene'
 import { SCAPE_CONFIG } from './config.ts'
 import type { ScapeConfig } from './config.ts'
-import { createWind, gustAmount, veerAmount } from './wind.ts'
+import { createWind, gustAmount, restingWind, veerAmount } from './wind.ts'
 
 
 /** The module hooks ignore the scene entirely, so there is nothing to stub. */
@@ -139,5 +139,14 @@ describe('the one wind', () => {
 
     expect(state.phase).toBeGreaterThanOrEqual(0)
     expect(state.phase).toBeLessThan(1)
+  })
+})
+
+describe('the wind follows the sea state', () => {
+  test('a calm sea is a calm day, the authored sea the authored wind, a gale twice it', () => {
+    expect(restingWind(0.9, 0)).toBe(0)
+    expect(restingWind(0.9, 1)).toBeCloseTo(0.9, 12)
+    expect(restingWind(0.9, 2)).toBeCloseTo(1.8, 12)
+    expect(restingWind(0, 2)).toBe(0)
   })
 })

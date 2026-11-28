@@ -37,7 +37,7 @@ export interface WindState {
   dirX: number
   dirZ: number
 
-  /** The authored strength, before the gust. */
+  /** The resting strength, before the gust: `wind.strength` times the sea state (see {@link restingWind}). */
   base: number
 
   /** How far into a gust the front currently is, 0..1. */
@@ -123,6 +123,20 @@ export function veerAmount (phase: number): number {
 }
 
 /**
+ * The wind at rest, for the authored strength and the sea state.
+ *
+ * The panel had a row for the wind and a row for the sea, and the sea is what
+ * the wind raises: a gale over a glassy sound, or a calm over whitecaps, is
+ * the one combination nobody turning two knobs meant. So the sea state is the
+ * weather's strength and the wind follows it — 0 is a flat calm (no wind, no
+ * swell), 1 the wind as authored, 2 a gale's. `wind.strength` stays a config
+ * leaf: the place's own breeziness, and what a still zeroes.
+ */
+export function restingWind (strength: number, seaState: number): number {
+  return Math.max(0, strength) * Math.max(0, seaState)
+}
+
+/**
  * One wind for the whole scape.
  *
  * Mounted before the landscape, so the instant every other module reads has
@@ -151,7 +165,7 @@ export function createWind (config: LiveConfig): Wind {
 
     state.phase    = wrapped
     state.gust     = gust
-    state.base     = Math.max(0, wind.strength)
+    state.base     = restingWind(wind.strength, config().water.state)
     state.strength = state.base * (1 + gust * wind.gust)
     state.bearing  = bearing
     state.dirX     = Math.cos(bearing)
