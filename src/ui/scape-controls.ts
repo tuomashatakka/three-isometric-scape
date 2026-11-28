@@ -229,7 +229,6 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         // steam off the open water in the weeks of the year it has.
         toggled('air · haze, ground mist, sea smoke, night bank', range('atmosphere.mistAmount', 'density', 0, 1, 0.01), 0.34),
         toggled('night sky · stars, aurora, moonlight', range('atmosphere.starlight', 'starlight', 0, 1.5, 0.01, quality.starCount > 0 || quality.auroraLayers > 0), 0.85),
-        range('wind.strength', 'wind', 0, 3, 0.01),
       ],
     },
     {
@@ -245,7 +244,10 @@ export function createScapeControls (quality: AtmosphereQuality): ControlSection
         // A wake is the sea's answer to a hull, so it rides the sea state's row
         // (\`water.ts\` scales it by the state up to 1): \`water.wakeStrength\`
         // is a config leaf for \`--set\` and the url.
-        range('water.state', 'sea state · swell, surf, caps, wash', 0, 2, 0.01),
+        // One weather: the wind rests at \`wind.strength\` times the sea state
+        // (`restingWind` in wind.ts), so the row that raises the sea raises the
+        // wind that made it — \`wind.strength\` is a config leaf.
+        range('water.state', 'wind & sea · gusts, swell, surf, caps, wash', 0, 2, 0.01),
         // The tide's spring range and the beck's flow are the place's
         // hydrology — a range in metres, a speed in metres a second — not a
         // look anyone turns: \`tide.range\` and \`beck.flow\` are config

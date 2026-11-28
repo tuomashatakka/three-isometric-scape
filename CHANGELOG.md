@@ -2,6 +2,15 @@
 
 one entry per [scene enhancement run](instructions.md), newest first. a run is one theme, so an entry is one headline plus what it cost.
 
+## one weather from the shore to the hills — the deck passes over the far coast, and the wind and the sea are one row
+
+in the `default` frame every far coast wore a white rim of cloud with clear land behind it: the deck is a sheet 34 m up, the hinterland climbs to 83 m, and the depth test cut the sheet along the land's 34 m contour. zeroing knobs put it on the deck (mist off: still there; deck hidden: gone).
+
+- **the deck clears the hills** ([`clouds.ts`](src/scene/clouds.ts), `deckLift`): in an orthographic frame the sheet slides toward the camera along the view axis by the far shore's rise less the cloud height (plus 8 m), so every pixel stays put and nothing stands in front of it. the cloud now runs on over the hinterland as it does over the sea. its shadow and its mirror are unchanged; a perspective camera keeps the sheet where it is
+- **the panel: one row fewer.** *wind* goes into *wind & sea · gusts, swell, surf, caps, wash*: the wind rests at `wind.strength` × `water.state` (`restingWind`, [`wind.ts`](src/scene/wind.ts)). at state 1 nothing moves; `wind.strength` stays a config leaf, and still the one `STILL` zeroes
+- **cost:** no draw, triangle, texture or program; one uniform and a few vertex instructions on the deck's two triangles. phone near 84 draws / 0.94M, default 134 / 1.02M, far 113 / 1.45M (unchanged); 0 errors
+- **tests:** `clouds.test.ts`: the deck's depth clears the far shore's rise, and the slide is orthographic only; `wind.test.ts`: a calm sea is a calm day and a gale doubles the wind
+
 ## the stone stops wearing a net — moss in cushions, lichen in rosettes, joints a metre apart, on every rock on every island
 
 at the `near` frame every boulder, dyke course and crag face read as wrapped in camouflage netting. zeroing the joints showed the net was mostly the weathering: moss and lichen were two bands of the 1.5 m grit field, and a band of a fine noise is a contour line.
